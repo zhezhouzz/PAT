@@ -1,10 +1,50 @@
 open Language
 
 type sregex = Nt.t sevent raw_regex
-type 'a sgoal = Gamma.gamma * 'a
+(* type 'a sgoal = Gamma.gamma * 'a *)
 
 open Gamma
 open Zdatatype
+open Plan
+
+module PG = struct
+  type t = plan_elem list
+
+  let print_preserve_goals pg =
+    Pp.printf "@{<bold>preserve_goals:@}\n";
+    List.iter (fun c -> Pp.printf "Preserved Goal: %s\n" (layout_elem c)) pg
+
+  (* let mk_preserve_subgoal plan = gather_actions plan *)
+
+  let remove_preserve_subgoal elem pg =
+    let pg' = List.filter (fun elem' -> not (equal_plan_elem elem elem')) pg in
+    if List.length pg != List.length pg' + 1 then _die [%here] else pg'
+
+  let in_preserve_subgoal elem = List.exists (equal_plan_elem elem)
+
+  let concat pg1 pg2 =
+    let pg1 =
+      List.filter (fun elem -> not (in_preserve_subgoal elem pg2)) pg1
+    in
+    pg1 @ pg2
+
+  (* let sanity_check plan pg = *)
+  (*   let pg' = mk_preserve_subgoal plan in *)
+  (*   List.for_all (fun elem -> in_preserve_subgoal elem pg) pg' *)
+end
+
+type mid_plan_goal = {
+  gamma : gamma;
+  pre : plan;
+  mid : plan_elem;
+  post : plan;
+  pg : plan;
+}
+
+type plan_goal = { gamma : gamma; plan : plan; pg : plan }
+
+(* let sanity_check_mid_plan_goal { pg; pre; mid; post; _ } = *)
+(*   PG.sanity_check (pre @ [ mid ] @ post) pg *)
 
 let simp_print_gamma_judgement { bvs; bprop } =
   Pp.printf "@{<bold>@{<red>Γ:@} %s |@} %s\n"
@@ -20,33 +60,55 @@ let simp_print_mid_judgement (pre, cur, post) =
   Pp.printf "@{<bold>[@} %s @{<bold>]@}\n %s\n@{<bold>[@} %s @{<bold>]@}\n\n"
     (omit_layout pre) (layout_elem cur) (omit_layout post)
 
-let simp_print_back_judgement (gamma, plan) =
+let simp_print_plan_judgement plan =
+  let open Plan in
+  Pp.printf "@{<bold>[@} %s @{<bold>]@}\n\n" (omit_layout plan)
+
+let simp_print_back_judgement { gamma; pre; mid; post; pg } =
   Pp.printf "@{<bold>@{<yellow>Backword:@}@}\n";
   simp_print_gamma_judgement gamma;
-  simp_print_mid_judgement plan
+  PG.print_preserve_goals pg;
+  simp_print_mid_judgement (pre, mid, post)
 
-let simp_print_goal_judgement (gamma, plan) =
+let simp_print_mid { gamma; pre; mid; post; pg } =
   simp_print_gamma_judgement gamma;
-  simp_print_mid_judgement plan
+  PG.print_preserve_goals pg;
+  simp_print_mid_judgement (pre, mid, post)
 
-let simp_print_forward_judgement (gamma, plan) =
+let simp_print_forward_judgement { gamma; pre; mid; post; pg } =
   Pp.printf "@{<bold>@{<yellow>Forward:@}@}\n";
   simp_print_gamma_judgement gamma;
-  simp_print_mid_judgement plan
+  PG.print_preserve_goals pg;
+  simp_print_mid_judgement (pre, mid, post)
 
-let simp_print_syn_judgement (gamma, reg) =
+let simp_print_syn_judgement { gamma; plan; pg } =
   Pp.printf "@{<bold>@{<yellow>Synthesis:@}@}\n";
   simp_print_gamma_judgement gamma;
-  Pp.printf "%s\n" (Plan.omit_layout reg)
+  PG.print_preserve_goals pg;
+  simp_print_plan_judgement plan
 
-let simp_print_opt_plan_judgement (gamma1, plan1) m (gamma2, plan2) =
+let simp_print_opt_judgement p1 m p2 =
   Pp.printf "@{<bold>@{<yellow>Optimize:@}@}\n";
-  simp_print_gamma_judgement gamma1;
-  simp_print_mid_judgement plan1;
+  p1 ();
   Pp.printf "@{<yellow>Map:@} %s\n"
     (List.split_by "; " (fun (x, y) -> spf "%s --> %s" x y.x) m);
-  simp_print_gamma_judgement gamma2;
-  simp_print_mid_judgement plan2
+  p2 ()
+
+(* let simp_print_opt_args_judgement args1 m args2 = *)
+(*   Pp.printf "@{<bold>@{<yellow>Optimize:@}@}\n"; *)
+(*   ; *)
+(*   Pp.printf "@{<yellow>Map:@} %s\n" *)
+(*     (List.split_by "; " (fun (x, y) -> spf "%s --> %s" x y.x) m); *)
+(*   simp_print_mid g2 *)
+
+(* let simp_print_opt_plan_judgement (gamma1, plan1) m (gamma2, plan2) = *)
+(*   Pp.printf "@{<bold>@{<yellow>Optimize:@}@}\n"; *)
+(*   simp_print_gamma_judgement gamma1; *)
+(*   simp_print_mid_judgement plan1; *)
+(*   Pp.printf "@{<yellow>Map:@} %s\n" *)
+(*     (List.split_by "; " (fun (x, y) -> spf "%s --> %s" x y.x) m); *)
+(*   simp_print_gamma_judgement gamma2; *)
+(*   simp_print_mid_judgement plan2 *)
 
 let simp_print_instantiation gamma (gamma', plan) =
   Pp.printf "@{<bold>@{<yellow>Instantiation:@} With@}\n";
@@ -110,3 +172,13 @@ let clearn_trace trace =
       | Star _ -> None
       | _ -> _die [%here])
     trace
+
+let backtrack f l =
+  List.fold_left
+    (fun res x ->
+      match res with
+      | Some _ -> res
+      | None ->
+          (* let () = _die_with [%here] "backtrack fail" in *)
+          f x)
+    None l

@@ -9,6 +9,7 @@
   abduction
   feature
   optimize
+  norm
   refine
   mkTerm
   synthesis

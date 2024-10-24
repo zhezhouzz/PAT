@@ -3,6 +3,31 @@ open Common
 open Gamma
 open AutomataLibrary
 
+let eliminate_buffer_elem ({ bvs; bprop }, elem) =
+  match elem with
+  | PlanActBuffer { op; args; phi } ->
+      let elem = PlanAct { op; args } in
+      let bprop = smart_add_to phi bprop in
+      ({ bvs; bprop }, elem)
+  | _ as elem -> ({ bvs; bprop }, elem)
+
+let eliminate_buffer_plan_aux (gamma, plan) =
+  List.fold_left
+    (fun (gamma, plan) elem ->
+      let gamma, elem = eliminate_buffer_elem (gamma, elem) in
+      (gamma, plan @ [ elem ]))
+    (gamma, []) plan
+
+let eliminate_buffer_plan_goal { gamma; plan; pg } =
+  let gamma, plan = eliminate_buffer_plan_aux (gamma, plan) in
+  { gamma; plan; pg }
+
+let eliminate_buffer_plan_mid_goal { gamma; pre; mid; post; pg } =
+  let gamma, pre = eliminate_buffer_plan_aux (gamma, pre) in
+  let gamma, mid = eliminate_buffer_elem (gamma, mid) in
+  let gamma, post = eliminate_buffer_plan_aux (gamma, post) in
+  { gamma; pre; mid; post; pg }
+
 let lit_to_equation = function
   | AAppOp (op, [ a; b ]) when String.equal eq_op op.x ->
       if is_var_c a.x && is_var_c b.x then Some (a.x, b.x) else None
@@ -48,32 +73,40 @@ let eq_in_prop_to_subst_map { bvs; bprop } =
   let bprop = simpl_eq_in_prop prop in
   ({ bvs; bprop }, m)
 
-let optimize_back_goal ((gamma, (a, b, c)) as goal) args =
+let optimize_back_goal_aux { gamma; pre; mid; post; pg } =
   let gamma = Gamma.simplify gamma in
   let gamma, m = eq_in_prop_to_subst_map gamma in
-  let a, c = map2 (msubst Plan.subst_plan m) (a, c) in
-  let b = msubst Plan.subst_elem m b in
-  let goal' = (gamma, (a, b, c)) in
+  let pre, post = map2 (msubst Plan.subst_plan m) (pre, post) in
+  let mid = msubst Plan.subst_elem m mid in
+  let pg = List.map (msubst Plan.subst_elem m) pg in
+  let goal' = { gamma; pre; mid; post; pg } in
+  (m, goal')
+
+let optimize_goal { gamma; plan; pg } =
+  let gamma = Gamma.simplify gamma in
+  let gamma, m = eq_in_prop_to_subst_map gamma in
+  let pg = List.map (msubst Plan.subst_elem m) pg in
+  { gamma; plan = msubst Plan.subst_plan m plan; pg }
+
+let optimize_back_goal goal =
+  let m, goal' = optimize_back_goal_aux goal in
+  let p goal () = simp_print_mid goal in
+  let () = simp_print_opt_judgement (p goal) m (p goal') in
+  goal'
+
+let optimize_back_goal_with_args goal args =
+  let m, goal' = optimize_back_goal_aux goal in
   let args' =
     List.filter
       (fun x -> not (List.exists (fun (y, _) -> String.equal x.x y) m))
       args
   in
-  let () = simp_print_opt_plan_judgement goal m goal' in
-  (* let () = *)
-  (*   Printf.printf "Optimize:\n (%s)\n" (layout_qvs args); *)
-  (*   layout_syn_back_judgement goal; *)
-  (*   Printf.printf "==>\n (%s) \n" (layout_qvs args'); *)
-  (*   layout_syn_back_judgement goal' *)
-  (* in *)
-  (args', goal')
+  let p goal () = simp_print_mid goal in
+  let () = simp_print_opt_judgement (p goal) m (p goal') in
+  (goal', args')
 
-let optimize_back_goal_also_record ((gamma, (a, b, c)) as goal) args record =
-  let gamma = Gamma.simplify gamma in
-  let gamma, m = eq_in_prop_to_subst_map gamma in
-  let a, c = map2 (msubst Plan.subst_plan m) (a, c) in
-  let b = msubst Plan.subst_elem m b in
-  let goal' = (gamma, (a, b, c)) in
+let optimize_back_goal_with_args_record goal args record =
+  let m, goal' = optimize_back_goal_aux goal in
   let args' =
     List.filter
       (fun x -> not (List.exists (fun (y, _) -> String.equal x.x y) m))
@@ -85,18 +118,57 @@ let optimize_back_goal_also_record ((gamma, (a, b, c)) as goal) args record =
       | None -> None
       | Some elem -> Some (msubst Plan.subst_elem m elem)
   in
-  let () = simp_print_opt_plan_judgement goal m goal' in
-  (* let () = *)
-  (*   Printf.printf "Optimize:\n (%s)\n" (layout_qvs args); *)
-  (*   layout_syn_back_judgement goal; *)
-  (*   Printf.printf "==>\n (%s) \n" (layout_qvs args'); *)
-  (*   layout_syn_back_judgement goal' *)
-  (* in *)
-  (args', goal')
+  let p goal () = simp_print_mid goal in
+  let () = simp_print_opt_judgement (p goal) m (p goal') in
+  (goal', args')
 
-let optimize_goal ((gamma, reg) : plan sgoal) =
-  let gamma, m = eq_in_prop_to_subst_map gamma in
-  (gamma, msubst Plan.subst_plan m reg)
+(* let optimize_back_goal ({ gamma; pre; mid; post; pg } as goal) args = *)
+(*   let gamma = Gamma.simplify gamma in *)
+(*   let gamma, m = eq_in_prop_to_subst_map gamma in *)
+(*   let pre, post = map2 (msubst Plan.subst_plan m) (pre, post) in *)
+(*   let mid = msubst Plan.subst_elem m mid in *)
+(*   let args' = *)
+(*     List.filter *)
+(*       (fun x -> not (List.exists (fun (y, _) -> String.equal x.x y) m)) *)
+(*       args *)
+(*   in *)
+(*   let pg' = PlanElemSet.map (msubst Plan.subst_elem m) pg in *)
+(*   let goal' = {gamma, (a, b, c)) in *)
+(*   let goal' =  *)
+(*   let () = simp_print_opt_judgement goal m goal' in *)
+(*   (\* let () = *\) *)
+(*   (\*   Printf.printf "Optimize:\n (%s)\n" (layout_qvs args); *\) *)
+(*   (\*   layout_syn_back_judgement goal; *\) *)
+(*   (\*   Printf.printf "==>\n (%s) \n" (layout_qvs args'); *\) *)
+(*   (\*   layout_syn_back_judgement goal' *\) *)
+(*   (\* in *\) *)
+(*   (args', goal') *)
+
+(* let optimize_back_goal_also_record ((gamma, (a, b, c)) as goal) args record = *)
+(*   let gamma = Gamma.simplify gamma in *)
+(*   let gamma, m = eq_in_prop_to_subst_map gamma in *)
+(*   let a, c = map2 (msubst Plan.subst_plan m) (a, c) in *)
+(*   let b = msubst Plan.subst_elem m b in *)
+(*   let goal' = (gamma, (a, b, c)) in *)
+(*   let args' = *)
+(*     List.filter *)
+(*       (fun x -> not (List.exists (fun (y, _) -> String.equal x.x y) m)) *)
+(*       args *)
+(*   in *)
+(*   let () = *)
+(*     record := *)
+(*       match !record with *)
+(*       | None -> None *)
+(*       | Some elem -> Some (msubst Plan.subst_elem m elem) *)
+(*   in *)
+(*   let () = simp_print_opt_judgement goal m goal' in *)
+(*   (\* let () = *\) *)
+(*   (\*   Printf.printf "Optimize:\n (%s)\n" (layout_qvs args); *\) *)
+(*   (\*   layout_syn_back_judgement goal; *\) *)
+(*   (\*   Printf.printf "==>\n (%s) \n" (layout_qvs args'); *\) *)
+(*   (\*   layout_syn_back_judgement goal' *\) *)
+(*   (\* in *\) *)
+(*   (args', goal') *)
 
 (** optimize prop *)
 

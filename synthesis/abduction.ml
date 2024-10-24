@@ -4,40 +4,6 @@ open Gamma
 open Zdatatype
 open Optimize
 
-let eliminate_buffer_elem ({ bvs; bprop }, elem) =
-  match elem with
-  | PlanActBuffer { op; args; phi } ->
-      let elem = PlanAct { op; args } in
-      let bprop = smart_add_to phi bprop in
-      ({ bvs; bprop }, elem)
-  | _ as elem -> ({ bvs; bprop }, elem)
-
-let eliminate_buffer_plan (gamma, plan) =
-  List.fold_left
-    (fun (gamma, plan) elem ->
-      let gamma, elem = eliminate_buffer_elem (gamma, elem) in
-      (gamma, plan @ [ elem ]))
-    (gamma, []) plan
-
-let eliminate_buffer_plan_mid (gamma, (pre, cur, post)) =
-  let gamma, pre = eliminate_buffer_plan (gamma, pre) in
-  let gamma, cur = eliminate_buffer_elem (gamma, cur) in
-  let gamma, post = eliminate_buffer_plan (gamma, post) in
-  (gamma, (pre, cur, post))
-
-(* let eliminate_buffer ({ bvs; bprop }, plan) = *)
-(*   let bprop, plan = *)
-(*     List.fold_left *)
-(*       (fun (prop, plan) -> function *)
-(*         | PlanActBuffer { op; args; phi } -> *)
-(*             let elem = PlanAct { op; args } in *)
-(*             let prop = smart_add_to phi prop in *)
-(*             (prop, plan @ [ elem ]) *)
-(*         | _ as elem -> (prop, plan @ [ elem ])) *)
-(*       (bprop, plan) plan *)
-(*   in *)
-(*   ({ bvs; bprop }, plan) *)
-
 let check_valid_feature gamma lit =
   let aux lit = Gamma.check_valid gamma lit in
   (not (aux (lit_to_prop lit))) && not (aux @@ Not (lit_to_prop lit))

@@ -474,3 +474,35 @@ let subst_elem x z = function
   | PlanStar r -> PlanStar (subst_raw_sregex x (AVar z) r)
 
 let subst_plan x z = List.map (subst_elem x z)
+
+(* module PlanElemSet = Set.Make (struct *)
+(*   type t = plan_elem *)
+
+(*   let compare = compare_plan_elem *)
+(* end) *)
+
+let gather_actions plan =
+  let l =
+    List.filter
+      (fun elem ->
+        match elem with
+        | PlanAct _ -> true
+        | PlanActBuffer _ -> _die [%here]
+        | _ -> false)
+      plan
+  in
+  l
+
+(* let left_most_se plan = *)
+(*   let rec aux (pre, rest) = *)
+(*     match rest with *)
+(*     | [] -> None *)
+(*     | PlanSe cur :: post -> Some (pre, cur, post) *)
+(*     | elem :: post -> aux (pre @ [ elem ], post) *)
+(*   in *)
+(*   aux ([], plan) *)
+
+(* let right_most_se plan = *)
+(*   let* pre, cur, post = left_most_se (List.rev plan) in *)
+(*   (\* let () = if !counter >= 2 then _die [%here] in *\) *)
+(*   Some (List.rev post, cur, List.rev pre) *)
