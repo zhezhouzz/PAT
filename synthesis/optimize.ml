@@ -39,9 +39,52 @@ let lit_to_equation = function
       if is_var_c a.x && is_var_c b.x then Some (a.x, b.x) else None
   | _ -> None
 
+module ConstMap = Map.Make (struct
+  type t = constant
+
+  let compare = compare_constant
+end)
+
+open Zdatatype
+
+let eq_const_optimize lits =
+  let eqs =
+    List.filter_map
+      (function
+        | AAppOp (op, [ { x = AVar x; _ }; { x = AC c; _ } ])
+          when String.equal "==" op.x ->
+            Some (x, c)
+        | _ -> None)
+      lits
+  in
+  let m =
+    List.fold_right
+      (fun (x, c) ->
+        ConstMap.update c (function
+          | None -> Some [ x ]
+          | Some l -> Some (x :: l)))
+      eqs ConstMap.empty
+  in
+  let eq_var x y = String.equal x.x y.x in
+  let m = ConstMap.map (List.slow_rm_dup eq_var) m in
+  let m =
+    ConstMap.map
+      (fun l ->
+        let ps = List.c_n_2 l in
+        let ps = List.filter (fun (x, y) -> not (eq_var x y)) ps in
+        List.map (fun (x, y) -> mk_lit_eq_lit x.ty (AVar x) (AVar y)) ps)
+      m
+  in
+  let res = ConstMap.fold (fun _ l res -> l @ res) m [] in
+  let () =
+    Pp.printf "@{<bold>new eqs:@} %s\n" @@ List.split_by_comma layout_lit res
+  in
+  res
+
 let eq_in_prop_to_subst_map { bvs; bprop } =
   let conjs = to_conjs bprop in
   let lits = List.filter_map to_lit_opt conjs in
+  let lits = lits @ eq_const_optimize lits in
   let eqs = List.filter_map lit_to_equation lits in
   let eqvs =
     List.filter_map (function AVar x, AVar y -> Some (x, y) | _ -> None) eqs

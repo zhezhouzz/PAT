@@ -336,6 +336,7 @@ and backward env (goal : mid_plan_goal) : plan_goal option =
   let* goal = forward env goal in
   let goal = gather_subgoal_from_plan_mid goal in
   let goal = { goal with pg = PG.remove_preserve_subgoal goal.mid goal.pg } in
+  let goal = optimize_back_goal goal in
   let () = simp_print_back_judgement goal in
   (* let pg', (ga, pre') = plan_to_acts (goal.gamma, goal.pre) in *)
   (* let pg' = PG.concat pg' goal.pg in *)
@@ -348,7 +349,7 @@ and backward env (goal : mid_plan_goal) : plan_goal option =
   (* let goal = { goal with pg = pg'; gamma = ga; pre = pre' } in *)
   (* let goal = eliminate_buffer_plan_mid_goal goal in *)
   let op = Plan.elem_to_op [%here] goal.mid in
-  (* let () = incrAndStop 1 in *)
+  (* let () = incrAndStop 8 in *)
   (* let () = if String.equal op "eUpdateReq" then _die [%here] in *)
   (* if PG.in_preserve_subgoal goal.mid goal.solved then *)
   (*   Some *)

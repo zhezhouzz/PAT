@@ -145,20 +145,41 @@ let send runtime (op, cs) =
   }
 
 let recv_and_send runtime op =
-  let rec aux = function
+  let avialable_msgs =
+    List.filter_mapi
+      (fun idx (op', args) ->
+        let rest =
+          List.sublist runtime.buffer ~start_included:0 ~end_excluded:idx
+          @ List.sublist runtime.buffer ~start_included:(idx + 1)
+              ~end_excluded:(List.length runtime.buffer)
+        in
+        if String.equal op op' then Some (args, rest) else None)
+      runtime.buffer
+  in
+  let args, buffer =
+    match avialable_msgs with
     | [] ->
         let () =
           Pp.printf
             "@{<red>@{<bold>runtime error:@}@} cannot recv message(%s)\n" op
         in
         raise (RuntimeInconsistent runtime)
-    | ((op', args) as elem) :: buffer ->
-        if String.equal op op' then (args, buffer)
-        else
-          let args, buffer = aux buffer in
-          (args, elem :: buffer)
+    | _ -> choose_from_list avialable_msgs
   in
-  let args, buffer = aux runtime.buffer in
+  (* let rec aux = function *)
+  (*   | [] -> *)
+  (*       let () = *)
+  (*         Pp.printf *)
+  (*           "@{<red>@{<bold>runtime error:@}@} cannot recv message(%s)\n" op *)
+  (*       in *)
+  (*       raise (RuntimeInconsistent runtime) *)
+  (*   | ((op', args) as elem) :: buffer -> *)
+  (*       if String.equal op op' then (args, buffer) *)
+  (*       else *)
+  (*         let args, buffer = aux buffer in *)
+  (*         (args, elem :: buffer) *)
+  (* in *)
+  (* let args, buffer = aux runtime.buffer in *)
   let runtime = send { runtime with buffer } (op, args) in
   (runtime, args)
 
