@@ -1,5 +1,5 @@
 (* type tNode = (node1 * node2[@tNode]) *)
-(* type tTrial = int *)
+(* type tTrial = (trial1 * trial2[@tTrial]) *)
 
 val ( == ) : 'a -> 'a -> bool
 
@@ -12,12 +12,12 @@ let eNotifyNodesDown =
 
 (** Node Machine *)
 
-val ePing : < trial : int > [@@obs]
+val ePing : < trial : (trial1 * trial2[@tTrial]) > [@@obs]
 val eShutDown : unit [@@obs]
 
 let ePing =
   [|
-    (fun ?l:(tl = (true : [%v: int])) ->
+    (fun ?l:(tl = (true : [%v: (trial1 * trial2[@tTrial])])) ->
       ( starA
           (anyA
          (* - EPing ( trial == tl) *)
@@ -26,7 +26,7 @@ let ePing =
           - EPong (trial == tl)),
         EPing (trial == tl),
         [| EPongLost (trial == tl) |] ));
-    (fun ?l:(tl = (true : [%v: int])) ->
+    (fun ?l:(tl = (true : [%v: (trial1 * trial2[@tTrial])])) ->
       ( starA
           (anyA
          (* - EPing ( trial == tl) *)
@@ -42,37 +42,33 @@ let eShutDown = (starA (anyA - EShutDown true), EShutDown true, [||])
 (** Detector Machine *)
 
 val eStart : unit [@@gen]
-val ePong : < trial : int > [@@obs]
-val ePongLost : < trial : int > [@@obs]
+val ePong : < trial : (trial1 * trial2[@tTrial]) > [@@obs]
+val ePongLost : < trial : (trial1 * trial2[@tTrial]) > [@@obs]
 
 let eStart =
-  ( starA (anyA - EPing true - EPongLost true - EStart true),
+  ( starA (anyA - EPing true - EPongLost true - EPong true - EStart true),
     EStart true,
-    [| EPing (trial == 1) |] )
+    [| EPing (trial == ("Trial1" : (trial1 * trial2[@tTrial]))) |] )
 
 let ePong =
   [|
     (* Trail1: all pongs are received, done *)
-    (fun ?l:(tl = (true : [%v: int])) ->
+    (fun ?l:(tl = (true : [%v: (trial1 * trial2[@tTrial])])) ->
       (starA (anyA - EPongLost (trial == tl)), EPong (trial == tl), [||]));
   |]
 
 let ePongLost =
   [|
-    (fun ?l:(tl = (v == 1 : [%v: int])) ->
+    (fun ?l:(tl =
+             (v == ("Trial1" : (trial1 * trial2[@tTrial]))
+               : [%v: (trial1 * trial2[@tTrial])])) ->
       ( starA (anyA - EPong (trial == tl) - EPongLost (trial == tl)),
         EPongLost (trial == tl),
-        [| EPing (trial == 2) |] ));
-    (fun ?l:(tl = (v == 2 : [%v: int])) ->
-      ( starA (anyA - EPong (trial == tl) - EPongLost (trial == tl)),
-        EPongLost (trial == tl),
-        [| EPing (trial == 3) |] ));
-    (fun ?l:(tl = (v == 3 : [%v: int])) ->
-      ( starA (anyA - EPong (trial == tl) - EPongLost (trial == tl)),
-        EPongLost (trial == tl),
-        [| EPing (trial == 4) |] ));
+        [| EPing (trial == ("Trial2" : (trial1 * trial2[@tTrial]))) |] ));
     (* Trail2: still lost, done *)
-    (fun ?l:(tl = (v == 4 : [%v: int])) ->
+    (fun ?l:(tl =
+             (v == ("Trial2" : (trial1 * trial2[@tTrial]))
+               : [%v: (trial1 * trial2[@tTrial])])) ->
       (allA, EPongLost (trial == tl), [| ENotifyNodesDown true |]));
   |]
 

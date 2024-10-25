@@ -332,6 +332,7 @@ and forward env (goal : mid_plan_goal) =
           }
 
 and backward env (goal : mid_plan_goal) : plan_goal option =
+  (* let* goal = if back_goal_size goal > 11 then None else Some goal in *)
   let* goal = forward env goal in
   let goal = gather_subgoal_from_plan_mid goal in
   let goal = { goal with pg = PG.remove_preserve_subgoal goal.mid goal.pg } in

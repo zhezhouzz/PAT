@@ -109,6 +109,15 @@ let simp_print_opt_judgement p1 m p2 =
     (List.split_by "; " (fun (x, y) -> spf "%s --> %s" x y.x) m);
   p2 ()
 
+let plan_goal_size x =
+  List.length
+    (List.filter
+       (function PlanAct _ | PlanActBuffer _ | PlanSe _ -> true | _ -> false)
+       x)
+
+let back_goal_size { pre; post; _ } =
+  1 + plan_goal_size pre + plan_goal_size post
+
 (* let simp_print_opt_args_judgement args1 m args2 = *)
 (*   Pp.printf "@{<bold>@{<yellow>Optimize:@}@}\n"; *)
 (*   ; *)
