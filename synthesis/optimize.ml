@@ -18,15 +18,21 @@ let eliminate_buffer_plan_aux (gamma, plan) =
       (gamma, plan @ [ elem ]))
     (gamma, []) plan
 
-let eliminate_buffer_plan_goal { gamma; plan; pg } =
+let eliminate_buffer_plan_goal { gamma; plan; pg; solved } =
   let gamma, plan = eliminate_buffer_plan_aux (gamma, plan) in
-  { gamma; plan; pg }
+  { gamma; plan; pg; solved }
 
-let eliminate_buffer_plan_mid_goal { gamma; pre; mid; post; pg } =
+let eliminate_buffer_plan_mid_goal { gamma; pre; mid; post; pg; solved } =
   let gamma, pre = eliminate_buffer_plan_aux (gamma, pre) in
   let gamma, mid = eliminate_buffer_elem (gamma, mid) in
   let gamma, post = eliminate_buffer_plan_aux (gamma, post) in
-  { gamma; pre; mid; post; pg }
+  { gamma; pre; mid; post; pg; solved }
+
+let eliminate_buffer_plan_pair_goal
+    { gamma; preSolved; postUnsolved; pg; solved } =
+  let gamma, preSolved = eliminate_buffer_plan_aux (gamma, preSolved) in
+  let gamma, postUnsolved = eliminate_buffer_plan_aux (gamma, postUnsolved) in
+  { gamma; preSolved; postUnsolved; pg; solved }
 
 let lit_to_equation = function
   | AAppOp (op, [ a; b ]) when String.equal eq_op op.x ->
@@ -73,20 +79,22 @@ let eq_in_prop_to_subst_map { bvs; bprop } =
   let bprop = simpl_eq_in_prop prop in
   ({ bvs; bprop }, m)
 
-let optimize_back_goal_aux { gamma; pre; mid; post; pg } =
+let optimize_back_goal_aux { gamma; pre; mid; post; pg; solved } =
   let gamma = Gamma.simplify gamma in
   let gamma, m = eq_in_prop_to_subst_map gamma in
   let pre, post = map2 (msubst Plan.subst_plan m) (pre, post) in
   let mid = msubst Plan.subst_elem m mid in
   let pg = List.map (msubst Plan.subst_elem m) pg in
-  let goal' = { gamma; pre; mid; post; pg } in
+  let solved = List.map (msubst Plan.subst_elem m) solved in
+  let goal' = { gamma; pre; mid; post; pg; solved } in
   (m, goal')
 
-let optimize_goal { gamma; plan; pg } =
+let optimize_goal { gamma; plan; pg; solved } =
   let gamma = Gamma.simplify gamma in
   let gamma, m = eq_in_prop_to_subst_map gamma in
   let pg = List.map (msubst Plan.subst_elem m) pg in
-  { gamma; plan = msubst Plan.subst_plan m plan; pg }
+  let solved = List.map (msubst Plan.subst_elem m) solved in
+  { gamma; plan = msubst Plan.subst_plan m plan; pg; solved }
 
 let optimize_back_goal goal =
   let m, goal' = optimize_back_goal_aux goal in

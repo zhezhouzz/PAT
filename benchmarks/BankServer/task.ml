@@ -23,8 +23,7 @@ val eWithDrawResp :
 let eWithDrawResp ?l:(id = (true : [%v: rid])) ?l:(ac = (true : [%v: aid]))
     ?l:(ba = (true : [%v: int])) ?l:(st = (true : [%v: bool])) =
   ( allA,
-    EWithDrawResp
-      (rId == id && accountId == ac && balance == ba && iff status st),
+    EWithDrawResp (rId == id && accountId == ac && balance == ba && status == st),
     [||] )
 
 (** Events used to communicate between the bank server and the backend database *)

@@ -10,9 +10,9 @@ open Plan
 module PG = struct
   type t = plan_elem list
 
-  let print_preserve_goals pg =
-    Pp.printf "@{<bold>preserve_goals:@}\n";
-    List.iter (fun c -> Pp.printf "Preserved Goal: %s\n" (layout_elem c)) pg
+  let print_preserve_goals txt pg =
+    Pp.printf "@{<bold>%s:@}\n" txt;
+    List.iter (fun c -> Pp.printf "%s: %s\n" txt (layout_elem c)) pg
 
   (* let mk_preserve_subgoal plan = gather_actions plan *)
 
@@ -39,9 +39,18 @@ type mid_plan_goal = {
   mid : plan_elem;
   post : plan;
   pg : plan;
+  solved : plan;
 }
 
-type plan_goal = { gamma : gamma; plan : plan; pg : plan }
+type pair_plan_goal = {
+  gamma : gamma;
+  preSolved : plan;
+  postUnsolved : plan;
+  pg : plan;
+  solved : plan;
+}
+
+type plan_goal = { gamma : gamma; plan : plan; pg : plan; solved : plan }
 
 (* let sanity_check_mid_plan_goal { pg; pre; mid; post; _ } = *)
 (*   PG.sanity_check (pre @ [ mid ] @ post) pg *)
@@ -64,27 +73,33 @@ let simp_print_plan_judgement plan =
   let open Plan in
   Pp.printf "@{<bold>[@} %s @{<bold>]@}\n\n" (omit_layout plan)
 
-let simp_print_back_judgement { gamma; pre; mid; post; pg } =
+let simp_print_back_judgement { gamma; pre; mid; post; pg; solved } =
   Pp.printf "@{<bold>@{<yellow>Backword:@}@}\n";
   simp_print_gamma_judgement gamma;
-  PG.print_preserve_goals pg;
+  PG.print_preserve_goals "preserve" pg;
+  PG.print_preserve_goals "solved" solved;
   simp_print_mid_judgement (pre, mid, post)
 
-let simp_print_mid { gamma; pre; mid; post; pg } =
+let simp_print_mid { gamma; pre; mid; post; pg; solved } =
   simp_print_gamma_judgement gamma;
-  PG.print_preserve_goals pg;
+  PG.print_preserve_goals "preserve" pg;
+  PG.print_preserve_goals "solved" solved;
   simp_print_mid_judgement (pre, mid, post)
 
-let simp_print_forward_judgement { gamma; pre; mid; post; pg } =
+let simp_print_forward_judgement { gamma; preSolved; postUnsolved; pg; solved }
+    =
   Pp.printf "@{<bold>@{<yellow>Forward:@}@}\n";
   simp_print_gamma_judgement gamma;
-  PG.print_preserve_goals pg;
-  simp_print_mid_judgement (pre, mid, post)
+  PG.print_preserve_goals "preserve" pg;
+  PG.print_preserve_goals "solved" solved;
+  Pp.printf "@{<bold>[@} %s @{<bold>]@}\n@{<bold>[@} %s @{<bold>]@}\n\n"
+    (omit_layout preSolved) (omit_layout postUnsolved)
 
-let simp_print_syn_judgement { gamma; plan; pg } =
+let simp_print_syn_judgement { gamma; plan; pg; solved } =
   Pp.printf "@{<bold>@{<yellow>Synthesis:@}@}\n";
   simp_print_gamma_judgement gamma;
-  PG.print_preserve_goals pg;
+  PG.print_preserve_goals "preserve" pg;
+  PG.print_preserve_goals "solved" solved;
   simp_print_plan_judgement plan
 
 let simp_print_opt_judgement p1 m p2 =

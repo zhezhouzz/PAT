@@ -24,14 +24,24 @@ let ePing =
   [|
     (fun ?l:(n = (true : [%v: (node1 * node2[@tNode])]))
          ?l:(tl = (true : [%v: (trial1 * trial2[@tTrial])])) ->
-      ( starA (anyA - EShutDown (node == n)),
-        EPing (node == n && trial == tl),
-        [| EPong (node == n && trial == tl) |] ));
-    (fun ?l:(n = (true : [%v: (node1 * node2[@tNode])]))
-         ?l:(tl = (true : [%v: (trial1 * trial2[@tTrial])])) ->
-      ( starA (anyA - EShutDown (node == n)),
+      ( starA
+          (anyA
+          (* - EPing (node == n && trial == tl) *)
+          - EShutDown (node == n)
+          - EPongLost (node == n && trial == tl)
+          - EPong (node == n && trial == tl)),
         EPing (node == n && trial == tl),
         [| EPongLost (node == n && trial == tl) |] ));
+    (fun ?l:(n = (true : [%v: (node1 * node2[@tNode])]))
+         ?l:(tl = (true : [%v: (trial1 * trial2[@tTrial])])) ->
+      ( starA
+          (anyA
+          (* - EPing (node == n && trial == tl) *)
+          - EShutDown (node == n)
+          - EPongLost (node == n && trial == tl)
+          - EPong (node == n && trial == tl)),
+        EPing (node == n && trial == tl),
+        [| EPong (node == n && trial == tl) |] ));
   |]
 
 let eShutDown ?l:(n = (true : [%v: (node1 * node2[@tNode])])) =
@@ -51,7 +61,7 @@ val ePongLost :
 
 let eStart =
   [|
-    ( epsilonA,
+    ( starA (anyA - EPing true - EPongLost true - EPong true),
       EStart true,
       [|
         EPing
@@ -70,9 +80,9 @@ let ePong =
          ?l:(tl =
              (v == ("Trial1" : (trial1 * trial2[@tTrial]))
                : [%v: (trial1 * trial2[@tTrial])])) ->
-      ( (allA;
+      ( (starA (anyA - EPongLost (node == n && trial == tl));
          EPong ((not (node == n)) && trial == tl);
-         allA),
+         starA (anyA - EPongLost (node == n && trial == tl))),
         EPong (node == n && trial == tl),
         [||] ));
     (* Trail1: no lost, wait for others *)
@@ -80,10 +90,7 @@ let ePong =
          ?l:(tl =
              (v == ("Trial1" : (trial1 * trial2[@tTrial]))
                : [%v: (trial1 * trial2[@tTrial])])) ->
-      ( starA
-          (anyA
-          - EPong ((not (node == n)) && trial == tl)
-          - EPongLost ((not (node == n)) && trial == tl)),
+      ( starA (anyA - EPong (trial == tl) - EPongLost (trial == tl)),
         EPong (node == n && trial == tl),
         [||] ));
     (* Trail1: has lost, goto next trial *)
@@ -91,9 +98,9 @@ let ePong =
          ?l:(tl =
              (v == ("Trial1" : (trial1 * trial2[@tTrial]))
                : [%v: (trial1 * trial2[@tTrial])])) ->
-      ( (allA;
+      ( (starA (anyA - EPongLost (node == n && trial == tl));
          EPongLost ((not (node == n)) && trial == tl);
-         allA),
+         starA (anyA - EPongLost (node == n && trial == tl))),
         EPong (node == n && trial == tl),
         [|
           EPing
@@ -130,10 +137,7 @@ let ePongLost =
          ?l:(tl =
              (v == ("Trial1" : (trial1 * trial2[@tTrial]))
                : [%v: (trial1 * trial2[@tTrial])])) ->
-      ( starA
-          (anyA
-          - EPong ((not (node == n)) && trial == tl)
-          - EPongLost ((not (node == n)) && trial == tl)),
+      ( starA (anyA - EPong (trial == tl) - EPongLost (trial == tl)),
         EPongLost (node == n && trial == tl),
         [||] ));
     (* Trail1: has pong, goto next trial *)

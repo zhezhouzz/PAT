@@ -18,7 +18,7 @@ let readReq = (allA, ReadReq true, [| GetReq true |])
 (*   |] *)
 
 let getReq = (starA (anyA - Commit true), GetReq true, [| ReadRsp (va == -1) |])
-let readRsp ?l:(x = (true : [%v: int])) = (allA, ReadRsp true, [||])
+let readRsp ?l:(x = (true : [%v: int])) = (allA, ReadRsp (va == x), [||])
 
 let writeReq ?l:(x = (true : [%v: int])) =
   (allA, WriteReq (va == x), [| PutReq (va == x) |])
@@ -31,10 +31,10 @@ let putRsp =
     (fun ?l:(x = (true : [%v: int])) ?l:(s = (v : [%v: bool])) ->
       ( allA,
         PutRsp (va == x && stat),
-        [| WriteRsp (va == x && stat); Commit true |] ));
+        [| WriteRsp (va == x && stat == s); Commit true |] ));
     (fun ?l:(x = (true : [%v: int])) ?l:(s = (not v : [%v: bool])) ->
       ( allA,
-        PutRsp (va == x && not stat),
+        PutRsp (va == x && stat == s),
         [| WriteRsp (va == x && not stat); Abort true |] ));
   |]
 
@@ -42,7 +42,7 @@ let commit = (allA, Commit true, [||])
 let abort = (allA, Abort true, [||])
 
 let writeRsp ?l:(x = (true : [%v: int])) ?l:(s = (v : [%v: bool])) =
-  (allA, WriteRsp (va == x && stat), [||])
+  (allA, WriteRsp (va == x && stat == s), [||])
 
 let[@goal] readAfterWrite (x : int) (y : int) =
   not
