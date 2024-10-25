@@ -63,6 +63,7 @@ let load_syn_result source_file output_file =
 
 let eval source_file output_file () =
   let env, term = load_syn_result source_file output_file in
+  let () = Printf.printf "%s\n" (layout_term term) in
   let () = Interpreter.interpret env term in
   let () = Interpreter.interpret_sample env term 1000 in
   ()

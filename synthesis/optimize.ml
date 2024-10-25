@@ -112,12 +112,7 @@ let optimize_back_goal_with_args_record goal args record =
       (fun x -> not (List.exists (fun (y, _) -> String.equal x.x y) m))
       args
   in
-  let () =
-    record :=
-      match !record with
-      | None -> None
-      | Some elem -> Some (msubst Plan.subst_elem m elem)
-  in
+  let () = record := msubst Plan.subst_elem m !record in
   let p goal () = simp_print_mid goal in
   let () = simp_print_opt_judgement (p goal) m (p goal') in
   (goal', args')

@@ -506,3 +506,23 @@ let gather_actions plan =
 (*   let* pre, cur, post = left_most_se (List.rev plan) in *)
 (*   (\* let () = if !counter >= 2 then _die [%here] in *\) *)
 (*   Some (List.rev post, cur, List.rev pre) *)
+
+let exactly_match se plan =
+  let () =
+    Pp.printfBold "exactly_match:"
+      (spf "%s in %s" (layout_se se) (omit_layout_plan plan))
+  in
+  let rec aux (pre, post) =
+    match post with
+    | [] -> []
+    | (PlanAct _ as mid) :: post -> (
+        match smart_and_se se mid with
+        | None -> aux (pre @ [ mid ], post)
+        | Some mid' -> (
+            match mid' with
+            | PlanAct _ | PlanActBuffer _ ->
+                [ (pre, mid', post) ] @ aux (pre @ [ mid ], post)
+            | _ -> aux (pre @ [ mid ], post)))
+    | mid :: post -> aux (pre @ [ mid ], post)
+  in
+  aux ([], plan)

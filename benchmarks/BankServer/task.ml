@@ -14,7 +14,7 @@ let eWithDrawReq ?l:(id = (true : [%v: rid])) ?l:(ac = (true : [%v: aid]))
     ?l:(am = (v > 0 : [%v: int])) =
   ( allA,
     EWithDrawReq (rId == id && accountId == ac && amount == am),
-    [| EReadQuery (accountId == ac) |] )
+    [| EReadQuery (rId == id && accountId == ac && amount == am) |] )
 
 val eWithDrawResp :
   < rId : rid ; accountId : aid ; balance : int ; status : bool >
@@ -36,17 +36,21 @@ let eUpdateQuery ?l:(ac = (true : [%v: aid])) ?l:(ba = (v > 0 : [%v: int])) =
   (allA, EUpdateQuery (accountId == ac && balance == ba), [||])
 
 (* event: send a read request for the `accountId`. *)
-val eReadQuery : < accountId : aid > [@@obs]
+val eReadQuery : < rId : rid ; amount : int ; accountId : aid > [@@obs]
 
 let eReadQuery =
   [|
-    (fun (ba : int) ?l:(ac = (true : [%v: aid])) ->
+    (fun (ba : int) ?l:(id = (true : [%v: rid])) ?l:(am = (true : [%v: int]))
+         ?l:(ac = (true : [%v: aid])) ->
       ( (allA;
          EInitAccount (accountId == ac && balance == ba);
          starA
            (anyA - EReadQuery (accountId == ac) - EInitAccount (accountId == ac))),
-        EReadQuery (accountId == ac),
-        [| EReadQueryResp (accountId == ac && balance == ba) |] ));
+        EReadQuery (rId == id && amount == am && accountId == ac),
+        [|
+          EReadQueryResp
+            (rId == id && amount == am && accountId == ac && balance == ba);
+        |] ));
     (* (fun (ba : int) ?l:(ac = (true : [%v: aid])) -> *)
     (*   ( (allA; *)
     (*      EReadQueryResp (accountId == ac && balance == ba); *)
@@ -57,7 +61,9 @@ let eReadQuery =
   |]
 
 (* event: send a response (`balance`) corresponding to the read request for an `accountId` *)
-val eReadQueryResp : < accountId : aid ; balance : int > [@@obs]
+val eReadQueryResp :
+  < rId : rid ; amount : int ; accountId : aid ; balance : int >
+[@@obs]
 
 let eReadQueryResp =
   [|
@@ -72,12 +78,12 @@ let eReadQueryResp =
     (*       EWithDrawResp *)
     (*         (rId == id && accountId == ac && balance == ba - am && status); *)
     (*     |] )); *)
-    (fun (id : rid) (am : int) ?l:(ac = (true : [%v: aid]))
+    (fun ?l:(id = (true : [%v: rid])) ?l:(am = (true : [%v: int]))
+         ?l:(ac = (true : [%v: aid]))
          ?l:(ba = (v > 0 && not (v > am) : [%v: int])) ->
-      ( (starA (anyA - EReadQueryResp true - EReadQuery true);
-         EWithDrawReq (rId == id && accountId == ac && amount == am);
-         starA (anyA - EWithDrawReq true)),
-        EReadQueryResp (accountId == ac && balance == ba),
+      ( allA,
+        EReadQueryResp
+          (rId == id && amount == am && accountId == ac && balance == ba),
         [| EWithDrawResp (rId == id && accountId == ac && not status) |] ));
   |]
 

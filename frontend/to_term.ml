@@ -7,9 +7,9 @@ let layout_typed_value v = layout_value v.x
 let rec layout_term = function
   | CVal v -> layout_typed_value v
   | CLetE { lhs = []; rhs; body } ->
-      spf "%s; %s" (layout_term rhs.x) (layout_term body.x)
+      spf "%s;\n%s" (layout_term rhs.x) (layout_term body.x)
   | CLetE { lhs; rhs; body } ->
-      spf "let (%s) = %s in %s"
+      spf "let (%s) = %s in\n%s"
         (List.split_by_comma _get_x lhs)
         (layout_term rhs.x) (layout_term body.x)
   | CAppOp { op; args } ->

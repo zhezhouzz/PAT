@@ -18,7 +18,7 @@ module PG = struct
 
   let remove_preserve_subgoal elem pg =
     let pg' = List.filter (fun elem' -> not (equal_plan_elem elem elem')) pg in
-    if List.length pg != List.length pg' + 1 then _die [%here] else pg'
+    if List.length pg' + 1 < List.length pg then _die [%here] else pg'
 
   let in_preserve_subgoal elem = List.exists (equal_plan_elem elem)
 

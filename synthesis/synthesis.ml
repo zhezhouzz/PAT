@@ -20,13 +20,17 @@ let mk_synthesis_goal (env : syn_env) =
   in
   let reg = delimit_context reg in
   let () =
-    Printf.printf "\n@{<red>Original Reg:@} %s\n" (layout_symbolic_regex reg)
+    Pp.printf "\n@{<red>Original Reg:@} %s\n" (layout_symbolic_regex reg)
   in
   (Gamma.{ bvs = qvs; bprop = mk_true }, SFA.regex_to_raw reg)
 
 let synthesize env goal =
   let* g = deductive_synthesis_reg env goal in
-  let () = Printf.printf "\n@{<red>Result:@} %s\n" (Plan.layout_plan g.plan) in
+  let () = Pp.printf "\n@{<red>Result gamma:@} %s\n" (Gamma.layout g.gamma) in
+  let () =
+    Pp.printf "\n@{<red>Result program:@} %s\n" (Plan.layout_plan g.plan)
+  in
+  (* let () = _die [%here] in *)
   let term = instantiation env (g.gamma, g.plan) in
   Some term
 (* Some (reverse_instantiation env res) *)

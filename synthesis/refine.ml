@@ -69,6 +69,12 @@ let incrAndStop n =
   if !synthesis_counter >= n then _die [%here]
   else synthesis_counter := !synthesis_counter + 1
 
+let forward_synthesis_counter = ref 0
+
+let forward_incrAndStop n =
+  if !forward_synthesis_counter >= n then _die [%here]
+  else forward_synthesis_counter := !forward_synthesis_counter + 1
+
 let rec deductive_synthesis_reg env goal : plan_goal option =
   let goals = normalize_goal env goal in
   (* NOTE: in the beginning, there is not pending sub goals *)
@@ -113,12 +119,12 @@ and deductive_synthesis_trace env (goal : plan_goal) : plan_goal option =
     (* in *)
     match List.last_destruct_opt goal.pg with
     | None -> Some goal
-    | Some (pg, mid) ->
+    | Some (_, mid) ->
         let pre, _, post = Plan.divide_by_elem mid goal.plan in
         let () =
           Pp.printf "@{<green>right most@} %s\n" (Plan.layout_elem mid)
         in
-        let back_goal = { gamma = goal.gamma; pre; mid; post; pg } in
+        let back_goal = { gamma = goal.gamma; pre; mid; post; pg = goal.pg } in
         let back_goal = optimize_back_goal back_goal in
         let* goal = backward env back_goal in
         (* let () = Printf.printf "next step\n" in *)
@@ -133,125 +139,146 @@ and deductive_synthesis_trace env (goal : plan_goal) : plan_goal option =
 
 and forward env goal =
   let () = simp_print_forward_judgement goal in
-  let init_elem = ref (Some goal.mid) in
+  let init_elem = ref goal.mid in
   let counter = ref 0 in
-  let rec aux gamma solved rest =
+  let rec aux gamma pg solved rest =
     let () = counter := !counter + 1 in
     let () = simp_print_gamma_judgement gamma in
     let () = Printf.printf "forward solved: %s\n" (Plan.omit_layout solved) in
     let () = Printf.printf "forward rest: %s\n" (Plan.omit_layout rest) in
     let () =
-      Printf.printf "init_elem\" %s\n"
-        (match !init_elem with
-        | None -> "none"
-        | Some e -> Plan.omit_layout_elem e)
+      Printf.printf "init_elem %s\n" (Plan.omit_layout_elem !init_elem)
     in
+    (* let () = forward_incrAndStop 83 in *)
     match rest with
-    | [] -> Some (gamma, solved)
-    | (PlanSe cur as elem) :: rest ->
-        if not (PG.in_preserve_subgoal elem goal.pg) then
-          let op = cur.op in
-          (* let args, phi, elem = cur_to_obs cur in *)
-          let () = Printf.printf "do: %s\n" (Plan.layout_elem elem) in
-          let hafts =
-            haft_to_triple @@ fresh_haft
-            @@ _get_force [%here] env.event_rtyctx op
-          in
-          let handle haft =
-            let gargs, (args, retrty) = destruct_haft [%here] haft in
-            let history, _, p = destruct_hap [%here] retrty in
-            (* NOTE: history should be well-formed. *)
-            let history_plan = raw_regex_to_plan history in
-            let dep_elem =
-              let args = List.map (fun x -> x.x #: x.ty.nt) args in
-              PlanAct { op; args }
+    | [] -> Some (gamma, pg, solved)
+    | elem :: rest -> (
+        let op =
+          match elem with
+          | PlanSe { op; _ } -> Some op
+          | PlanAct { op; _ } as elem ->
+              if
+                equal_plan_elem elem !init_elem
+                && PG.in_preserve_subgoal elem pg
+              then
+                (* let () = Printf.printf "%i\n" !forward_synthesis_counter in *)
+                (* let () = *)
+                (*   if String.equal op "eShardUpdateKeyReq" then _die [%here] *)
+                (* in *)
+                Some op
+              else None
+          | _ -> None
+        in
+        match op with
+        | None -> aux gamma pg (solved @ [ elem ]) rest
+        | Some op ->
+            (* if PG.in_preserve_subgoal elem pg then *)
+            (* let args, phi, elem = cur_to_obs cur in *)
+            let () = Printf.printf "do: %s\n" (Plan.layout_elem elem) in
+            let hafts =
+              haft_to_triple @@ fresh_haft
+              @@ _get_force [%here] env.event_rtyctx op
             in
-            let () = if !counter == 1 then init_elem := Some dep_elem in
-            let dep_elem =
-              match Plan.smart_and_se cur dep_elem with
-              | None -> _die_with [%here] "never"
-              | Some x -> x
-            in
-            let args, arg_phis = List.split @@ List.map destruct_cty_var args in
-            let gamma =
-              { bvs = gamma.bvs; bprop = smart_and (gamma.bprop :: arg_phis) }
-            in
-            let p = List.map (fun se -> PlanSe se) p in
-            let posts = Plan.insert p rest in
-            let pres = Plan.merge_plan solved history_plan in
-            let goals =
-              List.map (fun (pre, post) ->
-                  let goal =
-                    eliminate_buffer_plan_mid_goal
-                      { gamma; pre; mid = dep_elem; post; pg = goal.pg }
-                  in
-                  (goal, gargs @ args))
-              @@ List.cross pres posts
-            in
-            goals
-          in
-          let goals = List.concat_map handle hafts in
-          let () =
-            Pp.printfBold "len(subgoals) " @@ spf "%i\n" (List.length goals)
-          in
-          let () =
-            List.iter
-              (fun (goal, vars) ->
-                let () =
-                  Pp.printfBold "vars:" @@ spf "%s\n" (layout_qvs vars)
-                in
-                simp_print_forward_judgement goal)
+            let handle haft =
+              let gargs, (args, retrty) = destruct_haft [%here] haft in
+              let history, se, p = destruct_hap [%here] retrty in
+              (* NOTE: history should be well-formed. *)
+              let history_plan = raw_regex_to_plan history in
+              (* in *)
+              (* let () = if !counter == 1 then init_elem := Some dep_elem in *)
+              let dep_elem =
+                match elem with
+                | PlanSe cur ->
+                    let args = List.map (fun x -> x.x #: x.ty.nt) args in
+                    Plan.smart_and_se cur (PlanAct { op; args })
+                | PlanAct _ -> Plan.smart_and_se se elem
+                | _ -> _die [%here]
+              in
+              let dep_elem =
+                match dep_elem with
+                | None -> _die_with [%here] "never"
+                | Some x -> x
+              in
+              let args, arg_phis =
+                List.split @@ List.map destruct_cty_var args
+              in
+              let gamma =
+                { bvs = gamma.bvs; bprop = smart_and (gamma.bprop :: arg_phis) }
+              in
+
+              let p = List.map (fun se -> PlanSe se) p in
+              let posts = Plan.insert p rest in
+              let pres = Plan.merge_plan solved history_plan in
+              let goals =
+                List.map (fun (pre, post) ->
+                    let goal =
+                      eliminate_buffer_plan_mid_goal
+                        { gamma; pre; mid = dep_elem; post; pg }
+                    in
+                    (goal, gargs @ args))
+                @@ List.cross pres posts
+              in
               goals
-          in
-          (* let () = if String.equal op "commit" then _die [%here] in *)
-          (* let () = if String.equal op "eShardUpdateKeyReq" then _die [%here] in *)
-          let abd_and_backtract (goal, args) =
-            let () =
-              Pp.printf "@{<bold>Before Abduction [%s]@}:\n" (layout_qvs args);
-              simp_print_forward_judgement goal
             in
-            let goal, args' =
-              optimize_back_goal_with_args_record goal args init_elem
+            let goals = List.concat_map handle hafts in
+            let () =
+              Pp.printfBold "len(subgoals) " @@ spf "%i\n" (List.length goals)
             in
             let () =
-              Pp.printf "@{<bold>After Opt@}: (%s)\n" (layout_qvs args');
-              simp_print_forward_judgement goal
+              List.iter
+                (fun (goal, vars) ->
+                  let () =
+                    Pp.printfBold "vars:" @@ spf "%s\n" (layout_qvs vars)
+                  in
+                  simp_print_mid goal)
+                goals
             in
-            let* gamma' =
-              Abduction.abduction_mid_goal env goal.gamma
-                (goal.pre, goal.mid, goal.post)
-                args'
+            (* let () = if String.equal op "commit" then _die [%here] in *)
+            (* let () = if String.equal op "eShardUpdateKeyReq" then _die [%here] in *)
+            let abd_and_backtract (goal, args) =
+              let () =
+                Pp.printf "@{<bold>Before Abduction [%s]@}:\n" (layout_qvs args);
+                simp_print_mid goal
+              in
+              let goal, args' =
+                optimize_back_goal_with_args_record goal args init_elem
+              in
+              let () =
+                Pp.printf "@{<bold>After Opt@}: (%s)\n" (layout_qvs args');
+                simp_print_mid goal
+              in
+              let* gamma' =
+                Abduction.abduction_mid_goal env goal.gamma
+                  (goal.pre, goal.mid, goal.post)
+                  args'
+              in
+              let goal = { goal with gamma = gamma' } in
+              let () =
+                Pp.printf "@{<bold>After Abduction@}:\n";
+                simp_print_mid goal
+              in
+              aux goal.gamma goal.pg (goal.pre @ [ goal.mid ]) goal.post
             in
-            let goal = { goal with gamma = gamma' } in
-            let () =
-              Pp.printf "@{<bold>After Abduction@}:\n";
-              simp_print_forward_judgement goal
-            in
-            aux goal.gamma (goal.pre @ [ goal.mid ]) goal.post
-          in
-          backtrack abd_and_backtract goals
-        else aux gamma (solved @ [ elem ]) rest
-    | elem :: rest -> aux gamma (solved @ [ elem ]) rest
+            backtrack abd_and_backtract goals)
   in
   match goal with
-  | { gamma; pre; mid; post; pg } -> (
-      let goal = aux gamma pre (mid :: post) in
-      match !init_elem with
-      | None -> Some { gamma; pre; mid; post; pg }
-      | Some elem ->
-          let* gamma, plan = goal in
-          let gamma, plan = eliminate_buffer_plan_aux (gamma, plan) in
-          let () =
-            Pp.printf "find %s in\n%s\n" (Plan.layout_elem elem)
-              (Plan.omit_layout plan)
-          in
-          let pre, mid, post = Plan.divide_by_elem elem plan in
-          (* let clear *)
-          Some { gamma; pre; mid; post; pg })
+  | { gamma; pre; mid; post; pg } ->
+      let goal = aux gamma pg pre (mid :: post) in
+      let* gamma, pg, plan = goal in
+      let gamma, plan = eliminate_buffer_plan_aux (gamma, plan) in
+      let () =
+        Pp.printf "find %s in\n%s\n"
+          (Plan.layout_elem !init_elem)
+          (Plan.omit_layout plan)
+      in
+      let pre, mid, post = Plan.divide_by_elem !init_elem plan in
+      (* let clear *)
+      Some { gamma; pre; mid; post; pg }
 
 and backward env (goal : mid_plan_goal) : plan_goal option =
   let* goal = forward env goal in
   let goal = gather_subgoal_from_plan_mid goal in
+  let goal = { goal with pg = PG.remove_preserve_subgoal goal.mid goal.pg } in
   let () = simp_print_back_judgement goal in
   (* let pg', (ga, pre') = plan_to_acts (goal.gamma, goal.pre) in *)
   (* let pg' = PG.concat pg' goal.pg in *)
@@ -264,8 +291,8 @@ and backward env (goal : mid_plan_goal) : plan_goal option =
   (* let goal = { goal with pg = pg'; gamma = ga; pre = pre' } in *)
   (* let goal = eliminate_buffer_plan_mid_goal goal in *)
   let op = Plan.elem_to_op [%here] goal.mid in
-  let () = incrAndStop 7 in
-  (* let () = if String.equal op "eNotifyNodesDown" then _die [%here] in *)
+  (* let () = if String.equal op "eUpdateReq" then _die [%here] in *)
+  (* let () = incrAndStop 8 in *)
   if is_gen env op then
     let res =
       {
@@ -295,18 +322,6 @@ and backward env (goal : mid_plan_goal) : plan_goal option =
       let () =
         Pp.printf "@{<bold>history_plan:@} %s\n" (Plan.omit_layout history_plan)
       in
-      let dep_elem =
-        (* NOTE: the payload should just conj of eq *)
-        let op, _, _ = _get_sevent_fields dep_se in
-        let args = List.map (fun x -> x.x #: x.ty.nt) args in
-        PlanAct { op; args }
-      in
-      (* let () = Printf.printf "dep_elem: %s\n" (Plan.layout_elem dep_elem) in *)
-      let args, arg_phis = List.split @@ List.map destruct_cty_var args in
-      let gamma =
-        Gamma.simplify
-          { goal.gamma with bprop = smart_and (goal.gamma.bprop :: arg_phis) }
-      in
       let p = List.map (fun se -> PlanSe se) p in
       let fs = Plan.parallel_interleaving p in
       let () =
@@ -316,7 +331,46 @@ and backward env (goal : mid_plan_goal) : plan_goal option =
               (Plan.layout p2))
           fs
       in
-      let goals =
+      let dep_elem =
+        (* NOTE: the payload should just conj of eq *)
+        let op, _, _ = _get_sevent_fields dep_se in
+        let args = List.map (fun x -> x.x #: x.ty.nt) args in
+        PlanAct { op; args }
+      in
+      let args, arg_phis = List.split @@ List.map destruct_cty_var args in
+      let gamma =
+        Gamma.simplify
+          { goal.gamma with bprop = smart_and (goal.gamma.bprop :: arg_phis) }
+      in
+      (* NOTE: try exactly match *)
+      let exactly_penta =
+        let pres = exactly_match dep_se goal.pre in
+        let () = Pp.printfBold "exactly pre:" "\n" in
+        let () = List.iter simp_print_mid_judgement pres in
+        List.concat_map
+          (fun (pre1, mid, pre2) ->
+            List.concat_map
+              (fun (f11, f12) ->
+                let pres = Plan.insert f11 pre1 in
+                let posts = Plan.insert f12 goal.post in
+                let l = List.cross pres posts in
+                List.map (fun (pre1, post) -> ((pre1, mid, pre2), post)) l)
+              fs)
+          pres
+      in
+      let () =
+        if List.length exactly_penta > 0 then
+          List.iter
+            (fun ((pre1, dep_elem', pre2), post) ->
+              let lena, lenc = map2 List.length (pre1, pre2) in
+              Pp.printf "[%i][1][%i]\n" lena lenc;
+              simp_print_mid_judgement (pre1, dep_elem', pre2);
+              Pp.printf "%s [%s]\n" (layout_elem elem) (omit_layout_plan post))
+            exactly_penta (* _die [%here] *)
+      in
+      let exactly_penta = [] in
+      (* let () = Printf.printf "dep_elem: %s\n" (Plan.layout_elem dep_elem) in *)
+      let normal_penta =
         List.concat_map
           (fun (f11, f12) ->
             let () = Pp.printfBold "init post:" "\n" in
@@ -330,45 +384,86 @@ and backward env (goal : mid_plan_goal) : plan_goal option =
             in
             let () = Pp.printfBold "pres:" "\n" in
             let () = List.iter simp_print_mid_judgement pres in
-            let pres =
-              List.concat_map
-                (fun (pre1, dep_elem', pre2) ->
-                  let pre1s = Plan.merge_plan history_plan pre1 in
-                  List.map (fun pre1 -> (pre1, dep_elem', pre2)) pre1s)
-                pres
-            in
-            let () = Pp.printfBold "pres after merge:" "\n" in
-            let () =
-              List.iter
-                (fun (a, b, c) ->
-                  let lena, lenc = map2 List.length (a, c) in
-                  Pp.printf "[%i][1][%i]\n" lena lenc;
-                  simp_print_mid_judgement (a, b, c))
-                pres
-            in
-            (* let get_new_back_goals pre = *)
-            (*   let pre_pre, _, _ = Plan.divide_by_elem dep_elem pre in *)
-            (*   let subgoal = List.filter  *)
-            let () = Pp.printfBold "posts:" "\n" in
-            let () =
-              List.iter
-                (fun p -> Pp.printf "%s\n" @@ Plan.omit_layout_plan p)
-                posts
-            in
-            let goals =
-              List.map (fun ((pre1, dep_elem', pre2), post) ->
-                  {
-                    gamma;
-                    pre = pre1;
-                    mid = dep_elem';
-                    post = pre2 @ [ elem ] @ post;
-                    pg = goal.pg;
-                  })
-              @@ List.cross pres posts
-            in
-            goals)
+            List.cross pres posts)
           fs
       in
+      let penta =
+        List.concat_map
+          (fun ((pre1, dep_elem', pre2), post) ->
+            let pre1s = Plan.merge_plan history_plan pre1 in
+            List.map (fun pre1 -> ((pre1, dep_elem', pre2), post)) pre1s)
+          (exactly_penta @ normal_penta)
+      in
+      let () =
+        List.iter
+          (fun ((pre1, dep_elem', pre2), post) ->
+            let lena, lenc = map2 List.length (pre1, pre2) in
+            Pp.printf "[%i][1][%i]\n" lena lenc;
+            simp_print_mid_judgement (pre1, dep_elem', pre2);
+            Pp.printf "%s [%s]\n" (layout_elem elem) (omit_layout_plan post))
+          penta
+      in
+      let goals =
+        List.map
+          (fun ((pre1, dep_elem', pre2), post) ->
+            {
+              gamma;
+              pre = pre1;
+              mid = dep_elem';
+              post = pre2 @ [ elem ] @ post;
+              pg = goal.pg;
+            })
+          penta
+      in
+      (* let () = Pp.printfBold "init post:" "\n" in *)
+      (* let () = Pp.printf "%s\n" @@ Plan.omit_layout_plan goal.post in *)
+      (* let posts = Plan.insert f12 goal.post in *)
+      (* (\* let old_cur =  { op; vs; phi = smart_add_to phi' phi } in *\) *)
+      (* let f11' = dep_elem :: f11 in *)
+      (* let pres = *)
+      (*   List.map (Plan.divide_by_elem dep_elem) *)
+      (*   @@ Plan.insert f11' goal.pre *)
+      (* in *)
+      (* let () = Pp.printfBold "pres:" "\n" in *)
+      (* let () = List.iter simp_print_mid_judgement pres in *)
+      (* let pres = *)
+      (*   List.concat_map *)
+      (*     (fun (pre1, dep_elem', pre2) -> *)
+      (*       let pre1s = Plan.merge_plan history_plan pre1 in *)
+      (*       List.map (fun pre1 -> (pre1, dep_elem', pre2)) pre1s) *)
+      (*     pres *)
+      (* in *)
+      (* let () = Pp.printfBold "pres after merge:" "\n" in *)
+      (* let () = *)
+      (*   List.iter *)
+      (*     (fun (a, b, c) -> *)
+      (*       let lena, lenc = map2 List.length (a, c) in *)
+      (*       Pp.printf "[%i][1][%i]\n" lena lenc; *)
+      (*       simp_print_mid_judgement (a, b, c)) *)
+      (*     pres *)
+      (* in *)
+      (* (\* let get_new_back_goals pre = *\) *)
+      (* (\*   let pre_pre, _, _ = Plan.divide_by_elem dep_elem pre in *\) *)
+      (* (\*   let subgoal = List.filter  *\) *)
+      (* let () = Pp.printfBold "posts:" "\n" in *)
+      (* let () = *)
+      (*   List.iter *)
+      (*     (fun p -> Pp.printf "%s\n" @@ Plan.omit_layout_plan p) *)
+      (*     posts *)
+      (* in *)
+      (* let goals = *)
+      (*   List.map (fun ((pre1, dep_elem', pre2), post) -> *)
+      (*       { *)
+      (*         gamma; *)
+      (*         pre = pre1; *)
+      (*         mid = dep_elem'; *)
+      (*         post = pre2 @ [ elem ] @ post; *)
+      (*         pg = goal.pg; *)
+      (*       }) *)
+      (*   @@ List.cross pres posts *)
+      (* in *)
+      (*       goals *)
+      (* in *)
       let goals = List.map eliminate_buffer_plan_mid_goal goals in
       let () =
         Pp.printfBold "len(subgoals) " @@ spf "%i\n" (List.length goals)

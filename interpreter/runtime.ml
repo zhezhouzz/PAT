@@ -121,7 +121,7 @@ let sample_phi runtime (vs, prop) =
       if eval_prop store' prop then store (* List.map snd store *)
       else aux (n - 1)
   in
-  aux 1000
+  aux 2000
 
 let mk_assume runtime (vs, prop) =
   let store = sample_phi runtime (vs, prop) in
