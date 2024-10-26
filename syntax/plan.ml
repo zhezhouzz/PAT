@@ -267,6 +267,21 @@ let rec merge_plan_elem elem1 elem2 =
   in
   res
 
+let trace_sanity_check tab =
+  let rec aux seen = function
+    | [] -> true
+    | x :: l -> (
+        match Hashtbl.find tab x with
+        | PlanAct _ | PlanActBuffer _ | PlanSe _ ->
+            if IntSet.mem x seen then false else aux (IntSet.add x seen) l
+        | _ -> aux seen l)
+  in
+  aux IntSet.empty
+
+let case_sanity_check (tab1, tab2) case =
+  let l1, l2 = List.split case in
+  trace_sanity_check tab1 l1 && trace_sanity_check tab2 l2
+
 let merge_plan l1 l2 =
   let () =
     _log "plan" @@ fun _ ->
@@ -371,6 +386,7 @@ let merge_plan l1 l2 =
             @ cons_multi (idx1, idx2) (fill (idx1 + 1, idx2) l)
   in
   let l = List.concat_map (fill (0, 0)) l in
+  let l = List.filter (case_sanity_check (tab1, tab2)) l in
   let () =
     Hashtbl.iter
       (fun idx elem -> Pp.printf "tab1[%i]: %s\n" idx (omit_layout_elem elem))
@@ -396,22 +412,30 @@ let merge_plan l1 l2 =
         let* e = merge_plan_elem e1 e2 in
         f (res @ [ e ]) l
   in
-  let l = List.filter_map (f []) l in
-  let choose_less ll =
-    let min_len =
-      List.fold_left
-        (fun res l ->
-          let len = List.length l in
-          match res with
-          | None -> Some len
-          | Some res -> if len < res then Some len else Some res)
-        None ll
-    in
-    match min_len with
-    | None -> ll
-    | Some len -> List.filter (fun l -> len == List.length l) ll
+  let res = List.filter_map (f []) l in
+  let res =
+    List.sort (fun l1 l2 -> compare (List.length l1) (List.length l2)) res
   in
-  let res = choose_less l in
+  (* let choose_less ll = *)
+  (*   let min_len = *)
+  (*     List.fold_left *)
+  (*       (fun res l -> *)
+  (*         let len = List.length l in *)
+  (*         match res with *)
+  (*         | None -> Some len *)
+  (*         | Some res -> if len < res then Some len else Some res) *)
+  (*       None ll *)
+  (*   in *)
+  (*   match min_len with *)
+  (*   | None -> ll *)
+  (*   | Some len -> List.filter (fun l -> len == List.length l) ll *)
+  (* in *)
+  (* let () = *)
+  (*   List.iteri *)
+  (*     (fun idx l -> Pp.printf "@{<bold>l[%i]:@} %s\n" idx (omit_layout l)) *)
+  (*     res *)
+  (* in *)
+  (* let res = choose_less res in *)
   let () =
     List.iteri
       (fun idx l -> Pp.printf "@{<bold>res[%i]:@} %s\n" idx (omit_layout l))

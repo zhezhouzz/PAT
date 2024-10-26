@@ -21,7 +21,7 @@ let rec eval (runtime, term) =
       let runtime = Runtime.mk_assume runtime (lhs, prop) in
       eval (runtime, body.x)
   | CLetE { lhs; rhs = { x = CObs { op; prop }; _ }; body } ->
-      let runtime, cs = recv_and_send runtime op.x in
+      let runtime, cs = recv_and_send runtime op.x (lhs, prop) in
       let store = store_add (lhs, cs) runtime.store in
       let runtime = { runtime with store } in
       if eval_prop runtime.store prop then eval (runtime, body.x)
@@ -65,7 +65,7 @@ and eval_single_return (runtime, term) =
 let eval_until_consistent (runtime, term) =
   let rec aux (i : int) =
     let () = counter := 0 in
-    if i > 1000 then _die_with [%here] "too many time until consistent"
+    if i > 1 then _die_with [%here] "too many time until consistent"
     else
       try (i, eval (runtime, term)) with
       | RuntimeInconsistent _ -> aux (i + 1)

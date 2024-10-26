@@ -144,7 +144,7 @@ let send runtime (op, cs) =
     buffer = runtime.buffer @ msgs;
   }
 
-let recv_and_send runtime op =
+let recv_and_send runtime op (lhs, prop) =
   let avialable_msgs =
     List.filter_mapi
       (fun idx (op', args) ->
@@ -155,6 +155,13 @@ let recv_and_send runtime op =
         in
         if String.equal op op' then Some (args, rest) else None)
       runtime.buffer
+  in
+  let avialable_msgs =
+    List.filter
+      (fun (cs, _) ->
+        let store = store_add (lhs, cs) runtime.store in
+        eval_prop store prop)
+      avialable_msgs
   in
   let args, buffer =
     match avialable_msgs with
