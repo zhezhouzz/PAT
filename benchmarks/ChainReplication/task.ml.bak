@@ -1,9 +1,6 @@
 val ( == ) : 'a -> 'a -> bool
 val writeReq : < key : tKey ; va : int > [@@gen]
-
-val writeToMid : < key : tKey ; va : int ; node : (node1 * node2[@tNode]) >
-[@@obs]
-
+val writeToMid : < key : tKey ; va : int > [@@obs]
 val writeToTail : < key : tKey ; va : int > [@@obs]
 val writeRsp : < key : tKey ; va : int > [@@obsRecv]
 val readReq : < key : tKey > [@@gen]
@@ -11,33 +8,12 @@ val readRsp : < key : tKey ; va : int ; st : bool > [@@obsRecv]
 val crashTail : unit [@@gen]
 
 let writeReq ?l:(k = (true : [%v: tKey])) ?l:(x = (true : [%v: int])) =
-  ( allA,
-    WriteReq (key == k && va == x),
-    [|
-      WriteToMid
-        (key == k && va == x && node == ("Node1" : (node1 * node2[@tNode])));
-    |] )
+  (allA, WriteReq (key == k && va == x), [| WriteToMid (key == k && va == x) |])
 
-let writeToMid =
-  [|
-    (fun ?l:(k = (true : [%v: tKey])) ?l:(x = (true : [%v: int]))
-         ?l:(n =
-             (v == ("Node1" : (node1 * node2[@tNode]))
-               : [%v: (node1 * node2[@tNode])])) ->
-      ( allA,
-        WriteToMid (key == k && va == x && node == n),
-        [|
-          WriteToMid
-            (key == k && va == x && node == ("Node2" : (node1 * node2[@tNode])));
-        |] ));
-    (fun ?l:(k = (true : [%v: tKey])) ?l:(x = (true : [%v: int]))
-         ?l:(n =
-             (v == ("Node2" : (node1 * node2[@tNode]))
-               : [%v: (node1 * node2[@tNode])])) ->
-      ( allA,
-        WriteToMid (key == k && va == x && node == n),
-        [| WriteToTail (key == k && va == x) |] ));
-  |]
+let writeToMid ?l:(k = (true : [%v: tKey])) ?l:(x = (true : [%v: int])) =
+  ( allA,
+    WriteToMid (key == k && va == x),
+    [| WriteToTail (key == k && va == x) |] )
 
 let writeToTail =
   [|
@@ -72,39 +48,22 @@ let readReq =
       ( (starA (anyA - CrashTail true);
          CrashTail true;
          starA (anyA - CrashTail true);
-         WriteToMid
-           (key == k && va == x && node == ("Node2" : (node1 * node2[@tNode])));
-         starA
-           (anyA - CrashTail true
-           - WriteToMid (key == k && node == ("Node2" : (node1 * node2[@tNode])))
-           )),
+         WriteToMid (key == k && va == x);
+         starA (anyA - CrashTail true - WriteToMid (key == k))),
         ReadReq (key == k),
         [| ReadRsp (key == k && va == x && st) |] ));
     (fun (x : int) ?l:(k = (true : [%v: tKey])) ->
       ( (starA (anyA - CrashTail true);
-         WriteToMid
-           (key == k && va == x && node == ("Node2" : (node1 * node2[@tNode])));
-         starA
-           (anyA - CrashTail true
-           - WriteToMid (key == k && node == ("Node2" : (node1 * node2[@tNode])))
-           );
+         WriteToMid (key == k && va == x);
+         starA (anyA - CrashTail true - WriteToMid (key == k));
          CrashTail true;
-         starA
-           (anyA - CrashTail true
-           - WriteToMid (key == k && node == ("Node2" : (node1 * node2[@tNode])))
-           )),
+         starA (anyA - CrashTail true - WriteToMid (key == k))),
         ReadReq (key == k),
         [| ReadRsp (key == k && va == x && st) |] ));
     (fun (x : int) ?l:(k = (true : [%v: tKey])) ->
-      ( (starA
-           (anyA - CrashTail true
-           - WriteToMid (key == k && node == ("Node2" : (node1 * node2[@tNode])))
-           );
+      ( (starA (anyA - CrashTail true - WriteToMid (key == k));
          CrashTail true;
-         starA
-           (anyA - CrashTail true
-           - WriteToMid (key == k && node == ("Node2" : (node1 * node2[@tNode])))
-           )),
+         starA (anyA - CrashTail true - WriteToMid (key == k))),
         ReadReq (key == k),
         [| ReadRsp (key == k && not st) |] ));
   |]
