@@ -69,9 +69,18 @@ let simp_print_mid_judgement (pre, cur, post) =
   Pp.printf "@{<bold>[@} %s @{<bold>]@}\n %s\n@{<bold>[@} %s @{<bold>]@}\n\n"
     (omit_layout pre) (layout_elem cur) (omit_layout post)
 
+let print_mid_judgement (pre, cur, post) =
+  let open Plan in
+  Pp.printf "@{<bold>[@} %s @{<bold>]@}\n %s\n@{<bold>[@} %s @{<bold>]@}\n\n"
+    (layout pre) (layout_elem cur) (layout post)
+
 let simp_print_plan_judgement plan =
   let open Plan in
   Pp.printf "@{<bold>[@} %s @{<bold>]@}\n\n" (omit_layout plan)
+
+let print_plan_judgement plan =
+  let open Plan in
+  Pp.printf "@{<bold>[@} %s @{<bold>]@}\n\n" (layout plan)
 
 let simp_print_back_judgement { gamma; pre; mid; post; pg; solved } =
   Pp.printf "@{<bold>@{<yellow>Backword:@}@}\n";
@@ -85,6 +94,12 @@ let simp_print_mid { gamma; pre; mid; post; pg; solved } =
   PG.print_preserve_goals "preserve" pg;
   PG.print_preserve_goals "solved" solved;
   simp_print_mid_judgement (pre, mid, post)
+
+let print_mid { gamma; pre; mid; post; pg; solved } =
+  simp_print_gamma_judgement gamma;
+  PG.print_preserve_goals "preserve" pg;
+  PG.print_preserve_goals "solved" solved;
+  print_mid_judgement (pre, mid, post)
 
 let simp_print_forward_judgement { gamma; preSolved; postUnsolved; pg; solved }
     =
@@ -101,6 +116,13 @@ let simp_print_syn_judgement { gamma; plan; pg; solved } =
   PG.print_preserve_goals "preserve" pg;
   PG.print_preserve_goals "solved" solved;
   simp_print_plan_judgement plan
+
+let print_syn_judgement { gamma; plan; pg; solved } =
+  Pp.printf "@{<bold>@{<yellow>Synthesis:@}@}\n";
+  simp_print_gamma_judgement gamma;
+  PG.print_preserve_goals "preserve" pg;
+  PG.print_preserve_goals "solved" solved;
+  print_plan_judgement plan
 
 let simp_print_opt_judgement p1 m p2 =
   Pp.printf "@{<bold>@{<yellow>Optimize:@}@}\n";

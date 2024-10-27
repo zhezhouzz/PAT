@@ -112,6 +112,9 @@ let normalize_goal_aux env (gamma, reg) =
     Rawdesym.desymbolic_symbolic_rewregex env.tyctx env.event_tyctx
       (gamma.bprop, reg)
   in
+  let () =
+    Pp.printf "\n@{<bold>After Desym:@}\n%s\n" (DesymFA.layout_raw_regex reg)
+  in
   let reg = Rawdesym.normalize_desym_regex reg in
   let open DesymFA in
   let () = Printf.printf "reg: %s\n" (layout_raw_regex reg) in

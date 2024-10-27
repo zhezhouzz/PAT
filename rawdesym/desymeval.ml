@@ -86,7 +86,7 @@ let desym_eval_regex desym_map fact =
         let cs = desym_eval_chars desym_map fact cs in
         if DesymFA.CharSet.is_empty cs then Empty else MultiChar cs
     | Alt (r1, r2) -> DesymFA.smart_alt (aux r1) (aux r2)
-    | Inters (r1, r2) -> DesymFA.smart_alt (aux r1) (aux r2)
+    | Inters (r1, r2) -> DesymFA.smart_inter (aux r1) (aux r2)
     | Seq rs -> DesymFA.smart_seq (List.map aux rs)
     | Comple (cs, r) ->
         let cs = desym_eval_chars desym_map fact cs in

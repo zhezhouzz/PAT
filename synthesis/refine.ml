@@ -116,6 +116,8 @@ and deductive_synthesis_trace env (goal : plan_goal) : plan_goal option =
   let rec handle goal =
     let goal = gather_subgoal_from_plan goal in
     let () = simp_print_syn_judgement goal in
+    (* let () = print_syn_judgement goal in *)
+    (* let () = _die [%here] in *)
     (* let () = *)
     (*   Pp.printf "@{<green>remaining goals:@} %s\n" (Plan.layout_plan goal.pg) *)
     (* in *)
@@ -196,6 +198,9 @@ and forward env (goal : mid_plan_goal) =
               let gargs, (args, retrty) = destruct_haft [%here] haft in
               let history, se, p = destruct_hap [%here] retrty in
               (* NOTE: history should be well-formed. *)
+              let () =
+                Printf.printf "history: %s\n" (SFA.layout_raw_regex history)
+              in
               let history_plan = raw_regex_to_plan history in
               (* in *)
               (* let () = if !counter == 1 then init_elem := Some dep_elem in *)
@@ -279,6 +284,7 @@ and forward env (goal : mid_plan_goal) =
               let () =
                 Pp.printf "@{<bold>After Opt@}: (%s)\n" (layout_qvs args');
                 simp_print_mid goal
+                (* print_mid goal *)
               in
               let* gamma' =
                 Abduction.abduction_mid_goal env goal.gamma
@@ -353,7 +359,7 @@ and backward env (goal : mid_plan_goal) : plan_goal option =
   let () = simp_print_back_judgement goal in
   (* let () = if String.equal op "eInternalReq" then _die [%here] in *)
   let () = Printf.printf "%i\n" !forward_synthesis_counter in
-  (* let () = incrAndStop 4 in *)
+  (* let () = incrAndStop 3 in *)
   (* let () = if String.equal op "eInternalReq" then _die [%here] in *)
   (* if PG.in_preserve_subgoal goal.mid goal.solved then *)
   (*   Some *)

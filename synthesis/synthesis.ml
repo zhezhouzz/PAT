@@ -4,7 +4,7 @@ open Refine
 open MkTerm
 
 let mk_synthesis_goal (env : syn_env) =
-  let qvs, prop =
+  let qvs, reg =
     match env.goal with
     | None -> _die_with [%here] "no goal"
     | Some { qvs; prop } -> (qvs, prop)
@@ -13,7 +13,9 @@ let mk_synthesis_goal (env : syn_env) =
   (*   add_to_rights emp *)
   (*     (List.map (fun x -> x.x #: { nt = x.ty; phi = mk_true }) qvs) *)
   (* in *)
-  let reg = smart_negate prop in
+  (* let () = *)
+  (*   Pp.printf "\n@{<red>After smart negate:@} %s\n" (layout_symbolic_regex reg) *)
+  (* in *)
   let op_names = List.map _get_x (ctx_to_list env.event_tyctx) in
   let reg =
     desugar env.event_tyctx (SyntaxSugar (CtxOp { op_names; body = reg }))

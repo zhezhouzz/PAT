@@ -56,15 +56,9 @@ let add_to_env (env : syn_env) = function
 
 let handle_reg (env : syn_env) reg =
   let op_names = List.map _get_x (ctx_to_list env.event_tyctx) in
-  (* let () = *)
-  (*   Pp.printf "@{<bold>Before:@} %s\n" (layout_symbolic_regex_precise reg) *)
-  (* in *)
   let reg =
     desugar env.event_tyctx (SyntaxSugar (CtxOp { op_names; body = reg }))
   in
-  (* let () = *)
-  (*   Pp.printf "@{<bold>After:@} %s\n" (layout_symbolic_regex_precise reg) *)
-  (* in *)
   let reg = delimit_context reg in
   reg
 
@@ -107,6 +101,15 @@ let item_check (env : syn_env) = function
           let tyctx = add_to_rights env.tyctx qvs in
           let regex_ctx = mk_regex_ctx (env.event_tyctx, tyctx) in
           let prop = handle_reg env prop in
+          let () =
+            Pp.printf "@{<bold>Before Negate:@} %s\n"
+              (layout_symbolic_regex_precise prop)
+          in
+          let prop = smart_negate prop in
+          let () =
+            Pp.printf "@{<bold>After:@} %s\n"
+              (layout_symbolic_regex_precise prop)
+          in
           let prop = _get_x @@ bi_symbolic_regex_check regex_ctx prop in
           { env with goal = Some { qvs; prop } })
   | _ -> env
