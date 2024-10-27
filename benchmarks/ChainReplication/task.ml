@@ -3,7 +3,7 @@ val writeReq : < va : int > [@@gen]
 val writeToMid : < va : int > [@@obs]
 val writeToTail : < va : int > [@@obs]
 val writeRsp : < va : int > [@@obsRecv]
-val readReq : < va : int > [@@gen]
+val readReq : unit [@@gen]
 val readRsp : < va : int ; st : bool > [@@obsRecv]
 val crashTail : unit [@@gen]
 
@@ -66,8 +66,27 @@ let readReq =
 
 let crashTail = (allA, CrashTail true, [||])
 
-let[@goal] missingWriteRsp (x : int) =
+let readRsp ?l:(x = (true : [%v: int])) ?l:(s = (true : [%v: bool])) =
+  (allA, ReadRsp (va == x && st == s), [||])
+
+(* let[@goal] missingWriteRsp (x : int) = *)
+(*   not *)
+(*     (allA; *)
+(*      WriteReq (va == x); *)
+(*      starA (anyA - WriteRsp (va == x))) *)
+
+(* let[@goal] read_your_write (x : int) (y : int) = *)
+(*   not *)
+(*     (allA; *)
+(*      WriteRsp (va == x); *)
+(*      starA (anyA - WriteRsp true); *)
+(*      ReadRsp (va == y && (not (x == y)) && st); *)
+(*      starA (anyA - ReadRsp st - WriteRsp true)) *)
+
+let[@goal] no_response_but_can_still_read (x : int) (y : int) =
   not
-    (allA;
-     WriteReq (va == x);
-     starA (anyA - WriteRsp (va == x)))
+    (starA (anyA - WriteRsp (va == y));
+     WriteRsp (va == x);
+     starA (anyA - WriteRsp (va == y));
+     ReadRsp (va == y && (not (x == y)) && st);
+     starA (anyA - ReadRsp st - WriteRsp true))
