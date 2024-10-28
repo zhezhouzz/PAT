@@ -2,6 +2,7 @@ open Language
 open Zdatatype
 open Refine
 open MkTerm
+open Common
 
 let mk_synthesis_goal (env : syn_env) =
   let qvs, reg =
@@ -27,6 +28,7 @@ let mk_synthesis_goal (env : syn_env) =
   (Gamma.{ bvs = qvs; bprop = mk_true }, SFA.regex_to_raw reg)
 
 let synthesize env goal =
+  let () = setup_clock None in
   let* g = deductive_synthesis_reg env goal in
   let () = Pp.printf "\n@{<red>Result gamma:@} %s\n" (Gamma.layout g.gamma) in
   let () =
@@ -36,6 +38,19 @@ let synthesize env goal =
   let term = instantiation env (g.gamma, g.plan) in
   Some term
 (* Some (reverse_instantiation env res) *)
+
+let syn_timeout timebound env =
+  let () = setup_clock (Some timebound) in
+  let goal = mk_synthesis_goal env in
+  let res =
+    try match deductive_synthesis env goal with _ -> !result_buffer
+    with Timeout (_, results) -> (* let () = raise exn in *)
+                                 results
+  in
+  (* let () = _die [%here] in *)
+  let terms = List.map (fun g -> instantiation env (g.gamma, g.plan)) res in
+  let () = Pp.printf "\n@{<red>Get %i results:@}\n" (List.length terms) in
+  terms
 
 let syn_one env =
   match synthesize env @@ mk_synthesis_goal env with

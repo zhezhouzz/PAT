@@ -84,6 +84,16 @@ let rec deductive_synthesis_reg env goal : plan_goal option =
   let res = List.filter_map (deductive_synthesis_trace env) goals in
   match res with [] -> None | g :: _ -> Some g
 
+and deductive_synthesis env goal : plan_goal option =
+  let goals = normalize_goal env goal in
+  (* NOTE: in the beginning, there is not pending sub goals *)
+  let goals =
+    List.map (fun (gamma, plan) -> { gamma; plan; pg = []; solved = [] }) goals
+  in
+  let res = List.filter_map (deductive_synthesis_trace env) goals in
+  let () = match res with _ :: _ -> set_explore () | _ -> () in
+  deductive_synthesis env goal
+
 and gather_subgoal_from_plan goal =
   let pg', (ga, plan') = plan_to_acts (goal.gamma, goal.plan) in
   let pg' = PG.concat pg' goal.pg in
@@ -122,7 +132,10 @@ and deductive_synthesis_trace env (goal : plan_goal) : plan_goal option =
     (*   Pp.printf "@{<green>remaining goals:@} %s\n" (Plan.layout_plan goal.pg) *)
     (* in *)
     match List.last_destruct_opt goal.pg with
-    | None -> Some goal
+    | None ->
+        let goal = eliminate_buffer_plan_goal goal in
+        let goal = { goal with plan = remove_star [%here] goal.plan } in
+        record_result goal
     | Some (_, mid) ->
         let pre, _, post = Plan.divide_by_elem mid goal.plan in
         let () =
@@ -145,14 +158,7 @@ and deductive_synthesis_trace env (goal : plan_goal) : plan_goal option =
         (* let () = counter := !counter + 1 in *)
         handle goal
   in
-  (* let () = mk_preserve_subgoal (snd goal) in *)
-  let* res = handle goal in
-  let res = eliminate_buffer_plan_goal res in
-  (* let () = *)
-  (*   Printf.printf "%i\n" !forward_synthesis_counter; *)
-  (*   _die [%here] *)
-  (* in *)
-  Some { res with plan = remove_star [%here] res.plan }
+  handle goal
 
 and forward env (goal : mid_plan_goal) =
   (* let () = simp_print_forward_judgement goal in *)
@@ -357,9 +363,9 @@ and backward env (goal : mid_plan_goal) : plan_goal option =
   (* let goal = { goal with pg = pg'; gamma = ga; pre = pre' } in *)
   (* let goal = eliminate_buffer_plan_mid_goal goal in *)
   let () = simp_print_back_judgement goal in
-  (* let () = if String.equal op "eInternalReq" then _die [%here] in *)
+  (* let () = if String.equal op "eStart" then _die [%here] in *)
   let () = Printf.printf "%i\n" !forward_synthesis_counter in
-  (* let () = incrAndStop 3 in *)
+  (* let () = incrAndStop 6 in *)
   (* let () = if String.equal op "eInternalReq" then _die [%here] in *)
   (* if PG.in_preserve_subgoal goal.mid goal.solved then *)
   (*   Some *)

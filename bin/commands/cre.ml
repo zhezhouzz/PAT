@@ -43,7 +43,11 @@ let syn_term source_file output_file () =
   (* let () = Printf.printf "%s\n" (layout_structure code) in *)
   let env = Ntypecheck.(struct_check init_env code) in
   let () = Printf.printf "%s\n" (layout_syn_env env) in
+  let start_time = Sys.time () in
   let term = Synthesis.syn_one env in
+  let exec_time = Sys.time () -. start_time in
+  let () = Pp.printf "@{<bold>synthesis time: %f@}\n" exec_time in
+  let output_file = spf "%s.scm" output_file in
   let oc = Out_channel.open_text output_file in
   try
     Sexplib.Sexp.output oc @@ sexp_of_term term;
@@ -51,6 +55,29 @@ let syn_term source_file output_file () =
   with e ->
     Out_channel.close oc;
     raise e
+
+let syn_term_timeout source_file output_file timebound () =
+  let code = read_source_file source_file () in
+  let () = Pp.printf "@{<bold>Time bound:@} %f\n" timebound in
+  (* let () = _die [%here] in *)
+  let env = Ntypecheck.(struct_check init_env code) in
+  let () = Printf.printf "%s\n" (layout_syn_env env) in
+  let start_time = Sys.time () in
+  let terms = Synthesis.syn_timeout timebound env in
+  let exec_time = Sys.time () -. start_time in
+  let avg_time = exec_time /. float_of_int (ListLabels.length terms) in
+  let () = Pp.printf "@{<bold>synthesis time: %f@}\n" avg_time in
+  List.iteri
+    (fun i term ->
+      let output_file = spf "%s_%i.scm" output_file i in
+      let oc = Out_channel.open_text output_file in
+      try
+        Sexplib.Sexp.output oc @@ sexp_of_term term;
+        Out_channel.close oc
+      with e ->
+        Out_channel.close oc;
+        raise e)
+    terms
 
 let load_syn_result source_file output_file =
   let code = read_source_file source_file () in
@@ -62,6 +89,7 @@ let load_syn_result source_file output_file =
   (env, term)
 
 let eval source_file output_file () =
+  let output_file = spf "%s.scm" output_file in
   let env, term = load_syn_result source_file output_file in
   let () = Printf.printf "%s\n" (layout_term term) in
   let () = Interpreter.interpret env term in
@@ -154,6 +182,19 @@ let two_param_string message f =
       let () = Myconfig.meta_config_path := config_file in
       f source_file file1)
 
+let timeout_param message f =
+  Command.basic ~summary:message
+    Command.Let_syntax.(
+      let%map_open config_file =
+        flag "config"
+          (optional_with_default Myconfig.default_meta_config_path regular_file)
+          ~doc:"config file path"
+      and source_file = anon ("source_code_file" %: regular_file)
+      and file1 = anon ("file1" %: string)
+      and timebound = anon ("timebound" %: float) in
+      let () = Myconfig.meta_config_path := config_file in
+      f source_file file1 timebound)
+
 let four_param_string message f =
   Command.basic ~summary:message
     Command.Let_syntax.(
@@ -172,6 +213,7 @@ let cmds =
   [
     ("read-syn", one_param "read syn" read_syn);
     ("syn-one", two_param_string "syn one" syn_term);
+    ("syn-timeout", timeout_param "syn timeout" syn_term_timeout);
     ("eval", two_param_string "eval" eval);
     ("compile-to-p", four_param_string "compile to p language" compile_to_p);
     ("show-term", one_param "show term" show_term);

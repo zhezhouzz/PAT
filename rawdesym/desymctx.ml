@@ -273,8 +273,17 @@ let mk_desym_ctx tyctx event_tyctx (gprop, r) =
   let local_ftab =
     StrMap.map
       (fun local_vars ->
+        (* let () = *)
+        (*   Pp.printf "@{<bold>local_vars:@} %s\n" *)
+        (*     (List.split_by_comma *)
+        (*        (fun x -> spf "%s:%s" x.x (Nt.layout x.ty)) *)
+        (*        local_vars) *)
+        (* in *)
         (* let ftab = mk_ftab if_add_lt (global_vars @ local_vars) constants in *)
         let ftab = List.of_seq @@ LitSet.to_seq @@ get_lits_in_reg r in
+        (* let () = *)
+        (*   Pp.printf "@{<bold>ftab:@} %s\n" (List.split_by_comma layout_lit ftab) *)
+        (* in *)
         (* let ftab = *)
         (*   List.of_seq @@ LitSet.to_seq *)
         (*   @@ LitSet.union (get_lits_in_reg r) (LitSet.of_list ftab) *)
@@ -288,6 +297,9 @@ let mk_desym_ctx tyctx event_tyctx (gprop, r) =
                 @@ List.interset String.equal local_vars_id (fv_lit_id lit)))
             ftab
         in
+        (* let () = *)
+        (*   Pp.printf "@{<bold>ftab:@} %s\n" (List.split_by_comma layout_lit ftab) *)
+        (* in *)
         ftab)
       event_tyctx
   in

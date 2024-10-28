@@ -72,7 +72,18 @@ let init_fact_v2 prop
     { global_ftab; local_ftab; desym_map; event_tyctx; global_vars; _ } =
   let do_local_fact op ftab =
     let local_vars = StrMap.find "never" event_tyctx op in
+    (* let () = *)
+    (*   Pp.printf "%s\n" *)
+    (*     (List.split_by_comma *)
+    (*        (fun x -> spf "%s:%s" x.x (Nt.layout x.ty)) *)
+    (*        local_vars) *)
+    (* in *)
     let int2lit = StrMap.find "never" desym_map.local_int2lit op in
+    (* let () = *)
+    (*   IntMap.iter *)
+    (*     (fun i lit -> Pp.printf "%i -> %s\n" i (layout_lit lit)) *)
+    (*     int2lit *)
+    (* in *)
     let checker bl =
       (* let prop = *)
       (*   smart_forall global_vars @@ smart_exists local_vars *)
@@ -82,6 +93,7 @@ let init_fact_v2 prop
         smart_exists global_vars @@ smart_exists local_vars
         @@ smart_add_to prop (blist_to_prop bl int2lit)
       in
+      (* let () = Pp.printf "%s\n" (layout_propRaw prop) in *)
       safe_check_sat_bool prop
     in
     let fvecs = init_fact_tree checker ftab in

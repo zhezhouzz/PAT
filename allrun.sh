@@ -6,4 +6,5 @@
     ./run.sh Simplified2PC &&
     ./run.sh Kermit2PCModel &&
     ./run.sh RingLeaderElection &&
-    ./run.sh Firewall
+    ./run.sh Firewall &&
+    ./run.sh ChainReplication

@@ -219,12 +219,80 @@ let clearn_trace trace =
       | _ -> _die [%here])
     trace
 
-let backtrack f l =
+let timebound = ref None
+let start_time = ref 0.0
+
+exception Timeout of float * plan_goal list
+
+let result_buffer = ref []
+
+let is_dup g1 g2 =
+  let get_trace p = p.plan in
+  let tr1, tr2 = map2 get_trace (g1, g2) in
+  List.equal equal_plan_elem tr1 tr2
+
+let record_result (result : plan_goal) =
+  match !timebound with
+  | None -> Some result
+  | Some _ ->
+      (* let () = _die [%here] in *)
+      let () =
+        if not (List.exists (is_dup result) !result_buffer) then
+          result_buffer := result :: !result_buffer
+      in
+      (* result_buffer := result :: !result_buffer; *)
+      Some result
+
+let setup_clock bound =
+  timebound := bound;
+  start_time := Sys.time ()
+
+let get_exec_time () = Sys.time () -. !start_time
+
+let try_timeout () =
+  match !timebound with
+  | None -> ()
+  | Some bound ->
+      let exec_time = get_exec_time () in
+      if exec_time > bound then raise (Timeout (exec_time, !result_buffer))
+      else ()
+
+let shuffle d =
+  Random.self_init ();
+  let nd = List.map (fun c -> (Random.bits (), c)) d in
+  let sond = List.sort compare nd in
+  List.map snd sond
+
+let if_explore = ref false
+let set_explore () = if_explore := true
+(* if Random.bool () then if_explore := true else () *)
+
+let explore_backtrack f l =
+  let f x =
+    let () = try_timeout () in
+    f x
+  in
+  let l = if !if_explore then shuffle l else l in
   List.fold_left
     (fun res x ->
       match res with
       | Some _ -> res
       | None ->
           (* let () = _die_with [%here] "backtrack fail" in *)
-          f x)
+          let res = f x in
+          res)
     None l
+
+let backtrack f l =
+  match !timebound with
+  | Some _ -> explore_backtrack f l
+  | _ ->
+      List.fold_left
+        (fun res x ->
+          match res with
+          | Some _ -> res
+          | None ->
+              (* let () = _die_with [%here] "backtrack fail" in *)
+              let res = f x in
+              res)
+        None l
