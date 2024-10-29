@@ -103,7 +103,7 @@ let get_lits_in_reg r =
   @@ get_in_regex (get_lits_in_chars, LitSet.union, LitSet.empty) r
 
 let mybuild_euf vars =
-  let vars = List.map (fun lit -> lit #: (lit_to_nt lit)) vars in
+  let () = Pp.printf "vars: %s\n" (List.split_by_comma layout_typed_lit vars) in
   let space = Hashtbl.create 10 in
   let () =
     List.iter
@@ -132,16 +132,18 @@ let mybuild_euf vars =
   let res =
     Hashtbl.fold
       (fun ty vars res ->
-        if
-          List.length vars > 1 && not (Nt.equal_nt ty (Nt.Ty_uninter "Bytes.t"))
-        then aux ty vars @ res
+        if List.length vars > 1 && not (Nt.equal_nt ty Nt.Ty_bool) then
+          aux ty vars @ res
         else res)
       space []
+  in
+  let bres =
+    match Hashtbl.find_opt space Nt.Ty_bool with None -> [] | Some res -> res
   in
   (* let () = *)
   (*   Pp.printf "@{<bold>mybuild_euf:@} %s\n" (List.split_by_comma layout_lit res) *)
   (* in *)
-  res
+  res @ bres
 
 let mk_ftab if_add_lt (vars : (Nt.nt, string) typed list) (cs : constant list) =
   (* Remove boolean constants *)
@@ -182,6 +184,7 @@ let mk_ftab if_add_lt (vars : (Nt.nt, string) typed list) (cs : constant list) =
       ltlits
     else []
   in
+  let lits = List.map (fun lit -> lit #: (lit_to_nt lit)) lits in
   let res = List.map (fun x -> AVar x) bvars @ mybuild_euf lits @ additional in
   res
 

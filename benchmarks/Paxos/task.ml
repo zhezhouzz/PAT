@@ -229,7 +229,7 @@ let eAcceptRsp =
         [| ELearn (va == x) |] ));
   |]
 
-let[@goal] bankWithdrawSuccess (x : tVal) (y : tVal) =
+let[@goal] leanerConsistentView (x : tVal) (y : tVal) =
   not
     (allA;
      ELearn (va == x);

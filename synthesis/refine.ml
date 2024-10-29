@@ -365,7 +365,7 @@ and backward env (goal : mid_plan_goal) : plan_goal option =
   let () = simp_print_back_judgement goal in
   (* let () = if String.equal op "eStart" then _die [%here] in *)
   let () = Printf.printf "%i\n" !forward_synthesis_counter in
-  (* let () = incrAndStop 6 in *)
+  (* let () = incrAndStop 1 in *)
   (* let () = if String.equal op "eInternalReq" then _die [%here] in *)
   (* if PG.in_preserve_subgoal goal.mid goal.solved then *)
   (*   Some *)

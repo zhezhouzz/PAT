@@ -38,36 +38,35 @@ let do_abduction { bvs; bprop } (checker : gamma -> bool) (abd_vars, fvs) =
 let mk_abd_prop fvs =
   match fvs with [] -> None | _ -> Some (simp_fvec_prop @@ smart_or fvs)
 
-let mybuild_euf vars =
-  let space = Hashtbl.create 10 in
-  let () =
-    List.iter
-      (fun { x; ty } ->
-        match Hashtbl.find_opt space ty with
-        | None -> Hashtbl.add space ty [ x ]
-        | Some l -> Hashtbl.replace space ty (x :: l))
-      vars
-  in
-  let aux ty vars =
-    let pairs = List.cross vars vars in
-    let pairs =
-      List.filter (function x, y -> compare_lit Nt.compare_nt x y > 0) pairs
-    in
-    let eqlits =
-      List.map (fun l -> match l with x, y -> mk_lit_eq_lit ty x y) pairs
-    in
-    eqlits
-  in
-  let res =
-    Hashtbl.fold
-      (fun ty vars res ->
-        if
-          List.length vars > 1 && not (Nt.equal_nt ty (Nt.Ty_uninter "Bytes.t"))
-        then aux ty vars @ res
-        else res)
-      space []
-  in
-  res
+(* let mybuild_euf vars = *)
+(*   let space = Hashtbl.create 10 in *)
+(*   let () = *)
+(*     List.iter *)
+(*       (fun { x; ty } -> *)
+(*         match Hashtbl.find_opt space ty with *)
+(*         | None -> Hashtbl.add space ty [ x ] *)
+(*         | Some l -> Hashtbl.replace space ty (x :: l)) *)
+(*       vars *)
+(*   in *)
+(*   let aux ty vars = *)
+(*     let pairs = List.cross vars vars in *)
+(*     let pairs = *)
+(*       List.filter (function x, y -> compare_lit Nt.compare_nt x y > 0) pairs *)
+(*     in *)
+(*     let eqlits = *)
+(*       List.map (fun l -> match l with x, y -> mk_lit_eq_lit ty x y) pairs *)
+(*     in *)
+(*     eqlits *)
+(*   in *)
+(*   let res = *)
+(*     Hashtbl.fold *)
+(*       (fun ty vars res -> *)
+(*         if List.length vars > 1 && not (Nt.equal_nt ty Nt.Ty_bool) then *)
+(*           aux ty vars @ res *)
+(*         else res) *)
+(*       space [] *)
+(*   in *)
+(*   res *)
 
 let build_fvtab env lits =
   let () =
@@ -114,7 +113,7 @@ let build_fvtab env lits =
         ltlits
   in
   let bvars = List.map _get_x bvars in
-  let res = bvars @ mybuild_euf lits @ additional in
+  let res = bvars @ Rawdesym.mybuild_euf lits @ additional in
   let () =
     Pp.printf "@{<bold>build_fvtab:@} %s\n" (List.split_by_comma layout_lit res)
   in
