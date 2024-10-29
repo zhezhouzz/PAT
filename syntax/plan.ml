@@ -152,7 +152,20 @@ let single_insert elem trace =
       (omit_layout trace)
   in
   (* let se = (elem_to_se ctx) elem in *)
-  let rec aux (res, pre) = function
+  let rec aux (res, pre) ppp =
+    let () =
+      _log "plan" @@ fun _ ->
+      Pp.printf "@{<bold>insert in:@}: %s\n" (omit_layout_plan ppp)
+    in
+    let () =
+      _log "plan" @@ fun _ ->
+      List.iter
+        (fun (pre, cur, post) ->
+          Pp.printf "@{<bold>insert result:@}: [%s] %s [%s]\n" (omit_layout pre)
+            (layout_elem cur) (omit_layout post))
+        res
+    in
+    match ppp with
     | [] -> res
     | PlanStar _ :: _ -> _die_with [%here] "unimp"
     | (PlanStarInv cs as x) :: rest -> (
@@ -166,8 +179,18 @@ let single_insert elem trace =
             (*   let res' = (pre @ [ x ], se, [ x ] @ rest) in *)
             (*   aux (res' :: res, pre @ [ x ]) rest *)
             (* else aux (res, pre @ [ x ]) rest *))
-    | ((PlanAct _ | PlanActBuffer _) as elem) :: rest ->
-        aux (res, pre @ [ elem ]) rest
+    | ((PlanAct _ | PlanActBuffer _) as elem') :: rest -> (
+        (* let () = *)
+        (*   _log "plan" @@ fun _ -> *)
+        (*   Printf.printf "<><>elem: %s\n" (omit_layout_elem elem) *)
+        (* in *)
+        match elem with
+        | PlanSe cur when String.equal cur.op "eBecomeLeader" -> (
+            match smart_and_se cur elem' with
+            | None -> aux (res, pre @ [ elem' ]) rest
+            | Some elem'' ->
+                aux ((pre, elem'', rest) :: res, pre @ [ elem' ]) rest)
+        | _ -> aux (res, pre @ [ elem' ]) rest)
     (* | PlanActBuffer _ :: _ -> _die_with [%here] "never" *)
     | PlanSe cur :: rest -> (
         match smart_and_se cur elem with
@@ -179,13 +202,14 @@ let single_insert elem trace =
     (* else aux (res, pre @ [ PlanSe cur ]) rest *)
   in
   let res = aux ([], []) trace in
-  (* let () = *)
-  (*   List.iter *)
-  (*     (fun (pre, cur, post) -> *)
-  (*       Printf.printf "Res: %s -- %s -- %s\n" (layout pre) (layout_elem cur) *)
-  (*         (layout post)) *)
-  (*     res *)
-  (* in *)
+  let () =
+    _log "plan" @@ fun _ ->
+    List.iter
+      (fun (pre, cur, post) ->
+        Pp.printf "@{<bold>Insert Result:@}: %s -- %s -- %s\n" (layout pre)
+          (layout_elem cur) (layout post))
+      res
+  in
   res
 
 let rec insert elems trace =

@@ -234,6 +234,9 @@ and forward env (goal : mid_plan_goal) =
               in
               let p = List.map (fun se -> PlanSe se) p in
               let posts = Plan.insert p postUnsolved in
+              let () =
+                Pp.printf "@{<bold>len(posts)@}: %i\n" (List.length posts)
+              in
               (* let () = *)
               (*   if List.length p >= 2 then *)
               (*     let () = *)
@@ -245,6 +248,9 @@ and forward env (goal : mid_plan_goal) =
               (*     _die [%here] *)
               (* in *)
               let pres = Plan.merge_plan goal.preSolved history_plan in
+              let () =
+                Pp.printf "@{<bold>len(pres)@}: %i\n" (List.length pres)
+              in
               let goals =
                 List.map (fun (pre, post) ->
                     let goal =
@@ -264,6 +270,23 @@ and forward env (goal : mid_plan_goal) =
               goals
             in
             let goals = List.concat_map handle hafts in
+            let goals =
+              List.map
+                (fun (goal, args) ->
+                  let goal, args' =
+                    optimize_back_goal_with_args_record goal args init_elem
+                  in
+                  (goal, args'))
+                goals
+            in
+            let () =
+              Pp.printfBold "len(subgoals) " @@ spf "%i\n" (List.length goals)
+            in
+            let goals =
+              List.filter
+                (fun ((g : mid_plan_goal), _) -> not (is_false g.gamma.bprop))
+                goals
+            in
             let () =
               Pp.printfBold "len(subgoals) " @@ spf "%i\n" (List.length goals)
             in
@@ -279,14 +302,14 @@ and forward env (goal : mid_plan_goal) =
             (* let () = *)
             (*   if String.equal op "eShardUpdateKeyReq" then _die [%here] *)
             (* in *)
-            let abd_and_backtract (goal, args) =
-              let () =
-                Pp.printf "@{<bold>Before Abduction [%s]@}:\n" (layout_qvs args);
-                simp_print_mid goal
-              in
-              let goal, args' =
-                optimize_back_goal_with_args_record goal args init_elem
-              in
+            let abd_and_backtract (goal, args') =
+              (* let () = *)
+              (*   Pp.printf "@{<bold>Before Abduction [%s]@}:\n" (layout_qvs args); *)
+              (*   simp_print_mid goal *)
+              (* in *)
+              (* let goal, args' = *)
+              (*   optimize_back_goal_with_args_record goal args init_elem *)
+              (* in *)
               let () =
                 Pp.printf "@{<bold>After Opt@}: (%s)\n" (layout_qvs args');
                 simp_print_mid goal
@@ -321,9 +344,17 @@ and forward env (goal : mid_plan_goal) =
   | { gamma; pre; mid; post; pg; solved } ->
       if PG.in_preserve_subgoal mid solved then Some goal
       else
-        let* goal =
+        let goal =
           aux { gamma; preSolved = pre; postUnsolved = mid :: post; pg; solved }
         in
+        (* let () = *)
+        (*   if *)
+        (*     match !init_elem with *)
+        (*     | PlanAct { op; _ } -> String.equal op "eShutDown" *)
+        (*     | _ -> false *)
+        (*   then _die [%here] *)
+        (* in *)
+        let* goal = goal in
         let goal = eliminate_buffer_plan_pair_goal goal in
         (* let ss = PG.remove_preserve_subgoal !init_elem ss in *)
         (* let solved = PG.concat ss solved in *)
@@ -364,8 +395,9 @@ and backward env (goal : mid_plan_goal) : plan_goal option =
   (* let goal = eliminate_buffer_plan_mid_goal goal in *)
   let () = simp_print_back_judgement goal in
   (* let () = if String.equal op "eStart" then _die [%here] in *)
+  (* let () = if String.equal op "eShutDown" then _die [%here] in *)
   let () = Printf.printf "%i\n" !forward_synthesis_counter in
-  (* let () = incrAndStop 1 in *)
+  (* let () = incrAndStop 4 in *)
   (* let () = if String.equal op "eInternalReq" then _die [%here] in *)
   (* if PG.in_preserve_subgoal goal.mid goal.solved then *)
   (*   Some *)
@@ -584,7 +616,6 @@ and backward env (goal : mid_plan_goal) : plan_goal option =
         rules
     in
     let goals = List.concat_map handle rules in
-    (* let () = if String.equal op "ePing" then _die [%here] in *)
     (* let () = incrAndStop 6 in *)
     let goals =
       List.map
@@ -597,7 +628,19 @@ and backward env (goal : mid_plan_goal) : plan_goal option =
           (args', g))
         goals
     in
-    (* let () = if String.equal op "eInternalReq" then _die [%here] in *)
+    let goals =
+      List.filter
+        (fun (_, (g : mid_plan_goal)) -> not (is_false g.gamma.bprop))
+        goals
+    in
+    let () =
+      List.iteri
+        (fun i (args', g) ->
+          Pp.printf "@{<bold>[%i]After Opt@}: (%s)\n" i (layout_qvs args');
+          simp_print_mid g)
+        goals
+    in
+    (* let () = if String.equal op "eTimeout" then _die [%here] in *)
     let abd_and_backtract (args', (g : mid_plan_goal)) =
       let* gamma' =
         Abduction.abduction_mid_goal env g.gamma (g.pre, g.mid, g.post) args'
@@ -607,8 +650,8 @@ and backward env (goal : mid_plan_goal) : plan_goal option =
         Pp.printf "@{<bold>After Abduction@}:\n";
         simp_print_mid g'
       in
+      (* let () = if String.equal op "eTimeout" then _die [%here] in *)
       (* let () = incrAndStop 5 in *)
-      (* let () = if String.equal op "ePong" then _die [%here] in *)
       backward env g'
     in
     (* let goals = *)
