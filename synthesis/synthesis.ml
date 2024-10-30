@@ -32,7 +32,8 @@ let mk_synthesis_goal (env : syn_env) =
 let synthesize env goal =
   let () = setup_clock None in
   let real_do_synthesize () =
-    let* g = deductive_synthesis_reg env goal in
+    let aux () = deductive_synthesis_reg env goal in
+    let* g = Stat.stat_refine aux in
     let () = Pp.printf "\n@{<red>Result gamma:@} %s\n" (Gamma.layout g.gamma) in
     let () =
       Pp.printf "\n@{<red>Result program:@} %s\n" (Plan.layout_plan g.plan)

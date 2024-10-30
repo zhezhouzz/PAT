@@ -155,37 +155,40 @@ let check_regex_nonempty env { bprop; _ } r =
     in
     not @@ DesymFA.emptiness r'
   in
-  Stat.stat_nonempty_check really_do_check_regex_nonempty
+  really_do_check_regex_nonempty ()
 
 let abduction_automata env { bvs; bprop } (a : SFA.raw_regex) abd_vars =
-  let lits = Rawdesym.mk_global_ftab env.tyctx (bvs @ abd_vars, bprop, a) in
-  let lits =
-    List.filter
-      (fun lit ->
-        not
-          (List.is_empty
-          @@ List.interset String.equal (fv_lit_id lit)
-               (List.map _get_x abd_vars)))
-      (build_fvtab env @@ List.map (fun l -> l #: (lit_to_nt l)) lits)
+  let really_do_abduction () =
+    let lits = Rawdesym.mk_global_ftab env.tyctx (bvs @ abd_vars, bprop, a) in
+    let lits =
+      List.filter
+        (fun lit ->
+          not
+            (List.is_empty
+            @@ List.interset String.equal (fv_lit_id lit)
+                 (List.map _get_x abd_vars)))
+        (build_fvtab env @@ List.map (fun l -> l #: (lit_to_nt l)) lits)
+    in
+    let fvs = build_features { bvs; bprop } (abd_vars, lits) in
+    let () =
+      Pp.printf "@{<bold>abduction_automata fvs:@}: %i\n" (List.length fvs)
+    in
+    (* let checker gamma (_, prop) = check_valid gamma prop in *)
+    let fvs =
+      do_abduction { bvs; bprop }
+        (fun gamma ->
+          let () = Pp.printf "@{<bold>gamma@}: %s\n" (Gamma.layout gamma) in
+          let res = check_regex_nonempty env gamma a in
+          let () =
+            Pp.printf "@{<bold>@{<yellow>abduction_automata@}@}: %b\n" res
+          in
+          res)
+        (abd_vars, fvs)
+    in
+    (* let () = if List.length fvs > 1 then _die [%here] in *)
+    fvs
   in
-  let fvs = build_features { bvs; bprop } (abd_vars, lits) in
-  let () =
-    Pp.printf "@{<bold>abduction_automata fvs:@}: %i\n" (List.length fvs)
-  in
-  (* let checker gamma (_, prop) = check_valid gamma prop in *)
-  let fvs =
-    do_abduction { bvs; bprop }
-      (fun gamma ->
-        let () = Pp.printf "@{<bold>gamma@}: %s\n" (Gamma.layout gamma) in
-        let res = check_regex_nonempty env gamma a in
-        let () =
-          Pp.printf "@{<bold>@{<yellow>abduction_automata@}@}: %b\n" res
-        in
-        res)
-      (abd_vars, fvs)
-  in
-  (* let () = if List.length fvs > 1 then _die [%here] in *)
-  fvs
+  Stat.stat_nonempty_check really_do_abduction
 
 (* let abduction_automata env { bvs; bprop } (a : SFA.raw_regex) abd_vars = *)
 (*   let open SFA in *)

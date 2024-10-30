@@ -58,10 +58,14 @@ let syn_term source_file output_file () =
     Out_channel.close oc;
     raise e
 
-let run_benchmark benchname () =
+let benchmark_convension benchname =
   let source_file = spf "benchmarks/%s/task.ml" benchname in
   let output_file = spf "output/%s" benchname in
   let stat_file = spf "stat/.%s.json" benchname in
+  (source_file, output_file, stat_file)
+
+let syn_benchmark benchname () =
+  let source_file, output_file, stat_file = benchmark_convension benchname in
   let code = read_source_file source_file () in
   (* let () = Printf.printf "%s\n" (layout_structure code) in *)
   let env = Ntypecheck.(struct_check init_env code) in
@@ -113,12 +117,22 @@ let load_syn_result source_file output_file =
   let term = term_of_sexp sexp in
   (env, term)
 
-let eval source_file output_file () =
+let eval_aux source_file output_file () =
   let output_file = spf "%s.scm" output_file in
   let env, term = load_syn_result source_file output_file in
   let () = Printf.printf "%s\n" (layout_term term) in
   let () = Interpreter.interpret env term in
-  let () = Interpreter.interpret_sample env term 1000 in
+  let rate = Interpreter.interpret_sample env term 1000 in
+  ((env, term), rate)
+
+let eval source_file output_file () =
+  let _, rate = eval_aux source_file output_file () in
+  ()
+
+let eval_benchmark benchname () =
+  let source_file, output_file, stat_file = benchmark_convension benchname in
+  let (env, term), (rate, n_retry) = eval_aux source_file output_file () in
+  let () = Stat.update_when_eval (env, term) rate n_retry stat_file in
   ()
 
 let compile_to_p source_file output_file pheader_file p_output_file () =
@@ -238,7 +252,8 @@ let cmds =
   [
     ("read-syn", one_param "read syn" read_syn);
     ("syn-one", two_param_string "syn one" syn_term);
-    ("run-benchmark", one_param_string "run benchmark" run_benchmark);
+    ("syn-benchmark", one_param_string "run benchmark" syn_benchmark);
+    ("eval-benchmark", one_param_string "run benchmark" eval_benchmark);
     ("syn-timeout", timeout_param "syn timeout" syn_term_timeout);
     ("eval", two_param_string "eval" eval);
     ("compile-to-p", four_param_string "compile to p language" compile_to_p);

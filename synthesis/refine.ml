@@ -196,6 +196,7 @@ and forward env (goal : mid_plan_goal) =
             (* if PG.in_preserve_subgoal elem pg then *)
             (* let args, phi, elem = cur_to_obs cur in *)
             let () = Printf.printf "do: %s\n" (Plan.layout_elem elem) in
+            let () = Stat.incr_forward () in
             let hafts =
               haft_to_triple @@ fresh_haft
               @@ _get_force [%here] env.event_rtyctx op
@@ -282,11 +283,11 @@ and forward env (goal : mid_plan_goal) =
             let () =
               Pp.printfBold "len(subgoals) " @@ spf "%i\n" (List.length goals)
             in
-            let goals =
-              List.filter
-                (fun ((g : mid_plan_goal), _) -> not (is_false g.gamma.bprop))
-                goals
-            in
+            (* let goals = *)
+            (*   List.filter *)
+            (*     (fun ((g : mid_plan_goal), _) -> not (is_false g.gamma.bprop)) *)
+            (*     goals *)
+            (* in *)
             let () =
               Pp.printfBold "len(subgoals) " @@ spf "%i\n" (List.length goals)
             in
@@ -409,6 +410,7 @@ and backward env (goal : mid_plan_goal) : plan_goal option =
   (*     } *)
   (* else *)
   if is_gen env op then
+    let () = Stat.incr_backward () in
     Some
       {
         gamma = goal.gamma;
@@ -423,6 +425,7 @@ and backward env (goal : mid_plan_goal) : plan_goal option =
           (layout_se se)
           (layout_haft SFA.layout_raw_regex haft)
       in
+      let () = Stat.incr_backward () in
       let elem =
         match Plan.smart_and_se se goal.mid with
         | Some x -> x
@@ -628,11 +631,11 @@ and backward env (goal : mid_plan_goal) : plan_goal option =
           (args', g))
         goals
     in
-    let goals =
-      List.filter
-        (fun (_, (g : mid_plan_goal)) -> not (is_false g.gamma.bprop))
-        goals
-    in
+    (* let goals = *)
+    (*   List.filter *)
+    (*     (fun (_, (g : mid_plan_goal)) -> not (is_false g.gamma.bprop)) *)
+    (*     goals *)
+    (* in *)
     let () =
       List.iteri
         (fun i (args', g) ->

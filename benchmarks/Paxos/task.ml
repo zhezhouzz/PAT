@@ -2,7 +2,9 @@
 (* type tProposerNode = (proposer1 * proposer2[@tProposerNode]) *)
 
 val ( == ) : 'a -> 'a -> bool
-val eStart : < proposer : (proposer1 * proposer2[@tProposerNode]) > [@@gen]
+
+val eStart : < proposer : (proposer1 * proposer2[@tProposerNode]) ; va : tVal >
+[@@gen]
 
 val eLostPrepareReq :
   < proposer : (proposer1 * proposer2[@tProposerNode])
@@ -54,33 +56,37 @@ val eLearn : < va : tVal > [@@obs]
 
 let eStart =
   [|
-    (fun ?l:(p = (true : [%v: (proposer1 * proposer2[@tProposerNode])])) ->
+    (fun ?l:(p = (true : [%v: (proposer1 * proposer2[@tProposerNode])]))
+         ?l:(x = (true : [%v: tVal])) ->
       ( (allA;
          ELostPrepareReq
            (proposer == p
            && acceptor
               == ("Acceptor2" : (acceptor1 * acceptor2[@tAcceptorNode])));
          allA),
-        EStart (proposer == p),
+        EStart (proposer == p && va == x),
         [|
           EPrepareReq
             (proposer == p
             && acceptor
-               == ("Acceptor1" : (acceptor1 * acceptor2[@tAcceptorNode])));
+               == ("Acceptor1" : (acceptor1 * acceptor2[@tAcceptorNode]))
+            && va == x);
         |] ));
-    (fun ?l:(p = (true : [%v: (proposer1 * proposer2[@tProposerNode])])) ->
+    (fun ?l:(p = (true : [%v: (proposer1 * proposer2[@tProposerNode])]))
+         ?l:(x = (true : [%v: tVal])) ->
       ( (allA;
          ELostPrepareReq
            (proposer == p
            && acceptor
               == ("Acceptor1" : (acceptor1 * acceptor2[@tAcceptorNode])));
          allA),
-        EStart (proposer == p),
+        EStart (proposer == p && va == x),
         [|
           EPrepareReq
             (proposer == p
             && acceptor
-               == ("Acceptor2" : (acceptor1 * acceptor2[@tAcceptorNode])));
+               == ("Acceptor2" : (acceptor1 * acceptor2[@tAcceptorNode]))
+            && va == x);
         |] ));
   |]
 

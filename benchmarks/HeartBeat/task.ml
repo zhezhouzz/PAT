@@ -13,17 +13,9 @@ let eNotifyNodesDone =
 val eNetworkError : < trial : int > [@@gen]
 
 let eNetworkError ?l:(tl = (true : [%v: int])) =
-  ( (starA
-       (anyA
-       - ENetworkError (trial == tl)
-       - EPongLost (trial == tl)
-       - EPong (trial == tl));
+  ( (allA;
      EPong (trial == tl);
-     starA
-       (anyA
-       - ENetworkError (trial == tl)
-       - EPongLost (trial == tl)
-       - EPong (trial == tl))),
+     allA),
     ENetworkError (trial == tl),
     [| EPongLost (trial == tl) |] )
 
@@ -38,9 +30,7 @@ let ePing =
       ( starA
           (anyA
          (* - EPing ( trial == tl) *)
-         - EShutDone true
-          - EPongLost (trial == tl)
-          - EPong (trial == tl)),
+         - EShutDone true),
         EPing (trial == tl),
         [| EPong (trial == tl) |] ));
   |]

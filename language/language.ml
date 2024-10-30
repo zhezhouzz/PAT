@@ -19,7 +19,10 @@ module Stat = struct
     n_nonempty : int;
     t_sat : float;
     t_nonempty : float;
+    t_refine : float;
     t_total : float;
+    n_forward : int;
+    n_backward : int;
   }
   [@@deriving yojson]
 
@@ -29,6 +32,8 @@ module Stat = struct
     task_complexity : task_complexity;
     result_complexity : result_complexity;
     algo_complexity : algo_complexity;
+    rate : float;
+    n_retry : float;
   }
   [@@deriving yojson]
 
@@ -118,6 +123,7 @@ module Stat = struct
       | CLetE { body; rhs; _ } -> aux rhs.x + aux body.x
       | CUnion ts -> List.left_reduce [%here] ( + ) @@ List.map aux ts
       | CAssertP phi -> if not (is_true phi) then 1 else 0
+      | CAssume (_, phi) -> if not (is_true phi) then 1 else 0
       | CObs { prop; _ } -> if not (is_true prop) then 1 else 0
       | _ -> 0
     in
@@ -141,12 +147,25 @@ module Stat = struct
           t_sat = 0.0;
           t_nonempty = 0.0;
           t_total = 0.0;
+          t_refine = 0.0;
+          n_forward = 0;
+          n_backward = 0;
         }
 
   let incr_backtrack () =
     match !record with
     | None -> _die_with [%here] "stat not init"
     | Some r -> record := Some { r with n_bt = r.n_bt + 1 }
+
+  let incr_forward () =
+    match !record with
+    | None -> _die_with [%here] "stat not init"
+    | Some r -> record := Some { r with n_forward = r.n_forward + 1 }
+
+  let incr_backward () =
+    match !record with
+    | None -> _die_with [%here] "stat not init"
+    | Some r -> record := Some { r with n_backward = r.n_backward + 1 }
 
   let stat_function f =
     let start_time = Sys.time () in
@@ -181,6 +200,15 @@ module Stat = struct
     in
     res
 
+  let stat_refine f =
+    let res, exec_time = stat_function f in
+    let () =
+      match !record with
+      | None -> _die_with [%here] "stat not init"
+      | Some r -> record := Some { r with t_refine = exec_time }
+    in
+    res
+
   let stat_total f =
     let res, exec_time = stat_function f in
     let () =
@@ -193,6 +221,8 @@ module Stat = struct
   let dump (env, term) filename =
     let stat =
       {
+        rate = 0.0;
+        n_retry = 0.0;
         task_complexity = mk_task_complexity env;
         result_complexity = mk_result_complexity term;
         algo_complexity =
@@ -200,9 +230,48 @@ module Stat = struct
       }
     in
     let json = stat_to_yojson stat in
+    (* let () = Printf.printf "%s\n" @@ Yojson.Safe.to_string json in *)
+    (* let () = Printf.printf "file: %s\n" filename in *)
     let () = Yojson.Safe.to_file filename json in
     ()
-  (* let Yojson. *)
+
+  let update_when_eval (env, term) rate n_retry filename =
+    let stat =
+      match stat_of_yojson @@ Yojson.Safe.from_file filename with
+      | Result.Ok x -> x
+      | Error _ -> _die [%here]
+    in
+    let stat =
+      {
+        stat with
+        rate;
+        n_retry;
+        task_complexity = mk_task_complexity env;
+        result_complexity = mk_result_complexity term;
+      }
+    in
+    let () = Yojson.Safe.to_file filename @@ stat_to_yojson stat in
+    ()
+
+  let update rate filename =
+    let stat =
+      match stat_of_yojson @@ Yojson.Safe.from_file filename with
+      | Result.Ok x -> x
+      | Error _ -> _die [%here]
+    in
+    let stat = { stat with rate } in
+    let () = Yojson.Safe.to_file filename @@ stat_to_yojson stat in
+    ()
+
+  let update_retry n_retry filename =
+    let stat =
+      match stat_of_yojson @@ Yojson.Safe.from_file filename with
+      | Result.Ok x -> x
+      | Error _ -> _die [%here]
+    in
+    let stat = { stat with n_retry } in
+    let () = Yojson.Safe.to_file filename @@ stat_to_yojson stat in
+    ()
 end
 
 module Prover = struct

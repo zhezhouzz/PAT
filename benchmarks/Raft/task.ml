@@ -1,10 +1,10 @@
 (* type tNode = (node1 * node2[@tNode]) *)
 
 val ( == ) : 'a -> 'a -> bool
-
-(* val eStart : unit [@@gen] *)
+val eStart : unit [@@gen]
 val eBecomeLeader : < leader : (node1 * node2[@tNode]) > [@@obs]
 val eClientPut : < va : tVal > [@@gen]
+val eClientPutRsp : < va : tVal ; stat : bool > [@@gen]
 val eAppendEntry : < node : (node1 * node2[@tNode]) ; va : tVal > [@@obs]
 val eShutDown : unit [@@gen]
 val eTimeout : < dst : (node1 * node2[@tNode]) > [@@obs]
@@ -21,7 +21,10 @@ val eVoteRsp :
   ; stat : bool >
 [@@obs]
 
-(* let eStart = (starA (anyA - EShutDown true), EStart true, [||]) *)
+let eStart = (starA (anyA - EShutDown true), EStart true, [||])
+
+let eClientPutRsp ?l:(x = (true : [%v: tVal])) ?l:(st = (true : [%v: bool])) =
+  (allA, EClientPutRsp (va == x && stat == st), [||])
 
 let eClientPut =
   [|
