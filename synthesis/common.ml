@@ -278,6 +278,7 @@ let explore_backtrack f l =
       match res with
       | Some _ -> res
       | None ->
+          let () = Stat.incr_backtrack () in
           (* let () = _die_with [%here] "backtrack fail" in *)
           let res = f x in
           res)
@@ -292,6 +293,7 @@ let backtrack f l =
           match res with
           | Some _ -> res
           | None ->
+              let () = Stat.incr_backtrack () in
               (* let () = _die_with [%here] "backtrack fail" in *)
               let res = f x in
               res)

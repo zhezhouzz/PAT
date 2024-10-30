@@ -1,0 +1,1 @@
+{"task_complexity":{"n_op":4,"n_qualifier":10},"result_complexity":{"n_var":8,"n_obs":3,"n_gen":3,"n_assert":3},"algo_complexity":{"n_bt":6,"n_sat":902,"n_nonempty":6,"t_sat":6.009810000000003,"t_nonempty":3.6375479999999993,"t_total":6.033615999999999}}

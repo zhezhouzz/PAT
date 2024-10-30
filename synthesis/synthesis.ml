@@ -25,18 +25,23 @@ let mk_synthesis_goal (env : syn_env) =
   let () =
     Pp.printf "\n@{<red>Original Reg:@} %s\n" (layout_symbolic_regex reg)
   in
-  (Gamma.{ bvs = qvs; bprop = mk_true }, SFA.regex_to_raw reg)
+  let goal = SFA.regex_to_raw reg in
+  let () = Stat.goal_size := Stat.count_quantifier_rawregex goal in
+  (Gamma.{ bvs = qvs; bprop = mk_true }, goal)
 
 let synthesize env goal =
   let () = setup_clock None in
-  let* g = deductive_synthesis_reg env goal in
-  let () = Pp.printf "\n@{<red>Result gamma:@} %s\n" (Gamma.layout g.gamma) in
-  let () =
-    Pp.printf "\n@{<red>Result program:@} %s\n" (Plan.layout_plan g.plan)
+  let real_do_synthesize () =
+    let* g = deductive_synthesis_reg env goal in
+    let () = Pp.printf "\n@{<red>Result gamma:@} %s\n" (Gamma.layout g.gamma) in
+    let () =
+      Pp.printf "\n@{<red>Result program:@} %s\n" (Plan.layout_plan g.plan)
+    in
+    (* let () = _die [%here] in *)
+    let term = instantiation env (g.gamma, g.plan) in
+    Some term
   in
-  (* let () = _die [%here] in *)
-  let term = instantiation env (g.gamma, g.plan) in
-  Some term
+  Stat.stat_total real_do_synthesize
 (* Some (reverse_instantiation env res) *)
 
 let syn_timeout timebound env =

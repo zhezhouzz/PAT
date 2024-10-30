@@ -6,6 +6,7 @@ open Fa
 open Common
 open SFA
 open Desymeval
+module Prover = Language.Prover
 
 let mk_fvec_from_ftab ftab =
   let len = List.length ftab in

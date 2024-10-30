@@ -43,10 +43,35 @@ let syn_term source_file output_file () =
   (* let () = Printf.printf "%s\n" (layout_structure code) in *)
   let env = Ntypecheck.(struct_check init_env code) in
   let () = Printf.printf "%s\n" (layout_syn_env env) in
+  let () = Stat.init_algo_complexity () in
   let start_time = Sys.time () in
   let term = Synthesis.syn_one env in
   let exec_time = Sys.time () -. start_time in
   let () = Pp.printf "@{<bold>synthesis time: %f@}\n" exec_time in
+  let () = Stat.dump (env, term) ".stat.json" in
+  let output_file = spf "%s.scm" output_file in
+  let oc = Out_channel.open_text output_file in
+  try
+    Sexplib.Sexp.output oc @@ sexp_of_term term;
+    Out_channel.close oc
+  with e ->
+    Out_channel.close oc;
+    raise e
+
+let run_benchmark benchname () =
+  let source_file = spf "benchmarks/%s/task.ml" benchname in
+  let output_file = spf "output/%s" benchname in
+  let stat_file = spf "stat/.%s.json" benchname in
+  let code = read_source_file source_file () in
+  (* let () = Printf.printf "%s\n" (layout_structure code) in *)
+  let env = Ntypecheck.(struct_check init_env code) in
+  let () = Printf.printf "%s\n" (layout_syn_env env) in
+  let () = Stat.init_algo_complexity () in
+  let start_time = Sys.time () in
+  let term = Synthesis.syn_one env in
+  let exec_time = Sys.time () -. start_time in
+  let () = Pp.printf "@{<bold>synthesis time: %f@}\n" exec_time in
+  let () = Stat.dump (env, term) stat_file in
   let output_file = spf "%s.scm" output_file in
   let oc = Out_channel.open_text output_file in
   try
@@ -213,6 +238,7 @@ let cmds =
   [
     ("read-syn", one_param "read syn" read_syn);
     ("syn-one", two_param_string "syn one" syn_term);
+    ("run-benchmark", one_param_string "run benchmark" run_benchmark);
     ("syn-timeout", timeout_param "syn timeout" syn_term_timeout);
     ("eval", two_param_string "eval" eval);
     ("compile-to-p", four_param_string "compile to p language" compile_to_p);

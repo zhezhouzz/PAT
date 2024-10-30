@@ -142,17 +142,20 @@ let mk_raw_all env =
 (*     goals *)
 
 let check_regex_nonempty env { bprop; _ } r =
-  let _, r' =
-    Rawdesym.desymbolic_symbolic_rewregex env.tyctx env.event_tyctx (bprop, r)
+  let really_do_check_regex_nonempty () =
+    let _, r' =
+      Rawdesym.desymbolic_symbolic_rewregex env.tyctx env.event_tyctx (bprop, r)
+    in
+    let () =
+      Pp.printf "@{<bold>check_regex_nonempty@}: %s\n" (SFA.layout_raw_regex r)
+    in
+    let () =
+      Pp.printf "@{<bold>check_regex_nonempty@}: %s\n"
+        (DesymFA.layout_raw_regex r')
+    in
+    not @@ DesymFA.emptiness r'
   in
-  let () =
-    Pp.printf "@{<bold>check_regex_nonempty@}: %s\n" (SFA.layout_raw_regex r)
-  in
-  let () =
-    Pp.printf "@{<bold>check_regex_nonempty@}: %s\n"
-      (DesymFA.layout_raw_regex r')
-  in
-  not @@ DesymFA.emptiness r'
+  Stat.stat_nonempty_check really_do_check_regex_nonempty
 
 let abduction_automata env { bvs; bprop } (a : SFA.raw_regex) abd_vars =
   let lits = Rawdesym.mk_global_ftab env.tyctx (bvs @ abd_vars, bprop, a) in

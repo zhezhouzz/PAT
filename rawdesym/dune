@@ -2,7 +2,7 @@
  (public_name haft.rawdesym)
  (name rawdesym)
  (wrapped true)
- (libraries  zutils AutomataLibrary core compiler-libs)
+ (libraries  zutils AutomataLibrary core compiler-libs language)
  (modules
    common
    intBinary

@@ -1,3 +1,213 @@
 include Front
 include AutomataLibrary
 include Syntax
+
+module Stat = struct
+  type task_complexity = { n_op : int; n_qualifier : int } [@@deriving yojson]
+
+  type result_complexity = {
+    n_var : int;
+    n_obs : int;
+    n_gen : int;
+    n_assert : int;
+  }
+  [@@deriving yojson]
+
+  type algo_complexity = {
+    n_bt : int;
+    n_sat : int;
+    n_nonempty : int;
+    t_sat : float;
+    t_nonempty : float;
+    t_total : float;
+  }
+  [@@deriving yojson]
+
+  let record : algo_complexity option ref = ref None
+
+  type stat = {
+    task_complexity : task_complexity;
+    result_complexity : result_complexity;
+    algo_complexity : algo_complexity;
+  }
+  [@@deriving yojson]
+
+  open Zdatatype
+
+  let count_quantifier_prop phi = if is_true phi || is_false phi then 0 else 1
+  let count_quantifier_se ({ phi; _ } : 't sevent) = count_quantifier_prop phi
+
+  let count_quantifier_charset cs =
+    SFA.CharSet.fold (fun se res -> res + count_quantifier_se se) cs 0
+
+  let count_quantifier_rawregex =
+    let rec aux = function
+      | Empty -> 0
+      | Eps -> 0
+      | MultiChar cs -> count_quantifier_charset cs
+      | Seq l -> List.left_reduce [%here] ( + ) @@ List.map aux l
+      | Inters (r1, r2) -> aux r1 + aux r2
+      | Alt (r1, r2) -> aux r1 + aux r2
+      | Comple (cs, r) -> count_quantifier_charset cs + aux r
+      | Star r -> aux r
+    in
+    aux
+
+  let count_quantifier_haft =
+    let rec aux = function
+      | RtyBase { phi; _ } -> count_quantifier_prop phi
+      | RtyHAF { history; adding; future } ->
+          count_quantifier_rawregex history
+          + count_quantifier_rawregex adding
+          + count_quantifier_rawregex future
+      | RtyHAParallel { history; adding_se; parallel } ->
+          count_quantifier_rawregex history
+          + count_quantifier_se adding_se
+          + List.fold_left
+              (fun res se -> res + count_quantifier_se se)
+              0 parallel
+      | RtyGArr { retrty; _ } -> aux retrty
+      | RtyArr { argcty; retrty; _ } ->
+          count_quantifier_prop argcty.phi + aux retrty
+      | RtyInter (t1, t2) -> aux t1 + aux t2
+    in
+    aux
+
+  let goal_size = ref 0
+
+  let mk_task_complexity (syn_env : syn_env) : task_complexity =
+    let l = ctx_to_list syn_env.event_rtyctx in
+    let n_op = List.length l in
+    let n_qualifier =
+      List.fold_right
+        (fun x res -> res + count_quantifier_haft x.ty)
+        l !goal_size
+    in
+    { n_qualifier; n_op }
+
+  let count_vars term =
+    let rec aux = function
+      | CLetE { lhs; body; _ } -> lhs @ aux body.x
+      | CUnion ts -> List.concat_map aux ts
+      | _ -> []
+    in
+    let l = List.map _get_x @@ aux term in
+    let l = List.slow_rm_dup String.equal l in
+    List.length l
+
+  let count_obs =
+    let rec aux = function
+      | CLetE { body; rhs; _ } -> aux rhs.x + aux body.x
+      | CUnion ts -> List.left_reduce [%here] ( + ) @@ List.map aux ts
+      | CObs _ -> 1
+      | _ -> 0
+    in
+    aux
+
+  let count_gen =
+    let rec aux = function
+      | CLetE { body; rhs; _ } -> aux rhs.x + aux body.x
+      | CUnion ts -> List.left_reduce [%here] ( + ) @@ List.map aux ts
+      | CGen _ -> 1
+      | _ -> 0
+    in
+    aux
+
+  let count_assert =
+    let rec aux = function
+      | CLetE { body; rhs; _ } -> aux rhs.x + aux body.x
+      | CUnion ts -> List.left_reduce [%here] ( + ) @@ List.map aux ts
+      | CAssertP phi -> if not (is_true phi) then 1 else 0
+      | CObs { prop; _ } -> if not (is_true prop) then 1 else 0
+      | _ -> 0
+    in
+    aux
+
+  let mk_result_complexity (term : term) : result_complexity =
+    {
+      n_var = count_vars term;
+      n_obs = count_obs term;
+      n_gen = count_gen term;
+      n_assert = count_assert term;
+    }
+
+  let init_algo_complexity () =
+    record :=
+      Some
+        {
+          n_bt = 0;
+          n_sat = 0;
+          n_nonempty = 0;
+          t_sat = 0.0;
+          t_nonempty = 0.0;
+          t_total = 0.0;
+        }
+
+  let incr_backtrack () =
+    match !record with
+    | None -> _die_with [%here] "stat not init"
+    | Some r -> record := Some { r with n_bt = r.n_bt + 1 }
+
+  let stat_function f =
+    let start_time = Sys.time () in
+    let res = f () in
+    let exec_time = Sys.time () -. start_time in
+    (res, exec_time)
+
+  let stat_sat_query f =
+    let res, exec_time = stat_function f in
+    let () =
+      match !record with
+      | None -> _die_with [%here] "stat not init"
+      | Some r ->
+          record :=
+            Some { r with t_sat = r.t_sat +. exec_time; n_sat = r.n_sat + 1 }
+    in
+    res
+
+  let stat_nonempty_check f =
+    let res, exec_time = stat_function f in
+    let () =
+      match !record with
+      | None -> _die_with [%here] "stat not init"
+      | Some r ->
+          record :=
+            Some
+              {
+                r with
+                t_nonempty = r.t_nonempty +. exec_time;
+                n_nonempty = r.n_nonempty + 1;
+              }
+    in
+    res
+
+  let stat_total f =
+    let res, exec_time = stat_function f in
+    let () =
+      match !record with
+      | None -> _die_with [%here] "stat not init"
+      | Some r -> record := Some { r with t_total = exec_time }
+    in
+    res
+
+  let dump (env, term) filename =
+    let stat =
+      {
+        task_complexity = mk_task_complexity env;
+        result_complexity = mk_result_complexity term;
+        algo_complexity =
+          (match !record with None -> _die [%here] | Some x -> x);
+      }
+    in
+    let json = stat_to_yojson stat in
+    let () = Yojson.Safe.to_file filename json in
+    ()
+  (* let Yojson. *)
+end
+
+module Prover = struct
+  include Prover
+
+  let check_sat_bool p = Stat.stat_sat_query (fun () -> check_sat_bool p)
+  let check_valid p = Stat.stat_sat_query (fun () -> check_valid p)
+end

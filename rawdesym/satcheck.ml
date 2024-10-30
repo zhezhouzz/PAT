@@ -1,8 +1,6 @@
-open Sugar
-open Prop
 open Zdatatype
 open Common
-open Myconfig
+open Language
 
 let blist_to_prop (bl : bool list) int2lit =
   let blT, blF =
