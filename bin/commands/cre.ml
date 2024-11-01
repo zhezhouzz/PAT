@@ -62,10 +62,14 @@ let benchmark_convension benchname =
   let source_file = spf "benchmarks/%s/task.ml" benchname in
   let output_file = spf "output/%s" benchname in
   let stat_file = spf "stat/.%s.json" benchname in
-  (source_file, output_file, stat_file)
+  let pheader = spf "benchmarks/%s/pheader.ml" benchname in
+  let poutput = spf "penv/%s/PSyn/SynClient.p" benchname in
+  (source_file, output_file, stat_file, pheader, poutput)
 
 let syn_benchmark benchname () =
-  let source_file, output_file, stat_file = benchmark_convension benchname in
+  let source_file, output_file, stat_file, _, _ =
+    benchmark_convension benchname
+  in
   let code = read_source_file source_file () in
   (* let () = Printf.printf "%s\n" (layout_structure code) in *)
   let env = Ntypecheck.(struct_check init_env code) in
@@ -130,12 +134,15 @@ let eval source_file output_file () =
   ()
 
 let eval_benchmark benchname () =
-  let source_file, output_file, stat_file = benchmark_convension benchname in
+  let source_file, output_file, stat_file, _, _ =
+    benchmark_convension benchname
+  in
   let (env, term), (rate, n_retry) = eval_aux source_file output_file () in
   let () = Stat.update_when_eval (env, term) rate n_retry stat_file in
   ()
 
-let compile_to_p source_file output_file pheader_file p_output_file () =
+let compile_to_p_aux source_file output_file pheader_file p_output_file () =
+  let output_file = spf "%s.scm" output_file in
   let p_tyctx =
     ocaml_structure_to_p_tyctx
       (Oparse.parse_imp_from_file ~sourcefile:pheader_file)
@@ -152,6 +159,13 @@ let compile_to_p source_file output_file pheader_file p_output_file () =
       raise e
   in
   ()
+
+let compile_to_p benchname =
+  let source_file, output_file, _, pheader_file, p_output_file =
+    benchmark_convension benchname
+  in
+  compile_to_p_aux source_file output_file pheader_file p_output_file
+(* let output_file = spf "%s.scm" output_file in *)
 
 let show_term output_file () =
   let ic = In_channel.open_text output_file in
@@ -256,7 +270,8 @@ let cmds =
     ("eval-benchmark", one_param_string "run benchmark" eval_benchmark);
     ("syn-timeout", timeout_param "syn timeout" syn_term_timeout);
     ("eval", two_param_string "eval" eval);
-    ("compile-to-p", four_param_string "compile to p language" compile_to_p);
+    (* ("compile-to-p", four_param_string "compile to p language" compile_to_p); *)
+    ("compile-to-p", one_param_string "compile to p language" compile_to_p);
     ("show-term", one_param "show term" show_term);
     (* ("read-automata", one_param "read_automata" read_automata); *)
     (* ("read-sfa", one_param "read_sfa" read_sfa); *)

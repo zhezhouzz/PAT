@@ -149,6 +149,8 @@ let mk_cast_op input op raw_input =
   mk_p_assign
     (mk_pid input, mk_p_app (cast_decl op input.ty) [ mk_pid raw_input ])
 
+let mk_forward_op_decl op = (spf "forward_%s" op.x) #: Nt.Ty_unit
+
 let compile_term env e =
   let rec aux e =
     match e.x with
@@ -179,9 +181,17 @@ let compile_term env e =
         (* in *)
         let raw_input_ty = StrMap.find "never" env.p_tyctx op.x in
         let raw_input = _default_input_name #: raw_input_ty in
+        let recv_add_tail_forward raw_input recv_body =
+          if _get_force [%here] env.recvable_ctx op.x then
+            mk_p_recv op.x raw_input recv_body
+          else
+            mk_p_recv op.x raw_input
+            @@ mk_p_seq recv_body
+                 (mk_p_app (mk_forward_op_decl op) [ mk_pid raw_input ])
+        in
         match raw_input_ty with
         | Nt.Ty_unit ->
-            let recv_stmt = mk_p_recv op.x raw_input mk_p_break in
+            let recv_stmt = recv_add_tail_forward raw_input mk_p_break in
             mk_p_seq recv_stmt
               (mk_p_seq (mk_p_assert (compile_prop prop)) (aux body))
         | _ty ->
@@ -194,15 +204,15 @@ let compile_term env e =
             in
             let cast_stmt = mk_cast_op input op.x raw_input in
             let recv_body = mk_p_seqs_ (cast_stmt :: recv_body) in
-            let recv_stmt = mk_p_recv op.x raw_input recv_body in
+            let recv_stmt = recv_add_tail_forward raw_input recv_body in
             mk_p_seq recv_stmt
               (mk_p_seq (mk_p_assert (compile_prop prop)) (aux body)))
     | _ -> _die_with [%here] "unimp"
   in
   (* let vars = get_vars_from_term e in *)
   (* let () = Pp.printf "@{<bold>Vars:@}:\n%s\n" (layout_qvs vars) in *)
-  let e = erase_obs env e in
-  let () = Pp.printf "@{<bold>After Erase Obs:@}:\n%s\n" (layout_term e.x) in
+  (* let e = erase_obs env e in *)
+  (* let () = Pp.printf "@{<bold>After Erase Obs:@}:\n%s\n" (layout_term e.x) in *)
   let body = aux e in
   let () =
     Pp.printf "@{<bold>P Expr:@}:\n%s\n" (Toplang.layout_p_expr env 0 body.x)

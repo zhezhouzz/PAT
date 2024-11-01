@@ -81,14 +81,15 @@ def print_pat_col4(stat):
     # t_nonempty = stat["t_nonempty"]
     # t_refine = stat["t_refine"]
     # t_total = stat["t_total"]
-    return [safe_print_int(stat["n_sat"]),
-            # safe_print_int(stat["n_nonempty"]),
-            safe_print_int(stat["n_forward"]),
-            safe_print_int(stat["n_backward"]),
-            safe_print_float(stat["t_sat"]),
+    return [safe_print_float(stat["t_total"]),
+             safe_print_float(stat["t_sat"]),
             # safe_print_float(stat["t_nonempty"]),
             safe_print_float(stat["t_refine"]),
-            safe_print_float(stat["t_total"])]
+        safe_print_int(stat["n_sat"]),
+            # safe_print_int(stat["n_nonempty"]),
+            safe_print_int(stat["n_forward"]),
+            safe_print_int(stat["n_backward"])
+            ]
 
 plang = ["EspressoMachine", "Simplified2PC", "HeartBeat", "BankServer"]
 message_chain = ["RingLeaderElection", "Firewall"]
@@ -155,7 +156,7 @@ def fix():
 
 if __name__ == '__main__':
     # do_syn()
-    do_eval()
+    # do_eval()
     j = load_stat()
     print_cols(benchmarks, j)
     # fix()
