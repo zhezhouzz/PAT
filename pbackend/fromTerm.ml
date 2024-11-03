@@ -137,6 +137,9 @@ let recv_input_name op ty = (spf "input_%s" op) #: ty
 let send_function_decl op = (spf "send_%s" op) #: Nt.Ty_unit
 let dest_decl = "setting" #: mk_p_machine_ty
 let cast_decl op ty = (spf "cast_%s" op) #: ty
+let event_rename op = spf "syn_%s" op
+let type_rename op = spf "t%s" op
+let tevent_rename op = (event_rename op.x) #: op.ty
 
 let mk_wrapper_send op payload =
   match payload.x with
@@ -150,6 +153,110 @@ let mk_cast_op input op raw_input =
     (mk_pid input, mk_p_app (cast_decl op input.ty) [ mk_pid raw_input ])
 
 let mk_forward_op_decl op = (spf "forward_%s" op.x) #: Nt.Ty_unit
+let mk_input_op_type op = mk_p_abstract_ty (type_rename op)
+
+let mk_p_op op =
+  let op = tevent_rename op in
+  op.x #: (mk_input_op_type op.x)
+
+let mk_wrapper_send_imp op =
+  let src = "src" #: mk_p_machine_ty in
+  let dst = "dest" #: mk_p_machine_ty in
+  let input = "input" #: op.ty in
+  let prefix =
+    [
+      ("controller", mk_pid "src" #: mk_p_machine_ty);
+      ("dst", mk_pid "dest" #: mk_p_machine_ty);
+    ]
+  in
+  let fs =
+    match op.ty with
+    | Nt.Ty_record l ->
+        prefix @ List.map (fun x -> (x.x, mk_p_field (mk_pid input) x.x)) l
+    | _ -> _die [%here]
+  in
+  ( send_function_decl op.x,
+    mk_p_function_decl [ src; dst; input ] []
+      (mk_p_send (mk_pid dst) (event_rename op.x) (mk_p_record fs)) )
+
+let print_send_wrapper env =
+  let sends =
+    List.filter (fun (x, _) -> _get_force [%here] env.gen_ctx x)
+    @@ StrMap.to_kv_list env.event_tyctx
+  in
+  let l =
+    List.map
+      (fun (x, ty) ->
+        let name, imp = mk_wrapper_send_imp x #: (Nt.Ty_record ty) in
+        Toplang.layout_p_local_func env (name, imp))
+      sends
+  in
+  Pp.printf "@{<bold>Wrapper: Send:@}\n%s\n\n"
+  @@ List.split_by "\n" (fun x -> x) l
+
+let mk_wrapper_cast_imp (op, fs) =
+  let input = "input" #: (Nt.Ty_record fs) in
+  let fields = List.map (fun f -> (f.x, mk_p_field (mk_pid input) f.x)) fs in
+  let res = mk_p_return @@ mk_p_record fields in
+  ( cast_decl (event_rename op) (Nt.Ty_record fs),
+    mk_p_function_decl
+      [ input.x #: (mk_input_op_type @@ event_rename op) ]
+      [] res )
+
+let print_cast_wrapper env =
+  let sends =
+    List.filter (fun (x, _) -> not (_get_force [%here] env.gen_ctx x))
+    @@ StrMap.to_kv_list env.event_tyctx
+  in
+  let l =
+    List.map
+      (fun (x, ty) ->
+        let name, imp = mk_wrapper_cast_imp (x, ty) in
+        Toplang.layout_p_local_func env (name, imp))
+      sends
+  in
+  Pp.printf "\n%s\n\n" @@ List.split_by "\n" (fun x -> x) l
+
+let mk_wrapper_forward_imp op =
+  let input = "input" #: (mk_input_op_type op) in
+  ( mk_forward_op_decl op #: Nt.Ty_unit,
+    mk_p_function_decl [ input ] []
+      (mk_p_send
+         (PField { record = mk_pid input; field = "dst" }) #: Nt.Ty_unit
+         op (mk_pid input)) )
+
+let print_forward_wrapper env =
+  let evs = StrMap.to_kv_list env.event_tyctx in
+  let evs = List.map (fun (op, _) -> event_rename op) evs in
+  let l =
+    List.map
+      (fun x ->
+        let name, imp = mk_wrapper_forward_imp x in
+        Toplang.layout_p_local_func env (name, imp))
+      evs
+  in
+  Pp.printf "\n%s\n\n" @@ List.split_by "\n" (fun x -> x) l
+
+let print_p_type_events env =
+  let evs = StrMap.to_kv_list env.event_tyctx in
+  let evs = List.map (fun (x, ty) -> (event_rename x, ty)) evs in
+  let evs_decls =
+    List.map
+      (fun (x, _) -> spf "event %s: %s;" x (Nt.layout @@ mk_input_op_type x))
+      evs
+  in
+  let ty_decls =
+    List.map
+      (fun (x, ty) ->
+        let ty =
+          [ "controller" #: mk_p_machine_ty; "dst" #: mk_p_machine_ty ] @ ty
+        in
+        spf "type %s = (%s);" (spf "t%s" x)
+          (List.split_by_comma (fun x -> spf "%s:%s" x.x @@ Nt.layout x.ty) ty))
+      evs
+  in
+  Pp.printf "@{<bold>Events:@}\n%s\n\n"
+  @@ List.split_by "\n" (fun x -> x) (ty_decls @ evs_decls)
 
 let compile_term env e =
   let rec aux e =
@@ -172,31 +279,33 @@ let compile_term env e =
         (* let send_stmt = mk_p_send dest op.x payload in *)
         let send_stmt = mk_wrapper_send op.x payload in
         mk_p_seq send_stmt (aux body)
-    | CLetE { lhs; rhs = { x = CObs { op; prop }; _ }; body } -> (
-        (* let () = Pp.printf "@{<bold>CObs: %s@}\n" op.x in *)
+    | CLetE { lhs; rhs = { x = CObs { op = original_op; prop }; _ }; body } -> (
+        let () = Pp.printf "@{<bold>CObs: %s@}\n" (layout_qv original_op) in
         (* let () = *)
         (*   StrMap.iter *)
         (*     (fun name ty -> Printf.printf "%s\n" (layout_qv name #: ty)) *)
         (*     env.p_tyctx *)
         (* in *)
-        let raw_input_ty = StrMap.find "never" env.p_tyctx op.x in
-        let raw_input = _default_input_name #: raw_input_ty in
+        let op = mk_p_op original_op in
+        (* let raw_input_ty = StrMap.find "never" env.p_tyctx op in *)
+        let raw_input = _default_input_name #: op.ty in
         let recv_add_tail_forward raw_input recv_body =
-          if _get_force [%here] env.recvable_ctx op.x then
+          if _get_force [%here] env.recvable_ctx original_op.x then
             mk_p_recv op.x raw_input recv_body
           else
             mk_p_recv op.x raw_input
             @@ mk_p_seq recv_body
                  (mk_p_app (mk_forward_op_decl op) [ mk_pid raw_input ])
         in
-        match raw_input_ty with
-        | Nt.Ty_unit ->
+        match original_op.ty with
+        | Nt.Ty_record [] ->
+            let raw_input = _default_input_name #: Nt.Ty_unit in
             let recv_stmt = recv_add_tail_forward raw_input mk_p_break in
             mk_p_seq recv_stmt
               (mk_p_seq (mk_p_assert (compile_prop prop)) (aux body))
         | _ty ->
-            let fields = StrMap.find "never" env.event_tyctx op.x in
-            let input = recv_input_name op.x (mk_p_record_ty fields) in
+            let fields = StrMap.find "never" env.event_tyctx original_op.x in
+            let input = recv_input_name original_op.x (mk_p_record_ty fields) in
             let recv_body =
               List.map (fun (x, field) ->
                   mk_p_assign (mk_pid x, mk_p_field (mk_pid input) field.x))
@@ -295,10 +404,12 @@ let compile_syn_result p_tyctx (env : syn_env) e =
   in
   let state = mk_syn_state func in
   let machine = mk_syn_machine state in
-  let () =
-    Pp.printf "@{<bold>Compile Result:@}:\n%s\n"
-      (Toplang.layout_p_machine env 0 machine)
-  in
-  Toplang.layout_p_machine env 0 machine
+  let res = Toplang.layout_p_machine env 0 machine in
+  let () = Pp.printf "@{<bold>Compile Result:@}:\n%s\n" res in
+  let () = print_p_type_events env in
+  let () = print_send_wrapper env in
+  let () = print_cast_wrapper env in
+  let () = print_forward_wrapper env in
+  res
 
 (* let compile_term_to_state  *)

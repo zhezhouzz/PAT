@@ -101,6 +101,8 @@ let mk_p_ite condition tbranch fbranch =
 let mk_p_it condition tbranch =
   (PIf { condition; tbranch; fbranch = None }) #: Nt.Ty_unit
 
+(* let mk_p_field_unsafe record field = (PField { record; field }) #: Nt.Ty_unit *)
+
 let mk_p_field record field =
   match record.ty with
   | Nt.Ty_record l -> (
@@ -208,7 +210,7 @@ let mk_p_vassign (lvalue, rvalue) =
   (PAssign { lvalue = mk_pid lvalue; rvalue }) #: Nt.Ty_unit
 
 let mk_p_let lhs rhs body = (PLet { lhs; rhs; body }) #: body.ty
-let mk_return_void = (PReturn (PConst PUnit) #: Nt.Ty_unit) #: Nt.Ty_unit
+let mk_p_return_void = (PReturn (PConst PUnit) #: Nt.Ty_unit) #: Nt.Ty_unit
 let mk_p_int i = (PConst (PInt i)) #: Nt.Ty_int
 let mk_p_bool b = (PConst (PBool b)) #: Nt.Ty_bool
 let mk_p_string str = (PConst (PStr str)) #: (mk_p_abstract_ty "string")
@@ -283,7 +285,7 @@ let mk_p_record l =
 
 let mk_p_tuple l = mk_p_record @@ List.mapi (fun i e -> (string_of_int i, e)) l
 
-let mk_return x =
+let mk_p_return x =
   let rec aux x =
     match x.x with
     | PGoto _ -> x
@@ -293,7 +295,7 @@ let mk_return x =
   in
   aux x
 
-let mk_p_halt = mk_return @@ ((PConst PHalt) #: Nt.Ty_unit)
+let mk_p_halt = mk_p_return @@ ((PConst PHalt) #: Nt.Ty_unit)
 
 let mk_p_eq e1 e2 =
   if Nt.equal_nt e1.ty e2.ty then
@@ -305,7 +307,7 @@ let mk_p_eq e1 e2 =
 let mk_p_in e1 e2 =
   mk_p_app "in" #: (Nt.construct_arr_tp ([ e1.ty; e2.ty ], Ty_bool)) [ e1; e2 ]
 
-let mk_p_error = mk_return @@ ((PConst PError) #: Nt.Ty_unit)
+let mk_p_error = mk_p_return @@ ((PConst PError) #: Nt.Ty_unit)
 let mk_p_goto name = (PGoto name) #: Nt.Ty_unit
 
 let mk_p_or e1 e2 =

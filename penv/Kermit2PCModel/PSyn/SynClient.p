@@ -12,36 +12,40 @@ machine SynClient {
       var id: tGid;
       var k: tKey;
       var v2: tVal;
-      var tmp_26: tGid;
-      var tmp_27: tKey;
-      var tmp_28: tVal;
-      var tmp_23: tGid;
-      var tmp_24: tKey;
-      var tmp_25: tVal;
-      var st_26: tCmdStatus;
+      var input_eShardUpdateKeyReq: (gid: tGid, key: tKey, value: tVal);
+      var tmp_28: tGid;
+      var tmp_29: tKey;
+      var tmp_30: tVal;
+      var input_eShardUpdateKeyRsp: (gid: tGid, key: tKey, value: tVal, status: tCmdStatus);
+      var tmp_25: tGid;
+      var tmp_26: tKey;
+      var tmp_27: tVal;
+      var st_0: tCmdStatus;
       var input_eUpdateRsp: (gid: tGid, key: tKey, value: tVal, status: tCmdStatus);
-      var tmp_19: tGid;
-      var tmp_20: tKey;
-      var tmp_21: tVal;
-      var tmp_22: tCmdStatus;
+      var tmp_21: tGid;
+      var tmp_22: tKey;
+      var tmp_23: tVal;
+      var tmp_24: tCmdStatus;
       var v1: tVal;
-      var tmp_16: tGid;
-      var tmp_17: tKey;
-      var tmp_18: tVal;
-      var tmp_13: tGid;
-      var tmp_14: tKey;
-      var tmp_15: tVal;
-      var st_13: tCmdStatus;
-      var tmp_9: tGid;
-      var tmp_10: tKey;
-      var tmp_11: tVal;
-      var tmp_12: tCmdStatus;
-      var tmp_7: tGid;
-      var tmp_8: tKey;
+      var tmp_18: tGid;
+      var tmp_19: tKey;
+      var tmp_20: tVal;
+      var tmp_14: tGid;
+      var tmp_15: tKey;
+      var tmp_16: tVal;
+      var tmp_17: tCmdStatus;
+      var tmp_10: tGid;
+      var tmp_11: tKey;
+      var tmp_12: tVal;
+      var tmp_13: tCmdStatus;
+      var input_eShardReadKeyReq: (gid: tGid, key: tKey);
+      var tmp_8: tGid;
+      var tmp_9: tKey;
+      var input_eShardReadKeyRsp: (gid: tGid, key: tKey, value: tVal, status: tCmdStatus);
       var tmp_4: tGid;
       var tmp_5: tKey;
       var tmp_6: tVal;
-      var st_0: tCmdStatus;
+      var tmp_7: tCmdStatus;
       var input_eReadRsp: (gid: tGid, key: tKey, value: tVal, status: tCmdStatus);
       var tmp_0: tGid;
       var tmp_1: tKey;
@@ -55,8 +59,8 @@ machine SynClient {
       domain_tCmdStatus = input.domain_tCmdStatus;
       domain_tTxnStatus = input.domain_tTxnStatus;
       send_eStartTxnReq(this, setting);
-      receive { case eStartTxnRsp: (input: tStartTxnRsp) {
-        input_eStartTxnRsp = cast_eStartTxnRsp(input);
+      receive { case syn_eStartTxnRsp: (input: tsyn_eStartTxnRsp) {
+        input_eStartTxnRsp = cast_syn_eStartTxnRsp(input);
         id = input_eStartTxnRsp.gid;
       }};
       assert true;
@@ -68,31 +72,31 @@ machine SynClient {
         };
       };
       send_eUpdateReq(this, setting, (gid = id, key = k, value = v2));
-      while(true){
-        tmp_26 = choose(domain_tGid);
-        tmp_27 = choose(domain_tKey);
-        tmp_28 = choose(domain_tVal);
-        if ((((tmp_26 == id) && (tmp_27 == k)) && (tmp_28 == v2))) {
-          break;
-        };
-      };
-      while(true){
-        tmp_23 = choose(domain_tGid);
-        tmp_24 = choose(domain_tKey);
-        tmp_25 = choose(domain_tVal);
-        st_26 = choose(domain_tCmdStatus);
-        if (((((tmp_23 == id) && (tmp_24 == k)) && (tmp_25 == v2)) && (st_26 == OK))) {
-          break;
-        };
-      };
-      receive { case eUpdateRsp: (input: tUpdateRsp) {
-        input_eUpdateRsp = cast_eUpdateRsp(input);
-        tmp_19 = input_eUpdateRsp.gid;
-        tmp_20 = input_eUpdateRsp.key;
-        tmp_21 = input_eUpdateRsp.value;
-        tmp_22 = input_eUpdateRsp.status;
+      receive { case syn_eShardUpdateKeyReq: (input: tsyn_eShardUpdateKeyReq) {
+        input_eShardUpdateKeyReq = cast_syn_eShardUpdateKeyReq(input);
+        tmp_28 = input_eShardUpdateKeyReq.gid;
+        tmp_29 = input_eShardUpdateKeyReq.key;
+        tmp_30 = input_eShardUpdateKeyReq.value;
+        forward_syn_eShardUpdateKeyReq(input);
       }};
-      assert ((((tmp_19 == id) && (tmp_20 == k)) && (tmp_21 == v2)) && (tmp_22 == st_26));
+      assert (((tmp_28 == id) && (tmp_29 == k)) && (tmp_30 == v2));
+      receive { case syn_eShardUpdateKeyRsp: (input: tsyn_eShardUpdateKeyRsp) {
+        input_eShardUpdateKeyRsp = cast_syn_eShardUpdateKeyRsp(input);
+        tmp_25 = input_eShardUpdateKeyRsp.gid;
+        tmp_26 = input_eShardUpdateKeyRsp.key;
+        tmp_27 = input_eShardUpdateKeyRsp.value;
+        st_0 = input_eShardUpdateKeyRsp.status;
+        forward_syn_eShardUpdateKeyRsp(input);
+      }};
+      assert ((((tmp_25 == id) && (tmp_26 == k)) && (tmp_27 == v2)) && (st_0 == OK));
+      receive { case syn_eUpdateRsp: (input: tsyn_eUpdateRsp) {
+        input_eUpdateRsp = cast_syn_eUpdateRsp(input);
+        tmp_21 = input_eUpdateRsp.gid;
+        tmp_22 = input_eUpdateRsp.key;
+        tmp_23 = input_eUpdateRsp.value;
+        tmp_24 = input_eUpdateRsp.status;
+      }};
+      assert ((((tmp_21 == id) && (tmp_22 == k)) && (tmp_23 == v2)) && (tmp_24 == st_0));
       while(true){
         v1 = choose(domain_tVal);
         if (!((v2 == v1))) {
@@ -100,50 +104,50 @@ machine SynClient {
         };
       };
       send_eUpdateReq(this, setting, (gid = id, key = k, value = v1));
-      while(true){
-        tmp_16 = choose(domain_tGid);
-        tmp_17 = choose(domain_tKey);
-        tmp_18 = choose(domain_tVal);
-        if ((((tmp_16 == id) && (tmp_17 == k)) && (tmp_18 == v1))) {
-          break;
-        };
-      };
-      while(true){
-        tmp_13 = choose(domain_tGid);
-        tmp_14 = choose(domain_tKey);
-        tmp_15 = choose(domain_tVal);
-        st_13 = choose(domain_tCmdStatus);
-        if ((((((tmp_13 == id) && (tmp_14 == k)) && (tmp_15 == v1)) && (st_26 == st_13)) && (st_13 == OK))) {
-          break;
-        };
-      };
-      receive { case eUpdateRsp: (input: tUpdateRsp) {
-        input_eUpdateRsp = cast_eUpdateRsp(input);
-        tmp_9 = input_eUpdateRsp.gid;
-        tmp_10 = input_eUpdateRsp.key;
-        tmp_11 = input_eUpdateRsp.value;
-        tmp_12 = input_eUpdateRsp.status;
+      receive { case syn_eShardUpdateKeyReq: (input: tsyn_eShardUpdateKeyReq) {
+        input_eShardUpdateKeyReq = cast_syn_eShardUpdateKeyReq(input);
+        tmp_18 = input_eShardUpdateKeyReq.gid;
+        tmp_19 = input_eShardUpdateKeyReq.key;
+        tmp_20 = input_eShardUpdateKeyReq.value;
+        forward_syn_eShardUpdateKeyReq(input);
       }};
-      assert ((((tmp_9 == id) && (tmp_10 == k)) && (tmp_11 == v1)) && (tmp_12 == st_13));
+      assert (((tmp_18 == id) && (tmp_19 == k)) && (tmp_20 == v1));
+      receive { case syn_eShardUpdateKeyRsp: (input: tsyn_eShardUpdateKeyRsp) {
+        input_eShardUpdateKeyRsp = cast_syn_eShardUpdateKeyRsp(input);
+        tmp_14 = input_eShardUpdateKeyRsp.gid;
+        tmp_15 = input_eShardUpdateKeyRsp.key;
+        tmp_16 = input_eShardUpdateKeyRsp.value;
+        tmp_17 = input_eShardUpdateKeyRsp.status;
+        forward_syn_eShardUpdateKeyRsp(input);
+      }};
+      assert ((((tmp_14 == id) && (tmp_15 == k)) && (tmp_16 == v1)) && (tmp_17 == st_0));
+      receive { case syn_eUpdateRsp: (input: tsyn_eUpdateRsp) {
+        input_eUpdateRsp = cast_syn_eUpdateRsp(input);
+        tmp_10 = input_eUpdateRsp.gid;
+        tmp_11 = input_eUpdateRsp.key;
+        tmp_12 = input_eUpdateRsp.value;
+        tmp_13 = input_eUpdateRsp.status;
+      }};
+      assert ((((tmp_10 == id) && (tmp_11 == k)) && (tmp_12 == v1)) && (tmp_13 == st_0));
       send_eReadReq(this, setting, (gid = id, key = k));
-      while(true){
-        tmp_7 = choose(domain_tGid);
-        tmp_8 = choose(domain_tKey);
-        if (((tmp_7 == id) && (tmp_8 == k))) {
-          break;
-        };
-      };
-      while(true){
-        tmp_4 = choose(domain_tGid);
-        tmp_5 = choose(domain_tKey);
-        tmp_6 = choose(domain_tVal);
-        st_0 = choose(domain_tCmdStatus);
-        if (((((((tmp_4 == id) && (tmp_5 == k)) && (tmp_6 == v2)) && (st_26 == st_0)) && (st_13 == st_0)) && (st_0 == OK))) {
-          break;
-        };
-      };
-      receive { case eReadRsp: (input: tReadRsp) {
-        input_eReadRsp = cast_eReadRsp(input);
+      receive { case syn_eShardReadKeyReq: (input: tsyn_eShardReadKeyReq) {
+        input_eShardReadKeyReq = cast_syn_eShardReadKeyReq(input);
+        tmp_8 = input_eShardReadKeyReq.gid;
+        tmp_9 = input_eShardReadKeyReq.key;
+        forward_syn_eShardReadKeyReq(input);
+      }};
+      assert ((tmp_8 == id) && (tmp_9 == k));
+      receive { case syn_eShardReadKeyRsp: (input: tsyn_eShardReadKeyRsp) {
+        input_eShardReadKeyRsp = cast_syn_eShardReadKeyRsp(input);
+        tmp_4 = input_eShardReadKeyRsp.gid;
+        tmp_5 = input_eShardReadKeyRsp.key;
+        tmp_6 = input_eShardReadKeyRsp.value;
+        tmp_7 = input_eShardReadKeyRsp.status;
+        forward_syn_eShardReadKeyRsp(input);
+      }};
+      assert ((((tmp_4 == id) && (tmp_5 == k)) && (tmp_6 == v2)) && (tmp_7 == st_0));
+      receive { case syn_eReadRsp: (input: tsyn_eReadRsp) {
+        input_eReadRsp = cast_syn_eReadRsp(input);
         tmp_0 = input_eReadRsp.gid;
         tmp_1 = input_eReadRsp.key;
         tmp_2 = input_eReadRsp.value;

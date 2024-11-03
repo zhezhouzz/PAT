@@ -141,7 +141,7 @@ machine SynOrchestrator {
 }
 
 machine SynSingleClientSingleRouterNoFailures {
-  var orchestrator: Orchestrator;
+  var orchestrator: machine;
   var globalClock: GlobalClock;
 
   start state Init {
@@ -149,7 +149,7 @@ machine SynSingleClientSingleRouterNoFailures {
           orchestrator = new SynOrchestrator((
               numClients = 1,
               numRouters = 1,
-              numShards = 2,
+              numShards = 1,
               numFailures = 0
           ));
       }

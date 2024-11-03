@@ -178,7 +178,8 @@ let rec layout_p_expr ctx n = function
   | PRecieve { event_name; input; body } ->
       let first =
         match input.ty with
-        | Nt.Ty_unit -> spf "receive { case %s: {\n" event_name
+        | Nt.Ty_unit | Nt.Ty_record [] ->
+            spf "receive { case %s: {\n" event_name
         | Nt.Ty_record _ ->
             let ptype =
               match List.of_seq @@ String.to_seq event_name with
@@ -265,6 +266,8 @@ let layout_func_label = function
   | Entry -> "entry"
   | Exit -> "exit"
   | Listen name -> spf "on %s do" name
+
+let layout_p_local_func ctx (x, f) = spf "fun %s %s" x.x (layout_p_func ctx 1 f)
 
 let layout_p_state ctx n { name; state_label; state_body } =
   let prefix = List.split_by " " layout_state_label state_label in

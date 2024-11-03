@@ -1,0 +1,12 @@
+type tinePongLost = (controller: machine, dst: machine, trial: int);
+type tinePong = (controller: machine, dst: machine, trial: int);
+type tinePing = (controller: machine, dst: machine, fd: machine, trial: int);
+type teStart = (controller: machine);
+type teNetworkError = (controller: machine, trial: int); 
+event eStart: teStart;
+event eShutDone;
+event inePongLost: tinePongLost;
+event inePong: tinePong;
+event inePing: tinePing;
+event eNotifyNodesDown;
+event eNetworkError: teNetworkError;

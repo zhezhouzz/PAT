@@ -5,10 +5,10 @@ val ( == ) : 'a -> 'a -> bool
 
 (** handled by env *)
 
-val eNotifyNodesDone : unit [@@obsRecv]
+val eNotifyNodesDown : unit [@@obsRecv]
 
-let eNotifyNodesDone =
-  (starA (anyA - ENotifyNodesDone true), ENotifyNodesDone true, [||])
+let eNotifyNodesDown =
+  (starA (anyA - ENotifyNodesDown true), ENotifyNodesDown true, [||])
 
 val eNetworkError : < trial : int > [@@gen]
 
@@ -22,7 +22,7 @@ let eNetworkError ?l:(tl = (true : [%v: int])) =
 (** Node Machine *)
 
 val ePing : < trial : int > [@@obs]
-val eShutDone : unit [@@obs]
+val eShutDown : unit [@@obs]
 
 let ePing =
   [|
@@ -30,12 +30,12 @@ let ePing =
       ( starA
           (anyA
          (* - EPing ( trial == tl) *)
-         - EShutDone true),
+         - EShutDown true),
         EPing (trial == tl),
         [| EPong (trial == tl) |] ));
   |]
 
-let eShutDone = (starA (anyA - EShutDone true), EShutDone true, [||])
+let eShutDown = (starA (anyA - EShutDown true), EShutDown true, [||])
 
 (** Detector Machine *)
 
@@ -66,11 +66,11 @@ let ePongLost =
         EPongLost (trial == tl),
         [| EPing (trial == 3) |] ));
     (fun ?l:(tl = (v == 3 : [%v: int])) ->
-      (allA, EPongLost (trial == tl), [| ENotifyNodesDone true |]));
+      (allA, EPongLost (trial == tl), [| ENotifyNodesDown true |]));
   |]
 
 let[@goal] detectFalseNegative =
   not
-    (starA (anyA - EShutDone true);
-     ENotifyNodesDone true;
-     starA (anyA - EShutDone true))
+    (starA (anyA - EShutDown true);
+     ENotifyNodesDown true;
+     starA (anyA - EShutDown true))
