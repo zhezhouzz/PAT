@@ -1,17 +1,3 @@
-event eClientTxnsCompleted: machine;
-
-type tDisconnectRouter = (sender: machine);
-event eDisconnectRouter: tDisconnectRouter;
-
-type tDisconnectRouterAck = (router: machine);
-event eDisconnectRouterAck: tDisconnectRouterAck;
-
-type tClientRouterDisconnected = (router: machine);
-event eClientRouterDisconnected: tClientRouterDisconnected;
-
-type tClientAddNewRouter = (router: machine);
-event eClientAddNewRouter: tClientAddNewRouter;
-
 type tsyn_eUpdateRsp = (controller:machine, dst:machine, router:machine, gid:tGid, key:tKey, val:tVal, status:tCmdStatus);
 type tsyn_eUpdateReq = (controller:machine, dst:machine, gid:tGid, key:tKey, val:tVal);
 type tsyn_eStartTxnRsp = (controller:machine, dst:machine, router: machine, gid:tGid, start_time: int);
@@ -93,16 +79,4 @@ fun do_send_eShardCommitTxn(dst: machine, old: tShardCommitTxn){
 
 fun do_send_eShardAbortTxn(dst: machine, old: tShardAbortTxn){
     send dst, syn_eShardAbortTxn, (controller = dst, dst = dst, gid=old.gid);    
-}
-
-fun tsyn_eShardPrepareRsp_to_tShardPrepareRsp(input: tsyn_eShardPrepareRsp): tShardPrepareRsp {
-    return (shard = input.shard, gid = input.gid, status = input.status, prepare_time = input.prepare_time);
-}
-
-fun tsyn_eShardReadKeyReq_to_tShardReadKeyReq(input: tsyn_eShardReadKeyReq): tShardReadKeyReq {
-    return (router = input.router, gid = input.gid, key = input.key, snapshot_time = input.snapshot_time);
-}
-
-fun tsyn_eShardUpdateKeyReq_to_tShardUpdateKeyReq(input: tsyn_eShardUpdateKeyReq): tShardUpdateKeyReq {
-    return (router = input.router, gid = input.gid, key = input.key, val = input.val, snapshot_time = input.snapshot_time);
 }
