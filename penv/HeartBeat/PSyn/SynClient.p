@@ -18,64 +18,64 @@ machine SynClient {
       setting = input.setting;
       domain_int = input.domain_int;
       send_eStart(this, setting);
-      receive { case inePing: (input: tinePing) {
-        input_ePing = cast_inePing(input);
+      receive { case syn_ePing: (input: tsyn_ePing) {
+        input_ePing = cast_syn_ePing(input);
         tl_43 = input_ePing.trial;
-        forward_inePing(input);
+        forward_syn_ePing(input);
       }};
       assert (((tl_43 == 1) && !((tl_43 == 2))) && !((tl_43 == 3)));
-      receive { case inePong: (input: tinePong) {
-        input_ePong = cast_inePong(input);
+      receive { case syn_ePong: (input: tsyn_ePong) {
+        input_ePong = cast_syn_ePong(input);
         tmp_5 = input_ePong.trial;
-        forward_inePong(input);
+        forward_syn_ePong(input);
       }};
       assert (tmp_5 == tl_43);
       send_eNetworkError(this, setting, (trial = tl_43,));
-      receive { case inePongLost: (input: tinePongLost) {
-        input_ePongLost = cast_inePongLost(input);
+      receive { case syn_ePongLost: (input: tsyn_ePongLost) {
+        input_ePongLost = cast_syn_ePongLost(input);
         tmp_4 = input_ePongLost.trial;
-        forward_inePongLost(input);
+        forward_syn_ePongLost(input);
       }};
       assert (tmp_4 == tl_43);
-      receive { case inePing: (input: tinePing) {
-        input_ePing = cast_inePing(input);
+      receive { case syn_ePing: (input: tsyn_ePing) {
+        input_ePing = cast_syn_ePing(input);
         tl_23 = input_ePing.trial;
-        forward_inePing(input);
+        forward_syn_ePing(input);
       }};
       assert (((!((tl_43 == tl_23)) && !((tl_23 == 1))) && (tl_23 == 2)) && !((tl_23 == 3)));
-      receive { case inePong: (input: tinePong) {
-        input_ePong = cast_inePong(input);
+      receive { case syn_ePong: (input: tsyn_ePong) {
+        input_ePong = cast_syn_ePong(input);
         tmp_3 = input_ePong.trial;
-        forward_inePong(input);
+        forward_syn_ePong(input);
       }};
       assert (tmp_3 == tl_23);
       send_eNetworkError(this, setting, (trial = tl_23,));
-      receive { case inePongLost: (input: tinePongLost) {
-        input_ePongLost = cast_inePongLost(input);
+      receive { case syn_ePongLost: (input: tsyn_ePongLost) {
+        input_ePongLost = cast_syn_ePongLost(input);
         tmp_2 = input_ePongLost.trial;
-        forward_inePongLost(input);
+        forward_syn_ePongLost(input);
       }};
       assert (tmp_2 == tl_23);
-      receive { case inePing: (input: tinePing) {
-        input_ePing = cast_inePing(input);
+      receive { case syn_ePing: (input: tsyn_ePing) {
+        input_ePing = cast_syn_ePing(input);
         tl_3 = input_ePing.trial;
-        forward_inePing(input);
+        forward_syn_ePing(input);
       }};
       assert ((((!((tl_43 == tl_3)) && !((tl_3 == tl_23))) && !((tl_3 == 1))) && !((tl_3 == 2))) && (tl_3 == 3));
-      receive { case inePong: (input: tinePong) {
-        input_ePong = cast_inePong(input);
+      receive { case syn_ePong: (input: tsyn_ePong) {
+        input_ePong = cast_syn_ePong(input);
         tmp_1 = input_ePong.trial;
-        forward_inePong(input);
+        forward_syn_ePong(input);
       }};
       assert (tmp_1 == tl_3);
       send_eNetworkError(this, setting, (trial = tl_3,));
-      receive { case inePongLost: (input: tinePongLost) {
-        input_ePongLost = cast_inePongLost(input);
+      receive { case syn_ePongLost: (input: tsyn_ePongLost) {
+        input_ePongLost = cast_syn_ePongLost(input);
         tmp_0 = input_ePongLost.trial;
-        forward_inePongLost(input);
+        forward_syn_ePongLost(input);
       }};
       assert (tmp_0 == tl_3);
-      receive { case eNotifyNodesDown: {
+      receive { case syn_eNotifyNodesDown: {
         break;
       }};
       assert true;

@@ -1,0 +1,22 @@
+enum tNode {Node1, Node2} 
+type tVal = int;
+type tsyn_eVoteRsp = (controller:machine, dst:machine, src:tNode, dest:tNode, stat:bool);
+type tsyn_eVoteReq = (controller:machine, dst:machine, src:tNode, dest:tNode, leader:tNode);
+type tsyn_eTimeout = (controller:machine, dst:machine, dest:tNode);
+type tsyn_eStart = (controller:machine, dst:machine);
+type tsyn_eShutDown = (controller:machine, dst:machine);
+type tsyn_eClientPutRsp = (controller:machine, dst:machine, va:tVal, stat:bool);
+type tsyn_eClientPut = (controller:machine, dst:machine, va:tVal);
+type tsyn_eBecomeLeader = (controller:machine, dst:machine, leader:tNode);
+type tsyn_eAppendEntry = (controller:machine, dst:machine, node:tNode, va:tVal);
+event syn_eVoteRsp: tsyn_eVoteRsp;
+event syn_eVoteReq: tsyn_eVoteReq;
+event syn_eTimeout: tsyn_eTimeout;
+event syn_eStart: tsyn_eStart;
+event syn_eShutDown: tsyn_eShutDown;
+event syn_eClientPutRsp: tsyn_eClientPutRsp;
+event syn_eClientPut: tsyn_eClientPut;
+event syn_eBecomeLeader: tsyn_eBecomeLeader;
+event syn_eAppendEntry: tsyn_eAppendEntry;
+type setting = (nodes: machine, initnode: machine);
+event eInit: setting;

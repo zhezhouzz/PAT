@@ -1,0 +1,16 @@
+type aid = int;
+type rid = int;
+type tsyn_eWithDrawResp = (controller:machine, dst:machine, rId:rid, accountId:aid, balance:int, status:bool);
+type tsyn_eWithDrawReq = (controller:machine, dst:machine, rId:rid, accountId:aid, amount:int);
+type tsyn_eUpdateQuery = (controller:machine, dst:machine, accountId:aid, balance:int);
+type tsyn_eReadQueryResp = (controller:machine, dst:machine, rId:rid, amount:int, accountId:aid, balance:int);
+type tsyn_eReadQuery = (controller:machine, dst:machine, rId:rid, amount:int, accountId:aid);
+type tsyn_eInitAccount = (controller:machine, dst:machine, accountId:aid, balance:int);
+type teInitAccount = (bank: machine, accountId:aid, balance:int);
+event syn_eWithDrawResp: tsyn_eWithDrawResp;
+event syn_eWithDrawReq: tsyn_eWithDrawReq;
+event syn_eUpdateQuery: tsyn_eUpdateQuery;
+event syn_eReadQueryResp: tsyn_eReadQueryResp;
+event syn_eReadQuery: tsyn_eReadQuery;
+event syn_eInitAccount: tsyn_eInitAccount;
+event eInitAccount: teInitAccount;

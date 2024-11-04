@@ -3,7 +3,7 @@ machine Coordinator
   var database: machine;
   var user: machine;
   var timer: Timer;
-  var purRsp_buffer: (va: int, stat: bool);
+  var purRsp_buffer: tsyn_putRsp;
   var is_committed: bool;
 
   start state WaitForRequests {
@@ -12,40 +12,52 @@ machine Coordinator
         timer = CreateTimer(this);
     }
 
-    on writeReq do (input: (src: machine, va: int)) {
-        user = input.src;
-        send database, putReq, (src = this, va = input.va);
+    on syn_writeReq do (input: tsyn_writeReq) {
+        user = input.controller;
+        send input.controller, syn_putReq, (controller = input.controller, dst = database, src = this, va = input.va);
     }
 
-    on readReq do (input: (src: machine)) {
-        send database, getReq, (src = input.src,);
+    on syn_readReq do (input: tsyn_readReq) {
+        send input.controller, syn_getReq, (controller = input.controller, dst = database);
     }
 
-    on putRsp do (input: (va: int, stat: bool)) {
+    on syn_putRsp do (input: tsyn_putRsp) {
         // print format("input: {0}", input);
         purRsp_buffer = input;
         if (input.stat) {
-            if ($) {
-                is_committed = true;
-                send database, commit;
-            } else {
-                is_committed = false;
-                send user, writeRsp, purRsp_buffer;
-            }
-            StartTimer(timer);
+            send input.controller, syn_commit, (controller = input.controller, dst = database);
+            send user, syn_writeRsp, (controller = user, dst = user, va = purRsp_buffer.va, stat = purRsp_buffer.stat);
         } else {
-            send database, abort;
-            send user, writeRsp, input;
+            send input.controller, syn_abort, (controller = input.controller, dst = database);
+            send input.controller, syn_writeRsp, (controller = input.controller, dst = input.controller, va = input.va, stat = input.stat);
         }
     }
 
-    on eTimeOut do {
-        if (is_committed) {
-            send user, writeRsp, purRsp_buffer; 
-        } else {
-            send database, commit; 
-        }
-    }
+    // on syn_putRsp do (input: tsyn_putRsp) {
+    //     // print format("input: {0}", input);
+    //     purRsp_buffer = input;
+    //     if (input.stat) {
+    //         if ($) {
+    //             is_committed = true;
+    //             send input.controller, syn_commit, (controller = input.controller, dst = database);
+    //         } else {
+    //             is_committed = false;
+    //             send input.controller, syn_writeRsp, (controller = input.controller, dst = input.controller, va = input.va, stat = input.stat);
+    //         }
+    //         StartTimer(timer);
+    //     } else {
+    //         send input.controller, syn_abort, (controller = input.controller, dst = database);
+    //         send input.controller, syn_writeRsp, (controller = input.controller, dst = input.controller, va = input.va, stat = input.stat);
+    //     }
+    // }
+
+    // on eTimeOut do {
+    //     if (is_committed) {
+    //         send user, syn_writeRsp, (controller = user, dst = user, va = purRsp_buffer.va, stat = purRsp_buffer.stat);
+    //     } else {
+    //         send user, syn_commit, (controller = user, dst = database);
+    //     }
+    // }
   }
 }
 

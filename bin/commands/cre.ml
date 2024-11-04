@@ -141,14 +141,14 @@ let eval_benchmark benchname () =
   let () = Stat.update_when_eval (env, term) rate n_retry stat_file in
   ()
 
-let compile_to_p_aux source_file output_file pheader_file p_output_file () =
+let compile_to_p_aux source_file output_file p_output_file () =
   let output_file = spf "%s.scm" output_file in
-  let p_tyctx =
-    ocaml_structure_to_p_tyctx
-      (Oparse.parse_imp_from_file ~sourcefile:pheader_file)
-  in
+  (* let p_tyctx = *)
+  (*   ocaml_structure_to_p_tyctx *)
+  (*     (Oparse.parse_imp_from_file ~sourcefile:pheader_file) *)
+  (* in *)
   let env, term = load_syn_result source_file output_file in
-  let content = Pbackend.compile_syn_result p_tyctx env term in
+  let content = Pbackend.compile_syn_result env term in
   let oc = open_out p_output_file in
   let () =
     try
@@ -161,10 +161,10 @@ let compile_to_p_aux source_file output_file pheader_file p_output_file () =
   ()
 
 let compile_to_p benchname =
-  let source_file, output_file, _, pheader_file, p_output_file =
+  let source_file, output_file, _, _, p_output_file =
     benchmark_convension benchname
   in
-  compile_to_p_aux source_file output_file pheader_file p_output_file
+  compile_to_p_aux source_file output_file p_output_file
 (* let output_file = spf "%s.scm" output_file in *)
 
 let show_term output_file () =

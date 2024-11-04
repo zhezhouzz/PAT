@@ -49,8 +49,8 @@ machine CoffeeMakerControlPanel
   // block until a user shows up
   fun WaitForUser() {
       receive {
-          case eCoffeeMachineUser: (user: machine) {
-              currentUser = user;
+          case syn_eCoffeeMachineUser: (input: tsyn_eCoffeeMachineUser) {
+              currentUser = input.controller;
           }
       }
   }
@@ -63,7 +63,7 @@ machine CoffeeMakerControlPanel
       BeginHeatingCoffeeMaker();
     }
 
-    on eWarmUpCompleted goto CoffeeMakerReady;
+    on syn_eWarmUpCompleted goto CoffeeMakerReady;
 
     // grounds door is opened or closed will handle it later after the coffee maker has warmed up
     defer eOpenGroundsDoor, eCloseGroundsDoor;
@@ -82,11 +82,11 @@ machine CoffeeMakerControlPanel
       announce eInReadyState;
 
       coffeeMakerState = Ready;
-      send currentUser, eCoffeeMakerReady;
+      send currentUser, syn_eCoffeeMakerReady, (controller = currentUser, dst = currentUser);
     }
 
     on eOpenGroundsDoor goto CoffeeMakerDoorOpened;
-    on eEspressoButtonPressed goto CoffeeMakerRunGrind;
+    on syn_eEspressoButtonPressed goto CoffeeMakerRunGrind;
     on eSteamerButtonOn goto CoffeeMakerRunSteam;
 
     // ignore these out of order commands, these must have happened because of an error
@@ -104,17 +104,17 @@ machine CoffeeMakerControlPanel
 
       GrindBeans();
     }
-    on eNoBeansError goto EncounteredError with {
+    on syn_eNoBeansError goto EncounteredError with {
       coffeeMakerState = NoBeansError;
       print "No beans to grind! Please refill beans and reset the machine!";
     }
 
-    on eNoWaterError goto EncounteredError with {
+    on syn_eNoWaterError goto EncounteredError with {
       coffeeMakerState = NoWaterError;
       print "No Water! Please refill water and reset the machine!";
     }
 
-    on eGrindBeansCompleted goto CoffeeMakerRunEspresso;
+    on syn_eGrindBeansCompleted goto CoffeeMakerRunEspresso;
 
     defer eOpenGroundsDoor, eCloseGroundsDoor, eEspressoButtonPressed;
 
@@ -122,7 +122,7 @@ machine CoffeeMakerControlPanel
     ignore eSteamerButtonOn, eSteamerButtonOff;
 
     // ignore commands that are old or cannot be handled right now
-    ignore eWarmUpCompleted, eResetCoffeeMaker;
+    ignore syn_eWarmUpCompleted, eResetCoffeeMaker;
   }
 
   state CoffeeMakerRunEspresso {
@@ -132,9 +132,9 @@ machine CoffeeMakerControlPanel
 
       StartEspresso();
     }
-    on eEspressoCompleted goto CoffeeMakerReady with { send currentUser, eEspressoCompleted; }
+    on eEspressoCompleted goto CoffeeMakerReady with { send currentUser, syn_eEspressoCompleted, (controller = currentUser, dst = currentUser); }
 
-    on eNoWaterError goto EncounteredError with {
+    on syn_eNoWaterError goto EncounteredError with {
       coffeeMakerState = NoWaterError;
       print "No Water! Please refill water and reset the machine!";
     }
@@ -158,7 +158,7 @@ machine CoffeeMakerControlPanel
       StopSteamer();
     }
 
-    on eNoWaterError goto EncounteredError with {
+    on syn_eNoWaterError goto EncounteredError with {
       coffeeMakerState = NoWaterError;
       print "No Water! Please refill water and reset the machine!";
     }
@@ -187,7 +187,7 @@ machine CoffeeMakerControlPanel
       announce eErrorHappened;
 
       // send the error message to the client
-      send currentUser, eCoffeeMakerError, coffeeMakerState;
+      send currentUser, syn_eCoffeeMakerError, (controller = currentUser, dst = currentUser, st = coffeeMakerState);
     }
 
     on eResetCoffeeMaker goto WarmUpCoffeeMaker with {
@@ -205,7 +205,7 @@ machine CoffeeMakerControlPanel
 
   fun BeginHeatingCoffeeMaker() {
     // send an event to maker to start warming
-    send coffeeMaker, eWarmUpReq;
+    send currentUser, syn_eWarmUpReq, (controller = currentUser, dst = coffeeMaker);
   }
 
   fun StartSteamer() {
@@ -220,11 +220,11 @@ machine CoffeeMakerControlPanel
 
   fun GrindBeans() {
     // send an event to maker to grind beans
-    send coffeeMaker, eGrindBeansReq;
+    send currentUser, syn_eGrindBeansReq, (controller = currentUser, dst = coffeeMaker);
   }
 
   fun StartEspresso() {
     // send an event to maker to start espresso
-    send coffeeMaker, eStartEspressoReq;
+    send currentUser, syn_eStartEspressoReq, (controller = currentUser, dst = coffeeMaker);
   }
 }

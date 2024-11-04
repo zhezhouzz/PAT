@@ -135,7 +135,7 @@ let erase_obs env =
 let _default_input_name = "input"
 let recv_input_name op ty = (spf "input_%s" op) #: ty
 let send_function_decl op = (spf "send_%s" op) #: Nt.Ty_unit
-let dest_decl = "setting" #: mk_p_machine_ty
+let dest_decl = "setting" #: (mk_p_abstract_ty "setting")
 let cast_decl op ty = (spf "cast_%s" op) #: ty
 let event_rename op = spf "syn_%s" op
 let type_rename op = spf "t%s" op
@@ -294,12 +294,12 @@ let compile_term env e =
             mk_p_recv op.x raw_input recv_body
           else
             mk_p_recv op.x raw_input
-            @@ mk_p_seq recv_body
+            @@ mk_p_seq
                  (mk_p_app (mk_forward_op_decl op) [ mk_pid raw_input ])
+                 recv_body
         in
         match original_op.ty with
         | Nt.Ty_record [] ->
-            let raw_input = _default_input_name #: Nt.Ty_unit in
             let recv_stmt = recv_add_tail_forward raw_input mk_p_break in
             mk_p_seq recv_stmt
               (mk_p_seq (mk_p_assert (compile_prop prop)) (aux body))
@@ -353,7 +353,7 @@ let get_sampling_types env =
   let l = List.slow_rm_dup Nt.equal_nt l in
   List.sort Nt.compare_nt l
 
-let compile_syn_result p_tyctx (env : syn_env) e =
+let compile_syn_result (env : syn_env) e =
   (* let component_table = *)
   (*   StrMap.from_kv_list *)
   (*     [ *)
@@ -383,7 +383,7 @@ let compile_syn_result p_tyctx (env : syn_env) e =
       gen_ctx = env.gen_ctx;
       recvable_ctx = env.recvable_ctx;
       event_tyctx = ctx_to_map env.event_tyctx;
-      p_tyctx;
+      (* p_tyctx; *)
       (* component_table; *)
       (* sampling_space; *)
     }

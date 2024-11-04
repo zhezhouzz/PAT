@@ -7,11 +7,11 @@ event eErrorHappened;
 event eResetPerformed;
 
 spec no_water_error
-observes eCoffeeMakerError
+observes syn_eCoffeeMakerError
 {
   start state StartUp {
-    on eCoffeeMakerError do (input: tCoffeeMakerState) {
-      if (input == NoWaterError) {
+    on syn_eCoffeeMakerError do (input: tsyn_eCoffeeMakerError) {
+      if (input.st == NoWaterError) {
         assert false, "spec violation";
       } 
     }
@@ -19,11 +19,11 @@ observes eCoffeeMakerError
 }
 
 spec no_beans_error
-observes eCoffeeMakerError
+observes syn_eCoffeeMakerError
 {
   start state StartUp {
-    on eCoffeeMakerError do (input: tCoffeeMakerState) {
-      if (input == NoBeansError) {
+    on syn_eCoffeeMakerError do (input: tsyn_eCoffeeMakerError) {
+      if (input.st == NoBeansError) {
         assert false, "spec violation";
       } 
     }

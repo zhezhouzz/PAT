@@ -8,7 +8,7 @@ machine Database
       store = -1;
     }
 
-    on putReq do (input: (src: machine, va: int)) {
+    on syn_putReq do (input: tsyn_putReq) {
       var res: (va: int, stat: bool); 
       if($){
         buffer = input.va;
@@ -18,21 +18,21 @@ machine Database
         res.va = input.va;
         res.stat = false;
       }
-      send input.src, putRsp, res;
+      send input.controller, syn_putRsp, (controller = input.controller, dst = input.src, va = res.va, stat = res.stat);
     }
 
-    on getReq do (input: (src: machine)) {
+    on syn_getReq do (input: tsyn_getReq) {
       var res: (va: int);
       res.va = store; 
-      send input.src, readRsp, res;
+      send input.controller, syn_readRsp, (controller = input.controller, dst = input.controller, va = res.va);
     }
 
-    on commit do {
+    on syn_commit do {
       store = buffer;
       buffer = -1;
     }
 
-    on abort do {
+    on syn_abort do {
       buffer = -1;
     }
   }

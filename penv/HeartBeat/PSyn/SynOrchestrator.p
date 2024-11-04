@@ -7,9 +7,9 @@ machine SynOrchestrator {
         var domain_bool: set[bool];
         node = new Node();
         fd = new FailureDetector((node = node,));
-        domain_int += (-1);
         domain_int += (0);
         domain_int += (1);
+        domain_int += (2);
         domain_bool += (true);
         domain_bool += (false);
         new SynClient((setting = fd, domain_int = domain_int));
