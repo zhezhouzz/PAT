@@ -1,7 +1,7 @@
 machine SynClient {
   start state Syn {
-    entry (input: (setting: machine, domain_bool: set[bool], domain_tGid: set[int], domain_tKey: set[int], domain_tVal: set[int], domain_tCmdStatus: set[tCmdStatus], domain_tTxnStatus: set[tTxnStatus])) {
-      var setting: machine;
+    entry (input: (setting: setting, domain_bool: set[bool], domain_tGid: set[int], domain_tKey: set[int], domain_tVal: set[int], domain_tCmdStatus: set[tCmdStatus], domain_tTxnStatus: set[tTxnStatus])) {
+      var setting: setting;
       var domain_bool: set[bool];
       var domain_tGid: set[int];
       var domain_tKey: set[int];
@@ -73,20 +73,20 @@ machine SynClient {
       };
       send_eUpdateReq(this, setting, (gid = id, key = k, value = v2));
       receive { case syn_eShardUpdateKeyReq: (input: tsyn_eShardUpdateKeyReq) {
+        forward_syn_eShardUpdateKeyReq(input);
         input_eShardUpdateKeyReq = cast_syn_eShardUpdateKeyReq(input);
         tmp_28 = input_eShardUpdateKeyReq.gid;
         tmp_29 = input_eShardUpdateKeyReq.key;
         tmp_30 = input_eShardUpdateKeyReq.value;
-        forward_syn_eShardUpdateKeyReq(input);
       }};
       assert (((tmp_28 == id) && (tmp_29 == k)) && (tmp_30 == v2));
       receive { case syn_eShardUpdateKeyRsp: (input: tsyn_eShardUpdateKeyRsp) {
+        forward_syn_eShardUpdateKeyRsp(input);
         input_eShardUpdateKeyRsp = cast_syn_eShardUpdateKeyRsp(input);
         tmp_25 = input_eShardUpdateKeyRsp.gid;
         tmp_26 = input_eShardUpdateKeyRsp.key;
         tmp_27 = input_eShardUpdateKeyRsp.value;
         st_0 = input_eShardUpdateKeyRsp.status;
-        forward_syn_eShardUpdateKeyRsp(input);
       }};
       assert ((((tmp_25 == id) && (tmp_26 == k)) && (tmp_27 == v2)) && (st_0 == OK));
       receive { case syn_eUpdateRsp: (input: tsyn_eUpdateRsp) {
@@ -105,20 +105,20 @@ machine SynClient {
       };
       send_eUpdateReq(this, setting, (gid = id, key = k, value = v1));
       receive { case syn_eShardUpdateKeyReq: (input: tsyn_eShardUpdateKeyReq) {
+        forward_syn_eShardUpdateKeyReq(input);
         input_eShardUpdateKeyReq = cast_syn_eShardUpdateKeyReq(input);
         tmp_18 = input_eShardUpdateKeyReq.gid;
         tmp_19 = input_eShardUpdateKeyReq.key;
         tmp_20 = input_eShardUpdateKeyReq.value;
-        forward_syn_eShardUpdateKeyReq(input);
       }};
       assert (((tmp_18 == id) && (tmp_19 == k)) && (tmp_20 == v1));
       receive { case syn_eShardUpdateKeyRsp: (input: tsyn_eShardUpdateKeyRsp) {
+        forward_syn_eShardUpdateKeyRsp(input);
         input_eShardUpdateKeyRsp = cast_syn_eShardUpdateKeyRsp(input);
         tmp_14 = input_eShardUpdateKeyRsp.gid;
         tmp_15 = input_eShardUpdateKeyRsp.key;
         tmp_16 = input_eShardUpdateKeyRsp.value;
         tmp_17 = input_eShardUpdateKeyRsp.status;
-        forward_syn_eShardUpdateKeyRsp(input);
       }};
       assert ((((tmp_14 == id) && (tmp_15 == k)) && (tmp_16 == v1)) && (tmp_17 == st_0));
       receive { case syn_eUpdateRsp: (input: tsyn_eUpdateRsp) {
@@ -131,19 +131,19 @@ machine SynClient {
       assert ((((tmp_10 == id) && (tmp_11 == k)) && (tmp_12 == v1)) && (tmp_13 == st_0));
       send_eReadReq(this, setting, (gid = id, key = k));
       receive { case syn_eShardReadKeyReq: (input: tsyn_eShardReadKeyReq) {
+        forward_syn_eShardReadKeyReq(input);
         input_eShardReadKeyReq = cast_syn_eShardReadKeyReq(input);
         tmp_8 = input_eShardReadKeyReq.gid;
         tmp_9 = input_eShardReadKeyReq.key;
-        forward_syn_eShardReadKeyReq(input);
       }};
       assert ((tmp_8 == id) && (tmp_9 == k));
       receive { case syn_eShardReadKeyRsp: (input: tsyn_eShardReadKeyRsp) {
+        forward_syn_eShardReadKeyRsp(input);
         input_eShardReadKeyRsp = cast_syn_eShardReadKeyRsp(input);
         tmp_4 = input_eShardReadKeyRsp.gid;
         tmp_5 = input_eShardReadKeyRsp.key;
         tmp_6 = input_eShardReadKeyRsp.value;
         tmp_7 = input_eShardReadKeyRsp.status;
-        forward_syn_eShardReadKeyRsp(input);
       }};
       assert ((((tmp_4 == id) && (tmp_5 == k)) && (tmp_6 == v2)) && (tmp_7 == st_0));
       receive { case syn_eReadRsp: (input: tsyn_eReadRsp) {

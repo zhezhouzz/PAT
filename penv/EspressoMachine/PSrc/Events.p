@@ -24,3 +24,4 @@ event syn_eCoffeeMakerReady: tsyn_eCoffeeMakerReady;
 event syn_eCoffeeMakerError: tsyn_eCoffeeMakerError;
 event syn_eCoffeeMakerCompleted: tsyn_eCoffeeMakerCompleted;
 event syn_eCoffeeMachineUser: tsyn_eCoffeeMachineUser;
+type setting = machine;

@@ -1,7 +1,7 @@
 machine SynClient {
   start state Syn {
-    entry (input: (setting: machine, domain_tCoffeeMakerState: set[tCoffeeMakerState])) {
-      var setting: machine;
+    entry (input: (setting: setting, domain_tCoffeeMakerState: set[tCoffeeMakerState])) {
+      var setting: setting;
       var domain_tCoffeeMakerState: set[tCoffeeMakerState];
       var input_eCoffeeMakerError: (st: tCoffeeMakerState);
       var x_0: tCoffeeMakerState;

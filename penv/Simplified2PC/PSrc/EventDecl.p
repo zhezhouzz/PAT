@@ -27,3 +27,4 @@ event syn_putReq: tsyn_putReq;
 event syn_getReq: tsyn_getReq;
 event syn_commit: tsyn_commit;
 event syn_abort: tsyn_abort;
+type setting = machine;

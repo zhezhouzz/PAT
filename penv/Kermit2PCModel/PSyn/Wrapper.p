@@ -1,3 +1,4 @@
+type setting = machine;
 fun send_eUpdateReq (src: machine, dest: machine, input: (gid: tGid, key: tKey, value: tVal)) {
     send dest, syn_eUpdateReq, (controller = src, dst = dest, gid = input.gid, key = input.key, val = input.value);
   }

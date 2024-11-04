@@ -1,5 +1,6 @@
 type aid = int;
 type rid = int;
+type setting = machine;
 type tsyn_eWithDrawResp = (controller:machine, dst:machine, rId:rid, accountId:aid, balance:int, status:bool);
 type tsyn_eWithDrawReq = (controller:machine, dst:machine, rId:rid, accountId:aid, amount:int);
 type tsyn_eUpdateQuery = (controller:machine, dst:machine, accountId:aid, balance:int);

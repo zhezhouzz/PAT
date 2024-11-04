@@ -6,3 +6,4 @@ event syn_writeRsp: tsyn_writeRsp;
 event syn_writeReq: tsyn_writeReq;
 event syn_readRsp: tsyn_readRsp;
 event syn_readReq: tsyn_readReq;
+type setting = machine;

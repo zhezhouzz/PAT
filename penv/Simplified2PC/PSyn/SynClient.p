@@ -1,7 +1,7 @@
 machine SynClient {
   start state Syn {
-    entry (input: (setting: machine, domain_int: set[int], domain_bool: set[bool])) {
-      var setting: machine;
+    entry (input: (setting: setting, domain_int: set[int], domain_bool: set[bool])) {
+      var setting: setting;
       var domain_int: set[int];
       var domain_bool: set[bool];
       var x: int;

@@ -137,6 +137,12 @@ def do_eval():
         invoc_cmd(cmd)
     return
 
+def do_compile():
+    for name in benchmarks:
+        cmd = cmd_prefix + ["compile-to-p", name]
+        invoc_cmd(cmd)
+    return
+
 def load_stat():
     jmap = {}
     for name in benchmarks:
@@ -157,6 +163,7 @@ def fix():
 if __name__ == '__main__':
     # do_syn()
     # do_eval()
+    do_compile()
     j = load_stat()
     print_cols(benchmarks, j)
     # fix()

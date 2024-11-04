@@ -25,7 +25,7 @@ machine FailureDetector {
     on syn_ePongLost do (input: tsyn_ePongLost) {
       CancelTimer(timer);
       if(input.trial == 2) {
-        send input.controller, syn_eNotifyNodesDown;
+        send input.controller, syn_eNotifyNodesDown, (controller = input.controller, dst = input.controller);
       }
       tl = tl + 1;
       send input.controller, syn_ePing, (controller = input.controller, dst = node, fd = this, trial = tl);
