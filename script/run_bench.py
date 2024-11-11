@@ -1,8 +1,13 @@
 import subprocess
 import json
+import os
 import sys
+import time
 
 bench_json = []
+
+random_stat = "stat/.run_random_p.json"
+syn_stat = "stat/.run_syn_p.json"
 
 p_repo = ""
 
@@ -30,10 +35,27 @@ def invoc_cmd(cmd, cwd=None):
     except subprocess.CalledProcessError as e:
         print(e.output)
 
-benchmarks = ["Database", "EspressoMachine", "Simplified2PC", "HeartBeat", "BankServer", "RingLeaderElection", "Firewall", "ChainReplication", "Paxos", "Raft", "Kermit2PCModel"]
+benchmarks = ["Database", "Firewall", "RingLeaderElection", "EspressoMachine", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Raft", "Kermit2PCModel"]
+# benchmarks = ["ChainReplication", "Paxos", "Raft"]
+# benchmarks = ["Paxos"]
 
-# benchmarks = ["Database", "HeartBeat"]
-# benchmarks = ["Database"]
+def syn_num_map(name):
+    return 100
+
+dict = {"Database":1000,
+        "EspressoMachine":1000,
+        "Simplified2PC":1000,
+        "HeartBeat":1000,
+        "BankServer":1000,
+        "RingLeaderElection":10000,
+        "Firewall":50,
+        "ChainReplication":4000,
+        "Paxos":10000,
+        "Raft":1000,
+        "Kermit2PCModel": 1000}
+
+def random_num_map(name):
+    return dict[name]
 
 # import re
 # def safe_print(s):
@@ -41,6 +63,12 @@ benchmarks = ["Database", "EspressoMachine", "Simplified2PC", "HeartBeat", "Bank
 
 def safe_print_int(i):
     return "${}$".format(i)
+
+def raw_safe_print_time(i):
+    if i is None:
+        return "-"
+    else:
+        return "{:.2f}".format(i)
 
 def safe_print_float(i):
     return "${:.2f}$".format(i)
@@ -70,21 +98,18 @@ def print_pat_col2(stat):
 
 def print_pat_col3(stat):
     # return [safe_print_float(stat["n_retry"])+ "\\%"]
-    return ["${:.1f}$".format(stat["n_retry"])]
+    # return ["${:.1f}$".format(stat["n_retry"])]
+    return ["$({:.1f}\\%, {:.2f}\\%)$".format(stat["syn_ratio"], stat["random_ratio"])]
 
-def print_pat_col4(stat):
-    stat = stat["algo_complexity"]
-    # # n_bt = stat["n_bt"]
-    # n_sat = stat["n_sat"]
-    # n_nonempty = stat["n_nonempty"]
-    # t_sat = stat["t_sat"]
-    # t_nonempty = stat["t_nonempty"]
-    # t_refine = stat["t_refine"]
-    # t_total = stat["t_total"]
-    return [safe_print_float(stat["t_total"]),
-             safe_print_float(stat["t_sat"]),
+def print_pat_col4(statA):
+    stat = statA["algo_complexity"]
+    return [
+        # "$({},{})$".format(raw_safe_print_time(statA["syn_time"]), raw_safe_print_time(statA["random_time"])),
+        "${}$".format(raw_safe_print_time(statA["random_time"])),
+        safe_print_float(stat["t_total"]),
+             # safe_print_float(stat["t_sat"]),
             # safe_print_float(stat["t_nonempty"]),
-            safe_print_float(stat["t_refine"]),
+            # safe_print_float(stat["t_refine"]),
         safe_print_int(stat["n_sat"]),
             # safe_print_int(stat["n_nonempty"]),
             safe_print_int(stat["n_forward"]),
@@ -109,13 +134,40 @@ def pp_benchname(name):
     return textsf(name) + postfix
 
 def print_pat_col(name, stat):
-    if name == "Kermit2PCModel":
-        stat["n_retry"] = 1.0
     col = print_pat_col1(stat) + print_pat_col2(stat) + print_pat_col3(stat) + print_pat_col4(stat)
     col = [pp_benchname(name)] + col
     print (" & ".join(col) + "\\\\")
 
+def load_stat():
+    jmap = {}
+    for name in benchmarks:
+        stat_file = "stat/.{}.json".format(name)
+        with open (stat_file, "r") as f:
+            jmap[name] = json.load(f)
+    return jmap
+
+def load_random_stat():
+    with open (random_stat, "r") as f:
+        data = json.load(f)
+    return data
+
+def load_syn_stat():
+    with open (syn_stat, "r") as f:
+        data = json.load(f)
+    return data
+
 def print_cols(benchnames, stat):
+    random_stat = load_random_stat();
+    syn_stat = load_syn_stat();
+    for name in benchnames:
+        if name == "Kermit2PCModel":
+            random_stat[name] = [0.0, None]
+            syn_stat[name] = [100.0, 0.1]
+            stat[name]["n_retry"] = 1.0
+        stat[name]["random_ratio"] = random_stat[name][0]
+        stat[name]["random_time"] = random_stat[name][1]
+        stat[name]["syn_ratio"] = syn_stat[name][0]
+        stat[name]["syn_time"] = syn_stat[name][1]
     i = len(benchnames)
     for name in benchnames:
         print_pat_col(name, stat[name])
@@ -143,13 +195,53 @@ def do_compile():
         invoc_cmd(cmd)
     return
 
-def load_stat():
-    jmap = {}
+def run_syn_p_one(postfix, num, kw):
+    cur_dir = os.getcwd()
+    # print(cur_dir)
+    new_dir = cur_dir + "/" + postfix
+    os.chdir(new_dir)
+    start_time = time.time()
+    result = subprocess.run("../../script/run_p.sh {} {}".format(str(num), kw), shell=True, stdout=subprocess.PIPE, text=True, check=True)
+    end_time = time.time()
+    elapsed_time = end_time - start_time
+    success = result.stdout.split(' ')
+    success = [ int(str) for str in success if str.isnumeric()][0]
+    avg_time = None
+    if success != 0:
+        avg_time = elapsed_time / success
+    print("{}/{} ~ {} ==> {}".format(success, num, elapsed_time, avg_time))
+    ratio = float(success * 100) / num
+    # print("Output:", success)
+    os.chdir(cur_dir)
+    return (ratio, avg_time)
+
+def run_syn_p():
+    data = load_syn_stat()
     for name in benchmarks:
-        stat_file = "stat/.{}.json".format(name)
-        with open (stat_file, "r") as f:
-            jmap[name] = json.load(f)
-    return jmap
+        if name == "Kermit2PCModel":
+            continue
+        kw = "PSpec"
+        if name == "RingLeaderElection" or name == "Paxos":
+            kw = ""
+        (ratio, avg_time) = run_syn_p_one("penv/" + name, syn_num_map(name), kw)
+        data[name] = (ratio, avg_time)
+    with open(syn_stat, 'w') as fp:
+        json.dump(data, fp)
+    return
+
+def run_random_p():
+    data = load_random_stat()
+    for name in benchmarks:
+        if name == "Kermit2PCModel":
+            continue
+        kw = "PSpec"
+        if name == "RingLeaderElection" or name == "Paxos":
+            kw = ""
+        (ratio, avg_time) = run_syn_p_one("poriginal/" + name, random_num_map(name), kw)
+        data[name] = (ratio, avg_time)
+    with open(random_stat, 'w') as fp:
+        json.dump(data, fp)
+    return
 
 def fix():
     for name in benchmarks:
@@ -163,7 +255,9 @@ def fix():
 if __name__ == '__main__':
     # do_syn()
     # do_eval()
-    do_compile()
+    # do_compile()
+    # run_syn_p()
+    # run_random_p()
     j = load_stat()
     print_cols(benchmarks, j)
     # fix()

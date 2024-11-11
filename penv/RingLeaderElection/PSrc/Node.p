@@ -28,6 +28,7 @@ machine Node {
         }
 
         on eTimeOut do {
+            CancelTimer(timer);
             send controller, syn_eNominate, cache;
         }
 

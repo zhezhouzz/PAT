@@ -10,6 +10,13 @@ event eCancelTimer;
 event eTimeOut;
 event eDelayedTimeOut;
 
+fun RandomWait();
+
+fun RealSend(target: machine, message: event, payload: any) {
+  RandomWait();
+  send target, message, payload;
+}
+
 machine Timer {
   // user/client of the timer
   var client: machine;
@@ -29,6 +36,7 @@ machine Timer {
 
   state TimerStarted {
     entry {
+      RandomWait();
       if($) {
         send client, eTimeOut;
         goto WaitForTimerRequests;
@@ -44,6 +52,7 @@ machine Timer {
 
   state TimerDelayed {
     entry {
+      RandomWait();
       if($) {
         send client, eTimeOut;
         goto WaitForTimerRequests;

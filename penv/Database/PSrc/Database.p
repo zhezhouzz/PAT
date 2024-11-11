@@ -14,19 +14,14 @@ machine Database {
         entry{
             var input: tsyn_writeRsp;
             if(sizeof(cache) >= 2) {
-                if($) {
-                    do_send_writeRsp(cache[0]);
-                    do_send_writeRsp(cache[1]);
-                } else {
-                    do_send_writeRsp(cache[1]);
-                    do_send_writeRsp(cache[0]);
-                }
+                do_send_writeRsp(cache[1]);
+                do_send_writeRsp(cache[0]);
             }
         }
         on syn_writeReq do (input: tsyn_writeReq) {
             is_init = true;
             store = input.va;
-            cache += (sizeof(cache), (controller = input.controller, dst = input.controller, va = input.va, st = true));
+            cache += (sizeof(cache), (controller = input.controller, dst = input.controller, va = input.va));
             goto Wait;
         }
         on syn_readReq do (input: tsyn_readReq) {

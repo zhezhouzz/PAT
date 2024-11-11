@@ -2,7 +2,7 @@ val ( == ) : 'a -> 'a -> bool
 val readReq : unit [@@gen]
 val readRsp : < va : int ; st : bool > [@@obsRecv]
 val writeReq : < va : int > [@@gen]
-val writeRsp : < va : int ; st : bool > [@@obsRecv]
+val writeRsp : < va : int > [@@obsRecv]
 
 let readReq =
   [|
@@ -18,8 +18,7 @@ let readReq =
 let writeReq ?l:(x = (true : [%v: int])) =
   (allA, WriteReq (va == x), [| WriteRsp (va == x) |])
 
-let writeRsp ?l:(x = (true : [%v: int])) ?l:(s = (true : [%v: bool])) =
-  (allA, WriteRsp (va == x && st == s), [||])
+let writeRsp ?l:(x = (true : [%v: int])) = (allA, WriteRsp (va == x), [||])
 
 let readRsp ?l:(x = (true : [%v: int])) ?l:(s = (true : [%v: bool])) =
   (allA, ReadRsp (va == x && st == s), [||])
@@ -27,7 +26,7 @@ let readRsp ?l:(x = (true : [%v: int])) ?l:(s = (true : [%v: bool])) =
 let[@goal] read_your_write (x : int) (y : int) =
   not
     (allA;
-     WriteRsp (va == x && st);
-     starA (anyA - WriteRsp st);
+     WriteRsp (va == x);
+     starA (anyA - WriteRsp true);
      ReadRsp (va == y && (not (x == y)) && st);
      allA)

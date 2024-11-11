@@ -6,11 +6,9 @@ machine SynClient {
       var domain_bool: set[bool];
       var x: int;
       var y: int;
-      var input_writeRsp: (va: int, st: bool);
+      var input_writeRsp: (va: int);
       var tmp_2: int;
-      var s_6: bool;
       var tmp_1: int;
-      var s_3: bool;
       var input_readRsp: (va: int, st: bool);
       var tmp_0: int;
       var s_0: bool;
@@ -34,15 +32,13 @@ machine SynClient {
       receive { case syn_writeRsp: (input: tsyn_writeRsp) {
         input_writeRsp = cast_syn_writeRsp(input);
         tmp_2 = input_writeRsp.va;
-        s_6 = input_writeRsp.st;
       }};
-      assert ((tmp_2 == y) && (!(s_6) || s_6));
+      assert (tmp_2 == y);
       receive { case syn_writeRsp: (input: tsyn_writeRsp) {
         input_writeRsp = cast_syn_writeRsp(input);
         tmp_1 = input_writeRsp.va;
-        s_3 = input_writeRsp.st;
       }};
-      assert ((tmp_1 == x) && s_3);
+      assert (tmp_1 == x);
       send_readReq(this, setting);
       receive { case syn_readRsp: (input: tsyn_readRsp) {
         input_readRsp = cast_syn_readRsp(input);

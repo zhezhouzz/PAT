@@ -1,0 +1,10 @@
+type teStart = (controller:machine, dst:machine);
+type teShutDown = (controller:machine, dst:machine);
+type tePong = (controller:machine, dst:machine, trial:int);
+type tePing = (controller:machine, dst:machine, fd: machine, trial:int);
+type teNotifyNodesDown = (controller:machine, dst:machine);
+event eStart: teStart;
+event ePong: tePong;
+event ePing: tePing;
+event eNotifyNodesDown: teNotifyNodesDown;
+type setting = machine;
