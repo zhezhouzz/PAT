@@ -36,10 +36,10 @@ def invoc_cmd(cmd, cwd=None):
     except subprocess.CalledProcessError as e:
         print(e.output)
 
-# benchmarks = ["Database", "Firewall", "RingLeaderElection", "EspressoMachine", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Raft", "Anno2PCModel"]
+benchmarks = ["Database", "Firewall", "RingLeaderElection", "EspressoMachine", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Raft", "Anno2PCModel"]
 # benchmarks = ["ChainReplication", "Paxos", "Raft"]
 # benchmarks = ["Raft"]
-benchmarks = ["Database", "Firewall"]
+# benchmarks = ["Database", "Firewall"]
 
 def syn_num_map(name):
     return 500
@@ -47,15 +47,15 @@ def syn_num_map(name):
 def default_num_map(name):
     return 2000
 
-dict = {"Database":10000,
-        "EspressoMachine":10000,
-        "Simplified2PC":10000,
-        "HeartBeat":10000,
-        "BankServer":10000,
-        "RingLeaderElection":10000,
-        "Firewall":50,
-        "ChainReplication":10000,
-        "Paxos":10000,
+dict = {"Database":2000,
+        "EspressoMachine":2000,
+        "Simplified2PC":2000,
+        "HeartBeat":2000,
+        "BankServer":2000,
+        "RingLeaderElection":2000,
+        "Firewall":1000,
+        "ChainReplication":2000,
+        "Paxos":4000,
         "Raft":1000,
         "Anno2PCModel": 1000}
 
@@ -113,7 +113,7 @@ def print_pat_col3(stat):
     # return [safe_print_float(stat["n_retry"])+ "\\%"]
     # return ["${:.1f}$".format(stat["n_retry"])]
     # return ["$({:.0f}\\%, {:.2f}\\%)$".format(stat["syn_ratio"], stat["random_ratio"])]
-    return [ print_tries(stat["syn_ratio"]), print_tries(stat["default_ratio"]), print_tries(stat["random_ratio"])]
+    return [ print_tries(stat["syn_ratio"]), print_tries(stat["random_ratio"]), print_tries(stat["default_ratio"])]
 
 def print_pat_col4(statA):
     stat = statA["algo_complexity"]
