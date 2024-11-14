@@ -34,7 +34,9 @@ let read_syn source_file () =
   let code = read_source_file source_file () in
   (* let () = Printf.printf "%s\n" (layout_structure code) in *)
   let env = Ntypecheck.(struct_check init_env code) in
-  let () = Printf.printf "%s\n" (layout_syn_env env) in
+  let () =
+    _log "preprocess" @@ fun _ -> Printf.printf "%s\n" (layout_syn_env env)
+  in
   let term = Synthesis.syn_one env in
   ()
 
@@ -42,12 +44,17 @@ let syn_term source_file output_file () =
   let code = read_source_file source_file () in
   (* let () = Printf.printf "%s\n" (layout_structure code) in *)
   let env = Ntypecheck.(struct_check init_env code) in
-  let () = Printf.printf "%s\n" (layout_syn_env env) in
+  let () =
+    _log "preprocess" @@ fun _ -> Printf.printf "%s\n" (layout_syn_env env)
+  in
   let () = Stat.init_algo_complexity () in
   let start_time = Sys.time () in
   let term = Synthesis.syn_one env in
   let exec_time = Sys.time () -. start_time in
-  let () = Pp.printf "@{<bold>synthesis time: %f@}\n" exec_time in
+  let () =
+    _log "result" @@ fun _ ->
+    Pp.printf "@{<bold>synthesis time: %f@}\n" exec_time
+  in
   let () = Stat.dump (env, term) ".stat.json" in
   let output_file = spf "%s.scm" output_file in
   let oc = Out_channel.open_text output_file in
@@ -73,12 +80,17 @@ let syn_benchmark benchname () =
   let code = read_source_file source_file () in
   (* let () = Printf.printf "%s\n" (layout_structure code) in *)
   let env = Ntypecheck.(struct_check init_env code) in
-  let () = Printf.printf "%s\n" (layout_syn_env env) in
+  let () =
+    _log "preprocess" @@ fun _ -> Printf.printf "%s\n" (layout_syn_env env)
+  in
   let () = Stat.init_algo_complexity () in
   let start_time = Sys.time () in
   let term = Synthesis.syn_one env in
   let exec_time = Sys.time () -. start_time in
-  let () = Pp.printf "@{<bold>synthesis time: %f@}\n" exec_time in
+  let () =
+    _log "result" @@ fun _ ->
+    Pp.printf "@{<bold>synthesis time: %f@}\n" exec_time
+  in
   let () = Stat.dump (env, term) stat_file in
   let output_file = spf "%s.scm" output_file in
   let oc = Out_channel.open_text output_file in
@@ -91,15 +103,23 @@ let syn_benchmark benchname () =
 
 let syn_term_timeout source_file output_file timebound () =
   let code = read_source_file source_file () in
-  let () = Pp.printf "@{<bold>Time bound:@} %f\n" timebound in
+  let () =
+    _log "preprocess" @@ fun _ ->
+    Pp.printf "@{<bold>Time bound:@} %f\n" timebound
+  in
   (* let () = _die [%here] in *)
   let env = Ntypecheck.(struct_check init_env code) in
-  let () = Printf.printf "%s\n" (layout_syn_env env) in
+  let () =
+    _log "preprocess" @@ fun _ -> Printf.printf "%s\n" (layout_syn_env env)
+  in
   let start_time = Sys.time () in
   let terms = Synthesis.syn_timeout timebound env in
   let exec_time = Sys.time () -. start_time in
   let avg_time = exec_time /. float_of_int (ListLabels.length terms) in
-  let () = Pp.printf "@{<bold>synthesis time: %f@}\n" avg_time in
+  let () =
+    _log "preprocess" @@ fun _ ->
+    Pp.printf "@{<bold>synthesis time: %f@}\n" avg_time
+  in
   List.iteri
     (fun i term ->
       let output_file = spf "%s_%i.scm" output_file i in
@@ -115,7 +135,9 @@ let syn_term_timeout source_file output_file timebound () =
 let load_syn_result source_file output_file =
   let code = read_source_file source_file () in
   let env = Ntypecheck.(struct_check init_env code) in
-  let () = Printf.printf "%s\n" (layout_syn_env env) in
+  let () =
+    _log "preprocess" @@ fun _ -> Printf.printf "%s\n" (layout_syn_env env)
+  in
   let ic = In_channel.open_text output_file in
   let sexp = Sexplib.Sexp.load_sexp output_file in
   let term = term_of_sexp sexp in
@@ -124,7 +146,9 @@ let load_syn_result source_file output_file =
 let eval_aux source_file output_file () =
   let output_file = spf "%s.scm" output_file in
   let env, term = load_syn_result source_file output_file in
-  let () = Printf.printf "%s\n" (layout_term term) in
+  let () =
+    _log "preprocess" @@ fun _ -> Printf.printf "%s\n" (layout_term term)
+  in
   let () = Interpreter.interpret env term in
   let rate = Interpreter.interpret_sample env term 1000 in
   ((env, term), rate)

@@ -102,11 +102,13 @@ let item_check (env : syn_env) = function
           let regex_ctx = mk_regex_ctx (env.event_tyctx, tyctx) in
           let prop = handle_reg env prop in
           let () =
+            _log "ntypecheck" @@ fun _ ->
             Pp.printf "@{<bold>Before Negate:@} %s\n"
               (layout_symbolic_regex_precise prop)
           in
           let prop = smart_negate prop in
           let () =
+            _log "ntypecheck" @@ fun _ ->
             Pp.printf "@{<bold>After:@} %s\n"
               (layout_symbolic_regex_precise prop)
           in
@@ -116,7 +118,9 @@ let item_check (env : syn_env) = function
 
 let struct_check env l =
   let env = List.fold_left add_to_env env l in
-  let () = Printf.printf "%s\n" (layout_syn_env env) in
+  let () =
+    _log "ntypecheck" @@ fun _ -> Printf.printf "%s\n" (layout_syn_env env)
+  in
   let l = List.map (locally_rename_item env.event_tyctx) l in
   (* let () = Printf.printf "%s\n" @@ layout_structure l in *)
   (* let () = _die [%here] in *)

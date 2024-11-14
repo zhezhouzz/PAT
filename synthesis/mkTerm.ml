@@ -4,27 +4,21 @@ open Common
 open Gamma
 
 let quantifier_elimination (qvs, gprop, qv, local_qvs, prop) =
-  let () = Printf.printf "remove qv: %s\n" (layout_qv qv) in
-  let () = Printf.printf "qvs: %s\n" (layout_qvs qvs) in
-  let () = Printf.printf "prop: %s\n" (layout_prop prop) in
-  (* let check_valid_feature lit = *)
-  (*   let aux prop = *)
-  (*     Prover.check_valid (smart_forall (qv :: qvs) @@ smart_implies gprop prop) *)
-  (*   in *)
-  (*   (not (aux @@ lit_to_prop lit)) && not (aux @@ Not (lit_to_prop lit)) *)
-  (* in *)
-  (* let check_valid_pre prop = *)
-  (*   not *)
-  (*     (Prover.check_valid *)
-  (*        (smart_forall (qv :: qvs) @@ smart_implies gprop (Not prop))) *)
-  (* in *)
+  let () =
+    _log "syn" @@ fun _ ->
+    Printf.printf "remove qv: %s\n" (layout_qv qv);
+    Printf.printf "qvs: %s\n" (layout_qvs qvs);
+    Printf.printf "prop: %s\n" (layout_prop prop)
+  in
   let check_valid abd =
     let p =
       smart_forall (qv :: qvs)
       @@ smart_exists local_qvs @@ smart_exists qvs
       @@ smart_implies (smart_add_to abd gprop) prop
     in
-    let () = Printf.printf "check: %s\n" @@ layout_propRaw p in
+    let () =
+      _log "syn" @@ fun _ -> Printf.printf "check: %s\n" @@ layout_propRaw p
+    in
     Prover.check_valid p
   in
   if check_valid mk_true then Some mk_true
@@ -39,6 +33,7 @@ let quantifier_elimination (qvs, gprop, qv, local_qvs, prop) =
       List.map (fun lit -> mk_lit_eq_lit qv.ty (AVar qv) lit.x) lits
     in
     let () =
+      _log "syn" @@ fun _ ->
       Printf.printf "fvtab: %s\n" @@ List.split_by_comma layout_lit @@ fvtab
     in
     let fvs = List.init (List.length fvtab) (fun _ -> [ true; false ]) in
@@ -52,7 +47,6 @@ let quantifier_elimination (qvs, gprop, qv, local_qvs, prop) =
         fvs
     in
     let fvs = List.filter check_valid fvs in
-    (* let () = Printf.printf "res: %s\n" @@ layout_prop (smart_or fvs) in *)
     match fvs with [] -> None | _ -> Some (smart_or fvs)
 
 let rec to_top_cnf phi =
@@ -71,13 +65,6 @@ let instantiation_var env (gamma : Gamma.gamma) vs Gamma.{ bvs; bprop } =
         not (List.is_empty s))
       fvtab
   in
-  (* let check_valid_feature lit = *)
-  (*   let aux prop = *)
-  (*     Prover.check_valid *)
-  (*       (smart_forall gamma.bvs @@ smart_implies gamma.bprop prop) *)
-  (*   in *)
-  (*   (not (aux @@ lit_to_prop lit)) && not (aux @@ Not (lit_to_prop lit)) *)
-  (* in *)
   let check_valid_pre prop =
     not
       (Prover.check_valid
@@ -90,7 +77,10 @@ let instantiation_var env (gamma : Gamma.gamma) vs Gamma.{ bvs; bprop } =
       @@ smart_implies (smart_add_to abd gamma.bprop) bprop
     in
     let res = Prover.check_valid p in
-    let () = Printf.printf "check(%b): %s\n" res @@ layout_prop p in
+    let () =
+      _log "syn" @@ fun _ ->
+      Printf.printf "check(%b): %s\n" res @@ layout_prop p
+    in
     res
   in
   let fvs = List.init (List.length fvtab) (fun _ -> [ true; false ]) in
@@ -105,7 +95,10 @@ let instantiation_var env (gamma : Gamma.gamma) vs Gamma.{ bvs; bprop } =
   in
   let fvs = List.filter check_valid_pre fvs in
   let fvs = List.filter check_valid fvs in
-  let () = Printf.printf "res: %s\n" @@ layout_prop (smart_or fvs) in
+  let () =
+    _log "syn" @@ fun _ ->
+    Printf.printf "res: %s\n" @@ layout_prop (smart_or fvs)
+  in
   match fvs with
   | [] -> _die [%here]
   | _ ->
@@ -120,6 +113,7 @@ let instantiation env goal =
     let args' = List.filter (Gamma.not_mem gamma) args in
     let qvs' = List.filter (tv_not_mem args) qvs in
     let () =
+      _log "syn" @@ fun _ ->
       Printf.printf
         "get_fvargs:::\n\
          gamma: %s $$$ vargs: %s $$$ qvs: %s\n\
@@ -135,6 +129,7 @@ let instantiation env goal =
     | [] -> if 0 == List.length gamma'.bvs then mk_term_tt else _die [%here]
     | PlanAct { op; args } :: plan ->
         let () =
+          _log "syn" @@ fun _ ->
           Pp.printf "@{<bold>Work on:@} %s\n"
             (Plan.layout_elem (PlanAct { op; args }))
         in
@@ -143,10 +138,6 @@ let instantiation env goal =
         let gamma, prop' = instantiation_var env gamma fargs gamma' in
         let e = handle gamma (gamma', plan) in
         if is_gen env op then
-          (* let e = *)
-          (*   mk_term_assertP prop' *)
-          (*   @@ mk_term_gen env op (List.map (fun x -> VVar x) args) e *)
-          (* in *)
           mk_term_assume fargs prop'
           @@ mk_term_gen env op (List.map (fun x -> VVar x) args) e
         else
@@ -166,11 +157,9 @@ let instantiation env goal =
             @@ _safe_combine [%here] args' args
           in
           let p = smart_and (ps @ [ prop' ]) in
-          (* let e = mk_term_obs env op args' (mk_term_assertP p e) in *)
           let e = mk_term_obs env op args' p e in
           e
     | _ :: _ -> _die [%here]
   in
   let prog = handle Gamma.emp goal in
-  let () = Pp.printf "@{<bold>Prog@}:\n%s\n" (layout_term prog) in
   prog

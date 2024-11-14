@@ -77,6 +77,7 @@ let eq_const_optimize lits =
   in
   let res = ConstMap.fold (fun _ l res -> l @ res) m [] in
   let () =
+    _log "syn" @@ fun _ ->
     Pp.printf "@{<bold>new eqs:@} %s\n" @@ List.split_by_comma layout_lit res
   in
   res
@@ -99,7 +100,6 @@ let eq_in_prop_to_subst_map { bvs; bprop } =
           if c == 0 then compare a b else c
         in
         let c = comp x.x y.x in
-        (* let () = Printf.printf "\tCompare %s %s = %i\n" x.x y.x c in *)
         if c == 0 then aux (eqs, res)
         else if c > 0 then
           let res = res @ [ (x.x, y) ] in
@@ -168,64 +168,12 @@ let optimize_back_goal_with_args_record goal args record =
   let () = simp_print_opt_judgement (p goal) m (p goal') in
   (goal', args')
 
-(* let optimize_back_goal ({ gamma; pre; mid; post; pg } as goal) args = *)
-(*   let gamma = Gamma.simplify gamma in *)
-(*   let gamma, m = eq_in_prop_to_subst_map gamma in *)
-(*   let pre, post = map2 (msubst Plan.subst_plan m) (pre, post) in *)
-(*   let mid = msubst Plan.subst_elem m mid in *)
-(*   let args' = *)
-(*     List.filter *)
-(*       (fun x -> not (List.exists (fun (y, _) -> String.equal x.x y) m)) *)
-(*       args *)
-(*   in *)
-(*   let pg' = PlanElemSet.map (msubst Plan.subst_elem m) pg in *)
-(*   let goal' = {gamma, (a, b, c)) in *)
-(*   let goal' =  *)
-(*   let () = simp_print_opt_judgement goal m goal' in *)
-(*   (\* let () = *\) *)
-(*   (\*   Printf.printf "Optimize:\n (%s)\n" (layout_qvs args); *\) *)
-(*   (\*   layout_syn_back_judgement goal; *\) *)
-(*   (\*   Printf.printf "==>\n (%s) \n" (layout_qvs args'); *\) *)
-(*   (\*   layout_syn_back_judgement goal' *\) *)
-(*   (\* in *\) *)
-(*   (args', goal') *)
-
-(* let optimize_back_goal_also_record ((gamma, (a, b, c)) as goal) args record = *)
-(*   let gamma = Gamma.simplify gamma in *)
-(*   let gamma, m = eq_in_prop_to_subst_map gamma in *)
-(*   let a, c = map2 (msubst Plan.subst_plan m) (a, c) in *)
-(*   let b = msubst Plan.subst_elem m b in *)
-(*   let goal' = (gamma, (a, b, c)) in *)
-(*   let args' = *)
-(*     List.filter *)
-(*       (fun x -> not (List.exists (fun (y, _) -> String.equal x.x y) m)) *)
-(*       args *)
-(*   in *)
-(*   let () = *)
-(*     record := *)
-(*       match !record with *)
-(*       | None -> None *)
-(*       | Some elem -> Some (msubst Plan.subst_elem m elem) *)
-(*   in *)
-(*   let () = simp_print_opt_judgement goal m goal' in *)
-(*   (\* let () = *\) *)
-(*   (\*   Printf.printf "Optimize:\n (%s)\n" (layout_qvs args); *\) *)
-(*   (\*   layout_syn_back_judgement goal; *\) *)
-(*   (\*   Printf.printf "==>\n (%s) \n" (layout_qvs args'); *\) *)
-(*   (\*   layout_syn_back_judgement goal' *\) *)
-(*   (\* in *\) *)
-(*   (args', goal') *)
-
 (** optimize prop *)
 
 let to_fvec_lit = function
   | Lit lit -> Some (lit.x, true)
   | Not (Lit lit) -> Some (lit.x, false)
   | _ -> None
-
-(* let* l = aux prop in *)
-(* let l = List.sort (fun a b -> compare_lit Nt.compare_nt (fst a) (fst b)) l in *)
-(* Some (List.split l) *)
 
 let to_fvec_clauze prop =
   let rec aux = function
@@ -248,27 +196,6 @@ let to_fvec_dnf =
         Some [ cell ]
   in
   aux
-
-(* let unify_dnf ftab ll = *)
-(*   let try_true i ll = *)
-(*     List.for_all (fun l -> List.nth l i) ll *)
-(*   in *)
-(*   let try_false i ll = *)
-(*     List.for_all (fun l -> not (List.nth l i)) ll *)
-(*   in *)
-(*   let simp (ftab, ll) = *)
-(*     let rec res (ftab, ll) = *)
-
-(*   let rec aux ftab ll = *)
-(*     match (ftab, ll) with *)
-(*     | [], [] -> [[]] *)
-(*     | lit :: ftab, _ -> *)
-(*       let lt = List.filter_map (function true :: l-> Some l | _ -> None) ll in *)
-(*       let lf = List.filter_map (function false :: l-> Some l | _ -> None) ll in *)
-(*       let lt = aux ftab lt in *)
-(*       let lf = aux ftab lt in *)
-
-(*       [lit, true] *)
 
 module Predictable = struct
   type lit = Nt.t Prop.lit
@@ -308,16 +235,6 @@ let simp_fvec_prop_opt prop =
       if List.length dnf == List.length dnf' then Some dnf' else None
     in
     let prop = DT.classify_as_prop (Array.of_list ftab) pos in
-    (* let len = List.length ftab in *)
-    (* let total = List.init (pow 2 len) (fun x -> x) in *)
-    (* let total = *)
-    (*   List.map (fun n -> Rawdesym.IntBinary.int_to_bin (len, n)) total *)
-    (* in *)
-    (* let neg = *)
-    (*   List.filter *)
-    (*     (fun l -> not (List.exists (List.equal Bool.equal l) pos)) *)
-    (*     total *)
-    (* in *)
     Some prop
 
 let simp_fvec_prop prop =

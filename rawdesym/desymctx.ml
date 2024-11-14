@@ -104,7 +104,10 @@ let get_lits_in_reg r =
   @@ get_in_regex (get_lits_in_chars, LitSet.union, LitSet.empty) r
 
 let mybuild_euf vars =
-  let () = Pp.printf "vars: %s\n" (List.split_by_comma layout_typed_lit vars) in
+  let () =
+    _log "desym" @@ fun _ ->
+    Pp.printf "vars: %s\n" (List.split_by_comma layout_typed_lit vars)
+  in
   let space = Hashtbl.create 10 in
   let () =
     List.iter

@@ -6,8 +6,6 @@ open Ast
 let layout_cur = layout_se
 
 let layout_elem_aux f = function
-  (* | PlanObs { op; vargs } -> *)
-  (*     Prop.tpEvent (spf "obs %s %s" op (List.split_by " " layout_value vargs)) *)
   | PlanAct { op; args } -> tpEvent (spf "%s(%s)" op (layout_qvs args))
   | PlanActBuffer { op; args; phi } ->
       tpEvent (spf "%s(%s)[%s]" op (layout_qvs args) (layout_prop phi))
@@ -43,6 +41,7 @@ let left_most_se plan =
 let right_most_se plan =
   let* pre, cur, post = left_most_se (List.rev plan) in
   let () =
+    _log "plan" @@ fun _ ->
     Pp.printf "@{<green>right most@} se[%s] in %s\n" (layout_cur cur)
       (layout plan)
   in
@@ -64,10 +63,6 @@ let value_to_lit = function VVar x -> AVar x | VConst c -> AC c
 let elem_to_se ctx elem =
   let mk_c (op, args) =
     let vs = _get_force [%here] ctx op in
-    (* let () = *)
-    (*   Printf.printf "op: %s\n vs: %s\n args:%s\n" op (layout_qvs vs) *)
-    (*     (List.split_by_comma layout_lit args) *)
-    (* in *)
     let l = _safe_combine [%here] vs args in
     let phi =
       List.map (fun (a, b) -> lit_to_prop (mk_lit_eq_lit a.ty (AVar a) b)) l
@@ -180,10 +175,6 @@ let single_insert elem trace =
             (*   aux (res' :: res, pre @ [ x ]) rest *)
             (* else aux (res, pre @ [ x ]) rest *))
     | ((PlanAct _ | PlanActBuffer _) as elem') :: rest -> (
-        (* let () = *)
-        (*   _log "plan" @@ fun _ -> *)
-        (*   Printf.printf "<><>elem: %s\n" (omit_layout_elem elem) *)
-        (* in *)
         match elem with
         | PlanSe cur when String.equal cur.op "eBecomeLeader" -> (
             match smart_and_se cur elem' with
@@ -191,15 +182,11 @@ let single_insert elem trace =
             | Some elem'' ->
                 aux ((pre, elem'', rest) :: res, pre @ [ elem' ]) rest)
         | _ -> aux (res, pre @ [ elem' ]) rest)
-    (* | PlanActBuffer _ :: _ -> _die_with [%here] "never" *)
     | PlanSe cur :: rest -> (
         match smart_and_se cur elem with
         | Some elem' ->
             aux ((pre, elem', rest) :: res, pre @ [ PlanSe cur ]) rest
         | None -> aux (res, pre @ [ PlanSe cur ]) rest)
-    (* if check_regex_include (se_to_raw_regex elem', se_to_raw_regex cur') *)
-    (* then aux ((pre, elem, rest) :: res, pre @ [ PlanSe cur ]) rest *)
-    (* else aux (res, pre @ [ PlanSe cur ]) rest *)
   in
   let res = aux ([], []) trace in
   let () =
@@ -213,11 +200,6 @@ let single_insert elem trace =
   res
 
 let rec insert elems trace =
-  (* let () = *)
-  (*   Printf.printf "insert [%s] in %s\n" *)
-  (*     (List.split_by_comma layout_elem elems) *)
-  (*     (layout trace) *)
-  (* in *)
   match elems with
   | [] -> [ trace ]
   | [ se ] ->
@@ -339,26 +321,9 @@ let merge_plan l1 l2 =
         let res3 = cons_multi (None, Some id2) @@ mk_seqence (id1 :: l1, l2) in
         res1 @ res2 @ res3
   in
-  (* let rec extend num (idx, l) = *)
-  (*   if idx >= num then [] *)
-  (*   else *)
-  (*     match l with *)
-  (*     | [] -> [ [] ] *)
-  (*     | None :: l -> *)
-  (*         cons_multi idx (extend num (idx, l)) *)
-  (*         @ cons_multi idx (extend num (idx + 1, l)) *)
-  (*         @ extend num (idx + 1, None :: l) *)
-  (*     | Some idx' :: l -> if idx >= idx' then [] else extend num (idx' + 1, l) *)
-  (* in *)
-  (* let extend2 l = *)
-  (*   let l1, l2 = List.split l in *)
-  (*   let l1 = extend num1 (0, l1) in *)
-  (*   let l2 = extend num2 (0, l2) in *)
-  (*   let l = List.cross l1 l2 in *)
-  (*   List.map (fun (x, y) -> List.combine x y) l *)
-  (* in *)
   let l = mk_seqence (l1, l2) in
   let () =
+    _log "plan" @@ fun _ ->
     let layout_one = layout_option string_of_int in
     List.iteri
       (fun idx l ->
@@ -412,16 +377,19 @@ let merge_plan l1 l2 =
   let l = List.concat_map (fill (0, 0)) l in
   let l = List.filter (case_sanity_check (tab1, tab2)) l in
   let () =
+    _log "plan" @@ fun _ ->
     Hashtbl.iter
       (fun idx elem -> Pp.printf "tab1[%i]: %s\n" idx (omit_layout_elem elem))
       tab1
   in
   let () =
+    _log "plan" @@ fun _ ->
     Hashtbl.iter
       (fun idx elem -> Pp.printf "tab2[%i]: %s\n" idx (omit_layout_elem elem))
       tab2
   in
   let () =
+    _log "plan" @@ fun _ ->
     List.iteri
       (fun idx l ->
         Pp.printf "case[%i]: %s\n" idx
@@ -440,27 +408,8 @@ let merge_plan l1 l2 =
   let res =
     List.sort (fun l1 l2 -> compare (List.length l1) (List.length l2)) res
   in
-  (* let choose_less ll = *)
-  (*   let min_len = *)
-  (*     List.fold_left *)
-  (*       (fun res l -> *)
-  (*         let len = List.length l in *)
-  (*         match res with *)
-  (*         | None -> Some len *)
-  (*         | Some res -> if len < res then Some len else Some res) *)
-  (*       None ll *)
-  (*   in *)
-  (*   match min_len with *)
-  (*   | None -> ll *)
-  (*   | Some len -> List.filter (fun l -> len == List.length l) ll *)
-  (* in *)
-  (* let () = *)
-  (*   List.iteri *)
-  (*     (fun idx l -> Pp.printf "@{<bold>l[%i]:@} %s\n" idx (omit_layout l)) *)
-  (*     res *)
-  (* in *)
-  (* let res = choose_less res in *)
   let () =
+    _log "plan" @@ fun _ ->
     List.iteri
       (fun idx l -> Pp.printf "@{<bold>res[%i]:@} %s\n" idx (omit_layout l))
       res
@@ -523,12 +472,6 @@ let subst_elem x z = function
 
 let subst_plan x z = List.map (subst_elem x z)
 
-(* module PlanElemSet = Set.Make (struct *)
-(*   type t = plan_elem *)
-
-(*   let compare = compare_plan_elem *)
-(* end) *)
-
 let gather_actions plan =
   let l =
     List.filter
@@ -541,22 +484,9 @@ let gather_actions plan =
   in
   l
 
-(* let left_most_se plan = *)
-(*   let rec aux (pre, rest) = *)
-(*     match rest with *)
-(*     | [] -> None *)
-(*     | PlanSe cur :: post -> Some (pre, cur, post) *)
-(*     | elem :: post -> aux (pre @ [ elem ], post) *)
-(*   in *)
-(*   aux ([], plan) *)
-
-(* let right_most_se plan = *)
-(*   let* pre, cur, post = left_most_se (List.rev plan) in *)
-(*   (\* let () = if !counter >= 2 then _die [%here] in *\) *)
-(*   Some (List.rev post, cur, List.rev pre) *)
-
 let exactly_match se plan =
   let () =
+    _log "plan" @@ fun _ ->
     Pp.printfBold "exactly_match:"
       (spf "%s in %s" (layout_se se) (omit_layout_plan plan))
   in

@@ -68,9 +68,11 @@ let simplify gamma =
       lits
   in
   let () =
+    _log "syn" @@ fun _ ->
     Pp.printf "@{<bold>litsT:@} %s\n" (List.split_by_comma layout_lit litsT)
   in
   let () =
+    _log "syn" @@ fun _ ->
     Pp.printf "@{<bold>litsF:@} %s\n" (List.split_by_comma layout_lit litsF)
   in
   let bprop = peval_prop litsT litsF gamma.bprop in
@@ -78,6 +80,7 @@ let simplify gamma =
   let pF = smart_and (List.map (fun lit -> Not (lit_to_prop lit)) litsF) in
   let bprop = smart_and [ bprop; pT; pF ] in
   let () =
+    _log "syn" @@ fun _ ->
     Pp.printf "@{<bold>Gamma.simplify:@} %s -->\n%s\n" (layout_prop gamma.bprop)
       (layout_prop bprop)
   in

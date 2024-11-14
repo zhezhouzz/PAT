@@ -38,38 +38,9 @@ let do_abduction { bvs; bprop } (checker : gamma -> bool) (abd_vars, fvs) =
 let mk_abd_prop fvs =
   match fvs with [] -> None | _ -> Some (simp_fvec_prop @@ smart_or fvs)
 
-(* let mybuild_euf vars = *)
-(*   let space = Hashtbl.create 10 in *)
-(*   let () = *)
-(*     List.iter *)
-(*       (fun { x; ty } -> *)
-(*         match Hashtbl.find_opt space ty with *)
-(*         | None -> Hashtbl.add space ty [ x ] *)
-(*         | Some l -> Hashtbl.replace space ty (x :: l)) *)
-(*       vars *)
-(*   in *)
-(*   let aux ty vars = *)
-(*     let pairs = List.cross vars vars in *)
-(*     let pairs = *)
-(*       List.filter (function x, y -> compare_lit Nt.compare_nt x y > 0) pairs *)
-(*     in *)
-(*     let eqlits = *)
-(*       List.map (fun l -> match l with x, y -> mk_lit_eq_lit ty x y) pairs *)
-(*     in *)
-(*     eqlits *)
-(*   in *)
-(*   let res = *)
-(*     Hashtbl.fold *)
-(*       (fun ty vars res -> *)
-(*         if List.length vars > 1 && not (Nt.equal_nt ty Nt.Ty_bool) then *)
-(*           aux ty vars @ res *)
-(*         else res) *)
-(*       space [] *)
-(*   in *)
-(*   res *)
-
 let build_fvtab env lits =
   let () =
+    _log "syn" @@ fun _ ->
     Pp.printf "@{<bold>lits:@} %s\n" (List.split_by_comma layout_typed_lit lits)
   in
   (* Remove boolean constants *)
@@ -93,6 +64,7 @@ let build_fvtab env lits =
           List.filter (fun lit -> Nt.equal_nt Nt.Ty_int lit.ty) lits
         in
         let () =
+          _log "syn" @@ fun _ ->
           Pp.printf "@{<bold>int lits:@} %s\n"
             (List.split_by_comma layout_typed_lit int_lits)
         in
@@ -107,6 +79,7 @@ let build_fvtab env lits =
             pairs
         in
         let () =
+          _log "syn" @@ fun _ ->
           Pp.printf "@{<bold>ltlits:@} %s\n"
             (List.split_by_comma layout_lit ltlits)
         in
@@ -115,6 +88,7 @@ let build_fvtab env lits =
   let bvars = List.map _get_x bvars in
   let res = bvars @ Rawdesym.mybuild_euf lits @ additional in
   let () =
+    _log "syn" @@ fun _ ->
     Pp.printf "@{<bold>build_fvtab:@} %s\n" (List.split_by_comma layout_lit res)
   in
   res
@@ -126,30 +100,17 @@ let mk_raw_all env =
   in
   if List.length l == 0 then _die [%here] else SFA.CharSet.of_list l
 
-(* let check_regex_nonempty env checker (qvs, r) = *)
-(*   (\* let all = mk_raw_all env in *\) *)
-(*   (\* let () = Pp.printf "@{<bold>r@}: %s\n" (layout_symbolic_regex_precise r) in *\) *)
-(*   let goals = *)
-(*     Desymbolic.desymbolic_reg OriginalFA env.event_tyctx checker (qvs, r) *)
-(*   in *)
-(*   List.for_all *)
-(*     (fun (_, _, reg) -> *)
-(*       let open DesymFA in *)
-(*       let dfa = compile_regex_to_dfa reg in *)
-(*       let dfa = minimize dfa in *)
-(*       (\* let () = Printf.printf "dfa:\n%s\n" (layout_dfa dfa) in *\) *)
-(*       StateSet.is_empty dfa.finals) *)
-(*     goals *)
-
 let check_regex_nonempty env { bprop; _ } r =
   let really_do_check_regex_nonempty () =
     let _, r' =
       Rawdesym.desymbolic_symbolic_rewregex env.tyctx env.event_tyctx (bprop, r)
     in
     let () =
+      _log "syn" @@ fun _ ->
       Pp.printf "@{<bold>check_regex_nonempty@}: %s\n" (SFA.layout_raw_regex r)
     in
     let () =
+      _log "syn" @@ fun _ ->
       Pp.printf "@{<bold>check_regex_nonempty@}: %s\n"
         (DesymFA.layout_raw_regex r')
     in
@@ -171,64 +132,28 @@ let abduction_automata env { bvs; bprop } (a : SFA.raw_regex) abd_vars =
     in
     let fvs = build_features { bvs; bprop } (abd_vars, lits) in
     let () =
+      _log "syn" @@ fun _ ->
       Pp.printf "@{<bold>abduction_automata fvs:@}: %i\n" (List.length fvs)
     in
     (* let checker gamma (_, prop) = check_valid gamma prop in *)
     let fvs =
       do_abduction { bvs; bprop }
         (fun gamma ->
-          let () = Pp.printf "@{<bold>gamma@}: %s\n" (Gamma.layout gamma) in
+          let () =
+            _log "syn" @@ fun _ ->
+            Pp.printf "@{<bold>gamma@}: %s\n" (Gamma.layout gamma)
+          in
           let res = check_regex_nonempty env gamma a in
           let () =
+            _log "syn" @@ fun _ ->
             Pp.printf "@{<bold>@{<yellow>abduction_automata@}@}: %b\n" res
           in
           res)
         (abd_vars, fvs)
     in
-    (* let () = if List.length fvs > 1 then _die [%here] in *)
     fvs
   in
   Stat.stat_nonempty_check really_do_abduction
-
-(* let abduction_automata env { bvs; bprop } (a : SFA.raw_regex) abd_vars = *)
-(*   let open SFA in *)
-(*   let { global_lits; local_lits } = gather_regex @@ raw_regex_to_regex a in *)
-(*   let cur_lits = *)
-(*     global_lits @ List.concat @@ List.map snd @@ StrMap.to_value_list local_lits *)
-(*   in *)
-(*   let cs = *)
-(*     get_consts (smart_add_to bprop @@ And (List.map lit_to_prop cur_lits)) *)
-(*   in *)
-(*   let lits = *)
-(*     List.map (fun c -> AC c) cs @ List.map (fun x -> AVar x) @@ bvs @ abd_vars *)
-(*   in *)
-(*   let lits = *)
-(*     List.filter *)
-(*       (fun lit -> *)
-(*         not *)
-(*           (List.is_empty *)
-(*           @@ List.interset String.equal (fv_lit_id lit) *)
-(*                (List.map _get_x abd_vars))) *)
-(*       (build_fvtab env @@ List.map (fun l -> l #: (lit_to_nt l)) lits) *)
-(*   in *)
-(*   let fvs = build_features { bvs; bprop } (abd_vars, lits) in *)
-(*   let () = *)
-(*     Pp.printf "@{<bold>abduction_automata fvs:@}: %i\n" (List.length fvs) *)
-(*   in *)
-(*   (\* let checker gamma (_, prop) = check_valid gamma prop in *\) *)
-(*   let fvs = *)
-(*     do_abduction { bvs; bprop } *)
-(*       (fun gamma -> *)
-(*         let () = Pp.printf "@{<bold>gamma@}: %s\n" (Gamma.layout gamma) in *)
-(*         let res = check_regex_nonempty env gamma a in *)
-(*         let () = *)
-(*           Pp.printf "@{<bold>@{<yellow>abduction_automata@}@}: %b\n" res *)
-(*         in *)
-(*         res) *)
-(*       (abd_vars, fvs) *)
-(*   in *)
-(*   (\* let () = if List.length fvs > 1 then _die [%here] in *\) *)
-(*   fvs *)
 
 let abduction_plan env gamma plan abd_vars =
   let a = Plan.plan_to_raw_regex env.event_tyctx plan in
@@ -238,12 +163,7 @@ let abduction_mid_goal env gamma (plan1, elem, plan2) abd_vars =
   let plan = plan1 @ [ elem ] @ plan2 in
   let fvs = abduction_plan env gamma plan abd_vars in
   match fvs with
-  | [] ->
-      let () =
-        if String.equal (Plan.elem_to_se env.event_tyctx elem).op "putReq" then
-          _die [%here]
-      in
-      None
+  | [] -> None
   | _ ->
       Some
         {

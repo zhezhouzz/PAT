@@ -42,6 +42,7 @@ let normalize_desym_regex (rawreg : raw_regex) =
     | Alt (r1, r2) -> smart_alt (aux r1) (aux r2)
     | Comple (cs1, Comple (cs2, r)) ->
         let () =
+          _log "rawdesym" @@ fun _ ->
           Pp.printf "@{<bold>double comp@}: %s\n" (layout_raw_regex rawreg)
         in
         let cs1 = CharSet.filter (fun c -> not (CharSet.mem c cs2)) cs1 in
@@ -50,17 +51,20 @@ let normalize_desym_regex (rawreg : raw_regex) =
         match aux r with
         | Star (MultiChar cs') ->
             let () =
+              _log "rawdesym" @@ fun _ ->
               Pp.printf "@{<bold>opt comple1@}: %s\n" (layout_raw_regex rawreg)
             in
             let cs'' = CharSet.filter (fun c -> not (CharSet.mem c cs')) cs in
             Star (MultiChar cs'')
         | _ as r ->
             let () =
+              _log "rawdesym" @@ fun _ ->
               Pp.printf "@{<bold>opt comple fail@}: %s\n" (layout_raw_regex r)
             in
             do_normalize_desym_regex rawreg)
     | Inters _ ->
         let () =
+          _log "rawdesym" @@ fun _ ->
           Pp.printf "@{<bold>opt inters@}: %s\n" (layout_raw_regex rawreg)
         in
         do_normalize_desym_regex rawreg

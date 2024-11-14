@@ -36,6 +36,7 @@ let raw_regex_to_plan_elem r =
       | Some cs -> PlanStarInv cs
       | None ->
           let () =
+            _log "syn" @@ fun _ ->
             Printf.printf "Not a star:\n %s\n"
               (show_raw_regex (fun _ _ -> ()) r)
           in
@@ -49,7 +50,9 @@ let raw_regex_to_plan =
     | Eps -> []
     | MultiChar _ | Star _ -> [ raw_regex_to_plan_elem r ]
     | Alt _ | Inters _ | Comple _ ->
-        let () = Printf.printf "%s\n" (SFA.layout_raw_regex r) in
+        let () =
+          _log "syn" @@ fun _ -> Printf.printf "%s\n" (SFA.layout_raw_regex r)
+        in
         _die [%here]
     | Seq l -> List.concat_map aux l
   in
@@ -57,13 +60,13 @@ let raw_regex_to_plan =
 
 let normalize_desym_regex2 (rawreg : DesymFA.raw_regex) =
   let open DesymFA in
-  (* let () = Pp.printf "@{<bold>start@}: %s\n" (layout_raw_regex rawreg) in *)
   let rec aux rawreg =
     match rawreg with
     | Empty | Eps | MultiChar _ -> rawreg
     | Alt (r1, r2) -> smart_alt (aux r1) (aux r2)
     | Comple (cs1, Comple (cs2, r)) ->
         let () =
+          _log "syn" @@ fun _ ->
           Pp.printf "@{<bold>double comp@}: %s\n" (layout_raw_regex rawreg)
         in
         let cs1 = CharSet.filter (fun c -> not (CharSet.mem c cs2)) cs1 in
@@ -72,17 +75,20 @@ let normalize_desym_regex2 (rawreg : DesymFA.raw_regex) =
         match aux r with
         | Star (MultiChar cs') ->
             let () =
+              _log "syn" @@ fun _ ->
               Pp.printf "@{<bold>opt comple1@}: %s\n" (layout_raw_regex rawreg)
             in
             let cs'' = CharSet.filter (fun c -> not (CharSet.mem c cs')) cs in
             Star (MultiChar cs'')
         | _ as r ->
             let () =
+              _log "syn" @@ fun _ ->
               Pp.printf "@{<bold>opt comple fail@}: %s\n" (layout_raw_regex r)
             in
             do_normalize_desym_regex rawreg)
     | Inters _ ->
         let () =
+          _log "syn" @@ fun _ ->
           Pp.printf "@{<bold>opt inters@}: %s\n" (layout_raw_regex rawreg)
         in
         do_normalize_desym_regex rawreg
@@ -106,6 +112,7 @@ let normalize_gamma env { bvs; bprop } r =
 
 let normalize_goal_aux env (gamma, reg) =
   let () =
+    _log "syn" @@ fun _ ->
     Pp.printf "\n@{<bold>Before Normalize:@}\n%s\n" (SFA.layout_raw_regex reg)
   in
   let desym_ctx, reg =
@@ -113,11 +120,14 @@ let normalize_goal_aux env (gamma, reg) =
       (gamma.bprop, reg)
   in
   let () =
+    _log "syn" @@ fun _ ->
     Pp.printf "\n@{<bold>After Desym:@}\n%s\n" (DesymFA.layout_raw_regex reg)
   in
   let reg = Rawdesym.normalize_desym_regex reg in
   let open DesymFA in
-  let () = Printf.printf "reg: %s\n" (layout_raw_regex reg) in
+  let () =
+    _log "syn" @@ fun _ -> Printf.printf "reg: %s\n" (layout_raw_regex reg)
+  in
   if emptiness reg then []
   else
     let unf = raw_regex_to_union_normal_form unify_charset_by_op reg in
@@ -132,7 +142,4 @@ let normalize_goal env (gamma, reg) =
   let res =
     List.concat_map (fun gamma -> normalize_goal_aux env (gamma, reg)) gammas
   in
-  (* let () = Pp.printf "@{<bold>Goals:\n@}" in *)
-  (* let () = List.iter simp_print_mid_judgement res in *)
-  (* let () = _die [%here] in *)
   res

@@ -23,6 +23,7 @@ let mk_synthesis_goal (env : syn_env) =
   in
   let reg = delimit_context reg in
   let () =
+    _log "syn" @@ fun _ ->
     Pp.printf "\n@{<red>Original Reg:@} %s\n" (layout_symbolic_regex reg)
   in
   let goal = SFA.regex_to_raw reg in
@@ -34,12 +35,20 @@ let synthesize env goal =
   let real_do_synthesize () =
     let aux () = deductive_synthesis_reg env goal in
     let* g = Stat.stat_refine aux in
-    let () = Pp.printf "\n@{<red>Result gamma:@} %s\n" (Gamma.layout g.gamma) in
     let () =
+      _log "syn" @@ fun _ ->
+      Pp.printf "\n@{<red>Result gamma:@} %s\n" (Gamma.layout g.gamma)
+    in
+    let () =
+      _log "syn" @@ fun _ ->
       Pp.printf "\n@{<red>Result program:@} %s\n" (Plan.layout_plan g.plan)
     in
     (* let () = _die [%here] in *)
     let term = instantiation env (g.gamma, g.plan) in
+    let () =
+      _log "result" @@ fun _ ->
+      Pp.printf "@{<bold>Prog@}:\n%s\n" (layout_term term)
+    in
     Some term
   in
   Stat.stat_total real_do_synthesize
@@ -55,7 +64,10 @@ let syn_timeout timebound env =
   in
   (* let () = _die [%here] in *)
   let terms = List.map (fun g -> instantiation env (g.gamma, g.plan)) res in
-  let () = Pp.printf "\n@{<red>Get %i results:@}\n" (List.length terms) in
+  let () =
+    _log "syn" @@ fun _ ->
+    Pp.printf "\n@{<red>Get %i results:@}\n" (List.length terms)
+  in
   terms
 
 let syn_one env =
