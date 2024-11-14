@@ -3,9 +3,6 @@ val ( > ) : int -> int -> bool
 
 (** message between env and router *)
 
-(* type tTxnStatus = (eRROR * aCTIVE * cOMMITTED * aBORTED[@(eRROR * aCTIVE * cOMMITTED * aBORTED[@tTxnStatus])]) *)
-(* type tCmdStatus = (uNKNOWN * oK * aBORT[@(uNKNOWN * oK * aBORT[@tCmdStatus])]) *)
-
 val eStartTxnReq : unit [@@gen]
 
 let eStartTxnReq (id : tGid) =
@@ -101,37 +98,10 @@ let eRollbackTxnReq ?l:(id = (true : [%v: tGid])) =
 
 (** message between router and shard *)
 
-(* val eMonitorRouterTxnStatus : *)
-(*   < gid : tGid ; status : (eRROR * aCTIVE * cOMMITTED * aBORTED[@tTxnStatus]) ; commit_time : int > *)
-(* [@@obs] *)
-
-(* let eMonitorRouterTxnStatus ?l:(id = (true : [%v: tGid])) *)
-(*     ?l:(txnst = (true : [%v: (eRROR * aCTIVE * cOMMITTED * aBORTED[@tTxnStatus])])) ?l:(ctime = (true : [%v: int])) = *)
-(*   ( starA anyA, *)
-(*     EMonitorRouterTxnStatus *)
-(*       (gid == id && txnstatus == txnst && commit_time == ctime), *)
-(*     [||] ) *)
-
 val eShardReadKeyReq : < gid : tGid ; key : tKey > [@@obs]
 
 let eShardReadKeyReq =
   [|
-    (* (fun (va : tVal) ?l:(id = (true : [%v: tGid])) ?l:(k = (true : [%v: tKey])) -> *)
-    (*   ( (starA (anyA - EStartTxnRsp (gid == id)); *)
-    (*      EShardUpdateKeyReq ((not (gid == id)) && key == k && value == va); *)
-    (*      starA (anyA - EStartTxnRsp (gid == id)); *)
-    (*      EStartTxnRsp (gid == id); *)
-    (*      starA *)
-    (*        (anyA *)
-    (*        - EStartTxnRsp (gid == id) *)
-    (*        - EShardUpdateKeyReq (gid == id && key == k) *)
-    (*        - EShardAbortTxn (gid == id))), *)
-    (*     EShardReadKeyReq (gid == id && key == k), *)
-    (*     [| *)
-    (*       EShardReadKeyRsp *)
-    (*         (gid == id && key == k && value == va *)
-    (*         && status == ("OK" : (uNKNOWN * oK * aBORT[@tCmdStatus]))); *)
-    (*     |] )); *)
     (fun (va : tVal) ?l:(id = (true : [%v: tGid])) ?l:(k = (true : [%v: tKey])) ->
       ( (starA (anyA - EStartTxnRsp (gid == id));
          EStartTxnRsp (gid == id);
@@ -144,16 +114,6 @@ let eShardReadKeyReq =
             (gid == id && key == k && value == va
             && status == ("OK" : (uNKNOWN * oK * aBORT[@tCmdStatus])));
         |] ));
-    (* (fun ?l:(id = (true : [%v: tGid])) ?l:(k = (true : [%v: tKey])) -> *)
-    (*   ( (starA anyA; *)
-    (*      EShardAbortTxn (gid == id); *)
-    (*      starA anyA), *)
-    (*     EShardReadKeyReq (gid == id && key == k), *)
-    (*     [| *)
-    (*       EShardReadKeyRsp *)
-    (*         (gid == id && key == k *)
-    (*         && status == ("ABORT" : (uNKNOWN * oK * aBORT[@tCmdStatus]))); *)
-    (*     |] )); *)
   |]
 
 val eShardReadKeyRsp :
@@ -185,17 +145,6 @@ let eShardUpdateKeyReq =
             (gid == id && key == k && value == va
             && status == ("OK" : (uNKNOWN * oK * aBORT[@tCmdStatus])));
         |] ));
-    (* (fun ?l:(id = (true : [%v: tGid])) ?l:(k = (true : [%v: tKey])) *)
-    (*      ?l:(va = (true : [%v: tVal])) -> *)
-    (*   ( (starA anyA; *)
-    (*      EShardAbortTxn (gid == id); *)
-    (*      starA anyA), *)
-    (*     EShardUpdateKeyReq (gid == id && key == k && value == va), *)
-    (*     [| *)
-    (*       EShardUpdateKeyRsp *)
-    (*         (gid == id && key == k && value == va *)
-    (*         && status == ("ABORT" : (uNKNOWN * oK * aBORT[@tCmdStatus]))); *)
-    (*     |] )); *)
   |]
 
 val eShardUpdateKeyRsp :
@@ -289,6 +238,3 @@ let[@goal] readVisibity (id : tGid) (k : tKey) (v1 : tVal) (v2 : tVal) =
        && (not (value == v1))
        && status == ("OK" : (uNKNOWN * oK * aBORT[@tCmdStatus])));
      starA anyA)
-(* ; *)
-(* (starA (anyA - EUpdateRsp (gid == id && key == k && status == ("OK" : (uNKNOWN * oK * aBORT[@tCmdStatus]))))); *)
-(* (EReadRsp (gid == id && key == k && value == va && && status == ("OK" : (uNKNOWN * oK * aBORT[@tCmdStatus])))) *)

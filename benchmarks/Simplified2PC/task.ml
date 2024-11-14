@@ -10,13 +10,6 @@ val commit : unit [@@obs]
 val abort : unit [@@obs]
 
 let readReq = (allA, ReadReq true, [| GetReq true |])
-
-(* let getReq = *)
-(*   [| *)
-(*     (allA, GetReq true, [| ReadRsp true |]); *)
-(*     (starA (anyA - Commit true), GetReq true, [| ReadRsp (va == -1) |]); *)
-(*   |] *)
-
 let getReq = (starA (anyA - Commit true), GetReq true, [| ReadRsp (va == -1) |])
 let readRsp ?l:(x = (true : [%v: int])) = (allA, ReadRsp (va == x), [||])
 

@@ -19,21 +19,6 @@ let eEspressoButtonPressed =
       [| EGrindBeansReq true |] );
   |]
 
-(* (\* event: steamer button turned off *\) *)
-(* val eSteamerButtonOff : unit [@@gen] *)
-
-(* (\* event: steamer button turned on *\) *)
-(* val eSteamerButtonOn : unit [@@gen] *)
-
-(* (\* event: door opened to empty grounds *\) *)
-(* val eOpenGroundsDoor : unit [@@gen] *)
-
-(* (\* event: door closed after emptying grounds *\) *)
-(* val eCloseGroundsDoor : unit [@@gen] *)
-
-(* (\* event: reset coffee maker button pressed *\) *)
-(* val eResetCoffeeMaker : unit [@@gen] *)
-
 (** message from panel to env *)
 
 (* event: error message from panel to the user
@@ -89,12 +74,6 @@ let eStartEspressoReq =
     (allA, EStartEspressoReq true, [| ENoWaterError true |]);
     (allA, EStartEspressoReq true, [| EEspressoCompleted true |]);
   |]
-
-(* (\* val start steamer *\) *)
-(* val eStartSteamerReq : unit [@@obs] *)
-
-(* (\* event: stop steamer *\) *)
-(* val eStopSteamerReq : unit [@@obs] *)
 
 (* Responses from the coffee maker to the controller *)
 (* event: completed grinding beans *)

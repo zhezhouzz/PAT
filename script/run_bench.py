@@ -36,7 +36,7 @@ def invoc_cmd(cmd, cwd=None):
     except subprocess.CalledProcessError as e:
         print(e.output)
 
-benchmarks = ["Database", "Firewall", "RingLeaderElection", "EspressoMachine", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Raft", "Kermit2PCModel"]
+benchmarks = ["Database", "Firewall", "RingLeaderElection", "EspressoMachine", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Raft", "Anno2PCModel"]
 # benchmarks = ["ChainReplication", "Paxos", "Raft"]
 # benchmarks = ["Raft"]
 
@@ -56,7 +56,7 @@ dict = {"Database":10000,
         "ChainReplication":10000,
         "Paxos":10000,
         "Raft":1000,
-        "Kermit2PCModel": 1000}
+        "Anno2PCModel": 1000}
 
 def random_num_map(name):
     return dict[name]
@@ -132,7 +132,7 @@ def print_pat_col4(statA):
 plang = ["EspressoMachine", "Simplified2PC", "HeartBeat", "BankServer"]
 message_chain = ["RingLeaderElection", "Firewall"]
 modP = ["ChainReplication", "Paxos"]
-aws = ["Kermit2PCModel"]
+aws = ["Anno2PCModel"]
 
 def pp_benchname(name):
     postfix=""
@@ -172,7 +172,7 @@ def print_cols(benchnames, stat):
     syn_stat = load_eval_stat(syn_stat_file)
     default_stat = load_eval_stat(default_stat_file)
     for name in benchnames:
-        if name == "Kermit2PCModel":
+        if name == "Anno2PCModel":
             random_stat[name] = [0.0, None]
             syn_stat[name] = [100.0, 0.1]
             default_stat[name] = [None, None]
@@ -233,7 +233,7 @@ def run_syn_p_one(postfix, num, mode, kw):
 def run_syn_p():
     data = load_eval_stat(syn_stat_file)
     for name in benchmarks:
-        if name == "Kermit2PCModel":
+        if name == "Anno2PCModel":
             continue
         kw = "PSpec"
         if name == "RingLeaderElection" or name == "Paxos":
@@ -247,7 +247,7 @@ def run_syn_p():
 def run_random_p():
     data = load_eval_stat(random_stat_file)
     for name in benchmarks:
-        if name == "Kermit2PCModel":
+        if name == "Anno2PCModel":
             continue
         kw = "PSpec"
         if name == "RingLeaderElection" or name == "Paxos":
@@ -261,7 +261,7 @@ def run_random_p():
 def run_default_p():
     data = load_eval_stat(default_stat_file)
     for name in benchmarks:
-        if name == "Kermit2PCModel":
+        if name == "Anno2PCModel":
             continue
         kw = "PSpec"
         if name == "Database" or name == "Firewall" or name == "RingLeaderElection" or name == "Raft":

@@ -99,20 +99,6 @@ let eLostPrepareReq
 
 let ePrepareReq =
   [|
-    (* (\* When there is a previous request less than proposer, accept it. *\) *)
-    (* (fun ?l:(p = *)
-    (*          (v == ("Proposer2" : (proposer1 * proposer2[@tProposerNode])) *)
-    (*            : [%v: (proposer1 * proposer2[@tProposerNode])])) *)
-    (*      ?l:(ac = (true : [%v: (acceptor1 * acceptor2[@tAcceptorNode])])) *)
-    (*      ?l:(x = (true : [%v: tVal])) -> *)
-    (*   ( (starA (anyA - EPrepareReq (acceptor == ac) - EAcceptReq true); *)
-    (*      EPrepareReq *)
-    (*        (proposer == ("Proposer1" : (proposer1 * proposer2[@tProposerNode])) *)
-    (*        && acceptor == ac); *)
-    (*      starA (anyA - EPrepareReq (acceptor == ac) - EAcceptReq true)), *)
-    (*     EPrepareReq (proposer == p && acceptor == ac && va == x), *)
-    (*     [| EPrepareRsp (acceptor == ac && promised == p && va == x) |] )); *)
-    (* When there no previous prepare request, accept it. *)
     (fun ?l:(p = (true : [%v: (proposer1 * proposer2[@tProposerNode])]))
          ?l:(ac = (true : [%v: (acceptor1 * acceptor2[@tAcceptorNode])]))
          ?l:(x = (true : [%v: tVal])) ->
@@ -137,22 +123,6 @@ let eLostPrepareRsp
 
 let ePrepareRsp =
   [|
-    (* When is the first response recieved, goto accept state and send accept request. (omit the second one) *)
-    (* (fun ?l:(ac = (true : [%v: (acceptor1 * acceptor2[@tAcceptorNode])])) *)
-    (*      ?l:(p = (true : [%v: (proposer1 * proposer2[@tProposerNode])])) *)
-    (*      ?l:(x = (true : [%v: tVal])) *)
-    (*      ?l:(ap = (true : [%v: (proposer1 * proposer2[@tProposerNode])])) -> *)
-    (*   ( starA (anyA - EPrepareRsp (promised == p)), *)
-    (*     EPrepareRsp *)
-    (*       (acceptor == ac && promised == p && va == x && n_accepted == ap), *)
-    (*     [| *)
-    (*       EAcceptReq *)
-    (*         (acceptor == ("Acceptor1" : (acceptor1 * acceptor2[@tAcceptorNode])) *)
-    (*         && proposer == p && va == x); *)
-    (*       EAcceptReq *)
-    (*         (acceptor == ("Acceptor2" : (acceptor1 * acceptor2[@tAcceptorNode])) *)
-    (*         && proposer == p && va == x); *)
-    (*     |] )); *)
     (fun ?l:(ac = (true : [%v: (acceptor1 * acceptor2[@tAcceptorNode])]))
          ?l:(p = (true : [%v: (proposer1 * proposer2[@tProposerNode])]))
          ?l:(x = (true : [%v: tVal]))
@@ -181,22 +151,6 @@ let eLostAcceptReq
 
 let eAcceptReq =
   [|
-    (* (\* When there is a previous request less than proposer, accept it. *\) *)
-    (* (fun ?l:(p = *)
-    (*          (v == ("Proposer2" : (proposer1 * proposer2[@tProposerNode])) *)
-    (*            : [%v: (proposer1 * proposer2[@tProposerNode])])) *)
-    (*      ?l:(ac = (true : [%v: (acceptor1 * acceptor2[@tAcceptorNode])])) *)
-    (*      ?l:(x = (true : [%v: tVal])) -> *)
-    (*   ( (starA (anyA - EAcceptReq (acceptor == ac)); *)
-    (*      EAcceptReq *)
-    (*        (proposer == ("Proposer1" : (proposer1 * proposer2[@tProposerNode])) *)
-    (*        && acceptor == ac); *)
-    (*      starA (anyA - EAcceptReq (acceptor == ac))), *)
-    (*     EAcceptReq (proposer == p && acceptor == ac && va == x), *)
-    (*     [| *)
-    (*       EAcceptRsp *)
-    (*         (proposer == p && acceptor == ac && accepted == p && va == x); *)
-    (*     |] )); *)
     (* When is the first accept request recieved, accept it. *)
     (fun ?l:(p = (true : [%v: (proposer1 * proposer2[@tProposerNode])]))
          ?l:(ac = (true : [%v: (acceptor1 * acceptor2[@tAcceptorNode])]))

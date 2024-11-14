@@ -27,10 +27,7 @@ val eShutDown : unit [@@obs]
 let ePing =
   [|
     (fun ?l:(tl = (true : [%v: int])) ->
-      ( starA
-          (anyA
-         (* - EPing ( trial == tl) *)
-         - EShutDown true),
+      ( starA (anyA - EShutDown true),
         EPing (trial == tl),
         [| EPong (trial == tl) |] ));
   |]
@@ -50,7 +47,6 @@ let eStart =
 
 let ePong =
   [|
-    (* Trail1: all pongs are received, done *)
     (fun ?l:(tl = (true : [%v: int])) ->
       (starA (anyA - EPongLost (trial == tl)), EPong (trial == tl), [||]));
   |]

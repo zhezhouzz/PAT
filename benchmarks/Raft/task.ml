@@ -51,14 +51,6 @@ let eShutDown =
       |] );
   |]
 
-(* let eTimeout ?l:(ld = (true : [%v: (node1 * node2[@tNode])])) *)
-(*     ?l:(d = (not (v == ld) : [%v: (node1 * node2[@tNode])])) = *)
-(*   ( starA (anyA - EBecomeLeader true), *)
-(*     ETimeout (leader == ld && dest == d), *)
-(*     [| *)
-(*       EVoteReq (src == d && leader == d && (not (dest == d)) && not (dest == ld)); *)
-(*     |] ) *)
-
 let eTimeout =
   [|
     (fun ?l:(d =
