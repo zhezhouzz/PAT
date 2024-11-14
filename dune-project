@@ -1,5 +1,5 @@
-(lang dune 3.15)
-(using menhir 3.0)
+(lang dune 3.11)
+; (using menhir 3.0)
 
 (name haft)
 

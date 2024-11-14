@@ -406,10 +406,10 @@ let compile_syn_result (env : syn_env) e =
   let machine = mk_syn_machine state in
   let res = Toplang.layout_p_machine env 0 machine in
   let () = Pp.printf "@{<bold>Compile Result:@}:\n%s\n" res in
-  let () = print_p_type_events env in
-  let () = print_send_wrapper env in
-  let () = print_cast_wrapper env in
-  let () = print_forward_wrapper env in
+  (* let () = print_p_type_events env in *)
+  (* let () = print_send_wrapper env in *)
+  (* let () = print_cast_wrapper env in *)
+  (* let () = print_forward_wrapper env in *)
   res
 
 (* let compile_term_to_state  *)
