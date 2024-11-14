@@ -1,3 +1,3 @@
 #!/bin/bash
 
-p check -v -s $1 -explore | grep "<ErrorLog> Assertion Failed: "$2 | wc
+p check -tc $1 -v -s $2 -explore | grep "<ErrorLog> Assertion Failed: "$3 | wc

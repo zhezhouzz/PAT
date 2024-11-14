@@ -13,7 +13,7 @@ machine SynOrchestrator {
   }
 }
 
-test tc_no_water_error [main=SynOrchestrator]:
+test Syn [main=SynOrchestrator]:
   assert no_water_error in (union { SynOrchestrator, SynClient }, EspressoMachine);
 
 // test tc_no_beans_error [main=SynOrchestrator]:

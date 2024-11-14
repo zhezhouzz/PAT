@@ -39,7 +39,6 @@ machine Mid {
             if (input.node == Node1) {
                 RealSend(this, syn_writeToMid, (controller = input.controller, dst = this, key = input.key, va = input.va, node = Node2));
             } else {
-                print format("CACHE: {0}", (controller = input.controller, dst = tail, key = input.key, va = input.va));
                 cache += (sizeof(cache), (controller = input.controller, dst = tail, key = input.key, va = input.va));
             }
             goto Loop;

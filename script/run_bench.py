@@ -6,8 +6,9 @@ import time
 
 bench_json = []
 
-random_stat = "stat/.run_random_p.json"
-syn_stat = "stat/.run_syn_p.json"
+random_stat_file = "stat/.run_random_p.json"
+syn_stat_file = "stat/.run_syn_p.json"
+default_stat_file = "stat/.run_default_p.json"
 
 p_repo = ""
 
@@ -37,19 +38,22 @@ def invoc_cmd(cmd, cwd=None):
 
 benchmarks = ["Database", "Firewall", "RingLeaderElection", "EspressoMachine", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Raft", "Kermit2PCModel"]
 # benchmarks = ["ChainReplication", "Paxos", "Raft"]
-# benchmarks = ["Paxos"]
+# benchmarks = ["Raft"]
 
 def syn_num_map(name):
-    return 100
+    return 500
 
-dict = {"Database":1000,
-        "EspressoMachine":1000,
-        "Simplified2PC":1000,
-        "HeartBeat":1000,
-        "BankServer":1000,
+def default_num_map(name):
+    return 2000
+
+dict = {"Database":10000,
+        "EspressoMachine":10000,
+        "Simplified2PC":10000,
+        "HeartBeat":10000,
+        "BankServer":10000,
         "RingLeaderElection":10000,
         "Firewall":50,
-        "ChainReplication":4000,
+        "ChainReplication":10000,
         "Paxos":10000,
         "Raft":1000,
         "Kermit2PCModel": 1000}
@@ -96,16 +100,25 @@ def print_pat_col2(stat):
                               safe_print_int(n_obs)),
             safe_print_int(n_assert)]
 
+def print_tries(ratio):
+    if ratio is None:
+        return "-"
+    elif ratio == 0.0:
+        return "{\\tiny Timeout}"
+    else:
+        return "${:.0f}$".format(100.0 / ratio)
+
 def print_pat_col3(stat):
     # return [safe_print_float(stat["n_retry"])+ "\\%"]
     # return ["${:.1f}$".format(stat["n_retry"])]
-    return ["$({:.1f}\\%, {:.2f}\\%)$".format(stat["syn_ratio"], stat["random_ratio"])]
+    # return ["$({:.0f}\\%, {:.2f}\\%)$".format(stat["syn_ratio"], stat["random_ratio"])]
+    return [ print_tries(stat["syn_ratio"]), print_tries(stat["default_ratio"]), print_tries(stat["random_ratio"])]
 
 def print_pat_col4(statA):
     stat = statA["algo_complexity"]
     return [
         # "$({},{})$".format(raw_safe_print_time(statA["syn_time"]), raw_safe_print_time(statA["random_time"])),
-        "${}$".format(raw_safe_print_time(statA["random_time"])),
+        # "${}$".format(raw_safe_print_time(statA["random_time"])),
         safe_print_float(stat["t_total"]),
              # safe_print_float(stat["t_sat"]),
             # safe_print_float(stat["t_nonempty"]),
@@ -146,28 +159,30 @@ def load_stat():
             jmap[name] = json.load(f)
     return jmap
 
-def load_random_stat():
-    with open (random_stat, "r") as f:
-        data = json.load(f)
-    return data
-
-def load_syn_stat():
-    with open (syn_stat, "r") as f:
+def load_eval_stat(filename):
+    if not os.path.exists(filename):
+        with open(filename, 'w') as f:
+            f.write("")
+    with open (filename, "r") as f:
         data = json.load(f)
     return data
 
 def print_cols(benchnames, stat):
-    random_stat = load_random_stat();
-    syn_stat = load_syn_stat();
+    random_stat = load_eval_stat(random_stat_file)
+    syn_stat = load_eval_stat(syn_stat_file)
+    default_stat = load_eval_stat(default_stat_file)
     for name in benchnames:
         if name == "Kermit2PCModel":
             random_stat[name] = [0.0, None]
             syn_stat[name] = [100.0, 0.1]
+            default_stat[name] = [None, None]
             stat[name]["n_retry"] = 1.0
         stat[name]["random_ratio"] = random_stat[name][0]
         stat[name]["random_time"] = random_stat[name][1]
         stat[name]["syn_ratio"] = syn_stat[name][0]
         stat[name]["syn_time"] = syn_stat[name][1]
+        stat[name]["default_ratio"] = default_stat[name][0]
+        stat[name]["default_time"] = default_stat[name][1]
     i = len(benchnames)
     for name in benchnames:
         print_pat_col(name, stat[name])
@@ -195,13 +210,13 @@ def do_compile():
         invoc_cmd(cmd)
     return
 
-def run_syn_p_one(postfix, num, kw):
+def run_syn_p_one(postfix, num, mode, kw):
     cur_dir = os.getcwd()
     # print(cur_dir)
     new_dir = cur_dir + "/" + postfix
     os.chdir(new_dir)
     start_time = time.time()
-    result = subprocess.run("../../script/run_p.sh {} {}".format(str(num), kw), shell=True, stdout=subprocess.PIPE, text=True, check=True)
+    result = subprocess.run("../../script/run_p.sh {} {} {}".format(mode, str(num), kw), shell=True, stdout=subprocess.PIPE, text=True, check=True)
     end_time = time.time()
     elapsed_time = end_time - start_time
     success = result.stdout.split(' ')
@@ -216,30 +231,45 @@ def run_syn_p_one(postfix, num, kw):
     return (ratio, avg_time)
 
 def run_syn_p():
-    data = load_syn_stat()
+    data = load_eval_stat(syn_stat_file)
     for name in benchmarks:
         if name == "Kermit2PCModel":
             continue
         kw = "PSpec"
         if name == "RingLeaderElection" or name == "Paxos":
             kw = ""
-        (ratio, avg_time) = run_syn_p_one("penv/" + name, syn_num_map(name), kw)
+        (ratio, avg_time) = run_syn_p_one("penv/" + name, syn_num_map(name), "Syn", kw)
         data[name] = (ratio, avg_time)
-    with open(syn_stat, 'w') as fp:
+    with open(syn_stat_file, 'w') as fp:
         json.dump(data, fp)
     return
 
 def run_random_p():
-    data = load_random_stat()
+    data = load_eval_stat(random_stat_file)
     for name in benchmarks:
         if name == "Kermit2PCModel":
             continue
         kw = "PSpec"
         if name == "RingLeaderElection" or name == "Paxos":
             kw = ""
-        (ratio, avg_time) = run_syn_p_one("poriginal/" + name, random_num_map(name), kw)
+        (ratio, avg_time) = run_syn_p_one("poriginal/" + name, random_num_map(name), "Syn", kw)
         data[name] = (ratio, avg_time)
-    with open(random_stat, 'w') as fp:
+    with open(random_stat_file, 'w') as fp:
+        json.dump(data, fp)
+    return
+
+def run_default_p():
+    data = load_eval_stat(default_stat_file)
+    for name in benchmarks:
+        if name == "Kermit2PCModel":
+            continue
+        kw = "PSpec"
+        if name == "Database" or name == "Firewall" or name == "RingLeaderElection" or name == "Raft":
+            data[name] = (None, None)
+            continue
+        (ratio, avg_time) = run_syn_p_one("poriginal/" + name, default_num_map(name), "Manual", kw)
+        data[name] = (ratio, avg_time)
+    with open(default_stat_file, 'w') as fp:
         json.dump(data, fp)
     return
 
@@ -258,6 +288,7 @@ if __name__ == '__main__':
     # do_compile()
     # run_syn_p()
     # run_random_p()
+    # run_default_p()
     j = load_stat()
     print_cols(benchmarks, j)
     # fix()
