@@ -33,7 +33,7 @@ let pprint_head { global_features; local_features } =
 (* let dummy = *)
 (*   let t = mk_p_abstract_ty "tSeqNbr" in *)
 (*   AAppOp *)
-(*     ( "<" #: (Nt.construct_arr_tp ([ t; t ], Nt.Ty_bool)), *)
+(*     ( "<" #: (Nt.construct_arr_tp ([ t; t ], Nt.bool_ty)), *)
 (*       [ (AVar "seqNbr" #: t) #: t; (AVar "id1" #: t) #: t ] ) *)
 
 let litlist_to_tab (vs, l) =
@@ -155,7 +155,7 @@ let make_tab addtional_global_args regex =
 
 let filter_aviable_features checker (vs, features) =
   let f lit =
-    let prop_pos = Lit lit #: Nt.Ty_bool in
+    let prop_pos = Lit lit #: Nt.bool_ty in
     let prop_neg = Not prop_pos in
     checker (vs, prop_pos) && checker (vs, prop_neg)
   in

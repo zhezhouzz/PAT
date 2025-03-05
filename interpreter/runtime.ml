@@ -29,8 +29,8 @@ let layout_runtime { trace; buffer; store; _ } =
 let default_sample_domain =
   SampleDomain.of_seq @@ List.to_seq
   @@ [
-       (Nt.Ty_int, List.map (fun n -> I n) [ -1; 0; 1; 2; 3; 4 ]);
-       (Nt.Ty_bool, List.map (fun n -> B n) [ true; false ]);
+       (Nt.int_ty, List.map (fun n -> I n) [ -1; 0; 1; 2; 3; 4 ]);
+       (Nt.bool_ty, List.map (fun n -> B n) [ true; false ]);
        (mk_p_abstract_ty "rid", List.map (fun n -> I n) [ 1; 2; 3 ]);
        (mk_p_abstract_ty "aid", List.map (fun n -> I n) [ 4; 5; 6 ]);
        (mk_p_abstract_ty "tGid", List.map (fun n -> I n) [ 1; 2; 3 ]);

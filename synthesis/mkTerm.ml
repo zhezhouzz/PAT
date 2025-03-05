@@ -31,12 +31,12 @@ let quantifier_elimination (qvs, gprop, qv, local_qvs, prop) =
   else
     let cs = get_consts prop in
     let lits =
-      List.map (fun x -> (AVar x) #: x.ty) qvs
-      @ List.map (fun c -> (AC c) #: (constant_to_nt c)) cs
+      List.map (fun x -> (AVar x)#:x.ty) qvs
+      @ List.map (fun c -> (AC c)#:(constant_to_nt c)) cs
     in
     let lits = List.filter (fun lit -> Nt.equal_nt qv.ty lit.ty) lits in
     let fvtab =
-      List.map (fun lit -> mk_lit_eq_lit qv.ty (AVar qv) lit.x) lits
+      List.map (fun lit -> mk_lit_eq_lit [%here] (AVar qv) lit.x) lits
     in
     let () =
       Printf.printf "fvtab: %s\n" @@ List.split_by_comma layout_lit @@ fvtab
@@ -45,15 +45,16 @@ let quantifier_elimination (qvs, gprop, qv, local_qvs, prop) =
     let fvs = List.choose_list_list fvs in
     let fvs =
       List.map
-        smart_and
-        #. (List.mapi (fun idx x ->
-                let lit = lit_to_prop @@ List.nth fvtab idx in
-                if x then lit else Not lit))
+        smart_and#.(List.mapi (fun idx x ->
+                        let lit = lit_to_prop @@ List.nth fvtab idx in
+                        if x then lit else Not lit))
         fvs
     in
     let fvs = List.filter check_valid fvs in
     (* let () = Printf.printf "res: %s\n" @@ layout_prop (smart_or fvs) in *)
-    match fvs with [] -> None | _ -> Some (smart_or fvs)
+    match fvs with
+    | [] -> None
+    | _ -> Some (smart_or fvs)
 
 let rec to_top_cnf phi =
   match phi with And ps -> List.concat_map to_top_cnf ps | _ -> [ phi ]
@@ -97,10 +98,9 @@ let instantiation_var env (gamma : Gamma.gamma) vs Gamma.{ bvs; bprop } =
   let fvs = List.choose_list_list fvs in
   let fvs =
     List.map
-      smart_and
-      #. (List.mapi (fun idx x ->
-              let lit = lit_to_prop @@ List.nth fvtab idx in
-              if x then lit else Not lit))
+      smart_and#.(List.mapi (fun idx x ->
+                      let lit = lit_to_prop @@ List.nth fvtab idx in
+                      if x then lit else Not lit))
       fvs
   in
   let fvs = List.filter check_valid_pre fvs in
@@ -153,15 +153,14 @@ let instantiation env goal =
           let args' =
             List.map
               (fun x ->
-                if name_in_qvs x.x fargs then x
-                else (Rename.unique "tmp") #: x.ty)
+                if name_in_qvs x.x fargs then x else (Rename.unique "tmp")#:x.ty)
               args
           in
           let ps =
             List.filter_map (fun (x, y) ->
                 if String.equal x.x y.x then None
                 else
-                  let lit = mk_lit_eq_lit x.ty (AVar x) (AVar y) in
+                  let lit = mk_lit_eq_lit [%here] (AVar x) (AVar y) in
                   Some (lit_to_prop lit))
             @@ _safe_combine [%here] args' args
           in

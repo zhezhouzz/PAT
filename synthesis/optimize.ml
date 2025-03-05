@@ -72,7 +72,7 @@ let eq_const_optimize lits =
       (fun l ->
         let ps = List.c_n_2 l in
         let ps = List.filter (fun (x, y) -> not (eq_var x y)) ps in
-        List.map (fun (x, y) -> mk_lit_eq_lit x.ty (AVar x) (AVar y)) ps)
+        List.map (fun (x, y) -> mk_lit_eq_lit [%here] (AVar x) (AVar y)) ps)
       m
   in
   let res = ConstMap.fold (fun _ l res -> l @ res) m [] in
@@ -276,8 +276,8 @@ module Predictable = struct
 
   let mk_true = mk_true
   let mk_false = mk_false
-  let mk_lit lit = Lit lit #: Nt.Ty_bool
-  let mk_ite cond bencht benchf = Ite (Lit cond #: Nt.Ty_bool, bencht, benchf)
+  let mk_lit lit = Lit lit#:Nt.bool_ty
+  let mk_ite cond bencht benchf = Ite (Lit cond#:Nt.bool_ty, bencht, benchf)
   let mk_and = smart_add_to
   let mk_or l1 l2 = smart_or [ l1; l2 ]
   let mk_not p = Not p

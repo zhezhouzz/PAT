@@ -91,7 +91,7 @@ type syn_env = {
   goal : syn_goal option;
 }
 
-let mk_value_tt = (VConst U) #: Nt.Ty_unit
+let mk_value_tt = (VConst U)#:Nt.unit_ty
 let mk_term_tt = CVal mk_value_tt
 
 let term_to_nt = function
@@ -99,21 +99,21 @@ let term_to_nt = function
   | CLetE { body; _ } -> body.ty
   | CAppOp { op; _ } -> snd @@ Nt.destruct_arr_tp op.ty
   | CObs { op; _ } -> snd @@ Nt.destruct_arr_tp op.ty
-  | CGen _ | CUnion _ | CAssert _ | CAssertP _ -> Ty_unit
+  | CGen _ | CUnion _ | CAssert _ | CAssertP _ -> Nt.unit_ty
   (* | CRandom nt -> nt *)
   | CAssume (nts, _) -> Nt.Ty_tuple nts
 
 let mk_let lhs rhs body =
   let ty =
     match lhs with
-    | [] -> Nt.Ty_unit
+    | [] -> Nt.unit_ty
     | [ x ] -> x.ty
     | _ -> Nt.Ty_tuple (List.map _get_ty lhs)
   in
-  CLetE { lhs; rhs = rhs #: ty; body = body #: (term_to_nt body) }
+  CLetE { lhs; rhs = rhs#:ty; body = body#:(term_to_nt body) }
 
 let term_concat term body =
-  CLetE { lhs = []; rhs = term #: Nt.Ty_unit; body = body #: Nt.Ty_unit }
+  CLetE { lhs = []; rhs = term#:Nt.unit_ty; body = body#:Nt.unit_ty }
 
 let mk_inter_type l =
   match l with
@@ -124,7 +124,7 @@ let erase_cty { nt; _ } = nt
 
 let rec erase_rty = function
   | RtyBase cty -> erase_cty cty
-  | RtyHAF _ | RtyHAParallel _ -> Nt.Ty_unit
+  | RtyHAF _ | RtyHAParallel _ -> Nt.unit_ty
   | RtyGArr { retrty; _ } -> erase_rty retrty
   | RtyArr { argcty; retrty; _ } ->
       Nt.mk_arr (erase_cty argcty) (erase_rty retrty)
@@ -148,13 +148,13 @@ let rec haft_to_triple = function
 
 let qv_to_cqv { x; ty } = { x; ty = { nt = ty; phi = mk_true } }
 let value_to_nt = function VVar x -> x.ty | VConst c -> constant_to_nt c
-let value_to_tvalue v = v #: (value_to_nt v)
+let value_to_tvalue v = v#:(value_to_nt v)
 let value_to_lit = function VVar x -> AVar x | VConst c -> AC c
 
 let mk_term_gen env op args e =
   let ty = _get_force [%here] env.event_tyctx op in
   term_concat
-    (CGen { op = op #: (Nt.Ty_record ty); args = List.map value_to_tvalue args })
+    (CGen { op = op#:(Nt.Ty_record ty); args = List.map value_to_tvalue args })
     e
 
 let mk_term_assertP prop e =
@@ -167,12 +167,12 @@ let mk_term_assume args prop e =
 
 let mk_term_obs env op args prop e =
   let ty = _get_force [%here] env.event_tyctx op in
-  mk_let args (CObs { op = op #: (Nt.Ty_record ty); prop }) e
+  mk_let args (CObs { op = op#:(Nt.Ty_record ty); prop }) e
 
 let rctx_to_prefix rctx =
   List.fold_right
     (fun x (qvs, prop) ->
-      let x' = x.x #: x.ty.nt in
+      let x' = x.x#:x.ty.nt in
       let phi = subst_prop_instance default_v (AVar x') x.ty.phi in
       (x' :: qvs, smart_add_to phi prop))
     (ctx_to_list rctx) ([], mk_true)
@@ -185,7 +185,7 @@ let destruct_haft_inner loc r =
     | RtyBase _ | RtyHAF _ | RtyHAParallel _ -> ([], r)
     | RtyArr { argcty; retrty; arg } ->
         let args, t = aux retrty in
-        ((arg #: argcty) :: args, t)
+        ((arg#:argcty) :: args, t)
   in
   aux r
 
@@ -197,7 +197,7 @@ let destruct_haft loc r =
         ([], destruct_haft_inner loc r)
     | RtyGArr { argnt; retrty; arg } ->
         let args, t = aux retrty in
-        ((arg #: argnt) :: args, t)
+        ((arg#:argnt) :: args, t)
   in
   aux r
 
@@ -242,11 +242,11 @@ let rec fresh_haft t =
   | RtyBase _ | RtyHAF _ | RtyHAParallel _ -> t
   | RtyArr { arg; argcty; retrty } ->
       let arg' = Rename.unique arg in
-      let retrty = subst_haft arg (AVar arg' #: argcty.nt) retrty in
+      let retrty = subst_haft arg (AVar arg'#:argcty.nt) retrty in
       RtyArr { arg = arg'; argcty; retrty = fresh_haft retrty }
   | RtyGArr { arg; argnt; retrty } ->
       let arg' = Rename.unique arg in
-      let retrty = subst_haft arg (AVar arg' #: argnt) retrty in
+      let retrty = subst_haft arg (AVar arg'#:argnt) retrty in
       RtyGArr { arg = arg'; argnt; retrty = fresh_haft retrty }
   | RtyInter (t1, t2) -> RtyInter (fresh_haft t1, fresh_haft t2)
 

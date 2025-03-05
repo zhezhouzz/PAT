@@ -13,17 +13,15 @@ let init_env =
 
 let add_to_env (env : syn_env) = function
   | PrimDecl { name; nt } ->
-      { env with tyctx = add_to_right env.tyctx name #: nt }
+      { env with tyctx = add_to_right env.tyctx name#:nt }
   | MsgNtDecl { generative; recvable; name; nt } ->
       let l =
-        match nt with
-        | Nt.Ty_record l -> l
-        | Nt.Ty_unit -> []
-        | _ -> _die [%here]
+        if Nt.equal_nt Nt.unit_ty nt then []
+        else match nt with Nt.Ty_record l -> l | _ -> _die [%here]
       in
-      let event_tyctx = add_to_right env.event_tyctx name #: l in
-      let gen_ctx = add_to_right env.gen_ctx name #: generative in
-      let recvable_ctx = add_to_right env.recvable_ctx name #: recvable in
+      let event_tyctx = add_to_right env.event_tyctx name#:l in
+      let gen_ctx = add_to_right env.gen_ctx name#:generative in
+      let recvable_ctx = add_to_right env.recvable_ctx name#:recvable in
       { env with event_tyctx; gen_ctx; recvable_ctx }
   | MsgDecl _ -> env
   | SynGoal _ -> env
@@ -92,7 +90,7 @@ let item_check (env : syn_env) = function
       {
         env with
         event_rtyctx =
-          add_to_right env.event_rtyctx name #: (handle_haft env haft);
+          add_to_right env.event_rtyctx name#:(handle_haft env haft);
       }
   | SynGoal { qvs; prop } -> (
       match env.goal with

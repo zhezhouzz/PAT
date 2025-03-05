@@ -31,7 +31,7 @@ let rec layout_pnt t =
   aux t
 
 and layout_pnt_typed str x =
-  match x with Nt.Ty_unit -> str | _ -> spf "%s: %s" str (layout_pnt x)
+  if Nt.equal_nt x Nt.unit_ty then str else spf "%s: %s" str (layout_pnt x)
 
 let layout_pnt_typed_var x =
   (* let () = Printf.printf "print tvar %s\n" x.x in *)
@@ -177,22 +177,24 @@ let rec layout_p_expr ctx n = function
         last
   | PRecieve { event_name; input; body } ->
       let first =
-        match input.ty with
-        | Nt.Ty_unit | Nt.Ty_record [] ->
-            spf "receive { case %s: {\n" event_name
-        | Nt.Ty_record _ ->
-            let ptype =
-              match List.of_seq @@ String.to_seq event_name with
-              | _ :: cs ->
-                  mk_p_abstract_ty (String.of_seq @@ List.to_seq ('t' :: cs))
-              | _ -> _die [%here]
-            in
-            let input = input.x #: ptype in
-            spf "receive { case %s: (%s) {\n" event_name
-              (layout_pnt_typed_var input)
-        | _ ->
-            spf "receive { case %s: (%s) {\n" event_name
-              (layout_pnt_typed_var input)
+        if Nt.equal_nt Nt.unit_ty input.ty then
+          spf "receive { case %s: {\n" event_name
+        else
+          match input.ty with
+          | Nt.Ty_record [] -> spf "receive { case %s: {\n" event_name
+          | Nt.Ty_record _ ->
+              let ptype =
+                match List.of_seq @@ String.to_seq event_name with
+                | _ :: cs ->
+                    mk_p_abstract_ty (String.of_seq @@ List.to_seq ('t' :: cs))
+                | _ -> _die [%here]
+              in
+              let input = input.x#:ptype in
+              spf "receive { case %s: (%s) {\n" event_name
+                (layout_pnt_typed_var input)
+          | _ ->
+              spf "receive { case %s: (%s) {\n" event_name
+                (layout_pnt_typed_var input)
       in
       let last = mk_indent n "}}" in
       spf "%s%s%s" first
@@ -330,19 +332,19 @@ let layout_item ctx = function
       if List.exists (String.equal x.x) p_primitive_types then ""
       else
         mk_indent_semicolon_line 0 @@ spf "type %s = %s" x.x (layout_pnt x.ty)
-  | PEventDecl x -> (
-      match x.ty with
-      | Nt.Ty_unit -> mk_indent_semicolon_line 0 @@ spf "event %s" x.x
-      | _ ->
-          let type_name_x =
-            String.mapi (fun i c -> if 0 == i then 't' else c) x.x
-          in
-          let str =
-            mk_indent_semicolon_line 0
-            @@ spf "type %s = %s" type_name_x (layout_pnt x.ty)
-          in
-          str ^ mk_indent_semicolon_line 0
-          @@ spf "event %s: %s" x.x (layout_pnt x.ty))
+  | PEventDecl x ->
+      if Nt.equal_nt x.ty Nt.unit_ty then
+        mk_indent_semicolon_line 0 @@ spf "event %s" x.x
+      else
+        let type_name_x =
+          String.mapi (fun i c -> if 0 == i then 't' else c) x.x
+        in
+        let str =
+          mk_indent_semicolon_line 0
+          @@ spf "type %s = %s" type_name_x (layout_pnt x.ty)
+        in
+        str ^ mk_indent_semicolon_line 0
+        @@ spf "event %s: %s" x.x (layout_pnt x.ty)
   | PMachine m -> layout_p_machine ctx 0 m
   | PGlobalFunc (name, f) -> layout_global_function ctx 0 (name, f)
 

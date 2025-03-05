@@ -114,7 +114,7 @@ let mybuild_euf vars =
         | Some l -> Hashtbl.replace space ty (x :: l))
       vars
   in
-  let aux ty vars =
+  let aux vars =
     let pairs = List.cross vars vars in
     let pairs =
       List.filter (function x, y -> compare_lit Nt.compare_nt x y > 0) pairs
@@ -126,20 +126,20 @@ let mybuild_euf vars =
     (*        pairs) *)
     (* in *)
     let eqlits =
-      List.map (fun l -> match l with x, y -> mk_lit_eq_lit ty x y) pairs
+      List.map (fun l -> match l with x, y -> mk_lit_eq_lit [%here] x y) pairs
     in
     eqlits
   in
   let res =
     Hashtbl.fold
       (fun ty vars res ->
-        if List.length vars > 1 && not (Nt.equal_nt ty Nt.Ty_bool) then
-          aux ty vars @ res
+        if List.length vars > 1 && not (Nt.equal_nt ty Nt.bool_ty) then
+          aux vars @ res
         else res)
       space []
   in
   let bres =
-    match Hashtbl.find_opt space Nt.Ty_bool with None -> [] | Some res -> res
+    match Hashtbl.find_opt space Nt.bool_ty with None -> [] | Some res -> res
   in
   (* let () = *)
   (*   Pp.printf "@{<bold>mybuild_euf:@} %s\n" (List.split_by_comma layout_lit res) *)
@@ -149,7 +149,7 @@ let mybuild_euf vars =
 let mk_ftab if_add_lt (vars : (Nt.nt, string) typed list) (cs : constant list) =
   (* Remove boolean constants *)
   let bvars, vars =
-    List.partition (fun x -> Nt.equal_nt x.ty Nt.Ty_bool) vars
+    List.partition (fun x -> Nt.equal_nt x.ty Nt.bool_ty) vars
   in
   let cs = List.filter (function B _ -> false | _ -> true) cs in
   let lits = List.map (fun x -> AVar x) vars @ List.map (fun x -> AC x) cs in
@@ -160,7 +160,7 @@ let mk_ftab if_add_lt (vars : (Nt.nt, string) typed list) (cs : constant list) =
   let additional =
     if if_add_lt then
       let int_lits =
-        List.filter (fun lit -> Nt.equal_nt Nt.Ty_int @@ lit_to_nt lit) lits
+        List.filter (fun lit -> Nt.equal_nt Nt.int_ty @@ lit_to_nt lit) lits
       in
       let () =
         _log "desym" @@ fun _ ->
@@ -169,11 +169,13 @@ let mk_ftab if_add_lt (vars : (Nt.nt, string) typed list) (cs : constant list) =
       in
       let pairs = List.combination_l int_lits 2 in
       let ltlits =
-        let lt = ">" #: Nt.(construct_arr_tp ([ Ty_int; Ty_int ], Ty_bool)) in
+        let lt =
+          ">"#:Nt.(construct_arr_tp ([ Nt.int_ty; Nt.int_ty ], Nt.bool_ty))
+        in
         List.map
           (fun l ->
             match l with
-            | [ x; y ] -> AAppOp (lt, [ x #: Nt.Ty_int; y #: Nt.Ty_int ])
+            | [ x; y ] -> AAppOp (lt, [ x#:Nt.int_ty; y#:Nt.int_ty ])
             | _ -> _die [%here])
           pairs
       in
@@ -185,7 +187,7 @@ let mk_ftab if_add_lt (vars : (Nt.nt, string) typed list) (cs : constant list) =
       ltlits
     else []
   in
-  let lits = List.map (fun lit -> lit #: (lit_to_nt lit)) lits in
+  let lits = List.map (fun lit -> lit#:(lit_to_nt lit)) lits in
   let res = List.map (fun x -> AVar x) bvars @ mybuild_euf lits @ additional in
   res
 

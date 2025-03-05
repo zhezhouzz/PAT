@@ -18,10 +18,9 @@ let build_features { bvs; bprop } (abd_vars, lits) =
   let fvs = List.choose_list_list fvs in
   let fvs =
     List.map
-      smart_and
-      #. (List.mapi (fun idx x ->
-              let lit = lit_to_prop @@ List.nth lits idx in
-              if x then lit else Not lit))
+      smart_and#.(List.mapi (fun idx x ->
+                      let lit = lit_to_prop @@ List.nth lits idx in
+                      if x then lit else Not lit))
       fvs
   in
   let fvs = List.filter (check_valid_pre { bvs = bvs @ abd_vars; bprop }) fvs in
@@ -61,7 +60,7 @@ let mk_abd_prop fvs =
 (*   let res = *)
 (*     Hashtbl.fold *)
 (*       (fun ty vars res -> *)
-(*         if List.length vars > 1 && not (Nt.equal_nt ty Nt.Ty_bool) then *)
+(*         if List.length vars > 1 && not (Nt.equal_nt ty Nt.bool_ty) then *)
 (*           aux ty vars @ res *)
 (*         else res) *)
 (*       space [] *)
@@ -79,7 +78,7 @@ let build_fvtab env lits =
   let bvars, lits =
     List.partition
       (function
-        | { x = AVar x; _ } when Nt.equal_nt x.ty Nt.Ty_bool -> true
+        | { x = AVar x; _ } when Nt.equal_nt x.ty Nt.bool_ty -> true
         | _ -> false)
       lits
   in
@@ -90,7 +89,7 @@ let build_fvtab env lits =
         (* if true then [] *)
         (* else *)
         let int_lits =
-          List.filter (fun lit -> Nt.equal_nt Nt.Ty_int lit.ty) lits
+          List.filter (fun lit -> Nt.equal_nt Nt.int_ty lit.ty) lits
         in
         let () =
           Pp.printf "@{<bold>int lits:@} %s\n"
@@ -98,7 +97,7 @@ let build_fvtab env lits =
         in
         let pairs = List.combination_l int_lits 2 in
         let ltlits =
-          let lt = ">" #: Nt.(construct_arr_tp ([ Ty_int; Ty_int ], Ty_bool)) in
+          let lt = ">"#:Nt.(construct_arr_tp ([ int_ty; int_ty ], bool_ty)) in
           List.map
             (fun l ->
               match l with
@@ -167,7 +166,7 @@ let abduction_automata env { bvs; bprop } (a : SFA.raw_regex) abd_vars =
             (List.is_empty
             @@ List.interset String.equal (fv_lit_id lit)
                  (List.map _get_x abd_vars)))
-        (build_fvtab env @@ List.map (fun l -> l #: (lit_to_nt l)) lits)
+        (build_fvtab env @@ List.map (fun l -> l#:(lit_to_nt l)) lits)
     in
     let fvs = build_features { bvs; bprop } (abd_vars, lits) in
     let () =

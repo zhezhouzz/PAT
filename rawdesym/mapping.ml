@@ -12,8 +12,8 @@ module Predictable = struct
 
   let mk_true = mk_true
   let mk_false = mk_false
-  let mk_lit lit = Lit lit #: Nt.Ty_bool
-  let mk_ite cond bencht benchf = Ite (Lit cond #: Nt.Ty_bool, bencht, benchf)
+  let mk_lit lit = Lit lit#:Nt.bool_ty
+  let mk_ite cond bencht benchf = Ite (Lit cond#:Nt.bool_ty, bencht, benchf)
   let mk_and = smart_add_to
   let mk_or l1 l2 = smart_or [ l1; l2 ]
   let mk_not p = Not p
@@ -51,7 +51,7 @@ let tab_to_prop tab =
   let res =
     Hashtbl.fold
       (fun lit b res ->
-        let lit = lit #: Nt.Ty_bool in
+        let lit = lit#:Nt.bool_ty in
         if b then Lit lit :: res else Not (Lit lit) :: res)
       tab []
   in
@@ -180,7 +180,7 @@ let get_local_prop features local_m id =
   smart_and
   @@ List.mapi
        (fun idx b ->
-         let p = Lit features.(idx) #: Nt.Ty_bool in
+         let p = Lit features.(idx)#:Nt.bool_ty in
          if b then p else Not p)
        bl
 

@@ -70,7 +70,7 @@ let elem_to_se ctx elem =
     (* in *)
     let l = _safe_combine [%here] vs args in
     let phi =
-      List.map (fun (a, b) -> lit_to_prop (mk_lit_eq_lit a.ty (AVar a) b)) l
+      List.map (fun (a, b) -> lit_to_prop (mk_lit_eq_lit [%here] (AVar a) b)) l
     in
     { op; vs; phi = smart_and phi }
   in

@@ -6,10 +6,9 @@ open Zdatatype
 
 let layout_qv x = spf "(%s: %s)" x.x (Nt.layout x.ty)
 let layout_qvs = List.split_by " " layout_qv
-let p_prim_types = [ "machine"; "any"; "string" ]
+let p_prim_types = [ "int"; "bool"; "machine"; "any"; "string" ]
 
 let rec is_p_prim_type = function
-  | Nt.Ty_bool | Nt.Ty_int -> true
   | Nt.Ty_record l -> List.for_all (fun x -> is_p_prim_type x.ty) l
   | Nt.Ty_tuple l -> List.for_all is_p_prim_type l
   | Nt.Ty_constructor (name, [])
@@ -23,7 +22,7 @@ let rec is_p_prim_type = function
 
 let get_absty nt =
   let rec aux = function
-    | Nt.Ty_bool | Nt.Ty_int | Nt.Ty_any -> []
+    | Nt.Ty_any -> []
     | Nt.Ty_record l -> List.concat_map (fun x -> aux x.ty) l
     | Nt.Ty_tuple l -> List.concat_map aux l
     | Nt.Ty_constructor (name, [])
@@ -43,6 +42,6 @@ let layout_value = function
 let is_gen env op = _get_force [%here] env.gen_ctx op
 
 let destruct_cty_var x =
-  let x' = x.x #: x.ty.nt in
+  let x' = x.x#:x.ty.nt in
   let phi = subst_prop_instance default_v (AVar x') x.ty.phi in
   (x', phi)
