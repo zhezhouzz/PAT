@@ -5,7 +5,7 @@
  (libraries syntax core)
  (modules
    common
-   to_rty
+   ; to_rty
    to_item
    to_term
    front

@@ -1,0 +1,24 @@
+(ocamllex
+ (modules lexer)
+)
+
+(menhir
+ (modules parser)
+ (flags -lg 1 -la 1 -lc 2)
+)
+
+(library
+ (name plang_parser)
+ (public_name haft.plang_parser)
+ (wrapped true)
+ (modules
+   compile
+   lexer
+   parser
+   paux
+   plang_parser
+ )
+ (preprocess (pps ppx_optcomp ppx_compare ppx_sexp_conv ppx_inline_test ppx_assert ppx_deriving.show ppx_deriving.eq ppx_deriving.ord ppx_here))
+ (libraries syntax menhirLib core ast)
+)
+

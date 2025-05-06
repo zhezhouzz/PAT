@@ -1,3 +1,4 @@
+include Plang_parser
 include Front
 include AutomataLibrary
 include Syntax
@@ -58,37 +59,7 @@ module Stat = struct
     in
     aux
 
-  let count_quantifier_haft =
-    let rec aux = function
-      | RtyBase { phi; _ } -> count_quantifier_prop phi
-      | RtyHAF { history; adding; future } ->
-          count_quantifier_rawregex history
-          + count_quantifier_rawregex adding
-          + count_quantifier_rawregex future
-      | RtyHAParallel { history; adding_se; parallel } ->
-          count_quantifier_rawregex history
-          + count_quantifier_se adding_se
-          + List.fold_left
-              (fun res se -> res + count_quantifier_se se)
-              0 parallel
-      | RtyGArr { retrty; _ } -> aux retrty
-      | RtyArr { argcty; retrty; _ } ->
-          count_quantifier_prop argcty.phi + aux retrty
-      | RtyInter (t1, t2) -> aux t1 + aux t2
-    in
-    aux
-
   let goal_size = ref 0
-
-  let mk_task_complexity (syn_env : syn_env) : task_complexity =
-    let l = ctx_to_list syn_env.event_rtyctx in
-    let n_op = List.length l in
-    let n_qualifier =
-      List.fold_right
-        (fun x res -> res + count_quantifier_haft x.ty)
-        l !goal_size
-    in
-    { n_qualifier; n_op }
 
   let count_vars term =
     let rec aux = function
@@ -217,41 +188,6 @@ module Stat = struct
       | Some r -> record := Some { r with t_total = exec_time }
     in
     res
-
-  let dump (env, term) filename =
-    let stat =
-      {
-        rate = 0.0;
-        n_retry = 0.0;
-        task_complexity = mk_task_complexity env;
-        result_complexity = mk_result_complexity term;
-        algo_complexity =
-          (match !record with None -> _die [%here] | Some x -> x);
-      }
-    in
-    let json = stat_to_yojson stat in
-    (* let () = Printf.printf "%s\n" @@ Yojson.Safe.to_string json in *)
-    (* let () = Printf.printf "file: %s\n" filename in *)
-    let () = Yojson.Safe.to_file filename json in
-    ()
-
-  let update_when_eval (env, term) rate n_retry filename =
-    let stat =
-      match stat_of_yojson @@ Yojson.Safe.from_file filename with
-      | Result.Ok x -> x
-      | Error _ -> _die [%here]
-    in
-    let stat =
-      {
-        stat with
-        rate;
-        n_retry;
-        task_complexity = mk_task_complexity env;
-        result_complexity = mk_result_complexity term;
-      }
-    in
-    let () = Yojson.Safe.to_file filename @@ stat_to_yojson stat in
-    ()
 
   let update rate filename =
     let stat =

@@ -13,7 +13,7 @@
  (name syntax)
  (wrapped true)
  (modules
-   common
+   ; common
    ; item
    ; inst
    ; pmachine

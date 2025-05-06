@@ -4,15 +4,13 @@
  (libraries
   core
   language
-  ntypecheck
-  synthesis
-  interpreter
-  pbackend
+  ; ntypecheck
+  ; synthesis
+  ; interpreter
+  ; pbackend
   )
  (modules
-  caux
-  ctest
-  cre)
+  cbin)
  (preprocess
   (pps ppx_inline_test ppx_assert ppx_jane ppx_here))
  (inline_tests))

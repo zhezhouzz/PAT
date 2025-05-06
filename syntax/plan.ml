@@ -1,6 +1,5 @@
 open Zdatatype
 open AutomataLibrary
-open Common
 open Ast
 
 let layout_cur = layout_se
@@ -63,21 +62,22 @@ let value_to_lit = function VVar x -> AVar x | VConst c -> AC c
 
 let elem_to_se ctx elem =
   let mk_c (op, args) =
-    let vs = _get_force [%here] ctx op in
+    let event_ty = _get_force [%here] ctx op in
+    let l = Nt.get_record_types event_ty in
     (* let () = *)
     (*   Printf.printf "op: %s\n vs: %s\n args:%s\n" op (layout_qvs vs) *)
     (*     (List.split_by_comma layout_lit args) *)
     (* in *)
-    let l = _safe_combine [%here] vs args in
+    let l = _safe_combine [%here] l args in
     let phi =
       List.map (fun (a, b) -> lit_to_prop (mk_lit_eq_lit [%here] (AVar a) b)) l
     in
-    { op; vs; phi = smart_and phi }
+    { op; event_ty; phi = smart_and phi }
   in
   match elem with
   | PlanActBuffer { op; args; phi = p } ->
-      let { op; vs; phi } = mk_c (op, List.map (fun x -> AVar x) args) in
-      { op; vs; phi = smart_add_to p phi }
+      let { op; event_ty; phi } = mk_c (op, List.map (fun x -> AVar x) args) in
+      { op; event_ty; phi = smart_add_to p phi }
   | PlanAct { op; args } -> mk_c (op, List.map (fun x -> AVar x) args)
   | PlanSe cur -> cur
   | _ -> _die [%here]
@@ -104,41 +104,16 @@ let smart_and_se se1 elem =
     Pp.printf "@{<bold>smart_and_se:@} %s --> %s\n" (layout_cur se1)
       (layout_elem elem)
   in
-  let { op = op1; vs = vs1; phi = phi_1 } = se1 in
+  let { op = op1; event_ty; phi = phi_1 } = se1 in
   match elem with
   | PlanStarInv _ | PlanStar _ -> _die_with [%here] "never"
   | PlanSe se ->
       let { op = op2; phi = phi_2; _ } = se in
       if String.equal op1 op2 then
-        Some (PlanSe { op = op1; vs = vs1; phi = smart_add_to phi_1 phi_2 })
+        Some (PlanSe { op = op1; event_ty; phi = smart_add_to phi_1 phi_2 })
       else None
-  | PlanAct { op = op2; args } ->
-      if String.equal op1 op2 then
-        let phi_1' =
-          List.fold_right
-            (fun (x, y) -> subst_prop_instance x.x (AVar y))
-            (_safe_combine [%here] vs1 args)
-            phi_1
-        in
-        let () =
-          _log "plan" @@ fun _ ->
-          Pp.printf "op: %s\n" op1;
-          Pp.printf "vs1: %s\n" (layout_qvs vs1);
-          Pp.printf "args: %s\n" (layout_qvs args);
-          Pp.printf "phi_1': %s\n" (layout_prop phi_1')
-        in
-        Some (PlanActBuffer { op = op2; args; phi = phi_1' })
-      else None
-  | PlanActBuffer { op = op2; args; phi = phi_2 } ->
-      if String.equal op1 op2 then
-        let phi_1' =
-          List.fold_right
-            (fun (x, y) -> subst_prop_instance x.x (AVar y))
-            (_safe_combine [%here] vs1 args)
-            phi_1
-        in
-        Some (PlanActBuffer { op = op2; args; phi = smart_add_to phi_1' phi_2 })
-      else None
+  | PlanAct _ -> _die [%here]
+  | PlanActBuffer _ -> _die [%here]
 
 let smart_and_se_in_cs cs cur =
   SFA.CharSet.fold
@@ -234,8 +209,7 @@ let comple_cs cs cs' =
   let open SFA in
   let cs =
     CharSet.filter_map
-      (fun se ->
-        let op, vs, phi = _get_sevent_fields se in
+      (fun { op; event_ty; phi } ->
         let phis =
           CharSet.fold
             (fun se' phis ->
@@ -244,7 +218,7 @@ let comple_cs cs cs' =
             cs' []
         in
         let phi = smart_add_to phi (smart_not (smart_or phis)) in
-        Some { op; vs; phi })
+        Some { op; event_ty; phi })
       cs
   in
   cs
@@ -253,8 +227,7 @@ let inter_cs cs1 cs2 =
   let open SFA in
   let cs =
     CharSet.filter_map
-      (fun se ->
-        let op, vs, phi = _get_sevent_fields se in
+      (fun { op; event_ty; phi } ->
         let phis =
           CharSet.fold
             (fun se' phis ->
@@ -263,7 +236,7 @@ let inter_cs cs1 cs2 =
             cs2 []
         in
         let phi = smart_add_to phi (smart_or phis) in
-        if is_false phi then None else Some { op; vs; phi })
+        if is_false phi then None else Some { op; event_ty; phi })
       cs1
   in
   cs
@@ -512,14 +485,14 @@ let subst_elem x z = function
         }
   | PlanAct { op; args } ->
       PlanAct { op; args = List.map (subst_name_qv x z) args }
-  | PlanSe { op; vs; phi } ->
-      let op, vs, phi =
-        _get_sevent_fields @@ subst_sevent_instance x (AVar z) { op; vs; phi }
+  | PlanSe { op; event_ty; phi } ->
+      let { op; event_ty; phi } =
+        subst_sevent_instance x (AVar z) { op; event_ty; phi }
       in
-      PlanSe { op; vs; phi }
+      PlanSe { op; event_ty; phi }
   | PlanStarInv cs ->
       PlanStarInv (SFA.CharSet.map (subst_sevent_instance x (AVar z)) cs)
-  | PlanStar r -> PlanStar (subst_raw_sregex x (AVar z) r)
+  | PlanStar _ -> _die [%here]
 
 let subst_plan x z = List.map (subst_elem x z)
 
