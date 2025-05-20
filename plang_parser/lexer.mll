@@ -35,6 +35,7 @@ rule next_token = parse
       { next_line lexbuf; next_token lexbuf }
   | "(*"
       { comment 0 lexbuf; next_token lexbuf }
+  | "//" { comment_line 0 lexbuf; next_token lexbuf }
 
   (* YOUR TOKENS HERE... *)
   (* keywords... *)
@@ -46,6 +47,7 @@ rule next_token = parse
   | "let" {LET}
   | "syn" {SYN}
   | "param" {PARAM}
+  | "enum" {ENUM}
   (* | "in" {IN} *)
   | "all" {ALL}
   | "state" {STATE}
@@ -146,11 +148,16 @@ and read_string buf =
 
 (* allow nested comments, like OCaml *)
 and comment nesting = parse
-  | "(*"
+  | "(*" | "/*"
     { comment (nesting+1) lexbuf }
-  | "*)"
+  | "*)" | "*/"
     { if nesting > 0 then comment (nesting - 1) lexbuf }
   | eof
-    { failwith "[lexer] unterminated comment at EOF" }
+    { failwith "[lexer] unterminated comment (* *) or /* */ at EOF" }
   | _
     { comment nesting lexbuf }
+
+and comment_line nesting = parse
+  | newline { if nesting > 0 then comment (nesting - 1) lexbuf }
+  | eof { failwith "[lexer] unterminated comment // at EOF" }
+  | _ { comment_line nesting lexbuf }

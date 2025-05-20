@@ -8,29 +8,79 @@ type t = Nt.t
 
 let _log = Myconfig._log_preprocess
 
-type basic_typing_ctx = {
-  prop_ctx : Nt.nt prop ctx;
-  payload_ctx : Nt.nt p_payload_prop ctx;
-  payload_gen_ctx : Nt.nt p_payload_gen ctx;
-  syn_ctx : Nt.nt p_syn ctx;
-  machine_ctx : unit ctx;
-  event_ctx : Nt.nt ctx;
-  ctx : Nt.nt ctx;
-}
+let get_event_type_from_type event_ctx ty =
+  match ty with
+  | Nt.Ty_constructor (name, []) -> get_opt event_ctx name
+  | Nt.Ty_record { alias = Some name; _ } -> get_opt event_ctx name
+  | _ -> None
 
-let mk_basic_typing_ctx =
-  {
-    prop_ctx = emp;
-    payload_ctx = emp;
-    payload_gen_ctx = emp;
-    syn_ctx = emp;
-    machine_ctx = emp;
-    event_ctx = emp;
-    ctx = emp;
-  }
+let constraint_p_prop_type_check bctx (bc : BC.bc) (prop : t prop) =
+  let rec aux ctx bc prop =
+    match prop with
+    | Lit lit ->
+        let bc, lit = constraint_lit_type_check ctx bc lit in
+        let bc, _ = BC.add bc (lit.ty, Nt.bool_ty) in
+        (bc, Lit lit.x#:Nt.bool_ty)
+    | Implies (e1, e2) ->
+        let bc, e1 = aux ctx bc e1 in
+        let bc, e2 = aux ctx bc e2 in
+        (bc, Implies (e1, e2))
+    | Ite (e1, e2, e3) ->
+        let bc, e1 = aux ctx bc e1 in
+        let bc, e2 = aux ctx bc e2 in
+        let bc, e3 = aux ctx bc e3 in
+        (bc, Ite (e1, e2, e3))
+    | Not e ->
+        let bc, e = aux ctx bc e in
+        (bc, Not e)
+    | And es ->
+        let bc, es =
+          List.fold_left
+            (fun (bc, res) e ->
+              let bc, e = aux ctx bc e in
+              (bc, res @ [ e ]))
+            (bc, []) es
+        in
+        (bc, And es)
+    | Or es ->
+        let bc, es =
+          List.fold_left
+            (fun (bc, res) e ->
+              let bc, e = aux ctx bc e in
+              (bc, res @ [ e ]))
+            (bc, []) es
+        in
+        (bc, Or es)
+    | Iff (e1, e2) ->
+        let bc, e1 = aux ctx bc e1 in
+        let bc, e2 = aux ctx bc e2 in
+        (bc, Iff (e1, e2))
+    | Forall { qv; body } ->
+        let qv = Nt.__force_typed [%here] qv in
+        let qv_ty =
+          match get_event_type_from_type bctx.event_ctx qv.ty with
+          | None -> qv.ty
+          | Some ty -> ty
+        in
+        let bc, body = aux (add_to_right ctx qv.x#:qv_ty) bc body in
+        (bc, Forall { qv; body })
+    | Exists { qv; body } ->
+        let qv = Nt.__force_typed [%here] qv in
+        let qv_ty =
+          match get_event_type_from_type bctx.event_ctx qv.ty with
+          | None -> qv.ty
+          | Some ty -> ty
+        in
+        let bc, body = aux (add_to_right ctx qv.x#:qv_ty) bc body in
+        (bc, Exists { qv; body })
+  in
+  aux bctx.ctx bc prop
 
 let rec constraint_p_stmt_type_check bctx (bc : BC.bc) e =
   match e with
+  | PMute lit ->
+      let bc, lit = constraint_lit_type_check bctx.ctx bc lit in
+      (bc, PMute lit)
   | PAssign { assign_kind; lvalue; rvalue } ->
       let bc, lvalue = constraint_lit_type_check bctx.ctx bc lvalue in
       let bc, rvalue = constraint_lit_type_check bctx.ctx bc rvalue in
@@ -157,7 +207,7 @@ let p_state_type_check bctx { name; state_label; state_body } =
   { name; state_label; state_body }
 
 let p_machine_type_check bctx { name; local_vars; local_funcs; states } =
-  let local_funcs_vars = List.map get_p_func_ty local_funcs in
+  let local_funcs_vars = List.map get_p_func_var local_funcs in
   let bctx =
     { bctx with ctx = add_to_rights bctx.ctx (local_funcs_vars @ local_vars) }
   in
@@ -166,23 +216,32 @@ let p_machine_type_check bctx { name; local_vars; local_funcs; states } =
 
 let p_item_type_check bctx item =
   match item with
-  | PTopSimplDecl { kind = TopType; _ } -> _die [%here]
+  | PEnumDecl (name, es) ->
+      let es = List.map (fun x -> x#:(Nt.mk_uninterp name)) es in
+      let ctx = add_to_rights bctx.ctx es in
+      ({ bctx with ctx }, item)
+  | PTopSimplDecl { kind = TopType; _ } -> (bctx, item)
   | PTopSimplDecl { kind = TopVar; tvar } ->
       let ctx = add_to_right bctx.ctx tvar in
       ({ bctx with ctx }, item)
   | PTopSimplDecl { kind = TopEvent; tvar } ->
-      let event_ctx = add_to_right bctx.ctx tvar in
+      let event_ctx = add_to_right bctx.event_ctx tvar in
       ({ bctx with event_ctx }, item)
   | PGlobalProp { name; prop } ->
-      let bc, prop = constraint_prop_type_check bctx.ctx (BC.empty []) prop in
+      let bc, prop = constraint_p_prop_type_check bctx (BC.empty []) prop in
       let sol = solve bc in
       let prop = map_prop (Nt.msubst_nt sol) prop in
       let prop_ctx = add_to_right bctx.prop_ctx name#:prop in
       ({ bctx with prop_ctx }, PGlobalProp { name; prop })
   | PPayload { name; self_event; prop } ->
+      let () =
+        Printf.printf "%s\n" (Typectx.layout_ctx Nt.layout bctx.event_ctx)
+      in
       let e = self_event.x#:(_get_force [%here] bctx.event_ctx self_event.ty) in
       let ctx' = add_to_right bctx.ctx e in
-      let bc, prop = constraint_prop_type_check ctx' (BC.empty []) prop in
+      let bc, prop =
+        constraint_p_prop_type_check { bctx with ctx = ctx' } (BC.empty []) prop
+      in
       let sol = solve bc in
       let prop = map_prop (Nt.msubst_nt sol) prop in
       let payload = { name; self_event; prop } in
@@ -200,15 +259,14 @@ let p_item_type_check bctx item =
       in
       ({ bctx with payload_gen_ctx }, PPayloadGen payload_gen)
   | PSyn { name; gen_num; cnames } ->
-      let f (x, ass) =
-        let x_ty = _get_force [%here] bctx.ctx x in
+      let f (x, dest, ass) =
+        let _ = _get_force [%here] bctx.event_ctx x in
         match ass.x with
-        | AC c ->
-            if Nt.equal_nt (constant_to_nt c) x_ty then (x, ass.x#:x_ty)
-            else _die [%here]
+        | AC (I _) -> (x, dest, ass.x#:Nt.int_ty)
         | AVar y ->
             let y_ty = _get_force [%here] bctx.ctx y.x in
-            if Nt.equal_nt y_ty x_ty then (x, (AVar y.x#:x_ty)#:x_ty)
+            if Nt.equal_nt y_ty Nt.int_ty then
+              (x, dest, (AVar y.x#:Nt.int_ty)#:Nt.int_ty)
             else _die [%here]
         | _ -> _die [%here]
       in

@@ -1,12 +1,12 @@
-include Basic_typing
-
 (* include Normalization *)
 open Language
 open Zutils
+include Basic_typing
 
 let _ctxs = ref None
 let _log = Myconfig._log_preprocess
 let predefined_files = [ "basic_typing.ml" ]
+(* let predefined_files = [] *)
 
 let load_ctxs () =
   match !_ctxs with
@@ -35,10 +35,7 @@ let load_alias () =
 let preproress source_file =
   let items = parse_plang source_file in
   let _, items = Type_alias.item_inline (load_alias ()) items in
-  let bctx, _ = p_items_type_check (load_bctx ()) items in
-  (* let () = Pp.printf "@{<bold>result:@}\n%s\n" (layout_structure code) in *)
-  (* let () = *)
-  (*   Pp.printf "@{<bold>alias:@}\n%s\n" (Type_alias.layout_alias (load_alias ())) *)
-  (* in *)
+  (* let () = Pp.printf "@{<bold>result:@}\n%s\n" (layout_p_items items) in *)
   (* let () = _die [%here] in *)
-  bctx
+  let bctx, items = p_items_type_check (load_bctx ()) items in
+  (bctx, items)

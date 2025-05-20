@@ -6,6 +6,6 @@
 (executable
  (name main)
  (modules main)
- (libraries core core_unix.command_unix language preprocess)
+ (libraries core core_unix.command_unix language preprocess AutomataLibrary codegen)
  (preprocess
   (pps ppx_jane)))

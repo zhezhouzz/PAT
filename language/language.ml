@@ -213,6 +213,9 @@ end
 module Prover = struct
   include Prover
 
-  let check_sat_bool p = Stat.stat_sat_query (fun () -> check_sat_bool p)
-  let check_valid p = Stat.stat_sat_query (fun () -> check_valid p)
+  (* let check_sat_bool p = Stat.stat_sat_query (fun () -> check_sat_bool p) *)
+  (* let check_valid p = Stat.stat_sat_query (fun () -> check_valid p) *)
+
+  let check_sat_bool p = check_sat_bool p
+  let check_valid p = check_valid p
 end

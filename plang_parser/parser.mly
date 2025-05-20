@@ -7,7 +7,7 @@
 (* tokens *)
 (* keywords *)
 %token EOF TYPE CONST MACHINE EVENT LET FUN ALL GOTO DO
-%token STATE HOT COLD START PLAIN ENTRY EXIT LISTEN ON LOCAL THIS HALT NULL RANDOMBOOL RETURN PROP SYN WITH PARAM
+%token STATE HOT COLD START PLAIN ENTRY EXIT LISTEN ON LOCAL THIS HALT NULL RANDOMBOOL RETURN PROP SYN WITH PARAM ENUM
 (* arithmetic operators *)
 %token PLUS MINUS STAR DIV LT GT LE GE NEQ EQ NEG
 (* logic operators *)
@@ -31,13 +31,16 @@
 
 nt:
   | INT {Nt.int_ty}
+  | MACHINE {p_machine_ty}
   | BOOL {Nt.bool_ty}
   | UNIT {Nt.unit_ty}
+  | n=NUMBER {Nt.Ty_var (Printf.sprintf "x%i" n)}
   | nt1=nt ARROW nt2=nt {Nt.mk_arr nt1 nt2}
   | nt=nt id=IDENT {Nt.Ty_constructor (id, [nt]) }
   | id=IDENT {Nt.mk_uninterp id}
   | LPAR fds=type_fields RPAR {Nt.mk_record None fds}
   | LPAR tuple=type_list RPAR {Nt.Ty_tuple tuple}
+  | FORALL n=NUMBER DOT nt=nt {Nt.Ty_poly (Printf.sprintf "x%i" n, nt) }
 ;
 
 type_fields:
@@ -61,8 +64,6 @@ biop:
   | GE {">="}
   | EQ {"=="}
   | NEQ {"!="}
-  | AND {"&&"}
-  | OR {"||"}
   | IN {"in"}
 ;
 
@@ -91,6 +92,7 @@ expr:
 | LPAR lit=expr COMMA args=args RPAR { mk (ATu (lit :: args)) $startpos}
 | LPAR id=IDENT ASSIGN expr=expr COMMA es=id_eq_expr_list RPAR {mk (ARecord ((id, expr) ::es)) $startpos}
 | record=expr DOT field=NUMBER { mk (AProj (record, field)) $startpos}
+| record=expr DOT field=IDENT { mk (AField (record, field)) $startpos}
 | NEG e=expr {mk (mk_not_lit e $startpos) $startpos}
 | e1=expr op=biop e2=expr {mk (mk_biop_lit op e1 e2 $startpos) $startpos}
 | pfunc=IDENT LPAR RPAR {mk (mk_app_lit pfunc [] $startpos) $startpos}
@@ -99,14 +101,15 @@ expr:
 ;
 
 prop:
-| lit=expr { Lit lit }
 | NOT p1=prop { Not p1 }
 | p1=prop IMPL p2=prop { Implies (p1, p2)}
 | p1=prop IFF p2=prop { Iff (p1, p2)}
 | p1=prop AND p2=prop { And [p1; p2]}
 | p1=prop OR p2=prop { Or [p1; p2]}
-| FORALL e=IDENT COLON nt=nt DOT body=prop { Forall {qv = e#:($startpos, nt); body}}
-| EXISTS e=IDENT COLON nt=nt DOT body=prop { Forall {qv = e#:($startpos, nt); body}}
+| FORALL LPAR e=IDENT COLON nt=nt RPAR DOT body=prop { Forall {qv = e#:($startpos, nt); body}}
+| EXISTS LPAR e=IDENT COLON nt=nt RPAR DOT body=prop { Exists {qv = e#:($startpos, nt); body}}
+| LPAR e=prop RPAR {e}
+| lit=expr { Lit lit }
 ;
 
 gen_num:
@@ -119,17 +122,29 @@ constaints:
 | name=IDENT COMMA cs=constaints { name :: cs }
 ;
 
+id_eq_dest_expr_list:
+| id=IDENT ASSIGN LPAR dest=IDENT COMMA expr=expr RPAR COMMA cs=id_eq_dest_expr_list {(id, dest, expr)::cs}
+| id=IDENT ASSIGN LPAR dest=IDENT COMMA expr=expr RPAR {[(id, dest, expr)]}
+;
+
+ids:
+| c=IDENT COMMA cs=ids {c :: cs}
+| c=IDENT {[c]}
+;
+
 item:
+| ENUM id=IDENT LBRACKET ids=ids RBRACKET { PEnumDecl (id, ids) }
 | TYPE id=IDENT ASSIGN nt=nt SEMICOLON { PTopSimplDecl { kind = TopType; tvar = (id #:($startpos, nt)) } }
 | EVENT id=IDENT COLON nt=nt SEMICOLON { PTopSimplDecl { kind = TopEvent; tvar = (id #:($startpos, nt)) } }
 | PARAM id=IDENT COLON nt=nt SEMICOLON { PTopSimplDecl { kind = TopVar; tvar = (id #:($startpos, nt)) } }
 | FUN id=IDENT COLON nt=nt SEMICOLON { PTopSimplDecl { kind = TopVar; tvar = (id #:($startpos, nt)) } }
+| FUN LPAR id=biop RPAR COLON nt=nt SEMICOLON { PTopSimplDecl { kind = TopVar; tvar = (id #:($startpos, nt)) } }
 | PROP name=IDENT ASSIGN prop=prop SEMICOLON { PGlobalProp {name; prop} }
 | PROP name=IDENT ON event=IDENT DO id=IDENT WITH prop=prop SEMICOLON
                                      { PPayload {name; self_event = (id #: event); prop} }
 | PROP name=IDENT ON event=IDENT DO id=IDENT ASSIGN body=expr SEMICOLON
                                      { PPayloadGen {name; self_event = (id #: event); body} }
-| SYN name=IDENT ON LPAR gen_num=id_eq_expr_list RPAR WITH cnames=constaints SEMICOLON
+| SYN name=IDENT ON LPAR gen_num=id_eq_dest_expr_list RPAR WITH cnames=constaints SEMICOLON
                                                                    { PSyn {name; gen_num; cnames} }
 ;
 

@@ -6,6 +6,7 @@ let subst_t_p_expr = typed_subst_lit
 
 let rec subst_p_stmt (_x : string) f (e : 't p_stmt) =
   match e with
+  | PMute lit -> PMute (subst_t_p_expr _x f lit)
   | PAssign { assign_kind; lvalue; rvalue } ->
       let lvalue, rvalue = map2 (subst_t_p_expr _x f) (lvalue, rvalue) in
       PAssign { assign_kind; lvalue; rvalue }
@@ -60,6 +61,7 @@ let subst_p_machine _x f
 
 let subst_p_item _x f (item : 't p_item) =
   match item with
+  | PEnumDecl (name, es) -> PEnumDecl (name, es)
   | PTopSimplDecl { kind; tvar } -> PTopSimplDecl { kind; tvar }
   | PGlobalProp { name; prop } ->
       PGlobalProp { name; prop = subst_prop _x f prop }
@@ -69,7 +71,9 @@ let subst_p_item _x f (item : 't p_item) =
       PPayloadGen { name; self_event; body = subst_t_p_expr _x f body }
   | PSyn { name; gen_num; cnames } ->
       let gen_num =
-        List.map (fun (x, ass) -> (x, subst_t_p_expr _x f ass)) gen_num
+        List.map
+          (fun (x, dest, ass) -> (x, dest, subst_t_p_expr _x f ass))
+          gen_num
       in
       PSyn { name; gen_num; cnames }
 

@@ -3,6 +3,10 @@ open Zdatatype
 
 let rec layout_pnt t =
   let open Nt in
+  let get_var_id x =
+    (* Printf.printf "%s\n" x; *)
+    String.sub x 1 (String.length x - 1)
+  in
   let rec aux = function
     | Ty_constructor (name, [ ty ]) when String.equal name "set" ->
         spf "set[%s]" (aux ty)
@@ -10,9 +14,15 @@ let rec layout_pnt t =
         spf "seq[%s]" (aux ty)
     | Ty_constructor (name, [ ty1; ty2 ]) when String.equal name "map" ->
         spf "map[%s, %s]" (aux ty1) (aux ty2)
+    | Ty_constructor (name, []) -> name
+    | Ty_constructor _ -> _die [%here]
+    | Ty_arrow (t1, t2) -> spf "%s -> %s" (aux t1) (aux t2)
+    | Ty_var x -> get_var_id x
+    | Ty_poly (x, body) -> spf "forall %s. %s" (get_var_id x) (aux body)
     | Ty_tuple ts when List.length ts > 1 ->
         spf "(%s)" @@ List.split_by ", " aux ts
     | Ty_record { fds; _ } -> (
+        (* let alias = match alias with None -> "_noalias" | Some x -> x in *)
         match fds with
         | [] -> ""
         | x :: _ when String.equal x.x "0" ->
@@ -58,6 +68,8 @@ let layout_p_expr =
         spf "%s %s" op.x (aux e1)
     | AAppOp (op, [ e1; e2 ]) when String.equal op.x "seq_nth" ->
         spf "%s[%s]" (aux e1) (aux e2)
+    | AAppOp (op, [ e1; e2 ]) when String.equal op.x "map_get" ->
+        spf "%s[%s]" (aux e1) (aux e2)
     | AAppOp (op, [ e1; e2 ]) when List.exists (String.equal op.x) binop ->
         spf "(%s %s %s)" (aux e1) op.x (aux e2)
     | AAppOp (op, [ e1 ]) when List.exists (String.equal op.x) unop ->
@@ -87,15 +99,16 @@ let layout_p_prop =
     | Iff (p1, p2) -> spf "(%s == %s)" (aux p1) (aux p2)
     | Ite _ -> _die_with [%here] "unimp"
     | Forall { qv; body } ->
-        spf "forall (%s). %s" (layout_pnt_typed_var qv) (aux body)
+        spf "(forall (%s). %s)" (layout_pnt_typed_var qv) (aux body)
     | Exists { qv; body } ->
-        spf "exists (%s). %s" (layout_pnt_typed_var qv) (aux body)
+        spf "(exists (%s). %s)" (layout_pnt_typed_var qv) (aux body)
   in
   aux
 
 let rec layout_p_stmt n stmt =
   let last_semi = mk_indent_line n "}" in
   match stmt with
+  | PMute lit -> mk_indent_line n @@ spf "%s;" @@ layout_p_expr lit
   | PAssign { assign_kind = Assign; lvalue; rvalue } ->
       mk_indent_line n
       @@ spf "%s = %s;" (layout_p_expr lvalue) (layout_p_expr rvalue)
@@ -104,7 +117,7 @@ let rec layout_p_stmt n stmt =
       @@ spf "%s += (%s);" (layout_p_expr lvalue) (layout_p_expr rvalue)
   | PAssign { assign_kind = AssignSeqAdd; lvalue; rvalue } ->
       mk_indent_line n
-      @@ spf "%s = (0, %s);" (layout_p_expr lvalue) (layout_p_expr rvalue)
+      @@ spf "%s += (0, %s);" (layout_p_expr lvalue) (layout_p_expr rvalue)
   | PAssign { assign_kind = AssignMapAdd; lvalue; rvalue } -> (
       match rvalue.x with
       | ATu [ e1; e2 ] ->
@@ -189,21 +202,25 @@ let layout_func_label = function
   | Listen name -> spf "on %s do" name
 
 let layout_p_func n { name; func_label; params; retty; closure } =
+  let params_str = List.split_by ", " layout_pnt_typed_var params in
   let head =
-    let params_str = List.split_by ", " layout_pnt_typed_var params in
-    if List.length params == 0 then " {\n"
-    else layout_pnt_typed (spf "(%s)" params_str) retty ^ " {\n"
-  in
-  let name =
     match func_label with
-    | Plain -> spf "fun %s" name
-    | Entry -> "entry"
+    | Plain ->
+        if List.length params == 0 then
+          layout_pnt_typed (spf "fun %s()" name) retty ^ " {"
+        else layout_pnt_typed (spf "fun %s (%s)" name params_str) retty ^ " {"
+    | Entry ->
+        if List.length params == 0 then layout_pnt_typed "entry" retty ^ " {"
+        else layout_pnt_typed (spf "entry (%s)" params_str) retty ^ " {"
     | Exit -> "exit"
-    | Listen name -> spf "on %s do" name
+    | Listen name ->
+        let prefix = spf "on %s do" name in
+        if List.length params == 0 then spf "%s {" prefix
+        else layout_pnt_typed (spf "%s (%s)" prefix params_str) retty ^ " {"
   in
   let closure = layout_p_closure n closure in
   let last = mk_indent_line n "}" in
-  spf "%s%s%s%s" name head closure last
+  spf "%s%s%s" (mk_indent_line n head) closure last
 
 let layout_state_label = function
   | Hot -> "hot"
@@ -212,15 +229,15 @@ let layout_state_label = function
 
 let layout_state_labels = function
   | [] -> ""
-  | [ x ] -> layout_state_label x
+  | [ x ] -> layout_state_label x ^ " "
   | [ Start; x ] | [ x; Start ] ->
-      spf "%s %s" (layout_state_label Start) (layout_state_label x)
+      spf "%s %s " (layout_state_label Start) (layout_state_label x)
   | _ -> _die [%here]
 
 let layout_p_state n { name; state_label; state_body } =
   let head =
     mk_indent_line n
-    @@ spf "%s state %s {" (layout_state_labels state_label) name
+    @@ spf "%sstate %s {" (layout_state_labels state_label) name
   in
   let state_body_str = List.split_by "" (layout_p_func (n + 1)) state_body in
   let last = mk_indent_line n "}" in
@@ -256,9 +273,16 @@ let layout_p_payload_gen n { name; self_event; body } =
   spf "%s%s" head prop
 
 let layout_p_syn n { name; gen_num; cnames } =
+  let gen_num =
+    List.map
+      (fun (x, dest, ass) ->
+        let dest = lit_to_tlit @@ AVar dest#:(mk_p_set_ty p_machine_ty) in
+        (x, lit_to_tlit @@ ATu [ dest; ass ]))
+      gen_num
+  in
   let record = lit_to_tlit @@ ARecord gen_num in
   let head =
-    mk_indent_line n @@ spf "syn %s on (%s) with" name (layout_p_expr record)
+    mk_indent_line n @@ spf "syn %s on %s with" name (layout_p_expr record)
   in
   let cs =
     mk_indent_line (n + 1)
@@ -266,3 +290,29 @@ let layout_p_syn n { name; gen_num; cnames } =
     @@ List.split_by_comma (fun x -> x) cnames
   in
   spf "%s%s" head cs
+
+let layout_p_item n item =
+  match item with
+  | PEnumDecl (name, es) ->
+      mk_indent_line n
+      @@ spf "enum %s {%s}" name (List.split_by ", " (fun x -> x) es)
+  | PTopSimplDecl { kind = TopType; tvar } ->
+      mk_indent_line n @@ spf "type %s = %s;" tvar.x (layout_pnt tvar.ty)
+  | PTopSimplDecl { kind = TopVar; tvar } ->
+      if Nt.is_base_tp tvar.ty then
+        mk_indent_line n @@ spf "param %s : %s;" tvar.x (layout_pnt tvar.ty)
+      else if is_builtin_op tvar.x then
+        mk_indent_line n @@ spf "fun ( %s ): %s;" tvar.x (layout_pnt tvar.ty)
+      else mk_indent_line n @@ spf "fun %s : %s;" tvar.x (layout_pnt tvar.ty)
+  | PTopSimplDecl { kind = TopEvent; tvar } ->
+      mk_indent_line n @@ spf "event %s : %s;" tvar.x (layout_pnt tvar.ty)
+  | PGlobalProp { name; prop } ->
+      let head = mk_indent_line n @@ spf "prop %s =" name in
+      let prop = mk_indent_line (n + 1) @@ spf "%s;" @@ layout_p_prop prop in
+      spf "%s%s" head prop
+  | PPayload x -> layout_p_payload_prop n x
+  | PPayloadGen x -> layout_p_payload_gen n x
+  | PSyn x -> layout_p_syn n x
+
+let layout_p_items items =
+  String.concat "\n" @@ List.map (layout_p_item 0) items

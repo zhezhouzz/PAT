@@ -3,6 +3,7 @@ open OcamlParser
 open Parsetree
 open Zdatatype
 open AutomataLibrary
+open Myconfig
 
 let rec parse_goal expr =
   match expr.pexp_desc with
@@ -14,7 +15,7 @@ let rec parse_goal expr =
         | _ -> _die_with [%here] "wrong format"
       in
       (v :: vs, srl)
-  | _ -> ([], symbolic_regex_of_expr expr)
+  | _ -> ([], SFA.rich_regex_to_regex @@ rich_symbolic_regex_of_expr expr)
 
 let ocaml_structure_item_to_p_event_decl structure =
   match structure.pstr_desc with

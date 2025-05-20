@@ -1,6 +1,7 @@
 open Ast
 open Zutils
 open Zdatatype
+include Compile
 
 let layout_position (p : Lexing.position) =
   let open Lexing in

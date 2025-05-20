@@ -1,6 +1,22 @@
 open Zutils
 open Prop
 open Sexplib.Std
+open AutomataLibrary
+
+type 't ltlf =
+  | EventL of 't sevent
+  | LorL of 't ltlf * 't ltlf
+  | LandL of 't ltlf * 't ltlf
+  | SeqL of 't ltlf * 't ltlf
+  | NegL of 't ltlf
+  | NextL of 't ltlf
+  | UntilL of 't ltlf * 't ltlf
+  | LastL
+  | FinalL of 't ltlf
+  | GlobalL of 't ltlf
+  | ForallL of { qv : ('t, string) typed; body : 't ltlf }
+  | ExistsL of { qv : ('t, string) typed; body : 't ltlf }
+[@@deriving sexp, show, eq, ord]
 
 type 't t_p_expr = ('t, 't lit) typed [@@deriving sexp, show, eq, ord]
 
@@ -13,6 +29,7 @@ type foreach_kind = ForeachSet | ForeachSeq | ForeachMap
 [@@deriving sexp, show, eq, ord]
 
 type 't p_stmt =
+  | PMute of 't t_p_expr
   | PAssign of {
       assign_kind : assign_kind;
       lvalue : 't t_p_expr;
@@ -45,6 +62,7 @@ and 't p_block = 't p_stmt list [@@deriving sexp, show, eq, ord]
 
 let rec p_stmt_retty loc stmt =
   match stmt with
+  | PMute _ -> []
   | PIf { tbranch; fbranch; _ } ->
       let t1 = p_block_retty loc tbranch in
       let t2 =
@@ -85,7 +103,7 @@ type 't p_func = {
 }
 [@@deriving sexp, show, eq, ord]
 
-let get_p_func_ty x =
+let get_p_func_var x =
   x.name#:(Nt.construct_arr_tp (List.map _get_ty x.params, x.retty))
 
 type state_label = Hot | Cold | Start [@@deriving sexp, show, eq, ord]
@@ -127,20 +145,43 @@ type 't p_payload_gen = {
 
 type 't p_syn = {
   name : string;
-  gen_num : (string * 't t_p_expr) list;
+  gen_num : (string * string * 't t_p_expr) list;
   cnames : string list;
 }
 [@@deriving sexp, show, eq, ord]
 
 type 't p_item =
   | PTopSimplDecl of { kind : top_level_decl_kind; tvar : ('t, string) typed }
-  (* | PEnumDecl of (string * string list) *)
+  | PEnumDecl of (string * string list)
   (* | PMachine of 't p_machine *)
   | PGlobalProp of 't p_global_prop
   | PPayload of 't p_payload_prop
   | PPayloadGen of 't p_payload_gen
   | PSyn of 't p_syn
 [@@deriving sexp, show, eq, ord]
+
+open Typectx
+
+type basic_typing_ctx = {
+  prop_ctx : Nt.nt prop ctx;
+  payload_ctx : Nt.nt p_payload_prop ctx;
+  payload_gen_ctx : Nt.nt p_payload_gen ctx;
+  syn_ctx : Nt.nt p_syn ctx;
+  machine_ctx : unit ctx;
+  event_ctx : Nt.nt ctx;
+  ctx : Nt.nt ctx;
+}
+
+let mk_basic_typing_ctx =
+  {
+    prop_ctx = emp;
+    payload_ctx = emp;
+    payload_gen_ctx = emp;
+    syn_ctx = emp;
+    machine_ctx = emp;
+    event_ctx = emp;
+    ctx = emp;
+  }
 
 (** Synthesis *)
 
@@ -169,7 +210,7 @@ type term =
 open Prop
 open AutomataLibrary
 
-type srl = (Nt.nt, Nt.nt sevent) regex [@@deriving show, eq, ord]
+type srl = Nt.nt sevent regex [@@deriving show, eq, ord]
 
 type syn_goal = { qvs : (Nt.nt, string) typed list; prop : srl }
 [@@deriving show, eq, ord]
@@ -194,7 +235,7 @@ type plan_elem =
     }
   | PlanSe of Nt.nt sevent
   | PlanStarInv of SFA.CharSet.t
-  | PlanStar of SFA.CharSet.t raw_regex
+  | PlanStar of SFA.CharSet.t regex
 [@@deriving eq, ord]
 
 type plan = plan_elem list

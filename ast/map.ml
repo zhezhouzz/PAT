@@ -6,6 +6,7 @@ let map_t_p_expr = typed_map_lit
 
 let rec map_p_stmt (f : 't -> 's) (e : 't p_stmt) =
   match e with
+  | PMute lit -> PMute (map_t_p_expr f lit)
   | PAssign { assign_kind; lvalue; rvalue } ->
       let lvalue, rvalue = map2 (map_t_p_expr f) (lvalue, rvalue) in
       PAssign { assign_kind; lvalue; rvalue }
@@ -63,6 +64,7 @@ let map_p_machine (f : 't -> 's)
 
 let map_p_item (f : 't -> 's) (item : 't p_item) =
   match item with
+  | PEnumDecl (name, es) -> PEnumDecl (name, es)
   | PTopSimplDecl { kind; tvar } -> PTopSimplDecl { kind; tvar = tvar#=>f }
   | PGlobalProp { name; prop } -> PGlobalProp { name; prop = map_prop f prop }
   | PPayload { name; self_event; prop } ->
@@ -71,6 +73,17 @@ let map_p_item (f : 't -> 's) (item : 't p_item) =
       PPayloadGen { name; self_event; body = map_t_p_expr f body }
   | PSyn { name; gen_num; cnames } ->
       let gen_num =
-        List.map (fun (x, ass) -> (x, map_t_p_expr f ass)) gen_num
+        List.map (fun (x, dest, ass) -> (x, dest, map_t_p_expr f ass)) gen_num
       in
       PSyn { name; gen_num; cnames }
+
+let map_p_item_on_prop (f : 't prop -> 't prop) (item : 't p_item) =
+  match item with
+  | PEnumDecl (name, es) -> PEnumDecl (name, es)
+  | PTopSimplDecl { kind; tvar } -> PTopSimplDecl { kind; tvar }
+  | PGlobalProp { name; prop } -> PGlobalProp { name; prop = f prop }
+  | PPayload { name; self_event; prop } ->
+      PPayload { name; self_event; prop = f prop }
+  | PPayloadGen { name; self_event; body } ->
+      PPayloadGen { name; self_event; body }
+  | PSyn { name; gen_num; cnames } -> PSyn { name; gen_num; cnames }
