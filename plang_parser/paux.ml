@@ -4,9 +4,11 @@ open Nt
 type term = (Lexing.position * nt) p_item list
 
 let mk (x : 'a) loc = { x; ty = (loc, Ty_unknown) }
-let halt loc = AAppOp ("halt"#:(loc, unit_ty), [])
-let null loc = AAppOp ("null"#:(loc, unit_ty), [])
-let this loc = AAppOp ("this"#:(loc, unit_ty), [])
+let halt loc = AVar "halt"#:(loc, unit_ty)
+let null loc = AVar "null"#:(loc, unit_ty)
+
+(* let this loc = AAppOp ("this"#:(loc, unit_ty), []) *)
+let this loc = AVar "this"#:(loc, p_machine_ty)
 let mk_boolgen_lit loc = AVar "$"#:(loc, bool_ty)
 
 let mk_not_lit lit loc =

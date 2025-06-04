@@ -7,7 +7,7 @@
 (* tokens *)
 (* keywords *)
 %token EOF TYPE CONST MACHINE EVENT LET FUN ALL GOTO DO
-%token STATE HOT COLD START PLAIN ENTRY EXIT LISTEN ON LOCAL THIS HALT NULL RANDOMBOOL RETURN PROP SYN WITH PARAM ENUM
+%token STATE HOT COLD START PLAIN ENTRY EXIT LISTEN ON LOCAL THIS HALT NULL RANDOMBOOL RETURN PROP SYN WITH PARAM ENUM IF VAR VISIBLE
 (* arithmetic operators *)
 %token PLUS MINUS STAR DIV LT GT LE GE NEQ EQ NEG
 (* logic operators *)
@@ -15,7 +15,7 @@
 (* splitter *)
 %token COLON ARROW COMMA BAR SEMICOLON COLONEQ ASSIGN
 (* paranthesis *)
-%token LSEQPRAN RSEQPRAN LPAR RPAR LEPAR REPAR LBRACKET RBRACKET
+%token LSQPRAN RSQPRAN LPAR RPAR LEPAR REPAR LBRACKET RBRACKET
 (* regex *)
 %token DOT EMP EPSILON CTX REPEAT CONCAT
 (* type *)
@@ -38,6 +38,8 @@ nt:
   | nt1=nt ARROW nt2=nt {Nt.mk_arr nt1 nt2}
   | nt=nt id=IDENT {Nt.Ty_constructor (id, [nt]) }
   | id=IDENT {Nt.mk_uninterp id}
+  | id=IDENT LSQPRAN nt=nt RSQPRAN {Nt.Ty_constructor (id, [nt])}
+  | id=IDENT LSQPRAN nt1=nt COMMA nt2=nt RSQPRAN {Nt.Ty_constructor (id, [nt1; nt2])}
   | LPAR fds=type_fields RPAR {Nt.mk_record None fds}
   | LPAR tuple=type_list RPAR {Nt.Ty_tuple tuple}
   | FORALL n=NUMBER DOT nt=nt {Nt.Ty_poly (Printf.sprintf "x%i" n, nt) }
@@ -91,6 +93,7 @@ expr:
 | id=IDENT {mk (AVar (id #: ($startpos, Nt.Ty_unknown))) $startpos}
 | LPAR lit=expr COMMA args=args RPAR { mk (ATu (lit :: args)) $startpos}
 | LPAR id=IDENT ASSIGN expr=expr COMMA es=id_eq_expr_list RPAR {mk (ARecord ((id, expr) ::es)) $startpos}
+| LPAR id=IDENT ASSIGN expr=expr COMMA RPAR {mk (ARecord [(id, expr)]) $startpos}
 | record=expr DOT field=NUMBER { mk (AProj (record, field)) $startpos}
 | record=expr DOT field=IDENT { mk (AField (record, field)) $startpos}
 | NEG e=expr {mk (mk_not_lit e $startpos) $startpos}
@@ -132,19 +135,34 @@ ids:
 | c=IDENT {[c]}
 ;
 
+var_decl:
+| VAR x=IDENT COLON nt=nt SEMICOLON { [x#:($startpos, nt)]}
+| VAR x=IDENT COLON nt=nt SEMICOLON var_decl=var_decl { x#:($startpos, nt) :: var_decl }
+;
+
+template:
+| RETURN e=expr SEMICOLON {TPReturn e}
+| IF LPAR condition=prop RPAR LBRACKET tbranch=template RBRACKET {TPIf {condition; tbranch = Some tbranch; fbranch = None}}
+| IF LPAR condition=prop RPAR LBRACKET tbranch=template RBRACKET LBRACKET fbranch=template RBRACKET {TPIf {condition; tbranch = Some tbranch; fbranch = Some fbranch}};
+
 item:
 | ENUM id=IDENT LBRACKET ids=ids RBRACKET { PEnumDecl (id, ids) }
 | TYPE id=IDENT ASSIGN nt=nt SEMICOLON { PTopSimplDecl { kind = TopType; tvar = (id #:($startpos, nt)) } }
 | EVENT id=IDENT COLON nt=nt SEMICOLON { PTopSimplDecl { kind = TopEvent; tvar = (id #:($startpos, nt)) } }
+| EVENT id=IDENT SEMICOLON { PTopSimplDecl { kind = TopEvent; tvar = (id #:($startpos, Nt.Ty_record {alias = None; fds = []})) } }
+| VISIBLE es=ids SEMICOLON { PVisible es }
 | PARAM id=IDENT COLON nt=nt SEMICOLON { PTopSimplDecl { kind = TopVar; tvar = (id #:($startpos, nt)) } }
 | FUN id=IDENT COLON nt=nt SEMICOLON { PTopSimplDecl { kind = TopVar; tvar = (id #:($startpos, nt)) } }
 | FUN LPAR id=biop RPAR COLON nt=nt SEMICOLON { PTopSimplDecl { kind = TopVar; tvar = (id #:($startpos, nt)) } }
+| FUN id=IDENT LPAR tf=type_fields RPAR COLON nt=nt SEMICOLON { PTopSimplDecl { kind = TopVar; tvar = (id #:($startpos, Nt.construct_arr_tp (List.map _get_ty tf, nt))) } }
 | PROP name=IDENT ASSIGN prop=prop SEMICOLON { PGlobalProp {name; prop} }
 | PROP name=IDENT ON event=IDENT DO id=IDENT WITH prop=prop SEMICOLON
                                      { PPayload {name; self_event = (id #: event); prop} }
-| PROP name=IDENT ON event=IDENT DO id=IDENT ASSIGN body=expr SEMICOLON
-                                     { PPayloadGen {name; self_event = (id #: event); body} }
-| SYN name=IDENT ON LPAR gen_num=id_eq_dest_expr_list RPAR WITH cnames=constaints SEMICOLON
+| PROP gen_name=IDENT ON self_event_name=IDENT LBRACKET content=template RBRACKET
+                                                                  { PPayloadGen {gen_name; self_event_name; content; local_vars = []} }
+| PROP gen_name=IDENT ON self_event_name=IDENT LBRACKET local_vars=var_decl content=template RBRACKET
+                                                                                      { PPayloadGen {gen_name; self_event_name; content; local_vars} }
+| SYN name=IDENT ON LPAR gen_num=id_eq_expr_list RPAR WITH cnames=constaints SEMICOLON
                                                                    { PSyn {name; gen_num; cnames} }
 ;
 

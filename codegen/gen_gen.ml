@@ -1,16 +1,17 @@
 open Language
 open Zdatatype
 open Common
+open Prop_gen
+open Gen
 
 let dest_machine = "dest"#:p_machine_ty
 
-let lit_gen ctx gen_num (qvs : (Nt.t, string) typed list) lit =
+let prop_gen ctx gen_num (qvs : (Nt.t, string) typed list) (prop : Nt.t prop) =
   let var_in_qvs x = List.exists (fun y -> String.equal x.x y.x) qvs in
   let rec aux_lit lit =
     let res =
       match lit.x with
       | AC _ -> lit.x
-      | AVar x when String.equal x.x "trace" -> (mk_p_trace ctx.event_ctx).x
       | AVar x -> if var_in_qvs x then (get_event_content x).x else lit.x
       | ATu es -> ATu (List.map aux_lit es)
       | AProj (e, i) -> AProj (aux_lit e, i)
@@ -21,7 +22,7 @@ let lit_gen ctx gen_num (qvs : (Nt.t, string) typed list) lit =
       | AAppOp (op, [ { x = AVar x; _ } ]) when String.equal op.x "dest" ->
           if var_in_qvs x then (get_event_dest x).x else AVar dest_machine
       | AAppOp (op, [ { x = AVar x; _ } ]) when String.equal op.x "src" ->
-          if List.exists (fun (y, _) -> String.equal x.x y) gen_num then
+          if List.exists (fun (y, _, _) -> String.equal x.x y) gen_num then
             _die [%here]
           else if var_in_qvs x then (get_event_src x).x
           else mk_p_self.x
@@ -38,14 +39,11 @@ let lit_gen ctx gen_num (qvs : (Nt.t, string) typed list) lit =
     in
     lit_to_tlit res
   in
-  aux_lit lit
-
-let prop_gen ctx gen_num (qvs : (Nt.t, string) typed list) (prop : Nt.t prop) =
   let rec aux p =
     let res =
       match p with
-      | Lit lit -> (lit_gen ctx gen_num qvs lit).x
-      | Implies (p1, p2) -> (aux (Or [ Not p1; p2 ])).x
+      | Lit lit -> (aux_lit lit).x
+      | Implies (p1, p2) -> AAppOp (implies_func, [ aux p1; aux p2 ])
       | Not p -> AAppOp (not_func, [ aux p ])
       | And [] -> _die [%here]
       | And [ p ] -> (aux p).x
@@ -102,16 +100,55 @@ let unique_qvs qvs =
   List.length qvs == StrSet.cardinal qvs'
 
 let qv_res qv = (spf "%s_res" qv.x)#:Nt.bool_ty
-let counter = ref 0
 
-let mk_temp_bool_var () =
-  let res = (spf "temp%i" !counter)#:Nt.bool_ty in
-  counter := !counter + 1;
-  res
+let rec compile_template ctx gen_num (payload, qvs, template, default) :
+    Nt.t p_closure =
+  match template with
+  | TPReturn e -> mk_p_closure [] [ mk_p_assign_var payload e ]
+  | TPIf { condition; tbranch; fbranch } ->
+      let res = mk_temp_bool_var () in
+      let condition = compile_prop ctx gen_num qvs (res, condition) in
+      let tbranch =
+        compile_template_option ctx gen_num (payload, qvs, tbranch, default)
+      in
+      let fbranch =
+        compile_template_option ctx gen_num (payload, qvs, fbranch, default)
+      in
+      let local_vars =
+        condition.local_vars @ tbranch.local_vars @ fbranch.local_vars
+      in
+      let stmt = mk_p_if (var_to_p_expr res) tbranch.block fbranch.block in
+      mk_p_closure local_vars (condition.block @ [ stmt ])
 
-let compile_prop ctx gen_num qvs (res, prop) =
-  let () = Printf.printf "prop: %s\n" (layout_prop prop) in
-  let rec aux res (qvs, prop) =
+and compile_template_option ctx gen_num (payload, qvs, template, default) :
+    Nt.t p_closure =
+  match template with
+  | None -> default
+  | Some template ->
+      compile_template ctx gen_num (payload, qvs, template, default)
+
+let compile_prop_gen_option ctx gen_num (payload, name, event_ty) =
+  let default = mk_p_assign_var payload (generate_by_type event_ty) in
+  let default = mk_p_closure [] [ default ] in
+  match get_opt ctx.payload_gen_ctx name with
+  | None -> default
+  | Some { local_vars; content; _ } ->
+      compile_template ctx gen_num (payload, local_vars, content, default)
+
+let compile_prop ctx gen_num prop =
+  (* let () = Printf.printf "Raw Prop: %s\n" (layout_prop prop) in *)
+  let prefix, _ = to_prenex_form prop in
+  (* let () = Printf.printf "Prop: %s\n" (layout_prop prop) in *)
+  let qvs = List.map snd prefix in
+  let () = if not (unique_qvs qvs) then _die [%here] in
+  let res = "res"#:Nt.bool_ty in
+  let counter = ref 0 in
+  let mk_temp_bool_var () =
+    let res = (spf "temp%i" !counter)#:Nt.bool_ty in
+    counter := !counter + 1;
+    res
+  in
+  let rec aux res prop =
     let prefix, _ = to_prenex_form prop in
     match prefix with
     | [] -> ([], [ mk_p_assign_var res (prop_gen ctx gen_num qvs prop) ])
@@ -119,7 +156,7 @@ let compile_prop ctx gen_num qvs (res, prop) =
         match prop with
         | Forall { qv; body } ->
             let res' = qv_res qv in
-            let local_vars, body = aux res' (qv :: qvs, body) in
+            let local_vars, body = aux res' body in
             let condition =
               mk_p_if (var_to_p_expr res') []
                 [ mk_p_assign_var res mk_p_false; PBreak ]
@@ -133,7 +170,7 @@ let compile_prop ctx gen_num qvs (res, prop) =
               ] )
         | Exists { qv; body } ->
             let res' = qv_res qv in
-            let local_vars, body = aux res' (qv :: qvs, body) in
+            let local_vars, body = aux res' body in
             let condition =
               mk_p_if (var_to_p_expr res')
                 [ mk_p_assign_var res mk_p_true; PBreak ]
@@ -152,7 +189,7 @@ let compile_prop ctx gen_num qvs (res, prop) =
               List.fold_left
                 (fun (vars, local_vars, blocks) e ->
                   let tmp = mk_temp_bool_var () in
-                  let local_vars', blocks' = aux tmp (qvs, e) in
+                  let local_vars', blocks' = aux tmp e in
                   (vars @ [ tmp ], local_vars @ local_vars', blocks @ blocks'))
                 ([], [], []) es
             in
@@ -161,34 +198,28 @@ let compile_prop ctx gen_num qvs (res, prop) =
               @ [
                   mk_p_assign_var res (mk_and_sum (List.map var_to_p_expr vars));
                 ] )
-        | Not e ->
-            let local_vars, block = aux res (qvs, e) in
-            ( local_vars,
-              block
-              @ [
-                  mk_p_assign_var res (mk_p_app not_func [ var_to_p_expr res ]);
-                ] )
         | Or es ->
-            let local_vars, temp_vars, block =
+            let local_vars, block =
               List.fold_left
-                (fun (vars, temp_vars, blocks) e ->
+                (fun (vars, blocks) e ->
                   let tmp = mk_temp_bool_var () in
-                  let vars', blocks' = aux tmp (qvs, e) in
-                  (vars @ vars' @ [ tmp ], temp_vars @ [ tmp ], blocks @ blocks'))
-                ([], [], []) es
+                  let vars', blocks' = aux tmp e in
+                  (vars @ vars' @ [ tmp ], blocks @ blocks'))
+                ([], []) es
             in
             ( local_vars,
               block
               @ [
                   mk_p_assign_var res
-                    (mk_or_sum (List.map var_to_p_expr temp_vars));
+                    (mk_or_sum (List.map var_to_p_expr local_vars));
                 ] )
-        | Implies (e1, e2) -> aux res (qvs, Or [ Not e1; e2 ])
         | _ -> _die [%here])
   in
-  let local_vars, block = aux res (qvs, prop) in
+  let local_vars, block = aux res prop in
   let local_vars = res :: local_vars in
-  let closure = mk_p_closure local_vars block in
+  let closure =
+    mk_p_closure local_vars (block @ [ PReturn (var_to_p_expr res) ])
+  in
   closure
 
 let compile_validate_function ctx gen_num name : Nt.t p_func =
@@ -199,13 +230,7 @@ let compile_validate_function ctx gen_num name : Nt.t p_func =
   let params = [ dest_machine; self_event.x#:event_ty ] in
   let func_label = Plain in
   let retty = Nt.bool_ty in
-  let qvs = List.map snd (fst @@ to_prenex_form prop) in
-  let () = if not (unique_qvs qvs) then _die [%here] in
-  let res = "res"#:Nt.bool_ty in
-  let closure = compile_prop ctx gen_num qvs (res, prop) in
-  let closure =
-    { closure with block = closure.block @ [ PReturn (var_to_p_expr res) ] }
-  in
+  let closure = compile_prop ctx gen_num prop in
   { name; func_label; params; retty; closure }
 
 let check_validate_block ctx gen_num (dest, event_name, payload) =

@@ -63,7 +63,11 @@ let item_inline decls items =
       (fun items decl -> List.map (map_p_item (inline decl)) items)
       items decls
   in
-  let if_do_inline = function TopType | TopEvent -> true | TopVar -> false in
+  let if_do_inline = function
+    | TopType -> true
+    | TopEvent -> false
+    | TopVar -> false
+  in
   let rec f (decls, inlined) items =
     match items with
     | [] -> (decls, inlined)

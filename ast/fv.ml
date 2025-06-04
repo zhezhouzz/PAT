@@ -58,15 +58,30 @@ let fv_p_machine ({ name; local_vars; local_funcs; states } : 't p_machine) =
   let states = List.concat_map fv_p_state states in
   substract (local_funcs @ states) (local_funcs_vars @ local_vars)
 
+let rec fv_p_template (item : 't template) =
+  match item with
+  | TPReturn e -> fv_t_p_expr e
+  | TPIf { condition; tbranch; fbranch } ->
+      let condition = fv_prop condition in
+      let tbranch =
+        match tbranch with None -> [] | Some x -> fv_p_template x
+      in
+      let fbranch =
+        match fbranch with None -> [] | Some x -> fv_p_template x
+      in
+      condition @ tbranch @ fbranch
+
 let fv_p_item (item : 't p_item) =
   match item with
+  | PVisible _ -> []
   | PEnumDecl _ -> []
   | PTopSimplDecl _ -> []
   | PGlobalProp { prop; _ } -> fv_prop prop
   | PPayload { prop; _ } -> fv_prop prop
-  | PPayloadGen { body; _ } -> fv_t_p_expr body
+  | PPayloadGen { content; local_vars; _ } ->
+      substract (fv_p_template content) local_vars
   | PSyn { gen_num; _ } ->
-      List.concat_map (fun (_, _, ass) -> fv_t_p_expr ass) gen_num
+      List.concat_map (fun (_, ass) -> fv_t_p_expr ass) gen_num
 
 let fv_t_p_expr_id e = fv_typed_id_to_id fv_t_p_expr e
 let fv_p_stmt_id e = fv_typed_id_to_id fv_p_stmt e

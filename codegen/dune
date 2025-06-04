@@ -5,6 +5,7 @@
  (modules
    common
    prop_gen
+   gen_gen
    gen
    ; ast
    ; astbuilder

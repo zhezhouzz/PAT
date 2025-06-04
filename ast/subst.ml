@@ -40,40 +40,59 @@ let rec subst_p_stmt (_x : string) f (e : 't p_stmt) =
 
 and subst_p_block _x f (e : 't p_block) = List.map (subst_p_stmt _x f) e
 
-let subst_p_closure _x f ({ local_vars; block } : 't p_closure) =
-  let block = subst_p_block _x f block in
-  { local_vars; block }
+let in_domain _x domain = List.exists (fun y -> String.equal _x y.x) domain
 
-let subst_p_func _x f ({ name; func_label; params; retty; closure } : 't p_func)
-    =
-  let closure = subst_p_closure _x f closure in
-  { name; func_label; params; retty; closure }
+let subst_p_closure _x f ({ local_vars; block } as input : 't p_closure) =
+  if in_domain _x local_vars then input
+  else
+    let block = subst_p_block _x f block in
+    { local_vars; block }
+
+let subst_p_func _x f
+    ({ name; func_label; params; retty; closure } as input : 't p_func) =
+  if in_domain _x params then input
+  else
+    let closure = subst_p_closure _x f closure in
+    { name; func_label; params; retty; closure }
 
 let subst_p_state _x f ({ name; state_label; state_body } : 't p_state) =
   let state_body = List.map (subst_p_func _x f) state_body in
   { name; state_label; state_body }
 
 let subst_p_machine _x f
-    ({ name; local_vars; local_funcs; states } : 't p_machine) =
-  let local_funcs = List.map (subst_p_func _x f) local_funcs in
-  let states = List.map (subst_p_state _x f) states in
-  { name; local_vars; local_funcs; states }
+    ({ name; local_vars; local_funcs; states } as input : 't p_machine) =
+  if in_domain _x local_vars then input
+  else
+    let local_funcs = List.map (subst_p_func _x f) local_funcs in
+    let states = List.map (subst_p_state _x f) states in
+    { name; local_vars; local_funcs; states }
+
+let rec subst_p_template (_x : string) f (e : 't template) =
+  match e with
+  | TPIf { condition; tbranch; fbranch } ->
+      let condition = subst_prop _x f condition in
+      let tbranch = tbranch >|= subst_p_template _x f in
+      let fbranch = fbranch >|= subst_p_template _x f in
+      TPIf { condition; tbranch; fbranch }
+  | TPReturn e -> TPReturn (subst_t_p_expr _x f e)
 
 let subst_p_item _x f (item : 't p_item) =
   match item with
+  | PVisible _ -> item
   | PEnumDecl (name, es) -> PEnumDecl (name, es)
   | PTopSimplDecl { kind; tvar } -> PTopSimplDecl { kind; tvar }
   | PGlobalProp { name; prop } ->
       PGlobalProp { name; prop = subst_prop _x f prop }
   | PPayload { name; self_event; prop } ->
       PPayload { name; self_event; prop = subst_prop _x f prop }
-  | PPayloadGen { name; self_event; body } ->
-      PPayloadGen { name; self_event; body = subst_t_p_expr _x f body }
+  | PPayloadGen { gen_name; self_event_name; local_vars; content } ->
+      if in_domain _x local_vars then item
+      else
+        let content = subst_p_template _x f content in
+        PPayloadGen { gen_name; self_event_name; local_vars; content }
   | PSyn { name; gen_num; cnames } ->
       let gen_num =
-        List.map
-          (fun (x, dest, ass) -> (x, dest, subst_t_p_expr _x f ass))
-          gen_num
+        List.map (fun (x, ass) -> (x, subst_t_p_expr _x f ass)) gen_num
       in
       PSyn { name; gen_num; cnames }
 

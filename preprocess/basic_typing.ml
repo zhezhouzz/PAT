@@ -63,7 +63,7 @@ let constraint_p_prop_type_check bctx (bc : BC.bc) (prop : t prop) =
           | Some ty -> ty
         in
         let bc, body = aux (add_to_right ctx qv.x#:qv_ty) bc body in
-        (bc, Forall { qv; body })
+        (bc, Forall { qv = qv.x#:qv_ty; body })
     | Exists { qv; body } ->
         let qv = Nt.__force_typed [%here] qv in
         let qv_ty =
@@ -72,7 +72,7 @@ let constraint_p_prop_type_check bctx (bc : BC.bc) (prop : t prop) =
           | Some ty -> ty
         in
         let bc, body = aux (add_to_right ctx qv.x#:qv_ty) bc body in
-        (bc, Exists { qv; body })
+        (bc, Exists { qv = qv.x#:qv_ty; body })
   in
   aux bctx.ctx bc prop
 
@@ -214,8 +214,43 @@ let p_machine_type_check bctx { name; local_vars; local_funcs; states } =
   let states = List.map (p_state_type_check bctx) states in
   { name; local_vars; local_funcs; states }
 
+let rec constraint_p_template_type_check bctx retty (bc : BC.bc) e =
+  (* let () = Pp.printf "retty = %s\n" (Nt.layout_nt retty) in *)
+  let bc, e =
+    match e with
+    | TPIf { condition; tbranch; fbranch } ->
+        let bc, condition = constraint_prop_type_check bctx.ctx bc condition in
+        let bc, tbranch =
+          match tbranch with
+          | None -> (bc, None)
+          | Some tbranch ->
+              let bc, tbranch =
+                constraint_p_template_type_check bctx retty bc tbranch
+              in
+              (bc, Some tbranch)
+        in
+        let bc, fbranch =
+          match fbranch with
+          | None -> (bc, None)
+          | Some fbranch ->
+              let bc, fbranch =
+                constraint_p_template_type_check bctx retty bc fbranch
+              in
+              (bc, Some fbranch)
+        in
+        (bc, TPIf { condition; tbranch; fbranch })
+    | TPReturn e ->
+        let bc, e = constraint_lit_type_check bctx.ctx bc e in
+        let bc, _ = BC.add bc (e.ty, retty) in
+        (bc, TPReturn e)
+  in
+  let () = Pp.printf "%s\n" (layout_p_templat 0 e) in
+  let () = Pp.printf "BC = %s\n" (BC.layout bc) in
+  (bc, e)
+
 let p_item_type_check bctx item =
   match item with
+  | PVisible es -> (bctx, PVisible es)
   | PEnumDecl (name, es) ->
       let es = List.map (fun x -> x#:(Nt.mk_uninterp name)) es in
       let ctx = add_to_rights bctx.ctx es in
@@ -225,6 +260,9 @@ let p_item_type_check bctx item =
       let ctx = add_to_right bctx.ctx tvar in
       ({ bctx with ctx }, item)
   | PTopSimplDecl { kind = TopEvent; tvar } ->
+      let fds = Nt.as_record [%here] tvar.ty in
+      let tvar_ty = Nt.mk_record (Some tvar.x) fds in
+      let tvar = tvar.x#:tvar_ty in
       let event_ctx = add_to_right bctx.event_ctx tvar in
       ({ bctx with event_ctx }, item)
   | PGlobalProp { name; prop } ->
@@ -234,11 +272,12 @@ let p_item_type_check bctx item =
       let prop_ctx = add_to_right bctx.prop_ctx name#:prop in
       ({ bctx with prop_ctx }, PGlobalProp { name; prop })
   | PPayload { name; self_event; prop } ->
-      let () =
-        Printf.printf "%s\n" (Typectx.layout_ctx Nt.layout bctx.event_ctx)
-      in
+      (* let () = *)
+      (*   Printf.printf "%s\n" (Typectx.layout_ctx Nt.layout bctx.event_ctx) *)
+      (* in *)
       let e = self_event.x#:(_get_force [%here] bctx.event_ctx self_event.ty) in
       let ctx' = add_to_right bctx.ctx e in
+      let ctx' = add_to_right ctx' "trace"#:(Nt.mk_uninterp "trace") in
       let bc, prop =
         constraint_p_prop_type_check { bctx with ctx = ctx' } (BC.empty []) prop
       in
@@ -247,33 +286,54 @@ let p_item_type_check bctx item =
       let payload = { name; self_event; prop } in
       let payload_ctx = add_to_right bctx.payload_ctx name#:payload in
       ({ bctx with payload_ctx }, PPayload payload)
-  | PPayloadGen { name; self_event; body } ->
-      let e = self_event.x#:(_get_force [%here] bctx.event_ctx self_event.ty) in
-      let ctx' = add_to_right bctx.ctx e in
-      let bc, body = constraint_lit_type_check ctx' (BC.empty []) body in
+  | PPayloadGen { gen_name; self_event_name; local_vars; content } ->
+      let event_ty = _get_force [%here] bctx.event_ctx self_event_name in
+      let local_vars' =
+        List.map
+          (fun x ->
+            let x_ty =
+              match get_event_type_from_type bctx.event_ctx x.ty with
+              | None -> x.ty
+              | Some ty -> ty
+            in
+            x.x#:x_ty)
+          local_vars
+      in
+      let local_vars' =
+        [
+          "this"#:p_machine_ty;
+          "trace"#:(Nt.mk_uninterp "trace");
+          "destMachines"#:(mk_p_set_ty p_machine_ty);
+        ]
+        @ local_vars'
+      in
+      let bctx' = { bctx with ctx = add_to_rights bctx.ctx local_vars' } in
+      let bc, content =
+        constraint_p_template_type_check bctx' event_ty (BC.empty []) content
+      in
       let sol = solve bc in
-      let body = typed_map_lit (Nt.msubst_nt sol) body in
-      let payload_gen = { name; self_event; body } in
+      let content = map_p_template (Nt.msubst_nt sol) content in
+      let payload_gen = { gen_name; self_event_name; local_vars; content } in
       let payload_gen_ctx =
-        add_to_right bctx.payload_gen_ctx name#:payload_gen
+        add_to_right bctx.payload_gen_ctx self_event_name#:payload_gen
       in
       ({ bctx with payload_gen_ctx }, PPayloadGen payload_gen)
   | PSyn { name; gen_num; cnames } ->
-      let f (x, dest, ass) =
+      let f (x, ass) =
         let _ = _get_force [%here] bctx.event_ctx x in
         match ass.x with
-        | AC (I _) -> (x, dest, ass.x#:Nt.int_ty)
+        | AC (I _) -> (x, ass.x#:Nt.int_ty)
         | AVar y ->
             let y_ty = _get_force [%here] bctx.ctx y.x in
             if Nt.equal_nt y_ty Nt.int_ty then
-              (x, dest, (AVar y.x#:Nt.int_ty)#:Nt.int_ty)
+              (x, (AVar y.x#:Nt.int_ty)#:Nt.int_ty)
             else _die [%here]
         | _ -> _die [%here]
       in
       let dom =
         (List.map _get_x @@ ctx_to_list bctx.prop_ctx)
         @ (List.map _get_x @@ ctx_to_list bctx.payload_ctx)
-        @ List.map _get_x
+        @ List.map (fun x -> x.ty.gen_name)
         @@ ctx_to_list bctx.payload_gen_ctx
       in
       let gen_num = List.map f gen_num in

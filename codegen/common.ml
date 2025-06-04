@@ -1,5 +1,5 @@
 open Language
-(* open Zdatatype *)
+open Zdatatype
 
 let implies_func = "impl"#:Nt.(construct_arr_tp ([ bool_ty; bool_ty ], bool_ty))
 let iff_func = "iff"#:Nt.(construct_arr_tp ([ bool_ty; bool_ty ], bool_ty))
@@ -30,6 +30,10 @@ let mk_p_true = lit_to_tlit (AC (B true))
 let mk_p_false = lit_to_tlit (AC (B false))
 let mk_p_str s = lit_to_tlit (AC (S s))
 let mk_p_while_true body = PWhile { condition = mk_p_true; body }
+let mk_p_halt = PReturn (var_to_p_expr "halt"#:Nt.unit_ty)
+
+let mk_default ty =
+  mk_p_app "default"#:Nt.unit_ty [ var_to_p_expr (Nt.layout ty)#:ty ]
 
 let mk_p_map_get m idx =
   let t1, t2 =
@@ -39,7 +43,14 @@ let mk_p_map_get m idx =
   in
   mk_p_app "map_get"#:Nt.(construct_arr_tp ([ m.ty; t1 ], t2)) [ m; idx ]
 
-let mk_p_closure local_vars block = { local_vars; block }
+let mk_p_closure local_vars block =
+  let local_vars =
+    List.slow_rm_dup
+      (fun x y -> String.equal x.x y.x && Nt.equal_nt x.ty y.ty)
+      local_vars
+  in
+  { local_vars; block }
+
 let mk_p_int i = lit_to_tlit (AC (I i))
 let mk_p_0 = lit_to_tlit (AC (I 0))
 let mk_p_1 = lit_to_tlit (AC (I 1))
@@ -124,23 +135,45 @@ let mk_p_foreach_seq iter seq body =
     { foreach_kind = ForeachSeq; iter; iterable = lit_to_tlit (AVar seq); body }
 
 let mk_p_send dest event_name payload =
-  PSend { dest = var_to_p_expr dest; event_name; payload }
+  PSend { dest = var_to_p_expr dest#:p_machine_ty; event_name; payload }
 
 let mk_seq_vars event_ctx =
   List.map (fun x -> qv_seq x.ty) @@ ctx_to_list event_ctx
 
+let mk_p_trace event_ctx =
+  let seqs = mk_seq_vars event_ctx in
+  let record = mk_p_record (List.map (fun x -> (x.x, var_to_p_expr x)) seqs) in
+  record
+
 let mk_seq_length_function ctx =
+  let input = "trace"#:(mk_p_trace ctx.event_ctx).ty in
   let seqs =
-    List.map (fun x -> get_size (var_to_p_expr x)) @@ mk_seq_vars ctx.event_ctx
+    List.map (fun x -> get_size (mk_p_feild (var_to_p_expr input) x.x))
+    @@ mk_seq_vars ctx.event_ctx
   in
   let block = [ PReturn (mk_p_sum seqs) ] in
   let closure = mk_p_closure [] block in
   {
     name = "get_seq_length";
     func_label = Plain;
-    params = [];
+    params = [ input ];
     retty = Nt.int_ty;
     closure;
   }
 
-let seq_length ctx = mk_p_app (get_p_func_var (mk_seq_length_function ctx)) []
+let seq_length ctx =
+  mk_p_app
+    (get_p_func_var (mk_seq_length_function ctx))
+    [ mk_p_trace ctx.event_ctx ]
+
+(** P global functions and variables *)
+
+let get_p_keys lit =
+  match lit.ty with
+  | Nt.Ty_constructor (_, [ ty; _ ]) ->
+      let keys_ty = Nt.construct_arr_tp ([ lit.ty ], mk_p_set_ty ty) in
+      mk_p_app "keys"#:keys_ty [ lit ]
+  | _ -> _die [%here]
+
+let mk_counter_map = "counterMap"#:(mk_p_map_ty p_string_ty Nt.int_ty)
+let actions_space = get_p_keys (tvar_to_lit mk_counter_map)

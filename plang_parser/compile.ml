@@ -1,6 +1,8 @@
 open Ast
 open Zdatatype
 
+let debug_print_alias = false
+
 let rec layout_pnt t =
   let open Nt in
   let get_var_id x =
@@ -21,15 +23,19 @@ let rec layout_pnt t =
     | Ty_poly (x, body) -> spf "forall %s. %s" (get_var_id x) (aux body)
     | Ty_tuple ts when List.length ts > 1 ->
         spf "(%s)" @@ List.split_by ", " aux ts
-    | Ty_record { fds; _ } -> (
-        (* let alias = match alias with None -> "_noalias" | Some x -> x in *)
+    | Ty_record { fds; alias } -> (
+        let alias =
+          if debug_print_alias then
+            match alias with None -> "_noalias" | Some x -> x
+          else ""
+        in
         match fds with
         | [] -> ""
         | x :: _ when String.equal x.x "0" ->
             let l = List.map _get_ty fds in
-            spf "(%s)" @@ List.split_by ", " layout_pnt l
+            spf "%s(%s)" alias @@ List.split_by ", " layout_pnt l
         | _ ->
-            spf "(%s)"
+            spf "%s(%s)" alias
             @@ List.split_by ", "
                  (fun { x = a; ty = b } -> layout_pnt_typed a b)
                  fds)
@@ -59,11 +65,14 @@ let binop =
   ]
 
 let unop = [ "!"; "not" ]
+let builtin_gen = [ "int_gen"; "bool_gen"; "machine_gen" ]
 
 let layout_p_expr =
   let rec aux expr =
     match expr.x with
     | AC c -> layout_const c
+    | AAppOp (op, _) when List.exists (String.equal op.x) builtin_gen ->
+        spf "%s()" op.x
     | AAppOp (op, [ e1 ]) when String.equal op.x "raise" ->
         spf "%s %s" op.x (aux e1)
     | AAppOp (op, [ e1; e2 ]) when String.equal op.x "seq_nth" ->
@@ -264,22 +273,51 @@ let layout_p_payload_prop n { name; self_event; prop } =
   let prop = mk_indent_line (n + 1) @@ spf "%s;" @@ layout_p_prop prop in
   spf "%s%s" head prop
 
-let layout_p_payload_gen n { name; self_event; body } =
+let rec layout_p_templat n stmt =
+  let last_semi = mk_indent_line n "}" in
+  match stmt with
+  | TPReturn e -> (
+      match e.x with
+      | AVar x when String.equal x.x "halt" ->
+          mk_indent_line n @@ spf "raise halt;"
+      | _ -> mk_indent_line n @@ spf "return %s;" (layout_p_expr e))
+  | TPIf { condition; tbranch; fbranch } ->
+      let head =
+        mk_indent_line n @@ spf "if (%s) {" (layout_p_prop condition)
+      in
+      let tbranch =
+        match tbranch with
+        | None -> last_semi
+        | Some tbranch ->
+            let mid = mk_indent_line n @@ spf "} else {" in
+            let tbranch = layout_p_templat (n + 1) tbranch in
+            spf "%s%s%s" mid tbranch last_semi
+      in
+      let last =
+        match fbranch with
+        | None -> last_semi
+        | Some fbranch ->
+            let mid = mk_indent_line n @@ spf "} else {" in
+            let fbranch = layout_p_templat (n + 1) fbranch in
+            spf "%s%s%s" mid fbranch last_semi
+      in
+      spf "%s%s%s" head tbranch last
+
+let layout_p_payload_gen n { gen_name; self_event_name; local_vars; content } =
   let head =
-    mk_indent_line n
-    @@ spf "prop %s on %s do %s =" name self_event.ty self_event.x
+    mk_indent_line n @@ spf "prop %s on %s = {" gen_name self_event_name
   in
-  let prop = mk_indent_line (n + 1) @@ spf "%s;" @@ layout_p_expr body in
-  spf "%s%s" head prop
+  let last = mk_indent_line n "}" in
+  let local_vars_str =
+    List.split_by ""
+      (fun x ->
+        mk_indent_line (n + 1) @@ spf "var %s;" @@ layout_pnt_typed_var x)
+      local_vars
+  in
+  let prop = layout_p_templat (n + 1) content in
+  spf "%s%s%s%s" head local_vars_str prop last
 
 let layout_p_syn n { name; gen_num; cnames } =
-  let gen_num =
-    List.map
-      (fun (x, dest, ass) ->
-        let dest = lit_to_tlit @@ AVar dest#:(mk_p_set_ty p_machine_ty) in
-        (x, lit_to_tlit @@ ATu [ dest; ass ]))
-      gen_num
-  in
   let record = lit_to_tlit @@ ARecord gen_num in
   let head =
     mk_indent_line n @@ spf "syn %s on %s with" name (layout_p_expr record)
@@ -293,6 +331,8 @@ let layout_p_syn n { name; gen_num; cnames } =
 
 let layout_p_item n item =
   match item with
+  | PVisible es ->
+      mk_indent_line n @@ spf "visible %s;" (List.split_by ", " (fun x -> x) es)
   | PEnumDecl (name, es) ->
       mk_indent_line n
       @@ spf "enum %s {%s}" name (List.split_by ", " (fun x -> x) es)

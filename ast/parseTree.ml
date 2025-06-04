@@ -136,21 +136,32 @@ type 't p_payload_prop = {
 }
 [@@deriving sexp, show, eq, ord]
 
+type 't template =
+  | TPReturn of 't t_p_expr
+  | TPIf of {
+      condition : 't prop;
+      tbranch : 't template option;
+      fbranch : 't template option;
+    }
+[@@deriving sexp, show, eq, ord]
+
 type 't p_payload_gen = {
-  name : string;
-  self_event : (string, string) typed;
-  body : 't t_p_expr;
+  gen_name : string;
+  self_event_name : string;
+  local_vars : ('t, string) typed list;
+  content : 't template;
 }
 [@@deriving sexp, show, eq, ord]
 
 type 't p_syn = {
   name : string;
-  gen_num : (string * string * 't t_p_expr) list;
+  gen_num : (string * 't t_p_expr) list;
   cnames : string list;
 }
 [@@deriving sexp, show, eq, ord]
 
 type 't p_item =
+  | PVisible of string list
   | PTopSimplDecl of { kind : top_level_decl_kind; tvar : ('t, string) typed }
   | PEnumDecl of (string * string list)
   (* | PMachine of 't p_machine *)

@@ -35,21 +35,20 @@ rule next_token = parse
       { next_line lexbuf; next_token lexbuf }
   | "(*"
       { comment 0 lexbuf; next_token lexbuf }
+  | "/*" { comment 0 lexbuf; next_token lexbuf }
   | "//" { comment_line 0 lexbuf; next_token lexbuf }
 
   (* YOUR TOKENS HERE... *)
   (* keywords... *)
   | "event" {EVENT}
+  | "visible" {VISIBLE}
   | "type" {TYPE}
-  | "const" {CONST}
   | "prop" {PROP}
   | "machine" {MACHINE}
-  | "let" {LET}
+  | "var" {VAR}
   | "syn" {SYN}
   | "param" {PARAM}
   | "enum" {ENUM}
-  (* | "in" {IN} *)
-  | "all" {ALL}
   | "state" {STATE}
   | "hot" {HOT}
   | "cold" {COLD}
@@ -59,6 +58,7 @@ rule next_token = parse
   | "exit" {EXIT}
   | "listen" {LISTEN}
   | "on" {ON}
+  | "if" {IF}
   | "do" {DO}
   | "this" {THIS}
   | "halt" {HALT}
@@ -106,8 +106,8 @@ rule next_token = parse
   | ')' { RPAR }
   | "<[" {LEPAR}
   | "]>" {REPAR}
-  | "[|" {LSEQPRAN}
-  | "|]" {RSEQPRAN}
+  | "[" {LSQPRAN}
+  | "]" {RSQPRAN}
   | "{" {LBRACKET}
   | "}" {RBRACKET}
   (* regex *)
@@ -145,7 +145,6 @@ and read_string buf =
   | _ { raise (Failure ("Illegal string character: " ^ Lexing.lexeme lexbuf)) }
   | eof { raise (Failure ("String is not terminated")) }
 
-
 (* allow nested comments, like OCaml *)
 and comment nesting = parse
   | "(*" | "/*"
@@ -159,5 +158,5 @@ and comment nesting = parse
 
 and comment_line nesting = parse
   | newline { if nesting > 0 then comment (nesting - 1) lexbuf }
-  | eof { failwith "[lexer] unterminated comment // at EOF" }
+  | eof { if nesting > 0 then comment (nesting - 1) lexbuf }
   | _ { comment_line nesting lexbuf }

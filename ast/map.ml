@@ -62,28 +62,42 @@ let map_p_machine (f : 't -> 's)
   let states = List.map (map_p_state f) states in
   { name; local_vars; local_funcs; states }
 
+let rec map_p_template (f : 't -> 's) (e : 't template) =
+  match e with
+  | TPIf { condition; tbranch; fbranch } ->
+      let condition = map_prop f condition in
+      let tbranch = tbranch >|= map_p_template f in
+      let fbranch = fbranch >|= map_p_template f in
+      TPIf { condition; tbranch; fbranch }
+  | TPReturn e -> TPReturn (map_t_p_expr f e)
+
 let map_p_item (f : 't -> 's) (item : 't p_item) =
   match item with
+  | PVisible es -> PVisible es
   | PEnumDecl (name, es) -> PEnumDecl (name, es)
   | PTopSimplDecl { kind; tvar } -> PTopSimplDecl { kind; tvar = tvar#=>f }
   | PGlobalProp { name; prop } -> PGlobalProp { name; prop = map_prop f prop }
   | PPayload { name; self_event; prop } ->
       PPayload { name; self_event; prop = map_prop f prop }
-  | PPayloadGen { name; self_event; body } ->
-      PPayloadGen { name; self_event; body = map_t_p_expr f body }
+  | PPayloadGen { gen_name; self_event_name; local_vars; content } ->
+      let local_vars = List.map (fun x -> x#=>f) local_vars in
+      let content = map_p_template f content in
+      PPayloadGen { gen_name; self_event_name; local_vars; content }
   | PSyn { name; gen_num; cnames } ->
       let gen_num =
-        List.map (fun (x, dest, ass) -> (x, dest, map_t_p_expr f ass)) gen_num
+        List.map (fun (x, ass) -> (x, map_t_p_expr f ass)) gen_num
       in
       PSyn { name; gen_num; cnames }
 
-let map_p_item_on_prop (f : 't prop -> 't prop) (item : 't p_item) =
-  match item with
-  | PEnumDecl (name, es) -> PEnumDecl (name, es)
-  | PTopSimplDecl { kind; tvar } -> PTopSimplDecl { kind; tvar }
-  | PGlobalProp { name; prop } -> PGlobalProp { name; prop = f prop }
-  | PPayload { name; self_event; prop } ->
-      PPayload { name; self_event; prop = f prop }
-  | PPayloadGen { name; self_event; body } ->
-      PPayloadGen { name; self_event; body }
-  | PSyn { name; gen_num; cnames } -> PSyn { name; gen_num; cnames }
+(* let map_p_item_on_prop (f : 't prop -> 't prop) (item : 't p_item) = *)
+(*   match item with *)
+(*   | PEnumDecl (name, es) -> PEnumDecl (name, es) *)
+(*   | PTopSimplDecl { kind; tvar } -> PTopSimplDecl { kind; tvar } *)
+(*   | PGlobalProp { name; prop } -> PGlobalProp { name; prop = f prop } *)
+(*   | PPayload { name; self_event; prop } -> *)
+(*       PPayload { name; self_event; prop = f prop } *)
+(*   | PPayloadGen { name; self_event_name; local_vars; content } -> *)
+(*       let local_vars = List.map (fun x -> x#=>f) local_vars in *)
+(*       let content = map_p_template f content in *)
+(*       PPayloadGen { name; self_event_name; local_vars; content } *)
+(*   | PSyn { name; gen_num; cnames } -> PSyn { name; gen_num; cnames } *)

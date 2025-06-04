@@ -33,7 +33,7 @@ let machine_gen gen_num =
 let gen_machine gen_num = mk_p_app (get_p_func_var @@ machine_gen gen_num) []
 
 let int_gen =
-  let bounds = [ (100, 10); (10, 100); (1, 1000); (1, 10000) ] in
+  let bounds = [ (100, 10); (10, 100); (1, 1000) ] in
   let size = List.fold_left (fun res (x, _) -> res + x) 0 bounds in
   let indicator = "i"#:Nt.int_ty in
   let init = mk_p_assign_var indicator @@ mk_p_choose (mk_p_int size) in
@@ -65,12 +65,11 @@ let gen_bool =
   let choose = "choose"#:Nt.bool_ty in
   mk_p_app choose []
 
-let generate_by_type gen_num nt =
+let generate_by_type nt =
   let open Nt in
   let rec aux nt =
     if equal_nt nt bool_ty then gen_bool
     else if equal_nt nt int_ty then gen_int
-    else if equal_nt nt p_machine_ty then gen_machine gen_num
     else
       match nt with
       | Ty_tuple nts ->
@@ -79,6 +78,6 @@ let generate_by_type gen_num nt =
       | Ty_record { fds; _ } ->
           let fds = List.map (fun x -> (x.x, aux x.ty)) fds in
           mk_p_record fds
-      | _ -> _die [%here]
+      | _ -> mk_default nt
   in
   aux nt

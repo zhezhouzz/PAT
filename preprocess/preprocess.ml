@@ -32,10 +32,33 @@ let load_alias () =
   let alias, _ = load_ctxs () in
   alias
 
-let preproress source_file =
-  let items = parse_plang source_file in
+open Zdatatype
+
+let get_visible items =
+  List.slow_rm_dup String.equal
+  @@ List.concat_map (function PVisible es -> es | _ -> []) items
+
+let filter_events items =
+  let es = get_visible items in
+  match es with
+  | [] -> items
+  | _ ->
+      List.filter_map
+        (fun item ->
+          match item with
+          | PVisible _ -> None
+          | PTopSimplDecl { kind = TopEvent; tvar } ->
+              if List.exists (String.equal tvar.x) es then Some item else None
+          | _ -> Some item)
+        items
+
+let preproress source_files =
+  let items = List.concat_map parse_plang source_files in
+  (* let () = Pp.printf "@{<bold>result:@}\n%s\n" (layout_p_items items) in *)
+  let items = filter_events items in
   let _, items = Type_alias.item_inline (load_alias ()) items in
   (* let () = Pp.printf "@{<bold>result:@}\n%s\n" (layout_p_items items) in *)
+  (* let () = _die [%here] in *)
   (* let () = _die [%here] in *)
   let bctx, items = p_items_type_check (load_bctx ()) items in
   (bctx, items)
