@@ -1,5 +1,6 @@
 open Language
 open Zdatatype
+open AutomataLibrary
 open Refine
 open MkTerm
 open Common
@@ -18,15 +19,12 @@ let mk_synthesis_goal (env : syn_env) =
   (*   Pp.printf "\n@{<red>After smart negate:@} %s\n" (layout_symbolic_regex reg) *)
   (* in *)
   let op_names = List.map _get_x (ctx_to_list env.event_tyctx) in
-  let reg =
-    desugar env.event_tyctx (SyntaxSugar (CtxOp { op_names; body = reg }))
-  in
-  let reg = delimit_context reg in
+  let reg = rich_regex_desugar (CtxOp { op_names; body = reg }) in
   let () =
-    Pp.printf "\n@{<red>Original Reg:@} %s\n" (layout_symbolic_regex reg)
+    Pp.printf "\n@{<red>Original Reg:@} %s\n" (layout_rich_symbolic_regex reg)
   in
-  let goal = SFA.regex_to_raw reg in
-  let () = Stat.goal_size := Stat.count_quantifier_rawregex goal in
+  let goal = SFA.rich_regex_to_regex reg in
+  let () = Stat.goal_size := Stat.count_quantifier_regex goal in
   (Gamma.{ bvs = qvs; bprop = mk_true }, goal)
 
 let synthesize env goal =
@@ -50,8 +48,9 @@ let syn_timeout timebound env =
   let goal = mk_synthesis_goal env in
   let res =
     try match deductive_synthesis env goal with _ -> !result_buffer
-    with Timeout (_, results) -> (* let () = raise exn in *)
-                                 results
+    with Timeout (_, results) ->
+      (* let () = raise exn in *)
+      results
   in
   (* let () = _die [%here] in *)
   let terms = List.map (fun g -> instantiation env (g.gamma, g.plan)) res in

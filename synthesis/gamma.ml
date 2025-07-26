@@ -9,7 +9,7 @@ let layout { bvs; bprop } = spf "{%s | %s}" (layout_qvs bvs) (layout_prop bprop)
 
 let check_valid { bvs; bprop } prop =
   let q = smart_forall bvs @@ smart_implies bprop prop in
-  let res = Prover.check_valid q in
+  let res = Prover.check_valid (None, q) in
   (* let () = *)
   (*   Pp.printf "@{<bold> check valid: @} %s :: %b\n" (layout_prop q) res *)
   (* in *)
@@ -17,7 +17,7 @@ let check_valid { bvs; bprop } prop =
 
 let check_sat { bvs; bprop } prop =
   let q = smart_forall bvs @@ smart_implies bprop prop in
-  let res = Prover.check_sat_bool q in
+  let res = Prover.check_sat_bool (None, q) in
   (* let () = Pp.printf "@{<bold> check sat: @} %s :: %b\n" (layout_prop q) res in *)
   res
 
@@ -26,15 +26,20 @@ let smart_not p =
   else if is_false p then mk_true
   else match p with Not p -> p | _ -> Not p
 
+module LitSet = Set.Make (struct
+  type t = Nt.nt lit
+
+  let compare = compare_lit Nt.compare_nt
+end)
+
 let peval_prop litsT litsF =
-  let setT = Rawdesym.LitSet.of_list litsT in
-  let setF = Rawdesym.LitSet.of_list litsF in
+  let setT = LitSet.of_list litsT in
+  let setF = LitSet.of_list litsF in
   let rec aux e =
     match e with
     | Lit lit ->
-        if Rawdesym.LitSet.mem (Rawdesym.norm_order_lit lit.x) setT then mk_true
-        else if Rawdesym.LitSet.mem (Rawdesym.norm_order_lit lit.x) setF then
-          mk_false
+        if LitSet.mem (Rawdesym.norm_order_lit lit.x) setT then mk_true
+        else if LitSet.mem (Rawdesym.norm_order_lit lit.x) setF then mk_false
         else Lit lit
     | Implies (e1, e2) -> smart_implies (aux e1) (aux e2)
     | Ite (e1, e2, e3) -> Ite (aux e1, aux e2, aux e3)
@@ -56,15 +61,18 @@ let simplify gamma =
     List.filter
       (fun lit ->
         Prover.check_valid
-          (smart_forall gamma.bvs (smart_implies gamma.bprop (lit_to_prop lit))))
+          ( None,
+            smart_forall gamma.bvs (smart_implies gamma.bprop (lit_to_prop lit))
+          ))
       lits
   in
   let litsF =
     List.filter
       (fun lit ->
         Prover.check_valid
-          (smart_forall gamma.bvs
-             (smart_implies gamma.bprop (Not (lit_to_prop lit)))))
+          ( None,
+            smart_forall gamma.bvs
+              (smart_implies gamma.bprop (Not (lit_to_prop lit))) ))
       lits
   in
   let () =

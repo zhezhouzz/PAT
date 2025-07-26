@@ -20,10 +20,10 @@ let mk_spec_tyctx_one ctx = function
       | _ -> ctx)
   | MEventDecl { ev; event_kind } -> (
       match ev.ty with
-      | Nt.Ty_record l ->
+      | Nt.Ty_record { fds; _ } ->
           {
             ctx with
-            event_tyctx = add_to_right ctx.event_tyctx ev.x #: l;
+            event_tyctx = add_to_right ctx.event_tyctx ev.x #: fds;
             event_kindctx = add_to_right ctx.event_kindctx ev.x #: event_kind;
           }
       | _ -> _die [%here])
@@ -68,10 +68,10 @@ let get_real_op { wrapper_ctx; p_tyctx; _ } op =
   let ty =
     (* HACK: some p event doesn't return record type *)
     match _get_force [%here] p_tyctx real_op.x with
-    | Nt.Ty_record [ { ty = Nt.Ty_constructor (name, []); _ } ]
+    | Nt.Ty_record { fds = [ { ty = Nt.Ty_constructor (name, []); _ } ]; _ }
       when String.equal "tLsn" name ->
         mk_p_abstract_ty "tLsn"
-    | Nt.Ty_record [ { ty = Nt.Ty_bool; _ } ] -> Nt.Ty_bool
+    | Nt.Ty_record { fds = [ { ty = Nt.Ty_bool; _ } ]; _ } -> Nt.Ty_bool
     | _ as t -> t
   in
   let real_op = real_op.x #: ty in

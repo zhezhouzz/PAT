@@ -1,6 +1,7 @@
 open Language
 open Zdatatype
 open Common
+open AutomataLibrary.SFA
 
 module SampleDomain = Map.Make (struct
   type t = Nt.t
@@ -13,7 +14,7 @@ type runtime = {
   trace : trace;
   buffer : trace;
   store : constant StrMap.t;
-  event_rtyctx : SFA.raw_regex haft ctx;
+  event_rtyctx : CharSet.t regex haft ctx;
 }
 
 exception RuntimeInconsistent of runtime
@@ -57,16 +58,16 @@ let store_add (vs, cs) store =
 let reduce_cty c ({ phi; _ } : cty) =
   eval_prop (StrMap.singleton default_v c) phi
 
-let reduce_sevent (op', cs) = function
+let reduce_sevent (op', (cs : constant list)) = function
   | { op; vs; phi } ->
       String.equal op op' && eval_prop (store_add (vs, cs) StrMap.empty) phi
 
 let sample runtime qv =
   match qv.ty with
-  | Nt.Ty_enum { enum_elems; enum_name } ->
+  (* | Nt.Ty_enum { enum_elems; enum_name } ->
       let elem = choose_from_list enum_elems in
       let c = Enum { enum_elems; enum_name; elem } in
-      (qv.x, c)
+      (qv.x, c) *)
   | _ -> (
       match SampleDomain.find_opt qv.ty runtime.sample_domain with
       | None ->
@@ -77,7 +78,7 @@ let sample runtime qv =
           _die [%here]
       | Some cs -> (qv.x, choose_from_list cs))
 
-let reduce_haft runtime cs (tau : SFA.raw_regex haft) =
+let reduce_haft runtime cs (tau : CharSet.t regex haft) =
   let rec aux (tau, cs) =
     (* let () = *)
     (*   Pp.printf "@{<bold>reduce_haft:@} cs(%s)\n%s\n" *)
@@ -88,8 +89,8 @@ let reduce_haft runtime cs (tau : SFA.raw_regex haft) =
     | RtyHAParallel { history; parallel; _ }, [] ->
         if SFA.is_match reduce_sevent history runtime.trace then [ parallel ]
         else []
-    | RtyGArr { arg; argnt; retrty }, cs ->
-        let samples = SampleDomain.find argnt runtime.sample_domain in
+    | RtyGArr { arg; argnty; retrty }, cs ->
+        let samples = SampleDomain.find argnty runtime.sample_domain in
         let ress =
           List.concat_map
             (fun c ->

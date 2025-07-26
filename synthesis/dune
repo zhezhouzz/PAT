@@ -12,7 +12,7 @@
   norm
   refine
   mkTerm
-  synthesis
-)
-(preprocess (pps ppx_here))
-)
+  synthesis)
+ (inline_tests)
+ (preprocess
+  (pps ppx_here ppx_inline_test)))

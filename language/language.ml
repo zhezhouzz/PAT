@@ -45,7 +45,7 @@ module Stat = struct
   let count_quantifier_charset cs =
     SFA.CharSet.fold (fun se res -> res + count_quantifier_se se) cs 0
 
-  let count_quantifier_rawregex =
+  let count_quantifier_regex =
     let rec aux = function
       | Empty -> 0
       | Eps -> 0
@@ -62,11 +62,11 @@ module Stat = struct
     let rec aux = function
       | RtyBase { phi; _ } -> count_quantifier_prop phi
       | RtyHAF { history; adding; future } ->
-          count_quantifier_rawregex history
-          + count_quantifier_rawregex adding
-          + count_quantifier_rawregex future
+          count_quantifier_regex history
+          + count_quantifier_regex adding
+          + count_quantifier_regex future
       | RtyHAParallel { history; adding_se; parallel } ->
-          count_quantifier_rawregex history
+          count_quantifier_regex history
           + count_quantifier_se adding_se
           + List.fold_left
               (fun res se -> res + count_quantifier_se se)

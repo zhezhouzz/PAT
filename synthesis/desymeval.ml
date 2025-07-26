@@ -2,7 +2,7 @@ open Sugar
 open Prop
 open Zdatatype
 open AutomataLibrary
-open Common
+open SFA
 
 let align_map (lit2int, barray) = LitMap.map (fun i -> barray.(i)) lit2int
 
@@ -72,12 +72,11 @@ let desym_eval_se desym_map { global_fact; local_fact } { op; phi; _ } =
   local_id_set
 
 let desym_eval_chars desym_map fact cs =
-  SFA.CharSet.fold
+  CharSet.fold
     (fun c -> DesymFA.CharSet.union (desym_eval_se desym_map fact c))
     cs DesymFA.CharSet.empty
 
 let desym_eval_regex desym_map fact =
-  let open DesymFA in
   let rec aux r =
     match r with
     | Empty -> Empty
@@ -85,12 +84,12 @@ let desym_eval_regex desym_map fact =
     | MultiChar cs ->
         let cs = desym_eval_chars desym_map fact cs in
         if DesymFA.CharSet.is_empty cs then Empty else MultiChar cs
-    | Alt (r1, r2) -> alt (aux r1) (aux r2)
-    | Inters (r1, r2) -> inter (aux r1) (aux r2)
-    | Seq rs -> seq (List.map aux rs)
+    | Alt (r1, r2) -> DesymFA.smart_alt (aux r1) (aux r2)
+    | Inters (r1, r2) -> DesymFA.smart_inter (aux r1) (aux r2)
+    | Seq rs -> DesymFA.smart_seq (List.map aux rs)
     | Comple (cs, r) ->
         let cs = desym_eval_chars desym_map fact cs in
         Comple (cs, aux r)
-    | Star r -> star @@ aux r
+    | Star r -> smart_star @@ aux r
   in
   aux

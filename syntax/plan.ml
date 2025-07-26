@@ -3,7 +3,7 @@ open AutomataLibrary
 open Common
 open Ast
 
-let layout_cur = layout_se
+let layout_cur = layout_sevent
 
 let layout_elem_aux f = function
   (* | PlanObs { op; vargs } -> *)
@@ -16,8 +16,8 @@ let layout_elem_aux f = function
 
 let layout_elem =
   layout_elem_aux (function
-    | PlanStarInv cs -> SFA.omit_layout_raw_regex (Star (MultiChar cs))
-    | PlanStar r -> SFA.omit_layout_raw_regex (Star r)
+    | PlanStarInv cs -> SFA.layout_regex (Star (MultiChar cs))
+    | PlanStar r -> SFA.layout_regex (Star r)
     | _ -> _die [%here])
 
 let omit_layout_elem =
@@ -63,7 +63,11 @@ let value_to_lit = function VVar x -> AVar x | VConst c -> AC c
 
 let elem_to_se ctx elem =
   let mk_c (op, args) =
-    let vs = _get_force [%here] ctx op in
+    let vs =
+      match _get_force [%here] ctx op with
+      | Nt.Ty_record { fds; _ } -> fds
+      | _ -> _die_with [%here] "unimp"
+    in
     (* let () = *)
     (*   Printf.printf "op: %s\n vs: %s\n args:%s\n" op (layout_qvs vs) *)
     (*     (List.split_by_comma layout_lit args) *)
@@ -95,8 +99,7 @@ let elem_to_raw_regex ctx elem =
   | PlanStar r -> Star r
   | PlanStarInv cs -> Star (MultiChar cs)
 
-let plan_to_raw_regex ctx plan =
-  SFA.smart_seq (List.map (elem_to_raw_regex ctx) plan)
+let plan_to_raw_regex ctx plan = SFA.seq (List.map (elem_to_raw_regex ctx) plan)
 
 let smart_and_se se1 elem =
   let () =
@@ -234,13 +237,11 @@ let comple_cs cs cs' =
   let open SFA in
   let cs =
     CharSet.filter_map
-      (fun se ->
-        let op, vs, phi = _get_sevent_fields se in
+      (fun { op; vs; phi } ->
         let phis =
           CharSet.fold
             (fun se' phis ->
-              let op', _, phi' = _get_sevent_fields se' in
-              if String.equal op op' then phi' :: phis else phis)
+              if String.equal op se'.op then se'.phi :: phis else phis)
             cs' []
         in
         let phi = smart_add_to phi (smart_not (smart_or phis)) in
@@ -253,13 +254,11 @@ let inter_cs cs1 cs2 =
   let open SFA in
   let cs =
     CharSet.filter_map
-      (fun se ->
-        let op, vs, phi = _get_sevent_fields se in
+      (fun { op; vs; phi } ->
         let phis =
           CharSet.fold
             (fun se' phis ->
-              let op', _, phi' = _get_sevent_fields se' in
-              if String.equal op op' then phi' :: phis else phis)
+              if String.equal op se'.op then se'.phi :: phis else phis)
             cs2 []
         in
         let phi = smart_add_to phi (smart_or phis) in
@@ -512,10 +511,8 @@ let subst_elem x z = function
         }
   | PlanAct { op; args } ->
       PlanAct { op; args = List.map (subst_name_qv x z) args }
-  | PlanSe { op; vs; phi } ->
-      let op, vs, phi =
-        _get_sevent_fields @@ subst_sevent_instance x (AVar z) { op; vs; phi }
-      in
+  | PlanSe se ->
+      let { op; vs; phi } = subst_sevent_instance x (AVar z) se in
       PlanSe { op; vs; phi }
   | PlanStarInv cs ->
       PlanStarInv (SFA.CharSet.map (subst_sevent_instance x (AVar z)) cs)
@@ -558,7 +555,7 @@ let gather_actions plan =
 let exactly_match se plan =
   let () =
     Pp.printfBold "exactly_match:"
-      (spf "%s in %s" (layout_se se) (omit_layout_plan plan))
+      (spf "%s in %s" (layout_sevent se) (omit_layout_plan plan))
   in
   let rec aux (pre, post) =
     match post with

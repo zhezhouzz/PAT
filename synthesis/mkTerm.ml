@@ -25,7 +25,7 @@ let quantifier_elimination (qvs, gprop, qv, local_qvs, prop) =
       @@ smart_implies (smart_add_to abd gprop) prop
     in
     let () = Printf.printf "check: %s\n" @@ layout_propRaw p in
-    Prover.check_valid p
+    Prover.check_valid (None, p)
   in
   if check_valid mk_true then Some mk_true
   else
@@ -82,7 +82,7 @@ let instantiation_var env (gamma : Gamma.gamma) vs Gamma.{ bvs; bprop } =
   let check_valid_pre prop =
     not
       (Prover.check_valid
-         (smart_forall gamma.bvs @@ smart_implies gamma.bprop (Not prop)))
+         (None, smart_forall gamma.bvs @@ smart_implies gamma.bprop (Not prop)))
   in
   let check_valid abd =
     let p =
@@ -90,7 +90,7 @@ let instantiation_var env (gamma : Gamma.gamma) vs Gamma.{ bvs; bprop } =
       @@ smart_exists bvs
       @@ smart_implies (smart_add_to abd gamma.bprop) bprop
     in
-    let res = Prover.check_valid p in
+    let res = Prover.check_valid (None, p) in
     let () = Printf.printf "check(%b): %s\n" res @@ layout_prop p in
     res
   in
@@ -153,7 +153,8 @@ let instantiation env goal =
           let args' =
             List.map
               (fun x ->
-                if name_in_qvs x.x fargs then x else (Rename.unique "tmp")#:x.ty)
+                if name_in_qvs x.x fargs then x
+                else (Rename.unique_var "tmp")#:x.ty)
               args
           in
           let ps =

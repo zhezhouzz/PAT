@@ -18,7 +18,7 @@ let blist_to_prop (bl : bool list) int2lit =
 
 let safe_check_sat_bool prop =
   let () = _assert [%here] "never" @@ List.is_empty (fv_prop prop) in
-  let res = Prover.check_sat_bool prop in
+  let res = Prover.check_sat_bool (None, prop) in
   (* let () = Pp.printf "@{<bold>check sat(%b): @} %s\n" res (layout_prop prop) in *)
   res
 
@@ -27,7 +27,7 @@ let check_sat_fact { global_vars; desym_map; event_tyctx; _ }
   let global_prop = blist_to_prop global_fact desym_map.global_int2lit in
   let () =
     _assert [%here] "never"
-    @@ Prover.check_sat_bool (smart_exists global_vars global_prop)
+    @@ Prover.check_sat_bool (None, smart_exists global_vars global_prop)
   in
   let do_local_fact op bl_set =
     let local_vars = StrMap.find "never" event_tyctx op in
@@ -99,7 +99,7 @@ let init_fact_v2 prop
   in
   let checker bl =
     let p = blist_to_prop bl desym_map.global_int2lit in
-    Prover.check_valid (smart_forall global_vars (smart_implies prop p))
+    Prover.check_valid (None, smart_forall global_vars (smart_implies prop p))
   in
   let global_fact = init_fact_tree checker global_ftab in
   match global_fact with

@@ -7,7 +7,7 @@ let str_eq_to_bv y x = match x with Some x -> String.equal x y | None -> false
 (* let vs_names n = List.init n (fun i -> spf "%s%i" "x_" i) *)
 
 let _get_record_ty_fields loc ty =
-  match ty with Nt.Ty_record l -> l | _ -> _failatwith loc "die"
+  match ty with Nt.Ty_record { fds; _ } -> fds | _ -> _die loc
 
 let mk_p_abstract_ty name = Nt.Ty_constructor (name, [])
 let mk_p_set_ty ty = Nt.Ty_constructor ("set", [ ty ])
@@ -15,7 +15,7 @@ let mk_p_seq_ty ty = Nt.Ty_constructor ("seq", [ ty ])
 let mk_p_map_ty ty1 ty2 = Nt.Ty_constructor ("map", [ ty1; ty2 ])
 let mk_p_event_ty = mk_p_abstract_ty "event"
 let mk_p_ref_ty ty = Nt.Ty_constructor ("ref", [ ty ])
-let mk_p_record_ty vs = Nt.Ty_record vs
+let mk_p_record_ty vs = Nt.Ty_record { alias = None; fds = vs }
 let mk_p_string_ty = mk_p_abstract_ty "string"
 let mk_p_regex_ty = mk_p_abstract_ty "regex"
 
@@ -24,10 +24,14 @@ let is_p_abstact_ty name = function
   | _ -> false
 
 let mk_p_tuple_ty vs =
-  Nt.Ty_record (List.mapi (fun i ty -> (string_of_int i)#:ty) vs)
+  Nt.Ty_record
+    { alias = None; fds = List.mapi (fun i ty -> (string_of_int i)#:ty) vs }
 
 let mk_p_machine_ty = mk_p_abstract_ty "machine"
-let is_empty_record_ty = function Nt.Ty_record [] -> true | _ -> false
+
+let is_empty_record_ty = function
+  | Nt.Ty_record { fds = []; _ } -> true
+  | _ -> false
 
 (** P Compiled File Convention *)
 let p_response_actions_domain = "response_actions"#:(mk_p_set_ty mk_p_string_ty)
@@ -105,8 +109,8 @@ let mk_p_it condition tbranch =
 
 let mk_p_field record field =
   match record.ty with
-  | Nt.Ty_record l -> (
-      match List.find_opt (fun x -> String.equal x.x field) l with
+  | Nt.Ty_record { fds; _ } -> (
+      match List.find_opt (fun x -> String.equal x.x field) fds with
       | None -> _die [%here]
       | Some x -> (PField { record; field })#:x.ty)
   | _ ->
@@ -128,7 +132,7 @@ let mk_depair (record : (Nt.nt, Nt.nt p_expr) typed) =
       let fst = (PField { record; field = "0" })#:t1 in
       let snd = (PField { record; field = "1" })#:t2 in
       (fst, snd)
-  | Nt.Ty_record [ x1; x2 ] ->
+  | Nt.Ty_record { fds = [ x1; x2 ]; _ } ->
       let fst = (PField { record; field = "0" })#:x1.ty in
       let snd = (PField { record; field = "1" })#:x2.ty in
       (fst, snd)
@@ -136,8 +140,8 @@ let mk_depair (record : (Nt.nt, Nt.nt p_expr) typed) =
 
 let mk_field_nth record n =
   match record.ty with
-  | Nt.Ty_record l -> (
-      match List.nth_opt l n with
+  | Nt.Ty_record { fds; _ } -> (
+      match List.nth_opt fds n with
       | None -> _die [%here]
       | Some { x = field; ty } -> (PField { record; field })#:ty)
   | _ -> _die [%here]
@@ -265,14 +269,14 @@ let mk_foreach_map_with_key key map body =
 let mk_foreach_map map body =
   match map.ty with
   | Nt.Ty_constructor ("map", [ t1; _ ]) ->
-      let key = (Rename.unique "key")#:t1 in
+      let key = (Rename.unique_var "key")#:t1 in
       mk_foreach_map_with_key key map (body key)
   | _ -> _die [%here]
 
 let mk_foreach_set set body =
   match set.ty with
   | Nt.Ty_constructor ("set", [ t ]) ->
-      let elem = (Rename.unique "elem")#:t in
+      let elem = (Rename.unique_var "elem")#:t in
       (ForeachSet { elem; set; body = body (mk_pid elem) })#:Nt.unit_ty
   | _ -> _die [%here]
 
@@ -417,7 +421,7 @@ let lift_bound_varaibles (expr : (Nt.t, Nt.t p_expr) typed) =
   in
   aux expr
 
-module TVSet = Rawdesym.TVSet
+(* module TVSet = Rawdesym.TVSet *)
 
 let mk_p_function_decl params local_vars body =
   let vars, body = lift_bound_varaibles body in

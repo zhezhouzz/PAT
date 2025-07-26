@@ -7,7 +7,7 @@ open Plan
 open Gamma
 
 let cur_to_obs { op; vs; phi } =
-  let args = List.map (fun x -> (Rename.unique x.x) #: x.ty) vs in
+  let args = List.map (fun x -> (Rename.unique_var x.x)#:x.ty) vs in
   let phi =
     List.fold_right
       (fun (x, y) p -> subst_prop_instance x.x (AVar y) p)
@@ -206,7 +206,7 @@ and forward env (goal : mid_plan_goal) =
               let history, se, p = destruct_hap [%here] retrty in
               (* NOTE: history should be well-formed. *)
               let () =
-                Printf.printf "history: %s\n" (SFA.layout_raw_regex history)
+                Printf.printf "history: %s\n" (SFA.layout_regex history)
               in
               let history_plan = raw_regex_to_plan history in
               (* in *)
@@ -214,7 +214,7 @@ and forward env (goal : mid_plan_goal) =
               let dep_elem =
                 match elem with
                 | PlanSe cur ->
-                    let args = List.map (fun x -> x.x #: x.ty.nt) args in
+                    let args = List.map (fun x -> x.x#:x.ty.nty) args in
                     Plan.smart_and_se cur (PlanAct { op; args })
                 | PlanAct _ -> Plan.smart_and_se se elem
                 | _ -> _die [%here]
@@ -422,8 +422,8 @@ and backward env (goal : mid_plan_goal) : plan_goal option =
     let handle (se, haft) =
       let () =
         Pp.printf "@{<bold>use rty@}\n@{<red>se@}: %s\n@{<red>haft@}: %s\n"
-          (layout_se se)
-          (layout_haft SFA.layout_raw_regex haft)
+          (layout_sevent se)
+          (layout_haft SFA.layout_regex haft)
       in
       let () = Stat.incr_backward () in
       let elem =
@@ -433,7 +433,7 @@ and backward env (goal : mid_plan_goal) : plan_goal option =
       in
       let gargs, (args, retrty) = destruct_haft [%here] haft in
       let history, dep_se, p = destruct_hap [%here] retrty in
-      let () = Pp.printf "@{<bold>dep_se:@} %s\n" (layout_se dep_se) in
+      let () = Pp.printf "@{<bold>dep_se:@} %s\n" (layout_sevent dep_se) in
       (* NOTE: history should be well-formed. *)
       let history_plan = raw_regex_to_plan history in
       let () =
@@ -450,8 +450,8 @@ and backward env (goal : mid_plan_goal) : plan_goal option =
       in
       let dep_elem =
         (* NOTE: the payload should just conj of eq *)
-        let op, _, _ = _get_sevent_fields dep_se in
-        let args = List.map (fun x -> x.x #: x.ty.nt) args in
+        let op = dep_se.op in
+        let args = List.map (fun x -> x.x#:x.ty.nty) args in
         PlanAct { op; args }
       in
       let args, arg_phis = List.split @@ List.map destruct_cty_var args in
@@ -612,8 +612,8 @@ and backward env (goal : mid_plan_goal) : plan_goal option =
           let () =
             Pp.printf
               "@{<bold>available rty %i@}\n@{<red>se@}: %s\n@{<red>haft@}: %s\n"
-              i (layout_se se)
-              (layout_haft SFA.layout_raw_regex haft)
+              i (layout_sevent se)
+              (layout_haft SFA.layout_regex haft)
           in
           ())
         rules

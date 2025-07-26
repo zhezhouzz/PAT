@@ -5,7 +5,7 @@ open Zdatatype
 open Ast
 open AutomataLibrary
 
-let layout_cty { nt; phi } = spf "v:%s | %s" (Nt.layout nt) (layout_prop phi)
+let layout_cty { nty; phi } = spf "v:%s | %s" (Nt.layout nty) (layout_prop phi)
 
 let vars_phi_of_expr expr =
   let rec aux expr =
@@ -21,25 +21,25 @@ let vars_phi_of_expr expr =
 
 let cty_of_expr expr =
   match vars_phi_of_expr expr with
-  | [ { x; ty } ], phi when String.equal x default_v -> { nt = ty; phi }
+  | [ { x; ty } ], phi when String.equal x default_v -> { nty = ty; phi }
   | _ -> _die_with [%here] (Pprintast.string_of_expression expr)
 
 let rec layout_haft f = function
   | RtyBase cty ->
-      if is_true cty.phi then Nt.layout cty.nt else spf "{%s}" (layout_cty cty)
+      if is_true cty.phi then Nt.layout cty.nty else spf "{%s}" (layout_cty cty)
   | RtyHAF { history; adding; future } ->
       spf "[%s][%s][%s]" (f history) (f adding) (f future)
   | RtyHAParallel { history; adding_se; parallel } ->
-      spf "[%s][%s][| %s |]" (f history) (layout_se adding_se)
-        (List.split_by " " layout_se parallel)
+      spf "[%s][%s][| %s |]" (f history) (layout_sevent adding_se)
+        (List.split_by " " layout_sevent parallel)
   | RtyArr { arg; argcty; retrty } ->
       let str =
-        if is_true argcty.phi then Nt.layout argcty.nt
+        if is_true argcty.phi then Nt.layout argcty.nty
         else spf "{%s}" (layout_cty argcty)
       in
       spf "(%s:%s) → %s" arg str (layout_haft f retrty)
-  | RtyGArr { arg; argnt; retrty } ->
-      spf "(%s:%s) ⇢ %s" arg (Nt.layout argnt) (layout_haft f retrty)
+  | RtyGArr { arg; argnty; retrty } ->
+      spf "(%s:%s) ⇢ %s" arg (Nt.layout argnty) (layout_haft f retrty)
   | RtyInter (haft1, haft2) ->
       spf "%s ⊓ %s" (layout_haft f haft1) (layout_haft f haft2)
 
@@ -53,10 +53,10 @@ let rec haft_of_expr expr =
           let x =
             match pattern.ppat_desc with
             | Ppat_constraint (name, ct) ->
-                (id_of_pattern name) #: (Nt.core_type_to_t ct)
+                (id_of_pattern name)#:(Nt.core_type_to_t ct)
             | _ -> _die_with [%here] "wrong format"
           in
-          RtyGArr { argnt = x.ty; arg = x.x; retrty }
+          RtyGArr { argnty = x.ty; arg = x.x; retrty }
       | Some haftexpr ->
           let arg = id_of_pattern pattern in
           let argcty = cty_of_expr haftexpr in
@@ -69,20 +69,21 @@ let rec haft_of_expr expr =
   | Pexp_tuple [ h; a; f ] -> (
       match f.pexp_desc with
       | Pexp_array es ->
-          let history = symbolic_regex_of_expr h in
+          let history = rich_symbolic_regex_of_expr h in
           let adding_se = sevent_of_expr a in
           let parallel = List.map sevent_of_expr es in
           RtyHAParallel { history; adding_se; parallel }
       | _ ->
-          let history, adding = map2 symbolic_regex_of_expr (h, a) in
-          let future = symbolic_regex_of_expr f in
+          let history, adding, future =
+            map3 rich_symbolic_regex_of_expr (h, a, f)
+          in
           RtyHAF { history; adding; future })
   | Pexp_array ls -> mk_inter_type @@ List.map haft_of_expr ls
   | _ ->
       _die_with [%here]
         (spf "wrong refinement type: %s" (Pprintast.string_of_expression expr))
 
-let rec locally_rename_haft ctx = function
+(* let rec locally_rename_haft ctx = function
   | RtyBase cty -> RtyBase cty
   | RtyHAF { history; adding; future } ->
       let history, adding, future =
@@ -99,4 +100,4 @@ let rec locally_rename_haft ctx = function
   | RtyGArr { arg; argnt; retrty } ->
       RtyGArr { arg; argnt; retrty = locally_rename_haft ctx retrty }
   | RtyInter (haft1, haft2) ->
-      RtyInter (locally_rename_haft ctx haft1, locally_rename_haft ctx haft2)
+      RtyInter (locally_rename_haft ctx haft1, locally_rename_haft ctx haft2) *)

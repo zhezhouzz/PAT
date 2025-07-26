@@ -7,8 +7,8 @@ let compile_const = function
   | U -> PUnit
   | B b -> PBool b
   | I i -> PInt i
-  | Enum { elem; _ } -> PEnum elem
-  | SetLiteral _ -> _die [%here]
+  (* | Enum { elem; _ } -> PEnum elem *)
+  (* | SetLiteral _ -> _die [%here] *)
   | _ -> _die [%here]
 
 let rec compile_typed_lit lit = (compile_lit lit.x)#:lit.ty
@@ -77,7 +77,7 @@ let mk_sample_space_decl nt =
     if Nt.equal_nt Nt.bool_ty nt then Nt.bool_ty
     else
       match nt with
-      | Nt.Ty_enum { enum_name; _ } -> mk_p_abstract_ty enum_name
+      (* | Nt.Ty { enum_name; _ } -> mk_p_abstract_ty enum_name *)
       | _ -> Nt.int_ty
   in
   let name = spf "domain_%s" (Nt.layout nt) in
@@ -97,7 +97,7 @@ let handle_assume vars prop =
   let body = mk_p_seqs_ (List.map f vars @ [ mk_p_it cond mk_p_break ]) in
   mk_p_while body
 
-module TVSet = Rawdesym.TVSet
+(* module TVSet = Rawdesym.TVSet *)
 
 let get_vars_from_term e =
   let rec aux set e =

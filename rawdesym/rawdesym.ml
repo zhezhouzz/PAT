@@ -31,18 +31,18 @@ let do_desym desym_ctx (gprop, r) =
 (*   let r' = do_desym desym_ctx (gprop, r) in *)
 (*   DesymFA.emptiness r' *)
 
-let do_normalize_desym_regex (rawreg : raw_regex) =
-  dfa_to_reg @@ minimize @@ compile_raw_regex_to_dfa rawreg
+let do_normalize_desym_regex (rawreg : CharSet.t regex) =
+  dfa_to_reg @@ minimize @@ compile_regex_to_dfa rawreg
 
-let normalize_desym_regex (rawreg : raw_regex) =
+let normalize_desym_regex (rawreg : CharSet.t regex) =
   (* let () = Pp.printf "@{<bold>start@}: %s\n" (layout_raw_regex rawreg) in *)
   let rec aux rawreg =
     match rawreg with
     | Empty | Eps | MultiChar _ -> rawreg
-    | Alt (r1, r2) -> smart_alt (aux r1) (aux r2)
+    | Alt (r1, r2) -> alt (aux r1) (aux r2)
     | Comple (cs1, Comple (cs2, r)) ->
         let () =
-          Pp.printf "@{<bold>double comp@}: %s\n" (layout_raw_regex rawreg)
+          Pp.printf "@{<bold>double comp@}: %s\n" (layout_regex rawreg)
         in
         let cs1 = CharSet.filter (fun c -> not (CharSet.mem c cs2)) cs1 in
         if CharSet.is_empty cs1 then aux r else Alt (Star (MultiChar cs1), aux r)
@@ -50,22 +50,20 @@ let normalize_desym_regex (rawreg : raw_regex) =
         match aux r with
         | Star (MultiChar cs') ->
             let () =
-              Pp.printf "@{<bold>opt comple1@}: %s\n" (layout_raw_regex rawreg)
+              Pp.printf "@{<bold>opt comple1@}: %s\n" (layout_regex rawreg)
             in
             let cs'' = CharSet.filter (fun c -> not (CharSet.mem c cs')) cs in
             Star (MultiChar cs'')
         | _ as r ->
             let () =
-              Pp.printf "@{<bold>opt comple fail@}: %s\n" (layout_raw_regex r)
+              Pp.printf "@{<bold>opt comple fail@}: %s\n" (layout_regex r)
             in
             do_normalize_desym_regex rawreg)
     | Inters _ ->
-        let () =
-          Pp.printf "@{<bold>opt inters@}: %s\n" (layout_raw_regex rawreg)
-        in
+        let () = Pp.printf "@{<bold>opt inters@}: %s\n" (layout_regex rawreg) in
         do_normalize_desym_regex rawreg
-    | Seq l -> smart_seq (List.map aux l)
-    | Star r -> smart_star (do_normalize_desym_regex r)
+    | Seq l -> seq (List.map aux l)
+    | Star r -> star (do_normalize_desym_regex r)
   in
   aux rawreg
 

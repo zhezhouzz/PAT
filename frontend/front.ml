@@ -18,8 +18,7 @@ let layout_syn_env
   let str = "" in
   let str = spf "%s\n    tyctx:\n%s\n" str (layout_ctx Nt.layout tyctx) in
   let str =
-    spf "%s\n    event_tyctx:\n%s\n" str
-      (layout_ctx (fun l -> Nt.layout (Nt.Ty_record l)) event_tyctx)
+    spf "%s\n    event_tyctx:\n%s\n" str (layout_ctx Nt.layout event_tyctx)
   in
   let str =
     spf "%s\n    gen_ctx:\n%s\n" str (layout_ctx string_of_bool gen_ctx)
@@ -30,7 +29,7 @@ let layout_syn_env
   in
   let str =
     spf "%s\n    event_rtyctx:\n%s\n" str
-      (layout_ctx (layout_haft SFA.layout_raw_regex) event_rtyctx)
+      (layout_ctx (layout_haft SFA.layout_regex) event_rtyctx)
   in
   let str =
     spf "%s\n    goal:\n%s\n" str

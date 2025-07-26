@@ -1,22 +1,16 @@
 include Common
 open Sexplib.Std
-
-(* include Constructor_declaration *)
-(* include Item *)
-(* include Inst *)
 include Zutils
 include Typectx
-
-(* include Pmachine *)
-(* include Wrapper *)
 include Myconfig
 open AutomataLibrary
 
-type srl = (Nt.nt, Nt.nt sevent) regex [@@deriving show, eq, ord]
+type rich_srl = Nt.nt sevent rich_regex [@@deriving show, eq, ord]
+type srl = SFA.CharSet.t regex
 
 let default_v = "v"
 
-type cty = { nt : Nt.nt; phi : Nt.nt prop } [@@deriving show, eq, ord]
+type cty = { nty : Nt.nt; phi : Nt.nt prop } [@@deriving show, eq, ord]
 
 type 'r haft =
   | RtyBase of cty
@@ -26,7 +20,8 @@ type 'r haft =
       adding_se : Nt.nt sevent;
       parallel : Nt.nt sevent list;
     }
-  | RtyGArr of { arg : string; argnt : Nt.nt; retrty : 'r haft }
+    (* parse only *)
+  | RtyGArr of { arg : string; argnty : Nt.nt; retrty : 'r haft }
   | RtyArr of { arg : string; argcty : cty; retrty : 'r haft }
   | RtyInter of 'r haft * 'r haft
 [@@deriving show, eq, ord]
@@ -53,8 +48,7 @@ type term =
   | CAssertP of Nt.nt prop
 [@@deriving sexp, show, eq, ord]
 
-type syn_goal = { qvs : (Nt.nt, string) typed list; prop : srl }
-[@@deriving show, eq, ord]
+type syn_goal = { qvs : (Nt.nt, string) typed list; prop : rich_srl }
 
 type 'r item =
   | PrimDecl of { name : string; nt : Nt.nt }
@@ -66,7 +60,6 @@ type 'r item =
     }
   | MsgDecl of { name : string; haft : 'r haft }
   | SynGoal of syn_goal
-[@@deriving show, eq, ord]
 
 type plan_elem =
   | PlanAct of { op : string; args : (Nt.nt, string) typed list }
@@ -77,16 +70,16 @@ type plan_elem =
     }
   | PlanSe of Nt.nt sevent
   | PlanStarInv of SFA.CharSet.t
-  | PlanStar of SFA.CharSet.t raw_regex
+  | PlanStar of SFA.CharSet.t regex
 [@@deriving eq, ord]
 
 type plan = plan_elem list
 
 type syn_env = {
-  event_rtyctx : SFA.raw_regex haft ctx;
+  event_rtyctx : srl haft ctx;
   gen_ctx : bool ctx;
   recvable_ctx : bool ctx;
-  event_tyctx : (Nt.nt, string) typed list ctx;
+  event_tyctx : t ctx;
   tyctx : Nt.t ctx;
   goal : syn_goal option;
 }
@@ -120,7 +113,7 @@ let mk_inter_type l =
   | [] -> _die [%here]
   | h :: t -> List.fold_left (fun x y -> RtyInter (x, y)) h t
 
-let erase_cty { nt; _ } = nt
+let erase_cty { nty; _ } = nty
 
 let rec erase_rty = function
   | RtyBase cty -> erase_cty cty
@@ -130,7 +123,7 @@ let rec erase_rty = function
       Nt.mk_arr (erase_cty argcty) (erase_rty retrty)
   | RtyInter (t1, t2) ->
       let t1, t2 = map2 erase_rty (t1, t2) in
-      let t = Nt._type_unify [%here] t1 t2 in
+      let t = Nt.unify_two_types [%here] [] (t1, t2) in
       t
 
 let mk_haf (history, adding, future) = RtyHAF { history; adding; future }
@@ -146,16 +139,14 @@ let rec haft_to_triple = function
       if is_singleton_haft r then [ r ]
       else _die_with [%here] "not a well-formed HAF type"
 
-let qv_to_cqv { x; ty } = { x; ty = { nt = ty; phi = mk_true } }
+let qv_to_cqv { x; ty } = { x; ty = { nty = ty; phi = mk_true } }
 let value_to_nt = function VVar x -> x.ty | VConst c -> constant_to_nt c
 let value_to_tvalue v = v#:(value_to_nt v)
 let value_to_lit = function VVar x -> AVar x | VConst c -> AC c
 
 let mk_term_gen env op args e =
-  let ty = _get_force [%here] env.event_tyctx op in
-  term_concat
-    (CGen { op = op#:(Nt.Ty_record ty); args = List.map value_to_tvalue args })
-    e
+  let nty = _get_force [%here] env.event_tyctx op in
+  term_concat (CGen { op = op#:nty; args = List.map value_to_tvalue args }) e
 
 let mk_term_assertP prop e =
   if is_true prop then e else term_concat (CAssertP prop) e
@@ -166,13 +157,13 @@ let mk_term_assume args prop e =
   | _ -> mk_let args (CAssume (List.map _get_ty args, prop)) e
 
 let mk_term_obs env op args prop e =
-  let ty = _get_force [%here] env.event_tyctx op in
-  mk_let args (CObs { op = op#:(Nt.Ty_record ty); prop }) e
+  let nty = _get_force [%here] env.event_tyctx op in
+  mk_let args (CObs { op = op#:nty; prop }) e
 
 let rctx_to_prefix rctx =
   List.fold_right
     (fun x (qvs, prop) ->
-      let x' = x.x#:x.ty.nt in
+      let x' = x.x#:x.ty.nty in
       let phi = subst_prop_instance default_v (AVar x') x.ty.phi in
       (x' :: qvs, smart_add_to phi prop))
     (ctx_to_list rctx) ([], mk_true)
@@ -195,9 +186,9 @@ let destruct_haft loc r =
     | RtyInter _ -> _die loc
     | RtyBase _ | RtyHAF _ | RtyHAParallel _ | RtyArr _ ->
         ([], destruct_haft_inner loc r)
-    | RtyGArr { argnt; retrty; arg } ->
+    | RtyGArr { argnty; retrty; arg } ->
         let args, t = aux retrty in
-        ((arg#:argnt) :: args, t)
+        ((arg#:argnty) :: args, t)
   in
   aux r
 
@@ -206,11 +197,11 @@ let destruct_hap loc = function
       (history, adding_se, parallel)
   | _ -> _die loc
 
-let subst_cty name lit { nt; phi } =
-  { nt; phi = subst_prop_instance name lit phi }
+let subst_cty name lit cty =
+  { cty with phi = subst_prop_instance name lit cty.phi }
 
 let subst_raw_sregex name lit r =
-  SFA.raw_reg_map (SFA.CharSet.map (subst_sevent_instance name lit)) r
+  map_regex (SFA.CharSet.map (subst_sevent_instance name lit)) r
 
 let subst_haft name lit t =
   let rec aux = function
@@ -230,9 +221,34 @@ let subst_haft name lit t =
         else
           RtyArr
             { arg; argcty = subst_cty name lit argcty; retrty = aux retrty }
-    | RtyGArr { arg; argnt; retrty } ->
-        if String.equal arg name then RtyGArr { arg; argnt; retrty }
-        else RtyGArr { arg; argnt; retrty = aux retrty }
+    | RtyGArr { arg; argnty; retrty } ->
+        if String.equal arg name then RtyGArr { arg; argnty; retrty }
+        else RtyGArr { arg; argnty; retrty = aux retrty }
+    | RtyInter (t1, t2) -> RtyInter (aux t1, aux t2)
+  in
+  aux t
+
+let map_cty (f : Nt.t -> Nt.t) ({ nty; phi } : cty) =
+  { nty = f nty; phi = map_prop f phi }
+
+let map_haft (mapr : (Nt.t -> Nt.t) -> 'r -> 'r) (f : Nt.t -> Nt.t)
+    (t : 'r haft) =
+  let rec aux = function
+    | RtyBase cty -> RtyBase (map_cty f cty)
+    | RtyHAF { history; adding; future } ->
+        let history, adding, future = map3 (mapr f) (history, adding, future) in
+        RtyHAF { history; adding; future }
+    | RtyHAParallel { history; adding_se; parallel } ->
+        let history = (mapr f) history in
+        let adding_se = map_sevent f adding_se in
+        let parallel = List.map (map_sevent f) parallel in
+        RtyHAParallel { history; adding_se; parallel }
+    | RtyArr { arg; argcty; retrty } ->
+        if String.equal arg arg then RtyArr { arg; argcty; retrty }
+        else RtyArr { arg; argcty = map_cty f argcty; retrty = aux retrty }
+    | RtyGArr { arg; argnty; retrty } ->
+        if String.equal arg arg then RtyGArr { arg; argnty; retrty }
+        else RtyGArr { arg; argnty; retrty = aux retrty }
     | RtyInter (t1, t2) -> RtyInter (aux t1, aux t2)
   in
   aux t
@@ -241,13 +257,13 @@ let rec fresh_haft t =
   match t with
   | RtyBase _ | RtyHAF _ | RtyHAParallel _ -> t
   | RtyArr { arg; argcty; retrty } ->
-      let arg' = Rename.unique arg in
-      let retrty = subst_haft arg (AVar arg'#:argcty.nt) retrty in
+      let arg' = Rename.unique_var arg in
+      let retrty = subst_haft arg (AVar arg'#:argcty.nty) retrty in
       RtyArr { arg = arg'; argcty; retrty = fresh_haft retrty }
-  | RtyGArr { arg; argnt; retrty } ->
-      let arg' = Rename.unique arg in
-      let retrty = subst_haft arg (AVar arg'#:argnt) retrty in
-      RtyGArr { arg = arg'; argnt; retrty = fresh_haft retrty }
+  | RtyGArr { arg; argnty; retrty } ->
+      let arg' = Rename.unique_var arg in
+      let retrty = subst_haft arg (AVar arg'#:argnty) retrty in
+      RtyGArr { arg = arg'; argnty; retrty = fresh_haft retrty }
   | RtyInter (t1, t2) -> RtyInter (fresh_haft t1, fresh_haft t2)
 
 open Zdatatype

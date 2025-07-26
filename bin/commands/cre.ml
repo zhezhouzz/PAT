@@ -148,7 +148,8 @@ let compile_to_p_aux source_file output_file p_output_file () =
   (*     (Oparse.parse_imp_from_file ~sourcefile:pheader_file) *)
   (* in *)
   let env, term = load_syn_result source_file output_file in
-  let content = Pbackend.compile_syn_result env term in
+  let content = _die_with [%here] "unimp" in
+  (* Pbackend.compile_syn_result env term in *)
   let oc = open_out p_output_file in
   let () =
     try

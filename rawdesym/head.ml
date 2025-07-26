@@ -1,7 +1,7 @@
 open Zutils
 open Prop
 open Zdatatype
-open Fa
+open SFA
 open Myconfig
 
 type features = Nt.t lit array

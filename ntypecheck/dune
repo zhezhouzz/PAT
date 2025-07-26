@@ -2,11 +2,7 @@
  (name ntypecheck)
  (public_name haft.ntypecheck)
  (wrapped true)
- (libraries syntax language)
- (modules
-  normal_rty_typing
-  normal_item_typing
-  ntypecheck
-)
-(preprocess (pps ppx_here))
-)
+ (libraries syntax language zutils)
+ (modules normal_rty_typing normal_item_typing ntypecheck)
+ (preprocess
+  (pps ppx_here)))

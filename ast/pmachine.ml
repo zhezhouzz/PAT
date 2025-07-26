@@ -149,8 +149,8 @@ let mk_p_it condition tbranch =
 
 let mk_field record field =
   match record.ty with
-  | Nt.Ty_record l -> (
-      match List.find_opt (fun x -> String.equal x.x field) l with
+  | Nt.Ty_record { fds; _ } -> (
+      match List.find_opt (fun x -> String.equal x.x field) fds with
       | None -> _die [%here]
       | Some x -> (PField { record; field })#:x.ty)
   | _ ->
@@ -169,7 +169,7 @@ let mk_depair (record : (Nt.nt, Nt.nt p_expr) typed) =
       let fst = (PField { record; field = "0" })#:t1 in
       let snd = (PField { record; field = "1" })#:t2 in
       (fst, snd)
-  | Nt.Ty_record [ x1; x2 ] ->
+  | Nt.Ty_record { fds = [ x1; x2 ]; _ } ->
       let fst = (PField { record; field = "0" })#:x1.ty in
       let snd = (PField { record; field = "1" })#:x2.ty in
       (fst, snd)
@@ -177,8 +177,8 @@ let mk_depair (record : (Nt.nt, Nt.nt p_expr) typed) =
 
 let mk_field_nth record n =
   match record.ty with
-  | Nt.Ty_record l -> (
-      match List.nth_opt l n with
+  | Nt.Ty_record { fds; _ } -> (
+      match List.nth_opt fds n with
       | None -> _die [%here]
       | Some { x = field; ty } -> (PField { record; field })#:ty)
   | _ -> _die [%here]
@@ -306,14 +306,14 @@ let mk_foreach_map_with_key key map body =
 let mk_foreach_map map body =
   match map.ty with
   | Nt.Ty_constructor ("map", [ t1; t2 ]) ->
-      let key = (Rename.unique "key")#:t1 in
+      let key = (Rename.unique_var "key")#:t1 in
       mk_foreach_map_with_key key map (body key)
   | _ -> _die [%here]
 
 let mk_foreach_set set body =
   match set.ty with
   | Nt.Ty_constructor ("set", [ t ]) ->
-      let elem = (Rename.unique "elem")#:t in
+      let elem = (Rename.unique_var "elem")#:t in
       (ForeachSet { elem; set; body = body (mk_pid elem) })#:Nt.unit_ty
   | _ -> _die [%here]
 

@@ -17,10 +17,10 @@ let test_compile_raw_regex_to_dfa f =
 
 let cmds =
   [
-    ( "test-reg-fa-1",
+    (* ( "test-reg-fa-1",
       test_compile_raw_regex_to_dfa QcFa.qc_test_compile_raw_regex_to_dfa_1 );
     ( "test-reg-fa-2",
-      test_compile_raw_regex_to_dfa QcFa.qc_test_compile_raw_regex_to_dfa_2 );
+      test_compile_raw_regex_to_dfa QcFa.qc_test_compile_raw_regex_to_dfa_2 ); *)
     ( "test-fa-minimalize",
       test_compile_raw_regex_to_dfa QcFa.qc_test_fa_minimalize );
     ( "test-fa-normalize",

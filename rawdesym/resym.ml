@@ -1,6 +1,6 @@
 (* open Sugar *)
 open Zdatatype
-open Fa
+open AutomataLibrary
 open Common
 open SFA
 
@@ -22,12 +22,12 @@ let resym_regex ctx =
     | MultiChar cs ->
         let cs = resym_chars ctx cs in
         if CharSet.is_empty cs then Empty else MultiChar cs
-    | Alt (r1, r2) -> smart_alt (aux r1) (aux r2)
-    | Inters (r1, r2) -> smart_alt (aux r1) (aux r2)
-    | Seq rs -> DesymFA.smart_seq (List.map aux rs)
+    | Alt (r1, r2) -> alt (aux r1) (aux r2)
+    | Inters (r1, r2) -> alt (aux r1) (aux r2)
+    | Seq rs -> seq (List.map aux rs)
     | Comple (cs, r) ->
         let cs = resym_chars ctx cs in
         Comple (cs, aux r)
-    | Star r -> smart_star @@ aux r
+    | Star r -> star @@ aux r
   in
   aux

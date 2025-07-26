@@ -120,7 +120,10 @@ let build_fvtab env lits =
 
 let mk_raw_all env =
   let l =
-    List.map (fun x -> { op = x.x; vs = x.ty; phi = mk_true })
+    List.map (fun x ->
+        match x.ty with
+        | Nt.Ty_record { fds; _ } -> { op = x.x; vs = fds; phi = mk_true }
+        | _ -> _die_with [%here] "never")
     @@ ctx_to_list env.event_tyctx
   in
   if List.length l == 0 then _die [%here] else SFA.CharSet.of_list l
@@ -140,23 +143,23 @@ let mk_raw_all env =
 (*       StateSet.is_empty dfa.finals) *)
 (*     goals *)
 
-let check_regex_nonempty env { bprop; _ } r =
+let check_regex_nonempty _ _ r =
   let really_do_check_regex_nonempty () =
     let _, r' =
-      Rawdesym.desymbolic_symbolic_rewregex env.tyctx env.event_tyctx (bprop, r)
+      _die_with [%here] "unimp"
+      (* Rawdesym.desymbolic_symbolic_rewregex env.tyctx env.event_tyctx (bprop, r) *)
     in
     let () =
-      Pp.printf "@{<bold>check_regex_nonempty@}: %s\n" (SFA.layout_raw_regex r)
+      Pp.printf "@{<bold>check_regex_nonempty@}: %s\n" (SFA.layout_regex r)
     in
     let () =
-      Pp.printf "@{<bold>check_regex_nonempty@}: %s\n"
-        (DesymFA.layout_raw_regex r')
+      Pp.printf "@{<bold>check_regex_nonempty@}: %s\n" (DesymFA.layout_regex r')
     in
     not @@ DesymFA.emptiness r'
   in
   really_do_check_regex_nonempty ()
 
-let abduction_automata env { bvs; bprop } (a : SFA.raw_regex) abd_vars =
+let abduction_automata env { bvs; bprop } (a : SFA.CharSet.t regex) abd_vars =
   let really_do_abduction () =
     let lits = Rawdesym.mk_global_ftab env.tyctx (bvs @ abd_vars, bprop, a) in
     let lits =
@@ -229,9 +232,10 @@ let abduction_automata env { bvs; bprop } (a : SFA.raw_regex) abd_vars =
 (*   (\* let () = if List.length fvs > 1 then _die [%here] in *\) *)
 (*   fvs *)
 
-let abduction_plan env gamma plan abd_vars =
-  let a = Plan.plan_to_raw_regex env.event_tyctx plan in
-  abduction_automata env gamma a abd_vars
+let abduction_plan _ _ _ _ = _die_with [%here] "unimp"
+(* let abduction_plan env gamma plan abd_vars =  *)
+(* let a = Plan.plan_to_raw_regex env.event_tyctx plan in *)
+(* abduction_automata env gamma a abd_vars *)
 
 let abduction_mid_goal env gamma (plan1, elem, plan2) abd_vars =
   let plan = plan1 @ [ elem ] @ plan2 in

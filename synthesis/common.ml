@@ -1,6 +1,73 @@
 open Language
+open AutomataLibrary
+open Zdatatype
 
-type sregex = Nt.t sevent raw_regex
+module LitSet = Set.Make (struct
+  type t = Nt.nt lit
+
+  let compare = compare_lit Nt.compare_nt
+end)
+
+module ConstSet = Set.Make (struct
+  type t = constant
+
+  let compare = compare_constant
+end)
+
+module TVSet = Set.Make (struct
+  type t = (Nt.nt, string) typed
+
+  let compare x y = String.compare x.x y.x
+end)
+
+module LitMap = Map.Make (struct
+  type t = Nt.nt lit
+
+  let compare = compare_lit Nt.compare_nt
+end)
+
+type desym_map = {
+  global_lit2int : int LitMap.t;
+  global_int2lit : Nt.nt lit IntMap.t;
+  local_lit2int : int LitMap.t StrMap.t;
+  local_int2lit : Nt.nt lit IntMap.t StrMap.t;
+}
+
+type desym_ctx = {
+  global_vars : (Nt.nt, string) typed list;
+  event_tyctx : (Nt.nt, string) typed list StrMap.t;
+  global_ftab : Nt.nt lit list;
+  local_ftab : Nt.nt lit list StrMap.t;
+  desym_map : desym_map;
+}
+
+let print_desym_ctx { global_vars; global_ftab; local_ftab; _ } =
+  let () =
+    Pp.printf "@{<bold>global_vars:@} %s\n"
+      (List.split_by_comma _get_x global_vars)
+  in
+  let () =
+    Pp.printf "@{<bold>global_ftab:@} %s\n"
+      (List.split_by_comma layout_lit global_ftab)
+  in
+  let () =
+    StrMap.iter
+      (fun op l ->
+        Pp.printf "@{<bold>local[%s]_ftab:@} %s\n" op
+          (List.split_by_comma layout_lit l))
+      local_ftab
+  in
+  ()
+
+module BlistSet = Set.Make (struct
+  type t = bool list
+
+  let compare = List.compare Bool.compare
+end)
+
+type fact = { global_fact : bool list; local_fact : BlistSet.t StrMap.t }
+type sregex = SFA.CharSet.t regex
+
 (* type 'a sgoal = Gamma.gamma * 'a *)
 
 open Gamma
@@ -173,9 +240,7 @@ let rec filter_rule_by_future op = function
   | RtyHAParallel { parallel; adding_se; history } ->
       (* HACK: assume each op only has one sevent. *)
       let ses, parallel' =
-        List.partition
-          (fun se -> String.equal op (_get_sevent_name se))
-          parallel
+        List.partition (fun se -> String.equal op se.op) parallel
       in
       List.map (fun (se, rest) ->
           (se, RtyHAParallel { parallel = rest @ parallel'; adding_se; history }))
@@ -193,9 +258,9 @@ let rec filter_rule_by_future op = function
   | RtyArr { arg; argcty; retrty } ->
       let l = filter_rule_by_future op retrty in
       List.map (fun (se, retrty) -> (se, RtyArr { arg; argcty; retrty })) l
-  | RtyGArr { arg; argnt; retrty } ->
+  | RtyGArr { arg; argnty; retrty } ->
       let l = filter_rule_by_future op retrty in
-      List.map (fun (se, retrty) -> (se, RtyGArr { arg; argnt; retrty })) l
+      List.map (fun (se, retrty) -> (se, RtyGArr { arg; argnty; retrty })) l
   | _ -> _die [%here]
 
 let select_rule_by_future env op =
@@ -204,8 +269,7 @@ let select_rule_by_future env op =
       let l = haft_to_triple x.ty in
       let l = List.concat_map (filter_rule_by_future op) l in
       l)
-    (List.map (fun x -> x.x #: (fresh_haft x.ty))
-    @@ ctx_to_list env.event_rtyctx)
+    (List.map (fun x -> x.x#:(fresh_haft x.ty)) @@ ctx_to_list env.event_rtyctx)
 
 let charset_to_se loc s =
   let open SFA in

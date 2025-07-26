@@ -15,17 +15,17 @@ let rec layout_pnt t =
         spf "map[%s, %s]" (aux ty1) (aux ty2)
     | Ty_tuple ts when List.length ts > 1 ->
         spf "(%s)" @@ List.split_by ", " aux ts
-    | Ty_record l -> (
-        match l with
+    | Ty_record { fds; _ } -> (
+        match fds with
         | [] -> "" (* _die_with [%here] "bad record" *)
         | x :: _ when String.equal x.x "0" ->
-            let l = List.map _get_ty l in
+            let l = List.map _get_ty fds in
             spf "(%s)" @@ List.split_by ", " layout_pnt l
         | _ ->
             spf "(%s)"
             @@ List.split_by ", "
                  (fun { x = a; ty = b } -> layout_pnt_typed a b)
-                 l)
+                 fds)
     | _ as t -> layout t
   in
   aux t
@@ -181,7 +181,8 @@ let rec layout_p_expr ctx n = function
           spf "receive { case %s: {\n" event_name
         else
           match input.ty with
-          | Nt.Ty_record [] -> spf "receive { case %s: {\n" event_name
+          | Nt.Ty_record { fds = []; _ } ->
+              spf "receive { case %s: {\n" event_name
           | Nt.Ty_record _ ->
               let ptype =
                 match List.of_seq @@ String.to_seq event_name with

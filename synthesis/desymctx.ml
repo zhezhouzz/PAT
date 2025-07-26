@@ -2,10 +2,9 @@ open Myconfig
 open Sugar
 open Prop
 open Zdatatype
-open AutomataLibrary
 open Common
+open AutomataLibrary
 open SFA
-open Desymeval
 module Prover = Language.Prover
 
 let mk_fvec_from_ftab ftab =
@@ -26,7 +25,7 @@ let init_fact prop { global_ftab; local_ftab; desym_map; _ } =
     BlistSet.filter
       (fun bl ->
         let p = Satcheck.blist_to_prop bl desym_map.global_int2lit in
-        Prover.check_sat_bool (None, p))
+        Prover.check_sat_bool p)
       global_fact
   in
   let global_fact =
@@ -199,7 +198,7 @@ let refine_global_ftab global_vars prop ftab =
   let check_valid_feature lit =
     let aux lit =
       let p = smart_forall global_vars (smart_implies prop lit) in
-      let res = Prover.check_valid (None, p) in
+      let res = Prover.check_valid p in
       let () =
         _log "desym" @@ fun _ ->
         Pp.printf "@{<bold> check valid: @} %s :: %b\n" (layout_prop p) res
@@ -247,11 +246,8 @@ let layout_ftab ftab =
 (*   let () = Pp.printf "end mk_global_ftab \n" in *)
 (*   global_ftab *)
 
-let mk_global_ftab _ (_, prop, _) =
-  let { global_lits; _ } =
-    _die_with [%here] "unimp"
-    (* @@ gather_regex @@ rich_regex_to_regex r *)
-  in
+let mk_global_ftab _ (_, prop, r) =
+  let { global_lits; _ } = gather_regex @@ raw_regex_to_regex r in
   let prop_lits = get_lits prop in
   (* let if_add_lt = *)
   (*   match Typectx.get_opt tyctx ">" with None -> false | Some _ -> true *)

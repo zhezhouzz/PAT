@@ -11,12 +11,11 @@ let rec parse_goal expr =
       let vs, srl = parse_goal body in
       let v =
         match pattern.ppat_desc with
-        | Ppat_constraint (id, ct) ->
-            (id_of_pattern id) #: (Nt.core_type_to_t ct)
+        | Ppat_constraint (id, ct) -> (id_of_pattern id)#:(Nt.core_type_to_t ct)
         | _ -> _die_with [%here] "wrong format"
       in
       (v :: vs, srl)
-  | _ -> ([], symbolic_regex_of_expr expr)
+  | _ -> ([], rich_symbolic_regex_of_expr expr)
 
 let ocaml_structure_item_to_p_event_decl structure =
   match structure.pstr_desc with
@@ -72,8 +71,9 @@ let ocaml_structure_item_to_item structure =
          | [ x ] -> (
              match x.attr_name.txt with
              | "goal" ->
-                 let qvs, prop = parse_goal value_binding.pvb_expr in
-                 SynGoal { qvs; prop }
+                 _die_with [%here] "TODO: convert rich_regex to srl"
+                 (* let qvs, prop = parse_goal value_binding.pvb_expr in *)
+                 (* SynGoal { qvs; prop } *)
              | _ ->
                  _die_with [%here]
                    "syntax error: non known rty kind, not axiom | assert | \
@@ -95,7 +95,8 @@ let ocaml_structure_to_p_tyctx structure =
 let layout_syn_goal { qvs; prop } =
   spf "%s.%s"
     (List.split_by "." (fun x -> spf "∀%s" @@ layout_qv x) qvs)
-    (layout_symbolic_regex prop)
+    (layout_rich_symbolic_regex 
+    prop)
 
 let layout_item = function
   | MsgNtDecl { generative; recvable; name; nt } ->
@@ -104,12 +105,12 @@ let layout_item = function
         name (Nt.layout nt)
   | PrimDecl { name; nt } -> spf "val %s: %s" name (Nt.layout nt)
   | MsgDecl { name; haft } ->
-      spf "rty %s:\n  %s" name (layout_haft layout_symbolic_regex haft)
+      spf "rty %s:\n  %s" name (layout_haft layout_rich_symbolic_regex haft)
   | SynGoal g -> spf "goal:\n  %s" (layout_syn_goal g)
 
 let layout_structure l = spf "%s\n" (List.split_by "\n" layout_item l)
 
-let locally_rename_item ctx item =
+(* let locally_rename_item ctx item =
   let () =
     _log "parsing" @@ fun _ ->
     Pp.printf "@{<bold>parsing2:@}\n%s\n" (layout_item item)
@@ -120,4 +121,4 @@ let locally_rename_item ctx item =
       MsgDecl { name; haft = locally_rename_haft ctx haft }
   | SynGoal { qvs; prop } ->
       let prop = locally_rename (ctx_to_list ctx) prop in
-      SynGoal { qvs; prop }
+      SynGoal { qvs; prop } *)

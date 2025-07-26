@@ -325,7 +325,7 @@ let simp_fvec_prop prop =
 
 let simp_fvec_se { op; vs; phi } = { op; vs; phi = simp_fvec_prop phi }
 let simp_fvec_cs cs = SFA.CharSet.map simp_fvec_se cs
-let simp_fvec_raw_regex r = SFA.raw_reg_map simp_fvec_cs r
+let simp_fvec_raw_regex r = map_regex simp_fvec_cs r
 
 let simp_fvec_elem = function
   | PlanActBuffer { op; args; phi } ->
