@@ -76,7 +76,7 @@ let store_add (vs, cs) store =
 let reduce_cty c ({ phi; _ } : cty) =
   eval_prop (StrMap.singleton default_v c) phi
 
-let reduce_sevent (op', (cs : constant list)) = function
+let reduce_sevent { op = op'; args = (cs : constant list) } = function
   | { op; vs; phi } ->
       String.equal op op' && eval_prop (store_add (vs, cs) StrMap.empty) phi
 
@@ -112,14 +112,14 @@ let reduce_pat runtime cs (tau : CharSet.t regex pat) =
         let ress =
           List.concat_map
             (fun c ->
-              let retrty = subst_pat arg (AC c) retrty in
+              let retrty = subst_srl_pat_instance arg (AC c) retrty in
               aux (retrty, cs))
             samples
         in
         ress
     | RtyArr { arg; argcty; retrty }, c :: cs ->
         if reduce_cty c argcty then
-          let retrty = subst_pat arg (AC c) retrty in
+          let retrty = subst_srl_pat_instance arg (AC c) retrty in
           aux (retrty, cs)
         else []
     | RtyInter (tau1, tau2), _ -> aux (tau1, cs) @ aux (tau2, cs)
@@ -150,23 +150,23 @@ let mk_assume runtime (vs, prop) =
 let sample_event runtime = function
   | { op; vs; phi } ->
       let store = sample_phi runtime (vs, phi) in
-      let cs = List.map snd store in
-      (op, cs)
+      let args = List.map snd store in
+      { op; args }
 
-let send runtime (op, cs) =
+let send runtime (op, args) =
   let tau = _get_force [%here] runtime.event_rtyctx op in
-  let ses = reduce_pat runtime cs tau in
+  let ses = reduce_pat runtime args tau in
   let msgs = List.map (sample_event runtime) ses in
   {
     runtime with
-    trace = runtime.trace @ [ (op, cs) ];
+    trace = runtime.trace @ [ { op; args } ];
     buffer = runtime.buffer @ msgs;
   }
 
 let recv_and_send runtime op (lhs, prop) =
   let avialable_msgs =
     List.filter_mapi
-      (fun idx (op', args) ->
+      (fun idx { op = op'; args } ->
         let rest =
           List.sublist runtime.buffer ~start_included:0 ~end_excluded:idx
           @ List.sublist runtime.buffer ~start_included:(idx + 1)

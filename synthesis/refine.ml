@@ -198,7 +198,7 @@ and forward env (goal : mid_plan_goal) =
             let () = Printf.printf "do: %s\n" (Plan.layout_elem elem) in
             let () = Stat.incr_forward () in
             let pats =
-              pat_to_triple @@ fresh_pat
+              pat_to_triple @@ fresh_srl_pat
               @@ _get_force [%here] env.event_rtyctx op
             in
             let handle pat =

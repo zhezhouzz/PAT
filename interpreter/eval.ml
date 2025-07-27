@@ -49,10 +49,7 @@ let rec eval (runtime, term) =
       let runtime = send runtime (op.x, args) in
       (runtime, [])
   | CUnion [] -> _die_with [%here] "never"
-  | CUnion es -> eval (runtime, choose_from_list es)
-  | CAssert v ->
-      if const_to_bool [%here] @@ eval_value runtime.store v then (runtime, [])
-      else raise (RuntimeInconsistent runtime)
+  | CUnion es -> eval (runtime, choose_from_list (List.map _get_x es))
   | CAssertP phi ->
       if eval_prop runtime.store phi then (runtime, [])
       else raise (RuntimeInconsistent runtime)

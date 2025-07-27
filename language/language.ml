@@ -93,7 +93,7 @@ module Stat = struct
   let count_vars term =
     let rec aux = function
       | CLetE { lhs; body; _ } -> lhs @ aux body.x
-      | CUnion ts -> List.concat_map aux ts
+      | CUnion ts -> List.concat_map (fun x -> aux x.x) ts
       | _ -> []
     in
     let l = List.map _get_x @@ aux term in
@@ -103,7 +103,8 @@ module Stat = struct
   let count_obs =
     let rec aux = function
       | CLetE { body; rhs; _ } -> aux rhs.x + aux body.x
-      | CUnion ts -> List.left_reduce [%here] ( + ) @@ List.map aux ts
+      | CUnion ts ->
+          List.left_reduce [%here] ( + ) @@ List.map (fun x -> aux x.x) ts
       | CObs _ -> 1
       | _ -> 0
     in
@@ -112,7 +113,8 @@ module Stat = struct
   let count_gen =
     let rec aux = function
       | CLetE { body; rhs; _ } -> aux rhs.x + aux body.x
-      | CUnion ts -> List.left_reduce [%here] ( + ) @@ List.map aux ts
+      | CUnion ts ->
+          List.left_reduce [%here] ( + ) @@ List.map (fun x -> aux x.x) ts
       | CGen _ -> 1
       | _ -> 0
     in
@@ -121,7 +123,8 @@ module Stat = struct
   let count_assert =
     let rec aux = function
       | CLetE { body; rhs; _ } -> aux rhs.x + aux body.x
-      | CUnion ts -> List.left_reduce [%here] ( + ) @@ List.map aux ts
+      | CUnion ts ->
+          List.left_reduce [%here] ( + ) @@ List.map (fun x -> aux x.x) ts
       | CAssertP phi -> if not (is_true phi) then 1 else 0
       | CAssume (_, phi) -> if not (is_true phi) then 1 else 0
       | CObs { prop; _ } -> if not (is_true prop) then 1 else 0

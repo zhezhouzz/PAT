@@ -41,8 +41,7 @@ let ocaml_structure_item_to_item structure =
                {
                  name = pval_name.txt;
                  nt = Nt.core_type_to_t pval_type;
-                 generative = true;
-                 recvable = false;
+                 msgkind = Gen;
                })
       | [ x ] when String.equal x.attr_name.txt "obs" ->
           Some
@@ -50,18 +49,10 @@ let ocaml_structure_item_to_item structure =
                {
                  name = pval_name.txt;
                  nt = Nt.core_type_to_t pval_type;
-                 generative = false;
-                 recvable = false;
+                 msgkind = Obs;
                })
       | [ x ] when String.equal x.attr_name.txt "obsRecv" ->
-          Some
-            (MsgNtDecl
-               {
-                 name = pval_name.txt;
-                 nt = Nt.core_type_to_t pval_type;
-                 generative = false;
-                 recvable = true;
-               })
+          _die_with [%here] "We don't support obsRecv anymore"
       | _ -> _die [%here])
   | Pstr_value (_, [ value_binding ]) ->
       Some
@@ -97,11 +88,11 @@ let layout_syn_goal { qvs; prop } =
     (List.split_by "." (fun x -> spf "∀%s" @@ layout_qv x) qvs)
     (layout_rich_symbolic_regex prop)
 
+let layout_msgkind = function Gen -> "gen" | Obs -> "obs"
+
 let layout_item = function
-  | MsgNtDecl { generative; recvable; name; nt } ->
-      spf "%s %s: %s"
-        (if generative then "gen" else if recvable then "obsRecv" else "obs")
-        name (Nt.layout nt)
+  | MsgNtDecl { msgkind; name; nt } ->
+      spf "%s %s: %s" (layout_msgkind msgkind) name (Nt.layout nt)
   | PrimDecl { name; nt } -> spf "val %s: %s" name (Nt.layout nt)
   | MsgDecl { name; pat } ->
       spf "rty %s:\n  %s" name (layout_pat layout_rich_symbolic_regex pat)

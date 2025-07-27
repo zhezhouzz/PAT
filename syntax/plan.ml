@@ -516,7 +516,7 @@ let subst_elem x z = function
       PlanSe { op; vs; phi }
   | PlanStarInv cs ->
       PlanStarInv (SFA.CharSet.map (subst_sevent_instance x (AVar z)) cs)
-  | PlanStar r -> PlanStar (subst_raw_sregex x (AVar z) r)
+  | PlanStar r -> PlanStar (SFA.subst_regex_instance x (AVar z) r)
 
 let subst_plan x z = List.map (subst_elem x z)
 

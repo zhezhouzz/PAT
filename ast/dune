@@ -12,7 +12,19 @@
  (name ast)
  (public_name haft.ast)
  (wrapped true)
- (modules common constructor_declaration inst item pmachine wrapper ast)
+ (modules
+  common
+  parseTree
+  map
+  subst
+  fv
+  astHelper
+  constructor_declaration
+  inst
+  item
+  pmachine
+  wrapper
+  ast)
  (preprocess
   (pps
    ppx_optcomp

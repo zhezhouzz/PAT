@@ -67,7 +67,6 @@ let rich_symbolic_regex_pat_type_check event_ctx ctx r =
   in
   let sol = solve bc in
   let f = Nt.msubst_nt sol in
-  let mapr f = map_rich_regex (map_sevent f) in
-  let r = map_pat mapr f r in
+  let r = map_rich_srl_pat f r in
   (* let () = Pp.printf "@{<bold>Before subst:@}\n%s\n" (layout_typed_raw_term term) in *)
   r

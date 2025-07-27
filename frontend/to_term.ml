@@ -17,10 +17,7 @@ let rec layout_term = function
   | CObs { op; prop } -> spf "obs %s; assert %s" op.x (layout_prop prop)
   | CGen { op; args } ->
       spf "gen %s(%s)" op.x (List.split_by " " layout_typed_value args)
-  | CUnion es -> List.split_by " ⊕\n" layout_term es
-  | CAssert v -> spf "assert %s" (layout_value v)
-  (* | CRandom nt -> spf "random %s" @@ Nt.layout nt *)
+  | CUnion es -> List.split_by " ⊕\n" layout_term (List.map _get_x es)
   | CAssume (nt, phi) ->
       spf "assume[%s] %s" (Nt.layout (Ty_tuple nt)) (layout_prop phi)
   | CAssertP phi -> spf "assert %s" (layout_prop phi)
-(* spf "assert %s" (show_prop phi) *)

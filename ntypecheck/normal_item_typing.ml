@@ -5,8 +5,7 @@ let init_env =
   {
     goal = None;
     event_tyctx = emp;
-    gen_ctx = emp;
-    recvable_ctx = emp;
+    msgkind_ctx = emp;
     tyctx = emp;
     event_rtyctx = emp;
   }
@@ -14,7 +13,7 @@ let init_env =
 let add_to_env (env : syn_env) = function
   | PrimDecl { name; nt } ->
       { env with tyctx = add_to_right env.tyctx name#:nt }
-  | MsgNtDecl { generative; recvable; name; nt } ->
+  | MsgNtDecl { msgkind; name; nt } ->
       let nty =
         if Nt.equal_nt Nt.unit_ty nt then
           _die_with [%here]
@@ -22,9 +21,8 @@ let add_to_env (env : syn_env) = function
         else nt
       in
       let event_tyctx = add_to_right env.event_tyctx name#:nty in
-      let gen_ctx = add_to_right env.gen_ctx name#:generative in
-      let recvable_ctx = add_to_right env.recvable_ctx name#:recvable in
-      { env with event_tyctx; gen_ctx; recvable_ctx }
+      let msgkind_ctx = add_to_right env.msgkind_ctx name#:msgkind in
+      { env with event_tyctx; msgkind_ctx }
   | MsgDecl _ -> env
   | SynGoal _ -> env
 

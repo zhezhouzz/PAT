@@ -38,7 +38,8 @@ let layout_value = function
   | VVar qv -> layout_qv qv
   | VConst c -> layout_constant c
 
-let is_gen env op = _get_force [%here] env.gen_ctx op
+let is_gen env op = is_generative @@ _get_force [%here] env.msgkind_ctx op
+let is_obs env op = is_observable @@ _get_force [%here] env.msgkind_ctx op
 
 let destruct_cty_var x =
   let x' = x.x#:x.ty.nty in
