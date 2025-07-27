@@ -24,7 +24,7 @@ let cty_of_expr expr =
   | [ { x; ty } ], phi when String.equal x default_v -> { nty = ty; phi }
   | _ -> _die_with [%here] (Pprintast.string_of_expression expr)
 
-let rec layout_haft f = function
+let rec layout_pat f = function
   | RtyBase cty ->
       if is_true cty.phi then Nt.layout cty.nty else spf "{%s}" (layout_cty cty)
   | RtyHAF { history; adding; future } ->
@@ -37,18 +37,18 @@ let rec layout_haft f = function
         if is_true argcty.phi then Nt.layout argcty.nty
         else spf "{%s}" (layout_cty argcty)
       in
-      spf "(%s:%s) → %s" arg str (layout_haft f retrty)
+      spf "(%s:%s) → %s" arg str (layout_pat f retrty)
   | RtyGArr { arg; argnty; retrty } ->
-      spf "(%s:%s) ⇢ %s" arg (Nt.layout argnty) (layout_haft f retrty)
-  | RtyInter (haft1, haft2) ->
-      spf "%s ⊓ %s" (layout_haft f haft1) (layout_haft f haft2)
+      spf "(%s:%s) ⇢ %s" arg (Nt.layout argnty) (layout_pat f retrty)
+  | RtyInter (pat1, pat2) ->
+      spf "%s ⊓ %s" (layout_pat f pat1) (layout_pat f pat2)
 
-let rec haft_of_expr expr =
+let rec pat_of_expr expr =
   match expr.pexp_desc with
   | Pexp_constraint _ -> RtyBase (cty_of_expr expr)
-  | Pexp_fun (_, haftexpr, pattern, body) -> (
-      let retrty = haft_of_expr body in
-      match haftexpr with
+  | Pexp_fun (_, patexpr, pattern, body) -> (
+      let retrty = pat_of_expr body in
+      match patexpr with
       | None ->
           let x =
             match pattern.ppat_desc with
@@ -57,12 +57,12 @@ let rec haft_of_expr expr =
             | _ -> _die_with [%here] "wrong format"
           in
           RtyGArr { argnty = x.ty; arg = x.x; retrty }
-      | Some haftexpr ->
+      | Some patexpr ->
           let arg = id_of_pattern pattern in
-          let argcty = cty_of_expr haftexpr in
+          let argcty = cty_of_expr patexpr in
           RtyArr { argcty; arg; retrty })
   | Pexp_let (_, [ vb ], body) ->
-      let retrty = haft_of_expr body in
+      let retrty = pat_of_expr body in
       let arg = id_of_pattern vb.pvb_pat in
       let argcty = cty_of_expr vb.pvb_expr in
       RtyArr { argcty; arg; retrty }
@@ -78,7 +78,7 @@ let rec haft_of_expr expr =
             map3 rich_symbolic_regex_of_expr (h, a, f)
           in
           RtyHAF { history; adding; future })
-  | Pexp_array ls -> mk_inter_type @@ List.map haft_of_expr ls
+  | Pexp_array ls -> mk_inter_type @@ List.map pat_of_expr ls
   | _ ->
       _die_with [%here]
         (spf "wrong refinement type: %s" (Pprintast.string_of_expression expr))

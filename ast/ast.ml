@@ -12,7 +12,7 @@ let default_v = "v"
 
 type cty = { nty : Nt.nt; phi : Nt.nt prop } [@@deriving show, eq, ord]
 
-type 'r haft =
+type 'r pat =
   | RtyBase of cty
   | RtyHAF of { history : 'r; adding : 'r; future : 'r }
   | RtyHAParallel of {
@@ -21,9 +21,9 @@ type 'r haft =
       parallel : Nt.nt sevent list;
     }
     (* parse only *)
-  | RtyGArr of { arg : string; argnty : Nt.nt; retrty : 'r haft }
-  | RtyArr of { arg : string; argcty : cty; retrty : 'r haft }
-  | RtyInter of 'r haft * 'r haft
+  | RtyGArr of { arg : string; argnty : Nt.nt; retrty : 'r pat }
+  | RtyArr of { arg : string; argcty : cty; retrty : 'r pat }
+  | RtyInter of 'r pat * 'r pat
 [@@deriving show, eq, ord]
 
 type value = VVar of (Nt.nt, string) typed | VConst of constant
@@ -58,7 +58,7 @@ type 'r item =
       nt : Nt.nt;
       recvable : bool;
     }
-  | MsgDecl of { name : string; haft : 'r haft }
+  | MsgDecl of { name : string; pat : 'r pat }
   | SynGoal of syn_goal
 
 type plan_elem =
@@ -76,7 +76,7 @@ type plan_elem =
 type plan = plan_elem list
 
 type syn_env = {
-  event_rtyctx : srl haft ctx;
+  event_rtyctx : srl pat ctx;
   gen_ctx : bool ctx;
   recvable_ctx : bool ctx;
   event_tyctx : t ctx;
@@ -128,15 +128,15 @@ let rec erase_rty = function
 
 let mk_haf (history, adding, future) = RtyHAF { history; adding; future }
 
-let rec is_singleton_haft = function
+let rec is_singleton_pat = function
   | RtyBase _ | RtyHAF _ | RtyHAParallel _ -> true
-  | RtyGArr { retrty; _ } | RtyArr { retrty; _ } -> is_singleton_haft retrty
+  | RtyGArr { retrty; _ } | RtyArr { retrty; _ } -> is_singleton_pat retrty
   | RtyInter _ -> false
 
-let rec haft_to_triple = function
-  | RtyInter (t1, t2) -> haft_to_triple t1 @ haft_to_triple t2
+let rec pat_to_triple = function
+  | RtyInter (t1, t2) -> pat_to_triple t1 @ pat_to_triple t2
   | _ as r ->
-      if is_singleton_haft r then [ r ]
+      if is_singleton_pat r then [ r ]
       else _die_with [%here] "not a well-formed HAF type"
 
 let qv_to_cqv { x; ty } = { x; ty = { nty = ty; phi = mk_true } }
@@ -168,7 +168,7 @@ let rctx_to_prefix rctx =
       (x' :: qvs, smart_add_to phi prop))
     (ctx_to_list rctx) ([], mk_true)
 
-let destruct_haft_inner loc r =
+let destruct_pat_inner loc r =
   let rec aux r =
     match r with
     | RtyInter _ -> _die loc
@@ -180,12 +180,12 @@ let destruct_haft_inner loc r =
   in
   aux r
 
-let destruct_haft loc r =
+let destruct_pat loc r =
   let rec aux r =
     match r with
     | RtyInter _ -> _die loc
     | RtyBase _ | RtyHAF _ | RtyHAParallel _ | RtyArr _ ->
-        ([], destruct_haft_inner loc r)
+        ([], destruct_pat_inner loc r)
     | RtyGArr { argnty; retrty; arg } ->
         let args, t = aux retrty in
         ((arg#:argnty) :: args, t)
@@ -203,7 +203,7 @@ let subst_cty name lit cty =
 let subst_raw_sregex name lit r =
   map_regex (SFA.CharSet.map (subst_sevent_instance name lit)) r
 
-let subst_haft name lit t =
+let subst_pat name lit t =
   let rec aux = function
     | RtyBase cty -> RtyBase (subst_cty name lit cty)
     | RtyHAF { history; adding; future } ->
@@ -231,8 +231,8 @@ let subst_haft name lit t =
 let map_cty (f : Nt.t -> Nt.t) ({ nty; phi } : cty) =
   { nty = f nty; phi = map_prop f phi }
 
-let map_haft (mapr : (Nt.t -> Nt.t) -> 'r -> 'r) (f : Nt.t -> Nt.t)
-    (t : 'r haft) =
+let map_pat (mapr : (Nt.t -> Nt.t) -> 'r -> 'r) (f : Nt.t -> Nt.t) (t : 'r pat)
+    =
   let rec aux = function
     | RtyBase cty -> RtyBase (map_cty f cty)
     | RtyHAF { history; adding; future } ->
@@ -253,18 +253,18 @@ let map_haft (mapr : (Nt.t -> Nt.t) -> 'r -> 'r) (f : Nt.t -> Nt.t)
   in
   aux t
 
-let rec fresh_haft t =
+let rec fresh_pat t =
   match t with
   | RtyBase _ | RtyHAF _ | RtyHAParallel _ -> t
   | RtyArr { arg; argcty; retrty } ->
       let arg' = Rename.unique_var arg in
-      let retrty = subst_haft arg (AVar arg'#:argcty.nty) retrty in
-      RtyArr { arg = arg'; argcty; retrty = fresh_haft retrty }
+      let retrty = subst_pat arg (AVar arg'#:argcty.nty) retrty in
+      RtyArr { arg = arg'; argcty; retrty = fresh_pat retrty }
   | RtyGArr { arg; argnty; retrty } ->
       let arg' = Rename.unique_var arg in
-      let retrty = subst_haft arg (AVar arg'#:argnty) retrty in
-      RtyGArr { arg = arg'; argnty; retrty = fresh_haft retrty }
-  | RtyInter (t1, t2) -> RtyInter (fresh_haft t1, fresh_haft t2)
+      let retrty = subst_pat arg (AVar arg'#:argnty) retrty in
+      RtyGArr { arg = arg'; argnty; retrty = fresh_pat retrty }
+  | RtyInter (t1, t2) -> RtyInter (fresh_pat t1, fresh_pat t2)
 
 open Zdatatype
 

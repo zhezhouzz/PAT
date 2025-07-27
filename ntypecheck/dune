@@ -5,4 +5,4 @@
  (libraries syntax language zutils)
  (modules normal_rty_typing normal_item_typing ntypecheck)
  (preprocess
-  (pps ppx_here)))
+  (pps ppx_here ppx_deriving.show ppx_deriving.eq ppx_deriving.ord)))

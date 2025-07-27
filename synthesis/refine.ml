@@ -197,12 +197,12 @@ and forward env (goal : mid_plan_goal) =
             (* let args, phi, elem = cur_to_obs cur in *)
             let () = Printf.printf "do: %s\n" (Plan.layout_elem elem) in
             let () = Stat.incr_forward () in
-            let hafts =
-              haft_to_triple @@ fresh_haft
+            let pats =
+              pat_to_triple @@ fresh_pat
               @@ _get_force [%here] env.event_rtyctx op
             in
-            let handle haft =
-              let gargs, (args, retrty) = destruct_haft [%here] haft in
+            let handle pat =
+              let gargs, (args, retrty) = destruct_pat [%here] pat in
               let history, se, p = destruct_hap [%here] retrty in
               (* NOTE: history should be well-formed. *)
               let () =
@@ -270,7 +270,7 @@ and forward env (goal : mid_plan_goal) =
               in
               goals
             in
-            let goals = List.concat_map handle hafts in
+            let goals = List.concat_map handle pats in
             let goals =
               List.map
                 (fun (goal, args) ->
@@ -419,11 +419,11 @@ and backward env (goal : mid_plan_goal) : plan_goal option =
         solved = goal.solved;
       }
   else
-    let handle (se, haft) =
+    let handle (se, pat) =
       let () =
-        Pp.printf "@{<bold>use rty@}\n@{<red>se@}: %s\n@{<red>haft@}: %s\n"
+        Pp.printf "@{<bold>use rty@}\n@{<red>se@}: %s\n@{<red>pat@}: %s\n"
           (layout_sevent se)
-          (layout_haft SFA.layout_regex haft)
+          (layout_pat SFA.layout_regex pat)
       in
       let () = Stat.incr_backward () in
       let elem =
@@ -431,7 +431,7 @@ and backward env (goal : mid_plan_goal) : plan_goal option =
         | Some x -> x
         | None -> _die [%here]
       in
-      let gargs, (args, retrty) = destruct_haft [%here] haft in
+      let gargs, (args, retrty) = destruct_pat [%here] pat in
       let history, dep_se, p = destruct_hap [%here] retrty in
       let () = Pp.printf "@{<bold>dep_se:@} %s\n" (layout_sevent dep_se) in
       (* NOTE: history should be well-formed. *)
@@ -608,12 +608,12 @@ and backward env (goal : mid_plan_goal) : plan_goal option =
     let rules = select_rule_by_future env op in
     let () =
       List.iteri
-        (fun i (se, haft) ->
+        (fun i (se, pat) ->
           let () =
             Pp.printf
-              "@{<bold>available rty %i@}\n@{<red>se@}: %s\n@{<red>haft@}: %s\n"
+              "@{<bold>available rty %i@}\n@{<red>se@}: %s\n@{<red>pat@}: %s\n"
               i (layout_sevent se)
-              (layout_haft SFA.layout_regex haft)
+              (layout_pat SFA.layout_regex pat)
           in
           ())
         rules

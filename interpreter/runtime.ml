@@ -9,12 +9,21 @@ module SampleDomain = Map.Make (struct
   let compare = Nt.compare_nt
 end)
 
+type env = {
+  event_rtyctx : CharSet.t regex pat ctx;
+  event_tyctx : t ctx;
+  tyctx : Nt.t ctx;
+  gen_ctx : bool ctx;
+  recvable_ctx : bool ctx;
+  goal : syn_goal option;
+}
+
 type runtime = {
   sample_domain : constant list SampleDomain.t;
   trace : trace;
   buffer : trace;
   store : constant StrMap.t;
-  event_rtyctx : CharSet.t regex haft ctx;
+  event_rtyctx : CharSet.t regex pat ctx;
 }
 
 exception RuntimeInconsistent of runtime
@@ -23,9 +32,18 @@ let layout_store store =
   List.split_by " ;" (fun (x, c) -> spf "%s --> %s" x (layout_constant c))
   @@ StrMap.to_kv_list store
 
-let layout_runtime { trace; buffer; store; _ } =
-  spf "{ history: %s\n  buffer: %s\n  store: %s}\n" (layout_trace trace)
-    (layout_trace buffer) (layout_store store)
+let layout_runtime { buffer; store; event_rtyctx; _ } =
+  let str = "" in
+  let str =
+    spf "%s\n    buffer:\n%s\n" str
+      (List.split_by "\n" layout_trace_elem buffer)
+  in
+  let str = spf "%s\n    store:\n%s\n" str (layout_store store) in
+  let str =
+    spf "%s\n    event_rtyctx:\n%s\n" str
+      (layout_ctx (layout_pat SFA.layout_regex) event_rtyctx)
+  in
+  str
 
 let default_sample_domain =
   SampleDomain.of_seq @@ List.to_seq
@@ -78,7 +96,7 @@ let sample runtime qv =
           _die [%here]
       | Some cs -> (qv.x, choose_from_list cs))
 
-let reduce_haft runtime cs (tau : CharSet.t regex haft) =
+let reduce_pat runtime cs (tau : CharSet.t regex pat) =
   let rec aux (tau, cs) =
     (* let () = *)
     (*   Pp.printf "@{<bold>reduce_haft:@} cs(%s)\n%s\n" *)
@@ -94,14 +112,14 @@ let reduce_haft runtime cs (tau : CharSet.t regex haft) =
         let ress =
           List.concat_map
             (fun c ->
-              let retrty = subst_haft arg (AC c) retrty in
+              let retrty = subst_pat arg (AC c) retrty in
               aux (retrty, cs))
             samples
         in
         ress
     | RtyArr { arg; argcty; retrty }, c :: cs ->
         if reduce_cty c argcty then
-          let retrty = subst_haft arg (AC c) retrty in
+          let retrty = subst_pat arg (AC c) retrty in
           aux (retrty, cs)
         else []
     | RtyInter (tau1, tau2), _ -> aux (tau1, cs) @ aux (tau2, cs)
@@ -137,7 +155,7 @@ let sample_event runtime = function
 
 let send runtime (op, cs) =
   let tau = _get_force [%here] runtime.event_rtyctx op in
-  let ses = reduce_haft runtime cs tau in
+  let ses = reduce_pat runtime cs tau in
   let msgs = List.map (sample_event runtime) ses in
   {
     runtime with

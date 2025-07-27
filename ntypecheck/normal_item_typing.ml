@@ -33,57 +33,42 @@ let desugar_reg (env : syn_env) reg =
   let reg = rich_regex_desugar (CtxOp { op_names; body = reg }) in
   reg
 
-let map_fa_haft f haft =
-  let rec aux t =
-    match t with
+let map_fa_pat f pat =
+  let rec aux = function
     | RtyBase cty -> RtyBase cty
     | RtyHAF { history; adding; future } ->
-        let history, adding, future = map3 f (history, adding, future) in
-        RtyHAF { history; adding; future }
+        RtyHAF { history = f history; adding = f adding; future = f future }
     | RtyHAParallel { history; adding_se; parallel } ->
-        let history = f history in
-        RtyHAParallel { history; adding_se; parallel }
+        RtyHAParallel { history = f history; adding_se; parallel }
     | RtyArr { arg; argcty; retrty } ->
         RtyArr { arg; argcty; retrty = aux retrty }
     | RtyGArr { arg; argnty; retrty } ->
         RtyGArr { arg; argnty; retrty = aux retrty }
     | RtyInter (t1, t2) -> RtyInter (aux t1, aux t2)
   in
-  aux haft
+  aux pat
 
-let desugar_haft (env : syn_env) haft =
-  map_fa_haft (fun r -> SFA.rich_regex_to_regex @@ desugar_reg env r) haft
+let desugar_pat (env : syn_env) pat =
+  map_fa_pat (fun r -> SFA.rich_regex_to_regex @@ desugar_reg env r) pat
 
-(* NOTE: the whole spec items are first-order *)
-let item_check (env : syn_env) = function
-  | MsgDecl { name; haft } ->
-      let haft =
-        Normal_rty_typing.rich_symbolic_regex_haft_type_check env.event_tyctx
-          env.tyctx haft
+let type_check_item env = function
+  | MsgDecl { name; pat } ->
+      let pat =
+        Normal_rty_typing.rich_symbolic_regex_pat_type_check env.event_tyctx
+          env.tyctx pat
       in
       {
         env with
-        event_rtyctx =
-          add_to_right env.event_rtyctx name#:(desugar_haft env haft);
+        event_rtyctx = add_to_right env.event_rtyctx name#:(desugar_pat env pat);
       }
   | SynGoal { qvs; prop } -> (
       match env.goal with
-      | Some _ -> _die_with [%here] "multiple goals"
-      | _ ->
-          let prop = desugar_reg env (ComplementA prop) in
-          let () =
-            Pp.printf "@{<bold>After:@} %s\n" (layout_rich_symbolic_regex prop)
-          in
-          let prop =
-            rich_symbolic_regex_type_check env.event_tyctx
-              (add_to_rights env.tyctx qvs)
-              prop
-          in
-          { env with goal = Some { qvs; prop } })
+      | None -> { env with goal = Some { qvs; prop } }
+      | Some _ -> _die_with [%here] "multiple goals")
   | _ -> env
 
 let struct_check env l =
   let env = List.fold_left add_to_env env l in
   let () = Printf.printf "%s\n" (layout_syn_env env) in
-  let env = List.fold_left item_check env l in
+  let env = List.fold_left type_check_item env l in
   env

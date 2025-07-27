@@ -29,7 +29,7 @@ let layout_syn_env
   in
   let str =
     spf "%s\n    event_rtyctx:\n%s\n" str
-      (layout_ctx (layout_haft SFA.layout_regex) event_rtyctx)
+      (layout_ctx (layout_pat SFA.layout_regex) event_rtyctx)
   in
   let str =
     spf "%s\n    goal:\n%s\n" str

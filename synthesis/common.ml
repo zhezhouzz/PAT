@@ -266,10 +266,10 @@ let rec filter_rule_by_future op = function
 let select_rule_by_future env op =
   List.concat_map
     (fun x ->
-      let l = haft_to_triple x.ty in
+      let l = pat_to_triple x.ty in
       let l = List.concat_map (filter_rule_by_future op) l in
       l)
-    (List.map (fun x -> x.x#:(fresh_haft x.ty)) @@ ctx_to_list env.event_rtyctx)
+    (List.map (fun x -> x.x#:(fresh_pat x.ty)) @@ ctx_to_list env.event_rtyctx)
 
 let charset_to_se loc s =
   let open SFA in
@@ -366,3 +366,17 @@ let backtrack f l =
               in
               res)
         None l
+
+let get_available_rty env se =
+  let l = ctx_to_list env.event_rtyctx in
+  let l = List.filter (fun x -> String.equal x.x se.op) l in
+  let l = List.map (fun x -> (se, x.ty)) l in
+  let l =
+    List.concat_map
+      (fun (se, x) -> List.map (fun x -> (se, x)) @@ pat_to_triple x)
+      l
+  in
+  l
+
+let get_available_rty_with_fresh_name env =
+  List.map (fun x -> x.x#:(fresh_pat x.ty)) @@ ctx_to_list env.event_rtyctx

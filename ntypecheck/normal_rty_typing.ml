@@ -12,29 +12,28 @@ let constraint_cty_type_check (bctx : basic_typing_ctx) (bc : BC.bc)
   let bc, phi = constraint_prop_type_check ctx bc phi in
   (bc, { nty; phi })
 
-let constraint_haft_type_check
-    (achecker : basic_typing_ctx -> BC.bc -> 'a -> BC.bc * 'a)
-    (bctx : basic_typing_ctx) (bc : BC.bc) (rty : 'a haft) =
+let constraint_pat_type_check
+    (constraint_type_check : basic_typing_ctx -> BC.bc -> 'a -> BC.bc * 'a)
+    (bctx : basic_typing_ctx) (bc : BC.bc) (rty : 'a pat) =
   let rec aux bctx bc rty =
-    (* let () = _log @@ fun _ -> Printf.printf "rty: %s\n" (layout_haft rty) in *)
     match rty with
     | RtyBase cty ->
         let bc, cty = constraint_cty_type_check bctx bc cty in
         (bc, RtyBase cty)
     | RtyHAF { history; adding; future } ->
-        let bc, history = achecker bctx bc history in
-        let bc, adding = achecker bctx bc adding in
-        let bc, future = achecker bctx bc future in
+        let bc, history = constraint_type_check bctx bc history in
+        let bc, adding = constraint_type_check bctx bc adding in
+        let bc, future = constraint_type_check bctx bc future in
         (bc, RtyHAF { history; adding; future })
     | RtyHAParallel { history; adding_se; parallel } ->
-        let bc, history = achecker bctx bc history in
+        let bc, history = constraint_type_check bctx bc history in
         let bc, adding_se = constraint_sevent_type_check bctx bc adding_se in
         let bc, parallel =
-          List.fold_left
-            (fun (bc, l) se ->
-              let bc, se' = constraint_sevent_type_check bctx bc se in
-              (bc, l @ [ se' ]))
-            (bc, []) parallel
+          List.fold_left_map
+            (fun bc se ->
+              let bc, se = constraint_sevent_type_check bctx bc se in
+              (bc, se))
+            bc parallel
         in
         (bc, RtyHAParallel { history; adding_se; parallel })
     | RtyArr { arg; argcty; retrty } ->
@@ -60,15 +59,15 @@ let constraint_haft_type_check
   in
   aux bctx bc rty
 
-let rich_symbolic_regex_haft_type_check event_ctx ctx r =
+let rich_symbolic_regex_pat_type_check event_ctx ctx r =
   let bctx = { event_ctx; ctx } in
   let bc, r =
-    constraint_haft_type_check constraint_rich_regex_type_check bctx
+    constraint_pat_type_check constraint_rich_regex_type_check bctx
       (BC.empty []) r
   in
   let sol = solve bc in
   let f = Nt.msubst_nt sol in
   let mapr f = map_rich_regex (map_sevent f) in
-  let r = map_haft mapr f r in
+  let r = map_pat mapr f r in
   (* let () = Pp.printf "@{<bold>Before subst:@}\n%s\n" (layout_typed_raw_term term) in *)
   r
