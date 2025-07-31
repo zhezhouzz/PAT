@@ -30,7 +30,7 @@ let term_concat term body =
   CLetE { lhs = []; rhs = term#:Nt.unit_ty; body = body#:Nt.unit_ty }
 
 let mk_term_gen env op args e =
-  let nty = _get_force [%here] env.event_tyctx op in
+  let nty = _get_force [%here] env op in
   term_concat (CGen { op = op#:nty; args = List.map value_to_tvalue args }) e
 
 let mk_term_assertP prop e =
@@ -42,7 +42,7 @@ let mk_term_assume args prop e =
   | _ -> mk_let args (CAssume (List.map _get_ty args, prop)) e
 
 let mk_term_obs env op args prop e =
-  let nty = _get_force [%here] env.event_tyctx op in
+  let nty = _get_force [%here] env op in
   mk_let args (CObs { op = op#:nty; prop }) e
 
 (** Trace Language *)

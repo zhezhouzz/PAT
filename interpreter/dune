@@ -2,14 +2,13 @@
  (public_name haft.interpreter)
  (name interpreter)
  (wrapped true)
- (libraries language)
- (modules
-   common
-   eval
-   interpreter
-   ; derivative
-   runtime
- )
- (preprocess (pps ppx_optcomp ppx_compare ppx_sexp_conv ppx_inline_test ppx_assert ppx_here))
+ (libraries zutils AutomataLibrary core compiler-libs language)
+ (modules sample common msgBuffer store eval pool interpreter)
  (inline_tests)
-)
+ (preprocess
+  (pps
+   ppx_here
+   ppx_inline_test
+   ppx_deriving.show
+   ppx_deriving.eq
+   ppx_deriving.ord)))

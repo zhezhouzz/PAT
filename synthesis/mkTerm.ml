@@ -148,7 +148,7 @@ let instantiation env goal =
           (*   @@ mk_term_gen env op (List.map (fun x -> VVar x) args) e *)
           (* in *)
           mk_term_assume fargs prop'
-          @@ mk_term_gen env op (List.map (fun x -> VVar x) args) e
+          @@ mk_term_gen env.event_tyctx op (List.map (fun x -> VVar x) args) e
         else
           let args' =
             List.map
@@ -167,7 +167,7 @@ let instantiation env goal =
           in
           let p = smart_and (ps @ [ prop' ]) in
           (* let e = mk_term_obs env op args' (mk_term_assertP p e) in *)
-          let e = mk_term_obs env op args' p e in
+          let e = mk_term_obs env.event_tyctx op args' p e in
           e
     | _ :: _ -> _die [%here]
   in

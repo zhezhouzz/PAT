@@ -7,9 +7,17 @@
   ntypecheck
   synthesis
   interpreter
+  monkeyBD
   ; pbackend
   )
  (modules caux ctest cre)
  (preprocess
-  (pps ppx_inline_test ppx_assert ppx_jane ppx_here))
+  (pps
+   ppx_inline_test
+   ppx_assert
+   ppx_jane
+   ppx_here
+   ppx_deriving.show
+   ppx_deriving.eq
+   ppx_deriving.ord))
  (inline_tests))

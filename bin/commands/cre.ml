@@ -121,13 +121,19 @@ let load_syn_result source_file output_file =
   let term = term_of_sexp sexp in
   (env, term)
 
-let eval_aux source_file output_file () =
+(* let eval_aux source_file output_file () =
   let output_file = spf "%s.scm" output_file in
   let env, term = load_syn_result source_file output_file in
   let () = Printf.printf "%s\n" (layout_term term) in
   let () = Interpreter.interpret env term in
   let rate = Interpreter.interpret_sample env term 1000 in
-  ((env, term), rate)
+  ((env, term), rate) *)
+
+let eval_aux source_file output_file () =
+  let output_file = spf "%s.scm" output_file in
+  let env, term = load_syn_result source_file output_file in
+  let () = Printf.printf "%s\n" (layout_term term) in
+  (0, 0.0)
 
 let eval source_file output_file () =
   let _, rate = eval_aux source_file output_file () in
@@ -137,8 +143,8 @@ let eval_benchmark benchname () =
   let source_file, output_file, stat_file, _, _ =
     benchmark_convension benchname
   in
-  let (env, term), (rate, n_retry) = eval_aux source_file output_file () in
-  let () = Stat.update_when_eval (env, term) rate n_retry stat_file in
+  (* let (env, term), (rate, n_retry) = eval_aux source_file output_file () in
+  let () = Stat.update_when_eval (env, term) rate n_retry stat_file in *)
   ()
 
 let compile_to_p_aux source_file output_file p_output_file () =
@@ -202,6 +208,28 @@ let three_param message f =
       let () = Myconfig.meta_config_path := config_file in
       f file1 file2 file3)
 
+let zero_param message f =
+  Command.basic ~summary:message
+    Command.Let_syntax.(
+      let%map_open config_file =
+        flag "config"
+          (optional_with_default Myconfig.default_meta_config_path regular_file)
+          ~doc:"config file path"
+      in
+      let () = Myconfig.meta_config_path := config_file in
+      f)
+
+let one_param message f =
+  Command.basic ~summary:message
+    Command.Let_syntax.(
+      let%map_open config_file =
+        flag "config"
+          (optional_with_default Myconfig.default_meta_config_path regular_file)
+          ~doc:"config file path"
+      and source_file = anon ("source_code_file" %: regular_file) in
+      let () = Myconfig.meta_config_path := config_file in
+      f source_file)
+
 let one_param message f =
   Command.basic ~summary:message
     Command.Let_syntax.(
@@ -263,8 +291,14 @@ let four_param_string message f =
       let () = Myconfig.meta_config_path := config_file in
       f file1 file2 file3 file4)
 
+let test_eval () =
+  let open MonkeyBD.TreiberStack in
+  init ();
+  Interpreter.run (fun () -> Interpreter.Eval.eval_to_unit main)
+
 let cmds =
   [
+    ("test-eval", zero_param "test eval" test_eval);
     ("read-syn", one_param "read syn" read_syn);
     ("syn-one", two_param_string "syn one" syn_term);
     ("syn-benchmark", one_param_string "run benchmark" syn_benchmark);
