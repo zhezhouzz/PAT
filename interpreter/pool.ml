@@ -13,6 +13,14 @@ module Runtime = struct
   let hdPool : (int, handler) Hashtbl.t = Hashtbl.create 10
   let asyncPool : (string, ev -> ev) Hashtbl.t = Hashtbl.create 10
   let hisTrace : msg list ref = ref []
+  let layout_handler_summary i hd = spf "%i[%s]" i hd.op
+
+  let print () =
+    Pp.printf "@{<blue>Tid:@} %i\n" !_curTid;
+    Pp.printf "@{<blue>Pool:@} %s\n"
+      (Hashtbl.fold
+         (fun i hd str -> spf "%s %s" (layout_handler_summary i hd) str)
+         hdPool "")
 end
 
 open Runtime
@@ -129,7 +137,7 @@ let handle_gen msg =
   assert (default_tid == !_curTid);
   let hd = select_handler msg in
   appendToHisTrace msg;
-  hd.k msg
+  hd
 
 let sendTo (dest, ev) =
   let msg = { src = !_curTid; dest; ev } in
@@ -177,6 +185,7 @@ let rec run main =
           | Async msg ->
               let () =
                 _log "eval" @@ fun _ ->
+                Runtime.print ();
                 Pp.printf "@{<bold>ASYNC:@} %s\n" (layout_msg msg)
               in
               Some
@@ -197,7 +206,10 @@ let rec run main =
               in
               Some
                 (fun (k : (b, _) continuation) ->
-                  let () = run (fun () -> handle_gen msg) in
+                  let hd = handle_gen msg in
+                  jump_to_tid hd.tid;
+                  run (fun () -> hd.k msg);
+                  jump_back ();
                   continue k ())
           | Obs (op, f) ->
               let () =

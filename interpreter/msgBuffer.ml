@@ -20,9 +20,10 @@ let layout () = List.split_by " | " layout_msg !buffer
 
 let consume m =
   let () = Printf.printf "consume %s\n" (layout_msg m) in
-  let rec aux = function
+  let rec aux rest = function
     | [] -> _die_with [%here] "No message found"
-    | msg :: msgs -> if equal_msg msg m then msgs else aux msgs
+    | msg :: msgs ->
+        if equal_msg msg m then rest @ msgs else aux (rest @ [ msg ]) msgs
   in
-  let b = aux !buffer in
+  let b = aux [] !buffer in
   buffer := b

@@ -10,8 +10,9 @@ let rec eval code =
   let () =
     _log "eval" @@ fun _ ->
     Pp.printf "@{<bold>Eval(%i):@}\n" !counter;
-    Pp.printf "@{<blue>Store:@}\n%s\n" (Store.layout (Store.get ()));
-    Pp.printf "@{<blue>MsgBuffer:@}\n%s\n" (MsgBuffer.layout ());
+    Pool.Runtime.print ();
+    Pp.printf "@{<blue>Store:@} %s\n" (Store.layout (Store.get ()));
+    Pp.printf "@{<blue>MsgBuffer:@} %s\n" (MsgBuffer.layout ());
     Pp.printf "@{<orange>Term:@}\n%s\n" (layout_term code)
   in
   match code with
@@ -65,7 +66,9 @@ let rec eval code =
   | CAssume _ -> _die_with [%here] "never"
   | CWhile { body; cond } ->
       let () =
-        match eval body.x with [] -> () | _ -> _die_with [%here] "never"
+        match eval body.x with
+        | [] | [ U ] -> ()
+        | _ -> _die_with [%here] "never"
       in
       if eval_prop (Store.get ()) cond then eval (CWhile { body; cond }) else []
 

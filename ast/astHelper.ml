@@ -26,8 +26,14 @@ let mk_let lhs rhs body =
   in
   CLetE { lhs; rhs = rhs#:ty; body = body#:(term_to_nt body) }
 
-let term_concat term body =
-  CLetE { lhs = []; rhs = term#:Nt.unit_ty; body = body#:Nt.unit_ty }
+let rec term_concat term body =
+  match term with
+  | CLetE { lhs; rhs; body = { x = CVal { x = VConst U; _ }; _ } } ->
+      CLetE { lhs; rhs; body = body#:(term_to_nt body) }
+  | CLetE { lhs; rhs; body = e } ->
+      let body = term_concat e.x body in
+      CLetE { lhs; rhs; body = body#:(term_to_nt body) }
+  | _ -> CLetE { lhs = []; rhs = term#:Nt.unit_ty; body = body#:Nt.unit_ty }
 
 let mk_term_gen env op args e =
   let nty = _get_force [%here] env op in
