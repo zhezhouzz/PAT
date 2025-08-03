@@ -14,7 +14,7 @@ let term_to_nt = function
   | CLetE { body; _ } -> body.ty
   | CAppOp { op; _ } -> snd @@ Nt.destruct_arr_tp op.ty
   | CObs { op; _ } -> snd @@ Nt.destruct_arr_tp op.ty
-  | CGen _ | CUnion _ | CAssertP _ -> Nt.unit_ty
+  | CGen _ | CUnion _ | CAssertP _ | CWhile _ -> Nt.unit_ty
   | CAssume (nts, _) -> Nt.Ty_tuple nts
 
 let mk_let lhs rhs body =
@@ -44,6 +44,24 @@ let mk_term_assume args prop e =
 let mk_term_obs env op args prop e =
   let nty = _get_force [%here] env op in
   mk_let args (CObs { op = op#:nty; prop }) e
+
+let mk_term_obs_fresh ctx op k =
+  let nty = _get_force [%here] ctx op in
+  let args = Nt.get_record_types nty in
+  let args = List.map (fun x -> (Rename.unique_var x.x)#:x.ty) args in
+  mk_term_obs ctx op args mk_true (k args)
+
+let mk_term_assume_fresh nty prop k =
+  let arg = (Rename.unique_var "x")#:nty in
+  mk_term_assume [ arg ] prop (k arg)
+
+let mk_while_term body cond = CWhile { body = body#:(term_to_nt body); cond }
+
+let mk_kleene_while body =
+  let x = (Rename.unique_var "cond")#:Nt.bool_ty in
+  let boolgen = mk_term_assume [ x ] mk_true mk_term_tt in
+  let body = term_concat body boolgen in
+  mk_while_term body (lit_to_prop (mk_var_eq_c [%here] x (B true)))
 
 (** Trace Language *)
 

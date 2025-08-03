@@ -21,3 +21,5 @@ let rec layout_term = function
   | CAssume (nt, phi) ->
       spf "assume[%s] %s" (Nt.layout (Ty_tuple nt)) (layout_prop phi)
   | CAssertP phi -> spf "assert %s" (layout_prop phi)
+  | CWhile { body; cond } ->
+      spf "do{\n%s\n} while(%s)\n" (layout_term body.x) (layout_prop cond)

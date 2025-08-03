@@ -12,8 +12,8 @@ type _ Effect.t +=
   | Send : msg -> unit Effect.t
   | Recv : string -> msg Effect.t
   | Gen : msg -> unit Effect.t
-  | Obs : (string * (ev -> bool)) -> msg Effect.t
-  | End : unit Effect.t
+  | Obs : (string * (ev -> bool)) -> msg option Effect.t
+  | Async : msg -> msg Effect.t
 
 let layout_ev { op; args } =
   Printf.sprintf "%s(%s)" op

@@ -19,6 +19,7 @@ and fv_term (term_e : term) =
   | CUnion es -> List.concat_map typed_fv_term es
   | CAssertP phi -> fv_prop phi
   | CAssume (args, prop) -> fv_prop prop
+  | CWhile { body; cond } -> fv_prop cond @ typed_fv_term body
 
 and typed_fv_term (term_e : (Nt.nt, term) typed) = fv_term term_e.x
 

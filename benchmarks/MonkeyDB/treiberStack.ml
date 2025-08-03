@@ -26,58 +26,54 @@ module DB = struct
     | None -> Hashtbl.add kvStore x y
 end
 
-let readHandler (_ : msg) =
+let readAsync (ev : ev) =
   let x = DB.read () in
-  send { op = "readResp"; args = [ I x ] }
+  { ev with args = [ I x ] }
 
-let writeHandler (msg : msg) =
-  let x = match msg.ev.args with [ I x ] -> x | _ -> _die [%here] in
+let writeAsync (ev : ev) =
+  let x = match ev.args with [ I x ] -> x | _ -> _die [%here] in
   DB.write x;
-  send { op = "writeResp"; args = [] }
+  { ev with args = [ I x ] }
 
-let getHandler (msg : msg) =
-  let x = match msg.ev.args with [ I x ] -> x | _ -> _die [%here] in
+let getAsync (ev : ev) =
+  let x = match ev.args with [ I x ] -> x | _ -> _die [%here] in
   let cell = DB.get x in
-  send { op = "getResp"; args = [ I cell.content; I cell.next ] }
+  { ev with args = [ I x; I cell.content; I cell.next ] }
 
-let putHandler (msg : msg) =
+let putAsync (ev : ev) =
   let x, y =
-    match msg.ev.args with
+    match ev.args with
     | [ I x; I y; I z ] -> (x, DB.{ content = y; next = z })
     | _ -> _die [%here]
   in
   DB.put x y;
-  send { op = "putResp"; args = [] }
+  { ev with args = [ I x; I y.content; I y.next ] }
 
 let casHandler (msg : msg) =
   let x = match msg.ev.args with [ I x; I _ ] -> x | _ -> _die [%here] in
   let cond = x == DB.read () in
-  send { op = "casResp"; args = [ B cond ] }
+  send ("casResp", [ B cond ])
 
 let do_read () =
-  let () = send { op = "readReq"; args = [] } in
-  let msg = recv "readResp" in
+  let msg = async ("read", []) in
   match msg.ev.args with [ I x ] -> x | _ -> _die [%here]
 
 let do_write v =
-  let () = send { op = "writeReq"; args = [ I v ] } in
-  let _ = recv "writeResp" in
+  let _ = async ("write", [ I v ]) in
   ()
 
 let do_get x =
-  let () = send { op = "getReq"; args = [ I x ] } in
-  let msg = recv "getResp" in
+  let msg = async ("get", [ I x ]) in
   match msg.ev.args with
   | [ I x; I y ] -> DB.{ content = x; next = y }
   | _ -> _die [%here]
 
 let do_put x y =
-  let () = send { op = "putReq"; args = DB.[ I x; I y.content; I y.next ] } in
-  let _ = recv "putResp" in
+  let _ = async ("put", DB.[ I x; I y.content; I y.next ]) in
   ()
 
 let do_cas old n =
-  let () = send { op = "casReq"; args = [ I old; I n ] } in
+  let () = send ("casReq", [ I old; I n ]) in
   let msg = recv "casResp" in
   let cond = match msg.ev.args with [ B b ] -> b | _ -> _die [%here] in
   if cond then DB.write n;
@@ -98,28 +94,29 @@ let pushHandler (msg : msg) =
 let popHandler (_ : msg) =
   let rec aux () =
     let oldHeadKey = do_read () in
-    if oldHeadKey == 0 then send { op = "popResp"; args = [ I 0 ] }
+    if oldHeadKey == 0 then send ("popResp", [ I 0 ])
     else
       let oldHead = do_get oldHeadKey in
       if do_cas oldHeadKey oldHead.next then
-        send { op = "popResp"; args = [ I oldHead.content ] }
+        send ("popResp", [ I oldHead.content ])
       else aux ()
   in
   aux ()
 
 let initHandler (_ : msg) =
   let () = do_write 0 in
-  send { op = "initResp"; args = [] }
+  send ("initResp", [])
 
 let initRespHandler (_ : msg) = ()
 let pushRespHandler (_ : msg) = ()
 let popRespHandler (_ : msg) = ()
 
 let init () =
-  register_handler "readReq" readHandler;
-  register_handler "writeReq" writeHandler;
-  register_handler "getReq" getHandler;
-  register_handler "putReq" putHandler;
+  Interpreter.init ();
+  register_async "read" readAsync;
+  register_async "write" writeAsync;
+  register_async "get" getAsync;
+  register_async "put" putAsync;
   register_handler "casReq" casHandler;
   register_handler "initReq" initHandler;
   register_handler "pushReq" pushHandler;
@@ -135,14 +132,10 @@ let record l = Ty_record { alias = None; fds = l }
 let testCtx =
   Typectx.add_to_rights Typectx.emp
     [
-      "readReq"#:(record []);
-      "readResp"#:(record [ "x"#:int_ty ]);
-      "writeReq"#:(record [ "x"#:int_ty ]);
-      "writeResp"#:(record []);
-      "getReq"#:(record [ "x"#:int_ty ]);
-      "getResp"#:(record [ "x"#:int_ty; "y"#:int_ty ]);
-      "putReq"#:(record [ "x"#:int_ty; "y"#:int_ty; "z"#:int_ty ]);
-      "putResp"#:(record []);
+      "read"#:(record [ "x"#:int_ty ]);
+      "write"#:(record [ "x"#:int_ty ]);
+      "get"#:(record [ "x"#:int_ty; "y"#:int_ty ]);
+      "put"#:(record [ "x"#:int_ty; "y"#:int_ty; "z"#:int_ty ]);
       "casReq"#:(record [ "x"#:int_ty; "y"#:int_ty ]);
       "casResp"#:(record [ "x"#:bool_ty ]);
       "initReq"#:(record []);
@@ -157,22 +150,99 @@ let genInitReq body = mk_term_gen testCtx "initReq" [] body
 let genPushReq x body = mk_term_gen testCtx "pushReq" [ VVar x ] body
 let genPopReq body = mk_term_gen testCtx "popReq" [] body
 
-let mk_term_obs_fresh op k =
-  let nty = _get_force [%here] testCtx op in
-  let args = get_record_types nty in
-  let args = List.map (fun x -> (Rename.unique_var x.x)#:x.ty) args in
-  mk_term_obs testCtx op args mk_true (k args)
+let obsWrite k =
+  mk_term_obs_fresh testCtx "write" (function
+    | [ x ] -> k x
+    | _ -> _die [%here])
 
-let obsWriteReq k =
-  mk_term_obs_fresh "writeReq" (function [ x ] -> k x | _ -> _die [%here])
+let obsRead k =
+  mk_term_obs_fresh testCtx "read" (function [ x ] -> k x | _ -> _die [%here])
 
-let obsWriteResp k =
-  mk_term_obs_fresh "writeResp" (function [] -> k () | _ -> _die [%here])
+let obsGet k =
+  mk_term_obs_fresh testCtx "get" (function
+    | [ x; y ] -> k x y
+    | _ -> _die [%here])
+
+let obsPut k =
+  mk_term_obs_fresh testCtx "put" (function
+    | [ x; y; z ] -> k x y z
+    | _ -> _die [%here])
+
+let obsCasReq k =
+  mk_term_obs_fresh testCtx "casReq" (function
+    | [ x; y ] -> k x y
+    | _ -> _die [%here])
+
+let obsCasResp k =
+  mk_term_obs_fresh testCtx "casResp" (function
+    | [ x ] -> k x
+    | _ -> _die [%here])
 
 let obsInitResp k =
-  mk_term_obs_fresh "initResp" (function [] -> k () | _ -> _die [%here])
+  mk_term_obs_fresh testCtx "initResp" (function
+    | [] -> k ()
+    | _ -> _die [%here])
+
+let obsPushResp k =
+  mk_term_obs_fresh testCtx "pushResp" (function
+    | [] -> k ()
+    | _ -> _die [%here])
+
+let obsPopResp k =
+  mk_term_obs_fresh testCtx "popResp" (function
+    | [ x ] -> k x
+    | _ -> _die [%here])
 
 let main =
-  genInitReq
-    (obsWriteReq (fun _ ->
-         obsWriteResp (fun () -> obsInitResp (fun () -> mk_term_tt))))
+  let initProcedure e =
+    genInitReq (obsWrite (fun _ -> obsInitResp (fun () -> e)))
+  in
+  let pushProcedure e =
+    mk_term_assume_fresh int_ty mk_true (fun x ->
+        genPushReq x
+          (obsRead (fun _ ->
+               obsCasReq (fun _ _ ->
+                   obsCasResp (fun _ -> obsPut (fun _ _ _ -> e))))))
+  in
+  let popProcedure e =
+    genPopReq
+      (obsRead (fun _ ->
+           obsRead (fun _ ->
+               obsGet (fun _ _ ->
+                   obsRead (fun _ ->
+                       obsCasReq (fun _ _ ->
+                           obsCasReq (fun _ _ ->
+                               obsCasResp (fun _ ->
+                                   obsCasResp (fun _ ->
+                                       obsPopResp (fun _ ->
+                                           obsPopResp (fun _ -> e)))))))))))
+  in
+  initProcedure (pushProcedure (popProcedure mk_term_tt))
+
+(* let main =
+    let initProcedure e =
+      genInitReq (obsWrite (fun _ -> obsInitResp (fun () -> e)))
+    in
+    let pushProcedure =
+      mk_kleene_while
+      @@ mk_term_assume_fresh int_ty mk_true (fun x ->
+             genPushReq x
+               (obsRead (fun _ ->
+                    obsCasReq (fun _ _ ->
+                        obsCasResp (fun _ -> obsPut (fun _ _ _ -> mk_term_tt))))))
+    in
+    let popProcedure e =
+      genPopReq
+        (obsRead (fun _ ->
+             obsRead (fun _ ->
+                 obsGet (fun _ _ ->
+                     obsRead (fun _ ->
+                         obsCasReq (fun _ _ ->
+                             obsCasReq (fun _ _ ->
+                                 obsCasResp (fun _ ->
+                                     obsCasResp (fun _ ->
+                                         obsPopResp (fun _ ->
+                                             obsPopResp (fun _ -> e)))))))))))
+    in
+    initProcedure (term_concat pushProcedure (popProcedure mk_term_tt))
+   *)

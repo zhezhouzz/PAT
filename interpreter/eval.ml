@@ -22,7 +22,7 @@ let rec eval code =
       let s = Sample.sample_phi (Store.get ()) (lhs, prop) in
       Store.add_list s;
       eval body.x
-  | CLetE { lhs; rhs = { x = CObs { op; prop }; _ }; body } ->
+  | CLetE { lhs; rhs = { x = CObs { op; prop }; _ }; body } -> (
       let msg =
         Effect.perform
           (Obs
@@ -31,10 +31,17 @@ let rec eval code =
                  let st = Store.fadd (lhs, ev.args) (Store.get ()) in
                  eval_prop st prop ))
       in
-      let () = Store.add (lhs, msg.ev.args) in
-      if eval_prop (Store.get ()) prop then eval body.x
-      else
-        raise (RuntimeInconsistent { tid; code = body.x; store = Store.get () })
+      match msg with
+      | None ->
+          raise
+            (RuntimeInconsistent { tid; code = body.x; store = Store.get () })
+      | Some msg ->
+          let () = Store.add (lhs, msg.ev.args) in
+          if eval_prop (Store.get ()) prop then eval body.x
+          else
+            raise
+              (RuntimeInconsistent { tid; code = body.x; store = Store.get () })
+      )
   | CLetE { lhs; rhs; body } ->
       let () = Store.add (lhs, eval rhs.x) in
       eval body.x
@@ -56,6 +63,11 @@ let rec eval code =
           (RuntimeInconsistent
              { tid; code = CAssertP phi; store = Store.get () })
   | CAssume _ -> _die_with [%here] "never"
+  | CWhile { body; cond } ->
+      let () =
+        match eval body.x with [] -> () | _ -> _die_with [%here] "never"
+      in
+      if eval_prop (Store.get ()) cond then eval (CWhile { body; cond }) else []
 
 let eval_to_unit code =
   let _ = eval code in

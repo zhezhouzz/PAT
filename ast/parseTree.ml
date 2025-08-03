@@ -46,6 +46,7 @@ type term =
   | CGen of { op : (Nt.nt, string) typed; args : (Nt.nt, value) typed list }
   | CUnion of (Nt.nt, term) typed list
   | CAssume of (Nt.nt list * Nt.nt prop)
+  | CWhile of { body : (Nt.nt, term) typed; cond : Nt.nt prop }
   | CAssertP of Nt.nt prop
 [@@deriving sexp, show, eq, ord]
 
