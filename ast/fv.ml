@@ -4,7 +4,7 @@ open Zdatatype
 open AutomataLibrary
 
 let rec fv_value (value_e : value) =
-  match value_e with VConst _ -> [] | VVar v -> [ v ]
+  match value_e with VConst _ -> [] | VVar v -> [ v ] | VCStlcTy _ -> []
 
 and typed_fv_value (value_e : (Nt.nt, value) typed) = fv_value value_e.x
 

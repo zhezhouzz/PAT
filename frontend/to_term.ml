@@ -1,8 +1,7 @@
 open Ast
 open Zdatatype
 
-let layout_value = function VVar x -> x.x | VConst c -> layout_constant c
-let layout_typed_value v = layout_value v.x
+let layout_typed_value v = Syntax.layout_value v.x
 
 let rec layout_term = function
   | CVal v -> layout_typed_value v

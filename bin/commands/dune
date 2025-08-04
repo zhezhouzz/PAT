@@ -8,6 +8,7 @@
   synthesis
   interpreter
   monkeyBD
+  stlc
   ; pbackend
   )
  (modules caux ctest cre)

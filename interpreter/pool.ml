@@ -85,16 +85,24 @@ let try_handle_op op f =
   let msgs = MsgBuffer.find_by_op op in
   (* let () =
     Printf.printf "msgs0: %s\n" (List.map layout_msg msgs |> String.concat "\n")
-  in *)
-  (* let () = Printf.printf "pool: %s\n" (hdPoolNames () |> String.concat "\n") in *)
+  in
+  let () = Printf.printf "pool: %s\n" (hdPoolNames () |> String.concat " ") in *)
   let msgs =
     List.filter
-      (fun msg -> List.exists (String.equal msg.ev.op) (hdPoolNames ()))
+      (fun msg ->
+        let b = List.exists (String.equal msg.ev.op) (hdPoolNames ()) in
+        (* let () =
+          Printf.printf "msg: %s; %s =? %b\n" (layout_msg msg) msg.ev.op b
+        in *)
+        b)
       msgs
   in
   (* let () =
-    Printf.printf "msgs1: %s\n" (List.map layout_msg msgs |> String.concat "\n")
+    Printf.printf "msgs1: %s\n" (List.map layout_msg msgs |> String.concat " ")
   in *)
+  let () =
+    match msgs with [] -> _die_with [%here] "No handler found" | _ -> ()
+  in
   let msgs =
     List.filter
       (fun msg ->
@@ -104,7 +112,7 @@ let try_handle_op op f =
       msgs
   in
   (* let () =
-    Printf.printf "msgs2: %s\n" (List.map layout_msg msgs |> String.concat "\n")
+    Printf.printf "msgs2: %s\n" (List.map layout_msg msgs |> String.concat " ")
   in *)
   let msg =
     match msgs with

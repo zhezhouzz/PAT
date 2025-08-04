@@ -59,8 +59,6 @@ let remove_star loc plan =
       | PlanStar _ | PlanStarInv _ -> false)
     plan
 
-let value_to_lit = function VVar x -> AVar x | VConst c -> AC c
-
 let elem_to_se ctx elem =
   let mk_c (op, args) =
     let vs =
@@ -495,6 +493,7 @@ let msubst_lit m = List.fold_right (fun (x, lit) -> subst_lit_instance x lit) m
 let subst_value x value = function
   | VVar y -> if String.equal x y.x then value else VVar y
   | VConst c -> VConst c
+  | VCStlcTy ty -> VCStlcTy ty
 
 let lit_to_value loc = function
   | AVar x -> VVar x

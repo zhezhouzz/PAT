@@ -1,7 +1,7 @@
 open Language
 (* open Zdatatype *)
 
-type ev = { op : string; args : constant list } [@@deriving show, eq, ord]
+type ev = { op : string; args : value list } [@@deriving show, eq, ord]
 type msg = { src : int; dest : int option; ev : ev } [@@deriving show, eq, ord]
 type handler = { tid : int; op : string; k : msg -> unit }
 type controller = { tid : int; code : term; store : Store.t }
@@ -16,8 +16,7 @@ type _ Effect.t +=
   | Async : msg -> msg Effect.t
 
 let layout_ev { op; args } =
-  Printf.sprintf "%s(%s)" op
-    (String.concat ", " (List.map layout_constant args))
+  Printf.sprintf "%s(%s)" op (String.concat ", " (List.map layout_value args))
 
 let layout_msg { src; dest; ev } =
   Printf.sprintf "[%s](%i -> %s)\n" (layout_ev ev) src

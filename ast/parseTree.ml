@@ -26,7 +26,20 @@ type 'r pat =
   | RtyInter of 'r pat * 'r pat
 [@@deriving show, eq, ord]
 
-type value = VVar of (Nt.nt, string) typed | VConst of constant
+type stlcTy = StlcInt | StlcArrow of stlcTy * stlcTy
+[@@deriving show, eq, ord, sexp]
+
+type stlcTerm =
+  | StlcVar of int
+  | StlcConst of int
+  | StlcAbs of { absTy : stlcTy; absBody : stlcTerm }
+  | StlcApp of { appFun : stlcTerm; appArg : stlcTerm }
+[@@deriving show, eq, ord]
+
+type value =
+  | VVar of (Nt.nt, string) typed
+  | VConst of constant
+  | VCStlcTy of stlcTy
 [@@deriving sexp, show, eq, ord]
 
 type trace_elem = { op : string; args : constant list }

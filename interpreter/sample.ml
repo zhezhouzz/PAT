@@ -10,8 +10,19 @@ end)
 let default_sample_domain =
   SampleDomain.of_seq @@ List.to_seq
   @@ [
-       (Nt.int_ty, List.map (fun n -> I n) [ -1; 0; 1; 2; 3; 4 ]);
-       (Nt.bool_ty, List.map (fun n -> B n) [ true; false ]);
+       (Nt.int_ty, List.map (fun n -> VConst (I n)) [ -1; 0; 1; 2; 3; 4 ]);
+       (Nt.bool_ty, List.map (fun n -> VConst (B n)) [ true; false ]);
+       ( Nt.string_ty,
+         List.map (fun n -> VConst (S n)) [ "a"; "b"; "c"; "d"; "e" ] );
+       ( mk_p_abstract_ty "stlcTy",
+         List.map
+           (fun n -> VCStlcTy n)
+           [
+             StlcInt;
+             StlcArrow (StlcInt, StlcInt);
+             StlcArrow (StlcInt, StlcArrow (StlcInt, StlcInt));
+             StlcArrow (StlcArrow (StlcInt, StlcInt), StlcInt);
+           ] );
        (* (mk_p_abstract_ty "rid", List.map (fun n -> I n) [ 1; 2; 3 ]);
        (mk_p_abstract_ty "aid", List.map (fun n -> I n) [ 4; 5; 6 ]);
        (mk_p_abstract_ty "tGid", List.map (fun n -> I n) [ 1; 2; 3 ]);

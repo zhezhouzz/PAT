@@ -34,9 +34,33 @@ let get_absty nt =
   in
   List.slow_rm_dup String.equal (aux nt)
 
+let rec layout_stlcTy = function
+  | StlcInt -> "int"
+  | StlcArrow (ty1, ty2) ->
+      let s1 =
+        match ty1 with
+        | StlcArrow _ -> "(" ^ layout_stlcTy ty1 ^ ")"
+        | _ -> layout_stlcTy ty1
+      in
+      let s2 =
+        match ty2 with
+        | StlcArrow _ -> "(" ^ layout_stlcTy ty2 ^ ")"
+        | _ -> layout_stlcTy ty2
+      in
+      spf "%s -> %s" s1 s2
+
+let rec layout_stlcTerm = function
+  | StlcVar x -> spf "[%d]" x
+  | StlcConst n -> string_of_int n
+  | StlcAbs { absTy; absBody } ->
+      spf "\\(%s).%s" (layout_stlcTy absTy) (layout_stlcTerm absBody)
+  | StlcApp { appFun; appArg } ->
+      spf "(%s %s)" (layout_stlcTerm appFun) (layout_stlcTerm appArg)
+
 let layout_value = function
   | VVar qv -> layout_qv qv
   | VConst c -> layout_constant c
+  | VCStlcTy ty -> layout_stlcTy ty
 
 let is_gen env op = is_generative @@ _get_force [%here] env.msgkind_ctx op
 let is_obs env op = is_observable @@ _get_force [%here] env.msgkind_ctx op

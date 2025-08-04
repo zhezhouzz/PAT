@@ -3,11 +3,26 @@ open Zdatatype
 
 (** Core Language *)
 
-let value_to_nt = function VVar x -> x.ty | VConst c -> constant_to_nt c
+let value_to_nt = function
+  | VVar x -> x.ty
+  | VConst c -> constant_to_nt c
+  | VCStlcTy _ -> mk_p_abstract_ty "stlcTy"
+
 let value_to_tvalue v = v#:(value_to_nt v)
-let value_to_lit = function VVar x -> AVar x | VConst c -> AC c
+
+let value_to_lit = function
+  | VVar x -> AVar x
+  | VConst c -> AC c
+  | VCStlcTy _ ->
+      _die_with [%here] "stlc constant cannot be converted into literal"
+
 let mk_value_tt = (VConst U)#:Nt.unit_ty
 let mk_term_tt = CVal mk_value_tt
+let mk_value_const c = VConst c
+let mk_value_int n = mk_value_const (I n)
+let mk_value_bool b = mk_value_const (B b)
+let mk_value_string s = mk_value_const (S s)
+let mk_value_stlcTy ty = VCStlcTy ty
 
 let term_to_nt = function
   | CVal v -> v.ty

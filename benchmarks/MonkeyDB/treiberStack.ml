@@ -28,54 +28,67 @@ end
 
 let readAsync (ev : ev) =
   let x = DB.read () in
-  { ev with args = [ I x ] }
+  { ev with args = [ mk_value_int x ] }
 
 let writeAsync (ev : ev) =
-  let x = match ev.args with [ I x ] -> x | _ -> _die [%here] in
+  let x = match ev.args with [ VConst (I x) ] -> x | _ -> _die [%here] in
   DB.write x;
-  { ev with args = [ I x ] }
+  { ev with args = [ mk_value_int x ] }
 
 let getAsync (ev : ev) =
-  let x = match ev.args with [ I x ] -> x | _ -> _die [%here] in
+  let x = match ev.args with [ VConst (I x) ] -> x | _ -> _die [%here] in
   let cell = DB.get x in
-  { ev with args = [ I x; I cell.content; I cell.next ] }
+  {
+    ev with
+    args = [ mk_value_int x; mk_value_int cell.content; mk_value_int cell.next ];
+  }
 
 let putAsync (ev : ev) =
   let x, y =
     match ev.args with
-    | [ I x; I y; I z ] -> (x, DB.{ content = y; next = z })
+    | [ VConst (I x); VConst (I y); VConst (I z) ] ->
+        (x, DB.{ content = y; next = z })
     | _ -> _die [%here]
   in
   DB.put x y;
-  { ev with args = [ I x; I y.content; I y.next ] }
+  {
+    ev with
+    args = [ mk_value_int x; mk_value_int y.content; mk_value_int y.next ];
+  }
 
 let casHandler (msg : msg) =
-  let x = match msg.ev.args with [ I x; I _ ] -> x | _ -> _die [%here] in
+  let x =
+    match msg.ev.args with
+    | [ VConst (I x); VConst (I _) ] -> x
+    | _ -> _die [%here]
+  in
   let cond = x == DB.read () in
-  sendTo (Some msg.src, { op = "casResp"; args = [ B cond ] })
+  sendTo (Some msg.src, { op = "casResp"; args = [ mk_value_bool cond ] })
 
 let do_read () =
   let msg = async ("read", []) in
-  match msg.ev.args with [ I x ] -> x | _ -> _die [%here]
+  match msg.ev.args with [ VConst (I x) ] -> x | _ -> _die [%here]
 
 let do_write v =
-  let _ = async ("write", [ I v ]) in
+  let _ = async ("write", [ mk_value_int v ]) in
   ()
 
 let do_get x =
-  let msg = async ("get", [ I x ]) in
+  let msg = async ("get", [ mk_value_int x ]) in
   match msg.ev.args with
-  | [ I _; I y; I z ] -> DB.{ content = y; next = z }
+  | [ VConst (I _); VConst (I y); VConst (I z) ] -> DB.{ content = y; next = z }
   | _ -> _die [%here]
 
 let do_put x y =
-  let _ = async ("put", DB.[ I x; I y.content; I y.next ]) in
+  let _ =
+    async ("put", DB.[ mk_value_int x; mk_value_int y.content; mk_value_int y.next ])
+  in
   ()
 
 let do_cas old n =
-  let () = send ("casReq", [ I old; I n ]) in
+  let () = send ("casReq", [ mk_value_int old; mk_value_int n ]) in
   let msg = recv "casResp" in
-  let cond = match msg.ev.args with [ B b ] -> b | _ -> _die [%here] in
+  let cond = match msg.ev.args with [ VConst (B b) ] -> b | _ -> _die [%here] in
   if cond then DB.write n;
   cond
 
@@ -89,16 +102,16 @@ let pushHandler (msg : msg) =
       ()
     else aux v
   in
-  match msg.ev.args with [ I v ] -> aux v | _ -> _die [%here]
+  match msg.ev.args with [ VConst (I v) ] -> aux v | _ -> _die [%here]
 
 let popHandler (_ : msg) =
   let rec aux () =
     let oldHeadKey = do_read () in
-    if oldHeadKey == 0 then send ("popResp", [ I 0 ])
+    if oldHeadKey == 0 then send ("popResp", [ mk_value_int 0 ])
     else
       let oldHead = do_get oldHeadKey in
       if do_cas oldHeadKey oldHead.next then
-        send ("popResp", [ I oldHead.content ])
+        send ("popResp", [ mk_value_int oldHead.content ])
       else aux ()
   in
   aux ()

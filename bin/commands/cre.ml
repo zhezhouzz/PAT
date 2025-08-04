@@ -291,14 +291,21 @@ let four_param_string message f =
       let () = Myconfig.meta_config_path := config_file in
       f file1 file2 file3 file4)
 
-let test_eval () =
-  let open MonkeyBD.TreiberStack in
-  init ();
-  Interpreter.run (fun () -> Interpreter.Eval.eval_to_unit main)
+let test_eval s () =
+  match s with
+  | "treiber-stack" ->
+      let open MonkeyBD.TreiberStack in
+      init ();
+      Interpreter.run (fun () -> Interpreter.Eval.eval_to_unit main)
+  | "stlc" ->
+      let open Stlc in
+      init ();
+      Interpreter.run (fun () -> Interpreter.Eval.eval_to_unit main)
+  | _ -> _die_with [%here] "unknown benchmark"
 
 let cmds =
   [
-    ("test-eval", zero_param "test eval" test_eval);
+    ("test-eval", one_param_string "test eval" test_eval);
     ("read-syn", one_param "read syn" read_syn);
     ("syn-one", two_param_string "syn one" syn_term);
     ("syn-benchmark", one_param_string "run benchmark" syn_benchmark);

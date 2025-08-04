@@ -67,7 +67,7 @@ let rec eval code =
   | CWhile { body; cond } ->
       let () =
         match eval body.x with
-        | [] | [ U ] -> ()
+        | [] | [ VConst U ] -> ()
         | _ -> _die_with [%here] "never"
       in
       if eval_prop (Store.get ()) cond then eval (CWhile { body; cond }) else []

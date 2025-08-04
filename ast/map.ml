@@ -26,7 +26,11 @@ let rec map_rich_srl_pat f = function
         { arg; argcty = map_cty f argcty; retrty = map_rich_srl_pat f retrty }
   | RtyInter (p1, p2) -> RtyInter (map_rich_srl_pat f p1, map_rich_srl_pat f p2)
 
-let rec map_value f = function VVar v -> VVar v#=>f | VConst c -> VConst c
+let rec map_value f = function
+  | VVar v -> VVar v#=>f
+  | VConst c -> VConst c
+  | VCStlcTy ty -> VCStlcTy ty
+
 and typed_map_value f { x; ty } = { x = map_value f x; ty = f ty }
 
 let rec map_term f = function
