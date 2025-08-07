@@ -494,6 +494,7 @@ let subst_value x value = function
   | VVar y -> if String.equal x y.x then value else VVar y
   | VConst c -> VConst c
   | VCStlcTy ty -> VCStlcTy ty
+  | VCIntList xs -> VCIntList xs
 
 let lit_to_value loc = function
   | AVar x -> VVar x

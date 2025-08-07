@@ -23,6 +23,10 @@ let default_sample_domain =
              StlcArrow (StlcInt, StlcArrow (StlcInt, StlcInt));
              StlcArrow (StlcArrow (StlcInt, StlcInt), StlcInt);
            ] );
+       ( mk_p_abstract_ty "filterOption",
+         List.map
+           (fun n -> VConst (S n))
+           [ "ActiveOp"; "CompletedOp"; "AllOp"; "NoneOp" ] );
        (* (mk_p_abstract_ty "rid", List.map (fun n -> I n) [ 1; 2; 3 ]);
        (mk_p_abstract_ty "aid", List.map (fun n -> I n) [ 4; 5; 6 ]);
        (mk_p_abstract_ty "tGid", List.map (fun n -> I n) [ 1; 2; 3 ]);

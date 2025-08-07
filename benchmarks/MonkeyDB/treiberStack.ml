@@ -81,14 +81,17 @@ let do_get x =
 
 let do_put x y =
   let _ =
-    async ("put", DB.[ mk_value_int x; mk_value_int y.content; mk_value_int y.next ])
+    async
+      ("put", DB.[ mk_value_int x; mk_value_int y.content; mk_value_int y.next ])
   in
   ()
 
 let do_cas old n =
   let () = send ("casReq", [ mk_value_int old; mk_value_int n ]) in
   let msg = recv "casResp" in
-  let cond = match msg.ev.args with [ VConst (B b) ] -> b | _ -> _die [%here] in
+  let cond =
+    match msg.ev.args with [ VConst (B b) ] -> b | _ -> _die [%here]
+  in
   if cond then DB.write n;
   cond
 
@@ -232,6 +235,32 @@ let main1 =
                                               obsPopResp (fun _ -> e))))))))))))
   in
   initProcedure (pushProcedure (popProcedure mk_term_tt))
+
+let qc_stack n =
+  let stack_length = ref 0 in
+  let used = ref [] in
+  let rec genPushElem () =
+    let x = Random.int 100 in
+    if List.mem x !used then genPushElem ()
+    else
+      let () = used := x :: !used in
+      x
+  in
+  let () = send ("initReq", []) in
+  let rec loop n =
+    if n <= 0 then ()
+    else if !stack_length > 0 then
+      if Random.bool () then
+        let () = stack_length := !stack_length + 1 in
+        send ("pushReq", [ mk_value_int (genPushElem ()) ])
+      else
+        let () = stack_length := !stack_length - 1 in
+        send ("popReq", [])
+    else send ("pushReq", [ mk_value_int (genPushElem ()) ]);
+    loop (n - 1)
+  in
+  let () = loop n in
+  Effect.perform End
 
 let main =
   let initProcedure e =

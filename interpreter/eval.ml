@@ -74,6 +74,8 @@ let rec eval code =
 
 let eval_to_unit code =
   let _ = eval code in
+  let () = Pp.printf "@{<blue>Code:@}\n%s\n" (layout_term code) in
+  Pool.Runtime.print_hisTrace ();
   ()
 
 let eval_until_consistent (store, term) =

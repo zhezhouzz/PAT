@@ -61,6 +61,8 @@ let layout_value = function
   | VVar qv -> layout_qv qv
   | VConst c -> layout_constant c
   | VCStlcTy ty -> layout_stlcTy ty
+  | VCIntList xs ->
+      spf "[%s]" (List.split_by "; " (fun x -> string_of_int x) xs)
 
 let is_gen env op = is_generative @@ _get_force [%here] env.msgkind_ctx op
 let is_obs env op = is_observable @@ _get_force [%here] env.msgkind_ctx op

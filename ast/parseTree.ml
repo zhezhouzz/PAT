@@ -40,6 +40,7 @@ type value =
   | VVar of (Nt.nt, string) typed
   | VConst of constant
   | VCStlcTy of stlcTy
+  | VCIntList of int list
 [@@deriving sexp, show, eq, ord]
 
 type trace_elem = { op : string; args : constant list }

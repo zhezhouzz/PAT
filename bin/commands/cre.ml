@@ -293,19 +293,40 @@ let four_param_string message f =
 
 let test_eval s () =
   match s with
+  | "cart" ->
+      let open MonkeyBD.Cart in
+      init ();
+      Interpreter.run (fun () -> Interpreter.Eval.eval_to_unit main)
   | "treiber-stack" ->
       let open MonkeyBD.TreiberStack in
+      init ();
+      Interpreter.run (fun () -> Interpreter.Eval.eval_to_unit main)
+  | "todoMVC" ->
+      let open Quickstorm.TodoMVC in
       init ();
       Interpreter.run (fun () -> Interpreter.Eval.eval_to_unit main)
   | "stlc" ->
       let open Stlc in
       init ();
-      Interpreter.run (fun () -> Interpreter.Eval.eval_to_unit main)
+      Interpreter.run (fun () -> Interpreter.Eval.eval_to_unit main);
+      let _ = Stlc.mstep_stlcTerm !EvaluationCtx._tmp in
+      ()
+  | _ -> _die_with [%here] "unknown benchmark"
+
+let test_random s () =
+  match s with
+  | "treiber-stack" ->
+      let open MonkeyBD.TreiberStack in
+      init ();
+      Interpreter.random_scheduler (fun () -> qc_stack 4)
+  | "todoMVC" -> _die_with [%here] "unimp"
+  | "stlc" -> _die_with [%here] "unimp"
   | _ -> _die_with [%here] "unknown benchmark"
 
 let cmds =
   [
     ("test-eval", one_param_string "test eval" test_eval);
+    ("test-random", one_param_string "test random" test_random);
     ("read-syn", one_param "read syn" read_syn);
     ("syn-one", two_param_string "syn one" syn_term);
     ("syn-benchmark", one_param_string "run benchmark" syn_benchmark);

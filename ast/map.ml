@@ -30,6 +30,7 @@ let rec map_value f = function
   | VVar v -> VVar v#=>f
   | VConst c -> VConst c
   | VCStlcTy ty -> VCStlcTy ty
+  | VCIntList xs -> VCIntList xs
 
 and typed_map_value f { x; ty } = { x = map_value f x; ty = f ty }
 

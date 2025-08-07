@@ -24,6 +24,7 @@ let eval_value store = function
   | VVar x -> eval_qv store x
   | VConst c -> VConst c
   | VCStlcTy ty -> VCStlcTy ty
+  | VCIntList xs -> VCIntList xs
 
 let meval_value store values = List.map (fun v -> eval_value store v.x) values
 

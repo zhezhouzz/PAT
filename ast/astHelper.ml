@@ -7,13 +7,14 @@ let value_to_nt = function
   | VVar x -> x.ty
   | VConst c -> constant_to_nt c
   | VCStlcTy _ -> mk_p_abstract_ty "stlcTy"
+  | VCIntList _ -> Ty_constructor ("list", [ Nt.int_ty ])
 
 let value_to_tvalue v = v#:(value_to_nt v)
 
 let value_to_lit = function
   | VVar x -> AVar x
   | VConst c -> AC c
-  | VCStlcTy _ ->
+  | VCStlcTy _ | VCIntList _ ->
       _die_with [%here] "stlc constant cannot be converted into literal"
 
 let mk_value_tt = (VConst U)#:Nt.unit_ty
@@ -23,6 +24,8 @@ let mk_value_int n = mk_value_const (I n)
 let mk_value_bool b = mk_value_const (B b)
 let mk_value_string s = mk_value_const (S s)
 let mk_value_stlcTy ty = VCStlcTy ty
+let mk_value_intList xs = VCIntList xs
+let mk_list_ty ty = Nt.Ty_constructor ("list", [ ty ])
 
 let term_to_nt = function
   | CVal v -> v.ty
@@ -66,11 +69,16 @@ let mk_term_obs env op args prop e =
   let nty = _get_force [%here] env op in
   mk_let args (CObs { op = op#:nty; prop }) e
 
-let mk_term_obs_fresh ctx op k =
+let mk_term_obs_prop_fresh ctx op k =
   let nty = _get_force [%here] ctx op in
   let args = Nt.get_record_types nty in
   let args = List.map (fun x -> (Rename.unique_var x.x)#:x.ty) args in
-  mk_term_obs ctx op args mk_true (k args)
+  let prop, e = k args in
+  mk_term_obs ctx op args prop e
+
+let mk_term_obs_fresh ctx op k =
+  let k = fun args -> (mk_true, k args) in
+  mk_term_obs_prop_fresh ctx op k
 
 let mk_term_assume_fresh nty prop k =
   let arg = (Rename.unique_var "x")#:nty in
