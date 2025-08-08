@@ -30,10 +30,10 @@ let deleteItemRespHandler (_ : msg) = ()
 
 let init () =
   Interpreter.init ();
-  register_async "begin" beginAsync;
-  register_async "commit" commitAsync;
-  register_async "get" getAsync;
-  register_async "put" putAsync;
+  register_async_has_ret "begin" beginAsync;
+  register_async_no_ret "commit" commitAsync;
+  register_async_has_ret "get" getAsync;
+  register_async_no_ret "put" putAsync;
   register_handler "addItemReq" addItemReqHandler;
   register_handler "deleteItemReq" deleteItemReqHandler;
   register_handler "addItemResp" addItemRespHandler;
@@ -92,7 +92,7 @@ let main =
           @@ gen "deleteItemReq" [ user; item ]
           @@ obsBegin (fun tid1 ->
                  obsBegin (fun tid2 ->
-                     obsGet tid1 @@ obsGet tid2 @@ obsPut tid1 @@ obsPut tid2
+                     obsGet tid2 @@ obsGet tid1 @@ obsPut tid1 @@ obsPut tid2
                      @@ obsCommit tid2 @@ obsCommit tid1
                      @@ gen "deleteItemResp" [] @@ gen "addItemResp" []
                      @@ gen "addItemReq" [ user; item ]

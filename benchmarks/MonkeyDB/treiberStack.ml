@@ -32,8 +32,7 @@ let readAsync (ev : ev) =
 
 let writeAsync (ev : ev) =
   let x = match ev.args with [ VConst (I x) ] -> x | _ -> _die [%here] in
-  DB.write x;
-  { ev with args = [ mk_value_int x ] }
+  DB.write x
 
 let getAsync (ev : ev) =
   let x = match ev.args with [ VConst (I x) ] -> x | _ -> _die [%here] in
@@ -50,11 +49,7 @@ let putAsync (ev : ev) =
         (x, DB.{ content = y; next = z })
     | _ -> _die [%here]
   in
-  DB.put x y;
-  {
-    ev with
-    args = [ mk_value_int x; mk_value_int y.content; mk_value_int y.next ];
-  }
+  DB.put x y
 
 let casHandler (msg : msg) =
   let x =
@@ -129,10 +124,10 @@ let popRespHandler (_ : msg) = ()
 
 let init () =
   Interpreter.init ();
-  register_async "read" readAsync;
-  register_async "write" writeAsync;
-  register_async "get" getAsync;
-  register_async "put" putAsync;
+  register_async_has_ret "read" readAsync;
+  register_async_no_ret "write" writeAsync;
+  register_async_has_ret "get" getAsync;
+  register_async_no_ret "put" putAsync;
   register_handler "casReq" casHandler;
   register_handler "initReq" initHandler;
   register_handler "pushReq" pushHandler;

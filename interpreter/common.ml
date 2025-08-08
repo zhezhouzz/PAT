@@ -4,9 +4,10 @@ open Language
 type ev = { op : string; args : value list } [@@deriving show, eq, ord]
 type msg = { src : int; dest : int option; ev : ev } [@@deriving show, eq, ord]
 type handler = { tid : int; op : string; k : msg -> unit }
+type async_handler = { has_ret : bool; k : ev -> ev }
 type controller = { tid : int; code : term; store : Store.t }
 
-exception RuntimeInconsistent of controller
+exception RuntimeInconsistent of string
 
 type _ Effect.t +=
   | Send : msg -> unit Effect.t

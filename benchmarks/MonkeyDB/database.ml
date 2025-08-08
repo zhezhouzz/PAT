@@ -7,6 +7,7 @@ module type Config = sig
   type value
 
   val initial_value : value
+  val layout_value : value -> string
 end
 
 module MakeBD (Config : Config) = struct
@@ -149,9 +150,15 @@ module MakeBD (Config : Config) = struct
           database := { !database with co = !database.co @ [ new_tid ] }
       | _ -> ()
     in
+    let () =
+      Pp.printf "thread (%i) begin_transaction: %i\n" thread_id new_tid
+    in
     new_tid
 
   let commit_transaction thread_id cur_tid =
+    let () =
+      Pp.printf "thread (%i) commit_transaction: %i\n" thread_id cur_tid
+    in
     match Hashtbl.find_opt !database.threadStatus thread_id with
     | Some tid -> (
         let () = assert (tid == cur_tid) in
@@ -235,6 +242,21 @@ module MakeBD (Config : Config) = struct
     let () = add_operation tid operation in
     ()
 
+  let layout_operation_kind opKind =
+    match opKind with Read -> "Read" | Write -> "Write"
+
+  let layout_operation operation =
+    spf "%s(%i, %s)"
+      (layout_operation_kind operation.opKind)
+      operation.key
+      (layout_value operation.value)
+
+  let layout_last_write (tid, m) =
+    IntMap.fold
+      (fun key operation acc ->
+        spf "%skey: %i, value: %s\n" acc key (layout_operation operation))
+      m (spf "tid: %i\n" tid)
+
   let get thread_id key =
     let tid = get_transaction_from_thread thread_id in
     let oid = new_oid tid in
@@ -245,17 +267,31 @@ module MakeBD (Config : Config) = struct
       | Some { value; _ } -> value
       | _ -> (
           match !database.isolation with
-          | ReadCommitted ->
+          | ReadCommitted -> (
+              let () =
+                Pp.printf "read from transactions: %s\n"
+                  (String.concat ", " (List.map string_of_int !database.co))
+              in
+              let last_writes = all_last_writes_in_history () in
+              let () =
+                Pp.printf "last_writes: %s\n"
+                  (String.concat ", " (List.map layout_last_write last_writes))
+              in
               let value =
                 List.fold_right
                   (fun tid acc ->
-                    match try_read_from_transaction tid key with
-                    | Some value -> value
-                    | _ -> acc)
-                  !database.co Config.initial_value
+                    match acc with
+                    | Some value -> Some value
+                    | None -> (
+                        match try_read_from_transaction tid key with
+                        | Some value -> Some value
+                        | _ -> acc))
+                  !database.co None
               in
-              value
-          | Serializable ->
+              match value with
+              | None -> Config.initial_value
+              | Some value -> value)
+          | Serializable -> (
               let co =
                 List.filter
                   (fun tid -> Hashtbl.mem !database.committed tid)
@@ -264,12 +300,17 @@ module MakeBD (Config : Config) = struct
               let value =
                 List.fold_right
                   (fun tid acc ->
-                    match try_read_from_transaction tid key with
-                    | Some value -> value
-                    | _ -> acc)
-                  co Config.initial_value
+                    match acc with
+                    | Some value -> Some value
+                    | None -> (
+                        match try_read_from_transaction tid key with
+                        | Some value -> Some value
+                        | _ -> acc))
+                  co None
               in
-              value
+              match value with
+              | None -> Config.initial_value
+              | Some value -> value)
           | Causal ->
               let last_writes = all_committed_operations_in_history () in
               let last_writes =

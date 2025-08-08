@@ -7,6 +7,7 @@ module StackDB = struct
     type value = int * int
 
     let initial_value = (0, 0)
+    let layout_value (x, y) = spf "(%i, %i)" x y
   end)
 
   let event_typectx =
@@ -111,6 +112,9 @@ module CartDB = struct
     type value = int list
 
     let initial_value = []
+
+    let layout_value l =
+      spf "[%s]" (String.concat ", " (List.map string_of_int l))
   end)
 
   let event_typectx =
@@ -150,8 +154,7 @@ module CartDB = struct
     let tid =
       match ev.args with [ VConst (I tid) ] -> tid | _ -> _die [%here]
     in
-    let _ = commit_transaction !Runtime._curTid tid in
-    ev
+    commit_transaction !Runtime._curTid tid
 
   let getAsync (ev : ev) =
     let tid, x =
@@ -168,6 +171,5 @@ module CartDB = struct
       | [ VConst (I tid); VConst (I x); VCIntList y ] -> (tid, x, y)
       | _ -> _die [%here]
     in
-    let _ = put !Runtime._curTid x y in
-    ev
+    put !Runtime._curTid x y
 end

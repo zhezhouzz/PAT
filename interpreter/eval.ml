@@ -33,16 +33,13 @@ let rec eval code =
                  eval_prop st prop ))
       in
       match msg with
-      | None ->
-          raise
-            (RuntimeInconsistent { tid; code = body.x; store = Store.get () })
+      | None -> raise (RuntimeInconsistent "no msg is available for given prop")
       | Some msg ->
+          let () = Pp.printf "@{<bold>Perform:@} %s\n" (layout_msg msg) in
           let () = Store.add (lhs, msg.ev.args) in
           if eval_prop (Store.get ()) prop then eval body.x
           else
-            raise
-              (RuntimeInconsistent { tid; code = body.x; store = Store.get () })
-      )
+            raise (RuntimeInconsistent "prop is not satisfied (never happen)"))
   | CLetE { lhs; rhs; body } ->
       let () = Store.add (lhs, eval rhs.x) in
       eval body.x
@@ -59,10 +56,7 @@ let rec eval code =
   | CUnion es -> eval (Sample.choose_from_list es).x
   | CAssertP phi ->
       if eval_prop (Store.get ()) phi then []
-      else
-        raise
-          (RuntimeInconsistent
-             { tid; code = CAssertP phi; store = Store.get () })
+      else raise (RuntimeInconsistent "assertion is not satisfied (need retry)")
   | CAssume _ -> _die_with [%here] "never"
   | CWhile { body; cond } ->
       let () =

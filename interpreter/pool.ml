@@ -11,9 +11,9 @@ module Runtime = struct
   let _curTid = ref 0
   let _counter = ref 1
   let hdPool : (int, handler) Hashtbl.t = Hashtbl.create 10
-  let asyncPool : (string, ev -> ev) Hashtbl.t = Hashtbl.create 10
+  let asyncPool : (string, async_handler) Hashtbl.t = Hashtbl.create 10
   let hisTrace : msg list ref = ref []
-  let layout_handler_summary i hd = spf "%i[%s]" i hd.op
+  let layout_handler_summary i (hd : handler) = spf "%i[%s]" i hd.op
 
   let print () =
     Pp.printf "@{<blue>Tid:@} %i\n" !_curTid;
@@ -49,10 +49,23 @@ let register_handler op k =
   let hd = { tid = new_tid (); op; k } in
   addHandler hd
 
-let register_async op k =
+let register_async_has_ret op k =
   if Hashtbl.mem asyncPool op then
     _die_with [%here] "Async handler already exists"
-  else Hashtbl.add asyncPool op k
+  else Hashtbl.add asyncPool op { has_ret = true; k }
+
+let register_async_no_ret op k =
+  if Hashtbl.mem asyncPool op then
+    _die_with [%here] "Async handler already exists"
+  else
+    Hashtbl.add asyncPool op
+      {
+        has_ret = false;
+        k =
+          (fun ev ->
+            k ev;
+            ev);
+      }
 
 let hdPoolNames () = Hashtbl.fold (fun _ h acc -> h.op :: acc) hdPool []
 let appendToHisTrace msg = hisTrace := !hisTrace @ [ msg ]
@@ -85,12 +98,13 @@ let select_handler msg =
       let hd = { handler with tid = new_tid () } in
       hd
 
-let try_handle_op op f =
+let handle_obs op f =
+  Printf.printf "obs:tid %i\n" !_curTid;
+  assert (default_tid == !_curTid);
   let msgs = MsgBuffer.find_by_op op in
   (* let () =
     Printf.printf "msgs0: %s\n" (List.map layout_msg msgs |> String.concat "\n")
-  in
-  let () = Printf.printf "pool: %s\n" (hdPoolNames () |> String.concat " ") in *)
+  in *)
   let msgs =
     List.filter
       (fun msg ->
@@ -101,48 +115,38 @@ let try_handle_op op f =
         b)
       msgs
   in
-  (* let () =
-    Printf.printf "msgs1: %s\n" (List.map layout_msg msgs |> String.concat " ")
-  in *)
   let () =
     match msgs with [] -> _die_with [%here] "No handler found" | _ -> ()
+  in
+  let () =
+    Printf.printf "msgs1: %s\n" (List.map layout_msg msgs |> String.concat " ")
   in
   let msgs =
     List.filter
       (fun msg ->
         match Hashtbl.find_opt asyncPool msg.ev.op with
         | None -> f msg.ev
-        | Some _ -> true)
+        | Some { has_ret = true; _ } -> true
+        | Some { has_ret = false; _ } -> f msg.ev)
       msgs
   in
-  (* let () =
+  let () =
     Printf.printf "msgs2: %s\n" (List.map layout_msg msgs |> String.concat " ")
-  in *)
+  in
   let msg =
     match msgs with
     | [] -> _die_with [%here] "No message found"
     | _ -> List.nth msgs (Random.int (List.length msgs))
   in
   let hd = select_handler msg in
+  MsgBuffer.consume msg;
   let msg' = { msg with dest = Some hd.tid } in
   match Hashtbl.find_opt asyncPool msg.ev.op with
-  | None -> Some (msg, msg', hd)
-  | Some k ->
-      let msg' = { msg' with ev = k msg.ev } in
-      if f msg'.ev then Some (msg, msg', hd) else None
+  | None -> Some (hd, (fun ev -> ev), msg')
+  | Some { k; _ } -> Some (hd, k, msg')
 
 let jump_to_tid tid = _curTid := tid
 let jump_back () = _curTid := default_tid
-
-let handle_obs op f =
-  Printf.printf "obs:tid %i\n" !_curTid;
-  assert (default_tid == !_curTid);
-  match try_handle_op op f with
-  | Some (orginal_msg, msg, hd) ->
-      MsgBuffer.consume orginal_msg;
-      appendToHisTrace msg;
-      Some (hd, msg)
-  | None -> None
 
 let handle_gen msg =
   Printf.printf "obs:gen %i\n" !_curTid;
@@ -192,7 +196,7 @@ let random_select_handler () =
   let msg' =
     match Hashtbl.find_opt asyncPool msg.ev.op with
     | None -> msg'
-    | Some k -> { msg' with ev = k msg.ev }
+    | Some { k; _ } -> { msg' with ev = k msg.ev }
   in
   if not (String.equal msg.ev.op "dummy") then MsgBuffer.consume msg;
   appendToHisTrace msg';
@@ -262,6 +266,7 @@ let rec run main =
                 Runtime.print ();
                 Pp.printf "@{<bold>ASYNC:@} %s\n" (layout_msg msg)
               in
+              MsgBuffer.add msg;
               Some
                 (fun (k : (b, _) continuation) ->
                   let hd =
@@ -271,16 +276,15 @@ let rec run main =
                       k = (fun msg -> continue k msg);
                     }
                   in
-                  MsgBuffer.add msg;
                   addHandler hd)
           | Gen msg ->
               let () =
                 _log "eval" @@ fun _ ->
                 Pp.printf "@{<bold>GEN:@} %s\n" (layout_msg msg)
               in
+              let hd = handle_gen msg in
               Some
                 (fun (k : (b, _) continuation) ->
-                  let hd = handle_gen msg in
                   jump_to_tid hd.tid;
                   run (fun () -> hd.k msg);
                   jump_back ();
@@ -292,8 +296,12 @@ let rec run main =
               Some
                 (fun (k : (b, _) continuation) ->
                   match handle_obs op f with
-                  | Some (hd, msg) ->
+                  | Some (hd, ak, msg) ->
                       jump_to_tid hd.tid;
+                      let msg = { msg with ev = ak msg.ev } in
+                      ( _log "eval" @@ fun _ ->
+                        Pp.printf "@{<bold>OBS:@} %s\n" (layout_msg msg) );
+                      appendToHisTrace msg;
                       run (fun () -> hd.k msg);
                       jump_back ();
                       continue k (Some msg)
