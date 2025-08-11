@@ -98,3 +98,5 @@ type syn_env = {
   tyctx : Nt.t ctx;
   goal : syn_goal option;
 }
+
+exception IsolationViolation of string

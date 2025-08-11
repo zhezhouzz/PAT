@@ -28,17 +28,17 @@ let deleteItemReqHandler (msg : msg) =
 let addItemRespHandler (_ : msg) = ()
 let deleteItemRespHandler (_ : msg) = ()
 
-let init () =
+let init isolation_level () =
   Interpreter.init ();
   register_async_has_ret "begin" beginAsync;
-  register_async_no_ret "commit" commitAsync;
+  register_async_has_ret "commit" commitAsync;
   register_async_has_ret "get" getAsync;
   register_async_no_ret "put" putAsync;
   register_handler "addItemReq" addItemReqHandler;
   register_handler "deleteItemReq" deleteItemReqHandler;
   register_handler "addItemResp" addItemRespHandler;
   register_handler "deleteItemResp" deleteItemRespHandler;
-  CartDB.init ReadCommitted
+  CartDB.init isolation_level
 
 open Nt
 

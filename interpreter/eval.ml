@@ -1,15 +1,14 @@
 open Language
 open Common
 open Store
-
-let counter = ref 0
+open Pool
 
 let rec eval code =
   let tid = 0 in
-  let () = counter := !counter + 1 in
+  let () = Runtime.step_counter := !Runtime.step_counter + 1 in
   let () =
     _log "eval" @@ fun _ ->
-    Pp.printf "@{<bold>Eval(%i):@}\n" !counter;
+    Pp.printf "@{<bold>Eval(%i):@}\n" !Runtime.step_counter;
     Pool.Runtime.print ();
     Pp.printf "@{<blue>Store:@} %s\n" (Store.layout (Store.get ()));
     Pp.printf "@{<blue>MsgBuffer:@} %s\n" (MsgBuffer.layout ());
@@ -38,8 +37,7 @@ let rec eval code =
           let () = Pp.printf "@{<bold>Perform:@} %s\n" (layout_msg msg) in
           let () = Store.add (lhs, msg.ev.args) in
           if eval_prop (Store.get ()) prop then eval body.x
-          else
-            raise (RuntimeInconsistent "prop is not satisfied (never happen)"))
+          else raise (RuntimeInconsistent "prop is not satisfied (need retry)"))
   | CLetE { lhs; rhs; body } ->
       let () = Store.add (lhs, eval rhs.x) in
       eval body.x
@@ -71,31 +69,3 @@ let eval_to_unit code =
   let () = Pp.printf "@{<blue>Code:@}\n%s\n" (layout_term code) in
   Pool.Runtime.print_hisTrace ();
   ()
-
-let eval_until_consistent (store, term) =
-  let rec aux (i : int) =
-    let () = counter := 0 in
-    if i > 1000 then _die_with [%here] "too many time until consistent"
-    else
-      let () = Store.set store in
-      try (i, eval term) with
-      | RuntimeInconsistent _ -> aux (i + 1)
-      | e -> raise e
-  in
-  let i, res = aux 0 in
-  let () = Pp.printf "@{<red>Repeat for %i times@}\n" i in
-  res
-
-let eval_sample (store, term) total =
-  let rec aux (successed : int) (used : int) =
-    if used >= total then successed
-    else
-      try
-        let () = Store.set store in
-        let _ = eval term in
-        aux (successed + 1) (used + 1)
-      with
-      | RuntimeInconsistent _ -> aux successed (used + 1)
-      | e -> raise e
-  in
-  aux 0 0

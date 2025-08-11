@@ -5,7 +5,7 @@ open Language
 type buffer = msg list
 
 let buffer = ref []
-let init = buffer := []
+let init () = buffer := []
 let add msg = buffer := msg :: !buffer
 
 let find_by_op op =

@@ -295,20 +295,20 @@ let test_eval s () =
   match s with
   | "cart" ->
       let open MonkeyBD.Cart in
-      init ();
-      Interpreter.run (fun () -> Interpreter.Eval.eval_to_unit main)
+      (* let _ = Interpreter.eval_until_consistent (init ReadCommitted) main in *)
+      let _ = Interpreter.eval_until_consistent (init Causal) main in
+      ()
   | "treiber-stack" ->
       let open MonkeyBD.TreiberStack in
-      init ();
-      Interpreter.run (fun () -> Interpreter.Eval.eval_to_unit main)
+      let _ = Interpreter.eval_until_consistent init main in
+      ()
   | "todoMVC" ->
       let open Quickstorm.TodoMVC in
-      init ();
-      Interpreter.run (fun () -> Interpreter.Eval.eval_to_unit main)
+      let _ = Interpreter.eval_until_consistent init main in
+      ()
   | "stlc" ->
       let open Stlc in
-      init ();
-      Interpreter.run (fun () -> Interpreter.Eval.eval_to_unit main);
+      let _ = Interpreter.eval_until_consistent init main in
       let _ = Stlc.mstep_stlcTerm !EvaluationCtx._tmp in
       ()
   | _ -> _die_with [%here] "unknown benchmark"

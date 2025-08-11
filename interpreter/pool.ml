@@ -8,6 +8,7 @@ open Common
 let default_tid = 0
 
 module Runtime = struct
+  let step_counter = ref 0
   let _curTid = ref 0
   let _counter = ref 1
   let hdPool : (int, handler) Hashtbl.t = Hashtbl.create 10
@@ -32,9 +33,12 @@ open Runtime
 let init () =
   Hashtbl.clear hdPool;
   Hashtbl.clear asyncPool;
+  MsgBuffer.init ();
+  Store.init ();
   _curTid := 0;
   _counter := 1;
-  hisTrace := []
+  hisTrace := [];
+  step_counter := 0
 
 let new_tid () =
   let tid = !_counter in

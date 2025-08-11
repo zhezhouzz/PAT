@@ -83,3 +83,4 @@ let add (vs, cs) = curStore := fadd (vs, cs) !curStore
 let add_list s = curStore := StrMap.add_seq (List.to_seq s) !curStore
 let get () = !curStore
 let set store = curStore := store
+let init () = curStore := StrMap.empty
