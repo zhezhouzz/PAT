@@ -1,6 +1,7 @@
 open Language
 open Interpreter
 open Common
+module StackDB = PairDB
 open StackDB
 
 let do_cas old n =
@@ -53,8 +54,7 @@ let initRespHandler (_ : msg) = ()
 let pushRespHandler (_ : msg) = ()
 let popRespHandler (_ : msg) = ()
 
-let init () =
-  Interpreter.init ();
+let init isolation_level () =
   register_async_has_ret "read" readAsync;
   register_async_no_ret "write" writeAsync;
   register_async_has_ret "get" getAsync;
@@ -64,7 +64,8 @@ let init () =
   register_handler "popReq" popReqHandler;
   register_handler "initResp" initRespHandler;
   register_handler "pushResp" pushRespHandler;
-  register_handler "popResp" popRespHandler
+  register_handler "popResp" popRespHandler;
+  StackDB.init isolation_level
 
 open Nt
 

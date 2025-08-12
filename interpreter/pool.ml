@@ -185,7 +185,7 @@ let mk_dummy_msg () =
   in
   msg
 
-let random_select_handler () =
+let random_select_handler curMsg =
   let msgs =
     if Hashtbl.mem hdPool default_tid then mk_dummy_msg () :: !MsgBuffer.buffer
     else !MsgBuffer.buffer
@@ -193,18 +193,19 @@ let random_select_handler () =
   let () =
     Printf.printf "msgs: %s\n" (List.map layout_msg msgs |> String.concat " ")
   in
-  let msg = List.nth msgs (Random.int (List.length msgs)) in
+  let msg = List.nth (List.rev msgs) (Random.int (List.length msgs)) in
+  let msg =
+    match curMsg with
+    | None -> msg
+    | Some msg' -> if Random.bool () then msg else msg'
+  in
   let () = Printf.printf "select msg: %s\n" (layout_msg msg) in
   let hd = select_handler msg in
   let msg' = { msg with dest = Some hd.tid } in
-  let msg' =
-    match Hashtbl.find_opt asyncPool msg.ev.op with
-    | None -> msg'
-    | Some { k; _ } -> { msg' with ev = k msg.ev }
-  in
   if not (String.equal msg.ev.op "dummy") then MsgBuffer.consume msg;
-  appendToHisTrace msg';
-  (hd, msg')
+  match Hashtbl.find_opt asyncPool msg.ev.op with
+  | None -> (hd, (fun ev -> ev), msg')
+  | Some { k; _ } -> (hd, k, msg')
 
 (* let dummy_hd_ids =
     Hashtbl.fold
@@ -314,19 +315,26 @@ let rec run main =
     }
 
 let rec random_scheduler main =
-  let reschedule () =
-    let hd, msg = random_select_handler () in
-    jump_to_tid hd.tid;
-    random_scheduler (fun () -> hd.k msg)
-  in
   let print_state () =
     _log "eval" @@ fun _ ->
     Runtime.print ();
     Pp.printf "@{<blue>Store:@} %s\n" (Store.layout (Store.get ()))
   in
+  let reschedule curMsg =
+    if List.length !MsgBuffer.buffer <= 0 then ()
+    else
+      let () = print_state () in
+      let hd, ak, msg = random_select_handler curMsg in
+      (* let _ = print_string "Press Enter to continue..." in *)
+      (* let _ = input_line stdin in *)
+      jump_to_tid hd.tid;
+      let msg = { msg with ev = ak msg.ev } in
+      appendToHisTrace msg;
+      random_scheduler (fun () -> hd.k msg)
+  in
   match_with main ()
     {
-      retc = (fun _ -> ());
+      retc = (fun _ -> reschedule None);
       exnc = (fun e -> raise e);
       effc =
         (fun (type b) (eff : b Effect.t) ->
@@ -348,7 +356,7 @@ let rec random_scheduler main =
                   in
                   MsgBuffer.add msg;
                   addHandler hd;
-                  reschedule ())
+                  reschedule (Some msg))
           | Recv op ->
               let () =
                 _log "eval" @@ fun _ ->
@@ -361,13 +369,14 @@ let rec random_scheduler main =
                     { tid = !_curTid; op; k = (fun msg -> continue k msg) }
                   in
                   addHandler hd;
-                  reschedule ())
+                  reschedule None)
           | Async msg ->
               let () =
                 _log "eval" @@ fun _ ->
                 print_state ();
                 Pp.printf "@{<bold>ASYNC:@} %s\n" (layout_msg msg)
               in
+              MsgBuffer.add msg;
               Some
                 (fun (k : (b, _) continuation) ->
                   let hd =
@@ -377,12 +386,11 @@ let rec random_scheduler main =
                       k = (fun msg -> continue k msg);
                     }
                   in
-                  MsgBuffer.add msg;
                   addHandler hd;
-                  reschedule ())
+                  reschedule (Some msg))
           | End ->
               let () = _log "eval" @@ fun _ -> Pp.printf "@{<bold>END:@}\n" in
-              Some (fun (_ : (b, _) continuation) -> reschedule ())
+              Some (fun (_ : (b, _) continuation) -> reschedule None)
           | Gen _ | Obs _ -> _die_with [%here] "never"
           | _ -> None);
     }

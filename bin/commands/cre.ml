@@ -293,32 +293,88 @@ let four_param_string message f =
 
 let test_eval s () =
   match s with
+  | "twitter" ->
+      let open MonkeyBD in
+      let open Common in
+      let open Twitter in
+      let test () =
+        Interpreter.once
+          (init Causal, main, TwitterDB.serializable_trace_checker)
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
   | "cart" ->
-      let open MonkeyBD.Cart in
-      (* let _ = Interpreter.eval_until_consistent (init ReadCommitted) main in *)
-      let _ = Interpreter.eval_until_consistent (init Causal) main in
+      let open MonkeyBD in
+      let open Common in
+      let open Cart in
+      let test () =
+        Interpreter.once (init Causal, main, CartDB.serializable_trace_checker)
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
       ()
   | "treiber-stack" ->
-      let open MonkeyBD.TreiberStack in
-      let _ = Interpreter.eval_until_consistent init main in
-      ()
-  | "todoMVC" ->
-      let open Quickstorm.TodoMVC in
-      let _ = Interpreter.eval_until_consistent init main in
+      let open MonkeyBD in
+      let open Common in
+      let open TreiberStack in
+      let test () =
+        Interpreter.once (init Causal, main, StackDB.serializable_trace_checker)
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
       ()
   | "stlc" ->
       let open Stlc in
-      let _ = Interpreter.eval_until_consistent init main in
-      let _ = Stlc.mstep_stlcTerm !EvaluationCtx._tmp in
+      let test () =
+        Interpreter.once
+          ( init,
+            main,
+            fun _ ->
+              try
+                let _ = Stlc.mstep_stlcTerm !EvaluationCtx._tmp in
+                true
+              with _ -> false )
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
       ()
   | _ -> _die_with [%here] "unknown benchmark"
 
 let test_random s () =
   match s with
   | "treiber-stack" ->
-      let open MonkeyBD.TreiberStack in
-      init ();
-      Interpreter.random_scheduler (fun () -> qc_stack 4)
+      let open MonkeyBD in
+      let open Common in
+      let open TreiberStack in
+      let test () =
+        Interpreter.random_test
+          ( init ReadCommitted,
+            (fun () -> qc_stack 4),
+            StackDB.serializable_trace_checker )
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
+  | "twitter" ->
+      let open MonkeyBD in
+      let open Common in
+      let open Twitter in
+      let test () =
+        Interpreter.random_test
+          ( init Causal,
+            (fun () -> random_user { numUser = 4; numOp = 2 }),
+            TwitterDB.serializable_trace_checker )
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
+  | "cart" ->
+      let open MonkeyBD in
+      let open Common in
+      let open Cart in
+      let test () =
+        Interpreter.random_test
+          ( init Causal,
+            (fun () -> random_user { numUser = 4; numItem = 4; numOp = 2 }),
+            CartDB.serializable_trace_checker )
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
   | "todoMVC" -> _die_with [%here] "unimp"
   | "stlc" -> _die_with [%here] "unimp"
   | _ -> _die_with [%here] "unknown benchmark"

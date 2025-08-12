@@ -22,7 +22,10 @@ let show_matrix mat =
 module type Config = sig
   type value
 
+  val equal_value : value -> value -> bool
   val value_tys : (Nt.nt, string) typed list
+  val args_to_value : Language.value list -> value
+  val value_to_args : value -> Language.value list
   val initial_value : value
   val layout_value : value -> string
 end
@@ -399,4 +402,22 @@ module MakeBD (Config : Config) = struct
   let predefined_key = 5555
   let write thread_id value = put thread_id predefined_key value
   let read thread_id = get thread_id predefined_key
+
+  let serializable_trace_check operations =
+    let rec check store = function
+      | [] -> true
+      | { opKind = Read; key; value; _ } :: rest -> (
+          match IntMap.find_opt store key with
+          | Some value' ->
+              if Config.equal_value value value' then check store rest
+              else false
+          | None ->
+              if Config.equal_value value Config.initial_value then
+                check store rest
+              else false)
+      | { opKind = Write; key; value; _ } :: rest ->
+          let store' = IntMap.update key (fun _ -> Some value) store in
+          check store' rest
+    in
+    check IntMap.empty operations
 end

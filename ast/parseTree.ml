@@ -100,3 +100,4 @@ type syn_env = {
 }
 
 exception IsolationViolation of string
+exception NoBugDetected of string
