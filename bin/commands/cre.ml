@@ -312,6 +312,16 @@ let test_eval s () =
       in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
+  | "courseware" ->
+      let open MonkeyBD in
+      let open Common in
+      let open Courseware in
+      let test () =
+        Interpreter.once
+          (init Causal, main, CoursewareDB.serializable_trace_checker)
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
   | "treiber-stack" ->
       let open MonkeyBD in
       let open Common in
@@ -360,6 +370,18 @@ let test_random s () =
           ( init Causal,
             (fun () -> random_user { numUser = 4; numOp = 2 }),
             TwitterDB.serializable_trace_checker )
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
+  | "courseware" ->
+      let open MonkeyBD in
+      let open Common in
+      let open Courseware in
+      let test () =
+        Interpreter.random_test
+          ( init Causal,
+            (fun () -> random_user { numCourse = 4; numUser = 4; numOp = 2 }),
+            CoursewareDB.serializable_trace_checker )
       in
       let _ = Interpreter.eval_until_detect_bug test in
       ()

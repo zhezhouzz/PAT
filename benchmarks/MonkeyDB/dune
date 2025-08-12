@@ -3,7 +3,7 @@
  (name monkeyBD)
  (wrapped true)
  (libraries language interpreter)
- (modules database common cart twitter treiberStack)
+ (modules database common cart twitter courseware treiberStack)
  (inline_tests)
  (preprocess
   (pps ppx_here ppx_inline_test)))
