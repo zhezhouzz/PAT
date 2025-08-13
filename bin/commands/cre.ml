@@ -356,7 +356,7 @@ let test_random s () =
       let test () =
         Interpreter.random_test
           ( init ReadCommitted,
-            (fun () -> qc_stack 4),
+            (fun () -> qc_stack { numElems = 4; numOp = 2 }),
             StackDB.serializable_trace_checker )
       in
       let _ = Interpreter.eval_until_detect_bug test in

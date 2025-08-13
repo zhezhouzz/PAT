@@ -119,35 +119,38 @@ let handle_obs op f =
         b)
       msgs
   in
-  let () =
-    match msgs with [] -> _die_with [%here] "No handler found" | _ -> ()
-  in
-  let () =
-    Printf.printf "msgs1: %s\n" (List.map layout_msg msgs |> String.concat " ")
-  in
-  let msgs =
-    List.filter
-      (fun msg ->
-        match Hashtbl.find_opt asyncPool msg.ev.op with
-        | None -> f msg.ev
-        | Some { has_ret = true; _ } -> true
-        | Some { has_ret = false; _ } -> f msg.ev)
-      msgs
-  in
-  let () =
-    Printf.printf "msgs2: %s\n" (List.map layout_msg msgs |> String.concat " ")
-  in
-  let msg =
-    match msgs with
-    | [] -> _die_with [%here] "No message found"
-    | _ -> List.nth msgs (Random.int (List.length msgs))
-  in
-  let hd = select_handler msg in
-  MsgBuffer.consume msg;
-  let msg' = { msg with dest = Some hd.tid } in
-  match Hashtbl.find_opt asyncPool msg.ev.op with
-  | None -> Some (hd, (fun ev -> ev), msg')
-  | Some { k; _ } -> Some (hd, k, msg')
+
+  match msgs with
+  | [] -> None
+  | _ -> (
+      let () =
+        Printf.printf "msgs1: %s\n"
+          (List.map layout_msg msgs |> String.concat " ")
+      in
+      let msgs =
+        List.filter
+          (fun msg ->
+            match Hashtbl.find_opt asyncPool msg.ev.op with
+            | None -> f msg.ev
+            | Some { has_ret = true; _ } -> true
+            | Some { has_ret = false; _ } -> f msg.ev)
+          msgs
+      in
+      let () =
+        Printf.printf "msgs2: %s\n"
+          (List.map layout_msg msgs |> String.concat " ")
+      in
+      let msg =
+        match msgs with
+        | [] -> _die_with [%here] "No message found"
+        | _ -> List.nth msgs (Random.int (List.length msgs))
+      in
+      let hd = select_handler msg in
+      MsgBuffer.consume msg;
+      let msg' = { msg with dest = Some hd.tid } in
+      match Hashtbl.find_opt asyncPool msg.ev.op with
+      | None -> Some (hd, (fun ev -> ev), msg')
+      | Some { k; _ } -> Some (hd, k, msg'))
 
 let jump_to_tid tid = _curTid := tid
 let jump_back () = _curTid := default_tid
@@ -186,6 +189,7 @@ let mk_dummy_msg () =
   msg
 
 let random_select_handler curMsg =
+  let () = Printf.printf "random_select_handler\n" in
   let msgs =
     if Hashtbl.mem hdPool default_tid then mk_dummy_msg () :: !MsgBuffer.buffer
     else !MsgBuffer.buffer
@@ -315,20 +319,23 @@ let rec run main =
     }
 
 let rec random_scheduler main =
-  let print_state () =
+  let print_state loc =
     _log "eval" @@ fun _ ->
     Runtime.print ();
-    Pp.printf "@{<blue>Store:@} %s\n" (Store.layout (Store.get ()))
+    (* Pp.printf "@{<blue>Store:@} %s\n" (Store.layout (Store.get ())); *)
+    Printf.printf "loc: %s\n" (pos_to_string loc)
   in
   let reschedule curMsg =
     if List.length !MsgBuffer.buffer <= 0 then ()
     else
-      let () = print_state () in
+      let () = print_state [%here] in
       let hd, ak, msg = random_select_handler curMsg in
-      (* let _ = print_string "Press Enter to continue..." in *)
-      (* let _ = input_line stdin in *)
+      (* let _ = Out_channel.flush stdout in
+      let _ = print_string "Press Enter to continue..." in
+      let _ = input_line stdin in *)
       jump_to_tid hd.tid;
       let msg = { msg with ev = ak msg.ev } in
+      let () = Printf.printf "new msg: %s\n" (layout_msg msg) in
       appendToHisTrace msg;
       random_scheduler (fun () -> hd.k msg)
   in
@@ -342,7 +349,7 @@ let rec random_scheduler main =
           | Send msg ->
               let () =
                 _log "eval" @@ fun _ ->
-                print_state ();
+                print_state [%here];
                 Pp.printf "@{<bold>SEND:@} %s\n" (layout_msg msg)
               in
               Some
@@ -360,7 +367,7 @@ let rec random_scheduler main =
           | Recv op ->
               let () =
                 _log "eval" @@ fun _ ->
-                print_state ();
+                print_state [%here];
                 Pp.printf "@{<bold>RECV:@} %s\n" op
               in
               Some
@@ -373,7 +380,7 @@ let rec random_scheduler main =
           | Async msg ->
               let () =
                 _log "eval" @@ fun _ ->
-                print_state ();
+                print_state [%here];
                 Pp.printf "@{<bold>ASYNC:@} %s\n" (layout_msg msg)
               in
               MsgBuffer.add msg;

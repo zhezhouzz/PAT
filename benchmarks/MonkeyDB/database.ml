@@ -44,6 +44,7 @@ module MakeBD (Config : Config) = struct
 
   type co = int list (* commit order: a total order *)
 
+  let predefined_key = 5555
   let initial_tid = 0
   let initial_cid = 0
   let initial_value = (0, 0)
@@ -308,7 +309,8 @@ module MakeBD (Config : Config) = struct
 
   let fresh_key () =
     let keys = all_keys_in_history () in
-    match keys with [] -> 1 | _ -> List.fold_left max 1 keys
+    let keys = List.filter (fun key -> key != predefined_key) keys in
+    match keys with [] -> 1 | _ -> List.fold_left max 1 keys + 1
 
   let put thread_id key value =
     let tid = get_transaction_from_thread thread_id in
@@ -321,7 +323,7 @@ module MakeBD (Config : Config) = struct
     match opKind with Read -> "Read" | Write -> "Write"
 
   let layout_operation operation =
-    spf "%s(%i, %s)"
+    spf "[%i]%s(%i, %s)" operation.oid.tid
       (layout_operation_kind operation.opKind)
       operation.key
       (layout_value operation.value)
@@ -399,7 +401,6 @@ module MakeBD (Config : Config) = struct
     let () = add_operation tid operation in
     (prev_tid, prev_cid, operation.value)
 
-  let predefined_key = 5555
   let write thread_id value = put thread_id predefined_key value
   let read thread_id = get thread_id predefined_key
 
