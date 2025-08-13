@@ -102,7 +102,7 @@ let main =
   mk_term_assume [ x ] mk_true
     (mk_term_assume [ y ]
        (Not (lit_to_prop (mk_var_eq_var [%here] x y)))
-       (mk_term_assume_fresh mk_p_string_ty mk_true (fun s ->
+       (mk_term_assume_fresh_true mk_p_string_ty (fun s ->
             genInit
               (obsDisplayInput (fun _ ->
                    genSetFilter x

@@ -82,7 +82,10 @@ let mk_term_obs_fresh ctx op k =
 
 let mk_term_assume_fresh nty prop k =
   let arg = (Rename.unique_var "x")#:nty in
-  mk_term_assume [ arg ] prop (k arg)
+  mk_term_assume [ arg ] (prop arg) (k arg)
+
+let mk_term_assume_fresh_true ctx k =
+  mk_term_assume_fresh ctx (fun _ -> mk_true) k
 
 let mk_while_term body cond = CWhile { body = body#:(term_to_nt body); cond }
 

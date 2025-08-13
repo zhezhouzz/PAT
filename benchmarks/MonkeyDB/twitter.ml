@@ -128,7 +128,7 @@ let obsWrite tid k =
     | _ -> _die [%here])
 
 let main =
-  mk_term_assume_fresh int_ty mk_true (fun user ->
+  mk_term_assume_fresh_true int_ty (fun user ->
       gen "followReq" [ user ]
       @@ obsBegin (fun tid1 ->
              gen "unfollowReq" [ user ]

@@ -106,8 +106,8 @@ let obsPut tid k =
     | _ -> _die [%here])
 
 let main =
-  mk_term_assume_fresh int_ty mk_true (fun user ->
-      mk_term_assume_fresh int_ty mk_true (fun item ->
+  mk_term_assume_fresh_true int_ty (fun user ->
+      mk_term_assume_fresh_true int_ty (fun item ->
           gen "addItemReq" [ user; item ]
           @@ gen "deleteItemReq" [ user; item ]
           @@ obsBegin (fun tid1 ->

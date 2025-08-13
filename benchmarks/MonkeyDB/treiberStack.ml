@@ -140,7 +140,7 @@ let main1 =
     genInitReq (obsWrite (fun _ -> obsInitResp (fun () -> e)))
   in
   let pushProcedure e =
-    mk_term_assume_fresh int_ty mk_true (fun x ->
+    mk_term_assume_fresh_true int_ty (fun x ->
         genPushReq x
           (obsRead (fun _ ->
                obsCasReq (fun _ _ ->
@@ -194,7 +194,7 @@ let main =
   in
   let pushProcedure =
     mk_kleene_while
-    @@ mk_term_assume_fresh int_ty mk_true (fun x ->
+    @@ mk_term_assume_fresh_true int_ty (fun x ->
            genPushReq x
              (obsRead (fun _ ->
                   obsCasReq (fun _ _ ->
