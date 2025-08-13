@@ -9,7 +9,7 @@ let transferCheckingReqHandler (msg : msg) =
     do_trans (fun tid ->
         let balance1 = do_selectChecking tid user1 in
         let balance2 = do_selectChecking tid user2 in
-        if balance1 < amount then ()
+        if balance1 + 10 < amount then ()
         else
           let _ = do_updateChecking tid user1 (balance1 - amount) in
           let _ = do_updateChecking tid user2 (balance2 + amount) in
@@ -26,7 +26,7 @@ let transferSavingReqHandler (msg : msg) =
     do_trans (fun tid ->
         let balance1 = do_selectSaving tid user1 in
         let balance2 = do_selectSaving tid user2 in
-        if balance1 < amount then ()
+        if balance1 + 10 < amount then ()
         else
           let _ = do_updateSaving tid user1 (balance1 - amount) in
           let _ = do_updateSaving tid user2 (balance2 + amount) in
@@ -41,8 +41,8 @@ let transferSavingReqHandler (msg : msg) =
 let initAccountReqHandler (msg : msg) =
   let aux (user : int) (checking : int) (saving : int) =
     do_trans (fun tid ->
-        let _ = do_put tid user checking in
-        let _ = do_put tid user saving in
+        let _ = do_updateChecking tid user checking in
+        let _ = do_updateSaving tid user saving in
         ())
   in
   match msg.ev.args with
@@ -52,7 +52,7 @@ let initAccountReqHandler (msg : msg) =
   | _ -> _die [%here]
 
 let showCheckingReqHandler (msg : msg) =
-  let aux (user : int) = do_trans (fun tid -> do_get tid user) in
+  let aux (user : int) = do_trans (fun tid -> do_selectChecking tid user) in
   match msg.ev.args with
   | [ VConst (I user) ] ->
       let balance = aux user in
@@ -60,7 +60,7 @@ let showCheckingReqHandler (msg : msg) =
   | _ -> _die [%here]
 
 let showSavingReqHandler (msg : msg) =
-  let aux (user : int) = do_trans (fun tid -> do_get tid user) in
+  let aux (user : int) = do_trans (fun tid -> do_selectSaving tid user) in
   match msg.ev.args with
   | [ VConst (I user) ] ->
       let balance = aux user in
@@ -218,16 +218,16 @@ let main =
   mk_term_assume_fresh_true int_ty (fun user1 ->
       mk_term_assume_fresh_true int_ty (fun user2 ->
           mk_term_assume_fresh int_ty
-            (fun x -> lit_to_prop (mk_var_eq_c [%here] x (I 50)))
+            (fun x -> lit_to_prop (mk_var_eq_c [%here] x (I 2)))
             (fun amount ->
               gen "transferCheckingReq" [ user1; user2; amount ]
               @@ obsBegin (fun tid1 ->
-                     obsSelectChecking tid1 @@ obsSelectSaving tid1
-                     @@ obsUpdateChecking tid1 @@ obsUpdateSaving tid1
+                     obsSelectChecking tid1 @@ obsSelectChecking tid1
+                     @@ obsUpdateChecking tid1 @@ obsUpdateChecking tid1
                      @@ gen "transferCheckingReq" [ user2; user1; amount ]
                      @@ obsBegin (fun tid2 ->
-                            obsSelectChecking tid2 @@ obsSelectSaving tid2
-                            @@ obsUpdateChecking tid2 @@ obsUpdateSaving tid2
+                            obsSelectChecking tid2 @@ obsSelectChecking tid2
+                            @@ obsUpdateChecking tid2 @@ obsUpdateChecking tid2
                             @@ obsCommit tid2 @@ obsTransferCheckingResp
                             @@ obsCommit tid1 @@ obsTransferCheckingResp
                             @@ gen "showCheckingReq" [ user1 ]

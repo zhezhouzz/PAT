@@ -201,7 +201,7 @@ let random_select_handler curMsg =
   let msg =
     match curMsg with
     | None -> msg
-    | Some msg' -> if Random.bool () then msg else msg'
+    | Some msg' -> if Random.int 10 < 1 then msg else msg'
   in
   let () = Printf.printf "select msg: %s\n" (layout_msg msg) in
   let hd = select_handler msg in
