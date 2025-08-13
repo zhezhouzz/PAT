@@ -293,6 +293,16 @@ let four_param_string message f =
 
 let test_eval s () =
   match s with
+  | "smallbank" ->
+      let open MonkeyBD in
+      let open Common in
+      let open Smallbank in
+      let test () =
+        Interpreter.once
+          (init Causal, main, SmallbankDB.serializable_trace_checker)
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
   | "twitter" ->
       let open MonkeyBD in
       let open Common in
@@ -349,6 +359,18 @@ let test_eval s () =
 
 let test_random s () =
   match s with
+  | "smallbank" ->
+      let open MonkeyBD in
+      let open Common in
+      let open Smallbank in
+      let test () =
+        Interpreter.random_test
+          ( init Causal,
+            (fun () -> random_user { numUser = 4; numOp = 2 }),
+            SmallbankDB.serializable_trace_checker )
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
   | "treiber-stack" ->
       let open MonkeyBD in
       let open Common in
