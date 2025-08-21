@@ -1,0 +1,9 @@
+(library
+ (public_name haft.adt)
+ (name adt)
+ (wrapped true)
+ (libraries language interpreter)
+ (modules queue stack)
+ (inline_tests)
+ (preprocess
+  (pps ppx_here ppx_inline_test)))

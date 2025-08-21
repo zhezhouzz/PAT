@@ -5,10 +5,22 @@ include Pool
 module Eval = Eval
 open Language
 
+let converge_bound = 10000
+
 let random_test (init, main, checker) =
   Pool.init ();
   init ();
   random_scheduler main;
+  let his = !Runtime.hisTrace in
+  let () =
+    if checker his then raise (NoBugDetected "no bug detected") else ()
+  in
+  his
+
+let seq_random_test (init, main, checker) =
+  Pool.init ();
+  init ();
+  eager_scheduler main;
   let his = !Runtime.hisTrace in
   let () =
     if checker his then raise (NoBugDetected "no bug detected") else ()
@@ -20,13 +32,20 @@ let once (init, main, checker) =
   init ();
   run (fun () -> Eval.eval_to_unit main);
   let his = !Runtime.hisTrace in
-  let () = if checker his then _die_with [%here] "should not happen" else () in
+  let () =
+    if checker his then
+      _die_with [%here]
+        "should not happen: the trace doesn't realized the expect errounous \
+         pattern"
+    else ()
+  in
   his
 
 let eval_until_detect_bug test =
   let rec aux (i : int) =
     let () = Pp.printf "@{<red>Repeat for %i times@}\n" i in
-    if i > 1000 then _die_with [%here] "too many time until consistent"
+    if i > converge_bound then
+      _die_with [%here] "too many time until consistent"
     else
       try
         let his = test () in

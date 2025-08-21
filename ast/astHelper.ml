@@ -87,6 +87,18 @@ let mk_term_assume_fresh nty prop k =
 let mk_term_assume_fresh_true ctx k =
   mk_term_assume_fresh ctx (fun _ -> mk_true) k
 
+let mk_term_assume_fresh_neq ctx args k =
+  match args with
+  | [] -> mk_term_assume_fresh_true ctx k
+  | _ ->
+      let prop y =
+        And
+          (List.map
+             (fun x -> Not (lit_to_prop (mk_var_eq_var [%here] x y)))
+             args)
+      in
+      mk_term_assume_fresh ctx prop k
+
 let mk_while_term body cond = CWhile { body = body#:(term_to_nt body); cond }
 
 let mk_kleene_while body =

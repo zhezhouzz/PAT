@@ -293,6 +293,16 @@ let four_param_string message f =
 
 let test_eval s () =
   match s with
+  | "queue" ->
+      let open Adt.Queue in
+      let test () = Interpreter.once (init, main, check_membership_queue) in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
+  | "stack" ->
+      let open Adt.Stack in
+      let test () = Interpreter.once (init, main, check_membership_stack) in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
   | "smallbank" ->
       let open MonkeyBD in
       let open Common in
@@ -359,6 +369,26 @@ let test_eval s () =
 
 let test_random s () =
   match s with
+  | "stack" ->
+      let open Adt.Stack in
+      let test () =
+        Interpreter.seq_random_test
+          ( init,
+            (fun () -> randomTest { numElem = 5; numOp = 15 }),
+            check_membership_stack )
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
+  | "queue" ->
+      let open Adt.Queue in
+      let test () =
+        Interpreter.seq_random_test
+          ( init,
+            (fun () -> randomTest { numElem = 5; numOp = 15 }),
+            check_membership_queue )
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
   | "smallbank" ->
       let open MonkeyBD in
       let open Common in

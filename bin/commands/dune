@@ -8,6 +8,7 @@
   synthesis
   interpreter
   monkeyBD
+  adt
   quickstorm
   stlc
   ; pbackend

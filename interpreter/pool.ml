@@ -8,6 +8,8 @@ open Common
 let default_tid = 0
 
 module Runtime = struct
+  exception RuntimeError of string
+
   let step_counter = ref 0
   let _curTid = ref 0
   let _counter = ref 1
@@ -21,7 +23,9 @@ module Runtime = struct
     Pp.printf "@{<blue>Pool:@} %s\n"
       (Hashtbl.fold
          (fun i hd str -> spf "%s %s" (layout_handler_summary i hd) str)
-         hdPool "")
+         hdPool "");
+    Pp.printf "@{<blue>MsgBuffer:@} %s\n"
+      (List.map layout_msg !MsgBuffer.buffer |> String.concat " ")
 
   let print_hisTrace () =
     Pp.printf "@{<blue>HisTrace:@} %s\n"
@@ -201,7 +205,7 @@ let random_select_handler curMsg =
   let msg =
     match curMsg with
     | None -> msg
-    | Some msg' -> if Random.int 10 < 1 then msg else msg'
+    | Some msg' -> if Random.int 100 < 1 then msg else msg'
   in
   let () = Printf.printf "select msg: %s\n" (layout_msg msg) in
   let hd = select_handler msg in
@@ -211,36 +215,20 @@ let random_select_handler curMsg =
   | None -> (hd, (fun ev -> ev), msg')
   | Some { k; _ } -> (hd, k, msg')
 
-(* let dummy_hd_ids =
-    Hashtbl.fold
-      (fun id h acc -> if String.equal h.op "dummy" then id :: acc else acc)
-      hdPool []
+let eager_select_handler _ =
+  let msg =
+    match !MsgBuffer.buffer with
+    | [] -> mk_dummy_msg ()
+    | [ msg ] -> msg
+    | _ -> _die_with [%here] "Multiple messages found"
   in
-  let direct_hds =
-    Hashtbl.fold
-      (fun id _ acc ->
-        if
-          List.exists
-            (fun msg ->
-              match msg.dest with Some dest -> dest == id | None -> false)
-            !MsgBuffer.buffer
-        then id :: acc
-        else acc)
-      hdPool []
-  in
-  let available_hds =
-    Hashtbl.fold
-      (fun id h acc ->
-        let b =
-          List.exists (fun msg -> String.equal msg.ev.op h.op) !MsgBuffer.buffer
-        in
-        if b then id :: acc else acc)
-      hdPool []
-  in *)
-(* let hd_ids = List.slow_rm_dup ( == ) (dummy_hd_ids @ direct_hds @ available_hds) in
-  let id = Random.int (List.length hd_ids) in
-  let hd = Hashtbl.find hdPool id in
-  let msg =  *)
+  let () = Printf.printf "select msg: %s\n" (layout_msg msg) in
+  let hd = select_handler msg in
+  let msg' = { msg with dest = Some hd.tid } in
+  if not (String.equal msg.ev.op "dummy") then MsgBuffer.consume msg;
+  match Hashtbl.find_opt asyncPool msg.ev.op with
+  | None -> (hd, (fun ev -> ev), msg')
+  | Some { k; _ } -> (hd, k, msg')
 
 let rec run main =
   match_with main ()
@@ -338,6 +326,92 @@ let rec random_scheduler main =
       let () = Printf.printf "new msg: %s\n" (layout_msg msg) in
       appendToHisTrace msg;
       random_scheduler (fun () -> hd.k msg)
+  in
+  match_with main ()
+    {
+      retc = (fun _ -> reschedule None);
+      exnc = (fun e -> raise e);
+      effc =
+        (fun (type b) (eff : b Effect.t) ->
+          match eff with
+          | Send msg ->
+              let () =
+                _log "eval" @@ fun _ ->
+                print_state [%here];
+                Pp.printf "@{<bold>SEND:@} %s\n" (layout_msg msg)
+              in
+              Some
+                (fun (k : (b, _) continuation) ->
+                  let hd =
+                    {
+                      tid = !_curTid;
+                      op = "dummy";
+                      k = (fun _ -> continue k ());
+                    }
+                  in
+                  MsgBuffer.add msg;
+                  addHandler hd;
+                  reschedule (Some msg))
+          | Recv op ->
+              let () =
+                _log "eval" @@ fun _ ->
+                print_state [%here];
+                Pp.printf "@{<bold>RECV:@} %s\n" op
+              in
+              Some
+                (fun (k : (b, _) continuation) ->
+                  let hd =
+                    { tid = !_curTid; op; k = (fun msg -> continue k msg) }
+                  in
+                  addHandler hd;
+                  reschedule None)
+          | Async msg ->
+              let () =
+                _log "eval" @@ fun _ ->
+                print_state [%here];
+                Pp.printf "@{<bold>ASYNC:@} %s\n" (layout_msg msg)
+              in
+              MsgBuffer.add msg;
+              Some
+                (fun (k : (b, _) continuation) ->
+                  let hd =
+                    {
+                      tid = !_curTid;
+                      op = msg.ev.op;
+                      k = (fun msg -> continue k msg);
+                    }
+                  in
+                  addHandler hd;
+                  reschedule (Some msg))
+          | End ->
+              let () = _log "eval" @@ fun _ -> Pp.printf "@{<bold>END:@}\n" in
+              Some (fun (_ : (b, _) continuation) -> reschedule None)
+          | Gen _ | Obs _ -> _die_with [%here] "never"
+          | _ -> None);
+    }
+
+let rec eager_scheduler main =
+  let print_state loc =
+    _log "eval" @@ fun _ ->
+    Runtime.print ();
+    (* Pp.printf "@{<blue>Store:@} %s\n" (Store.layout (Store.get ())); *)
+    Printf.printf "loc: %s\n" (pos_to_string loc)
+  in
+  let check_end () =
+    match Hashtbl.find_opt hdPool default_tid with
+    | None -> List.length !MsgBuffer.buffer <= 0
+    | Some _ -> false
+  in
+  let reschedule curMsg =
+    let () = print_state [%here] in
+    if check_end () then ()
+    else
+      let hd, ak, msg = eager_select_handler curMsg in
+      jump_to_tid hd.tid;
+      let msg = { msg with ev = ak msg.ev } in
+      let () = Printf.printf "new msg: %s\n" (layout_msg msg) in
+      appendToHisTrace msg;
+      eager_scheduler (fun () -> hd.k msg)
   in
   match_with main ()
     {
