@@ -14,6 +14,28 @@ let default_sample_domain =
        (Nt.bool_ty, List.map (fun n -> VConst (B n)) [ true; false ]);
        ( Nt.string_ty,
          List.map (fun n -> VConst (S n)) [ "a"; "b"; "c"; "d"; "e" ] );
+       ( mk_p_abstract_ty "Path.t",
+         List.map
+           (fun n -> VConst (S n))
+           [
+             "/a";
+             "/a/b";
+             "/a/b/c";
+             "/a/b/c/d";
+             "/a/b/c/d/e";
+             "/b";
+             "/b/a";
+             "/b/a/b";
+             "/b/a/b/c";
+             "/b/a/b/c/d";
+             "/b/a/b/c/d/e";
+             "/c";
+             "/c/a";
+             "/c/a/b";
+             "/c/a/b/d";
+             "/c/a/b/d/e";
+             "/c/a/b/d/e/f";
+           ] );
        ( mk_p_abstract_ty "stlcTy",
          List.map
            (fun n -> VCStlcTy n)
@@ -35,6 +57,15 @@ let default_sample_domain =
      ]
 
 let choose_from_list l = List.nth l @@ Random.int (List.length l)
+
+let sample_by_ty ty =
+  match SampleDomain.find_opt ty default_sample_domain with
+  | None ->
+      let () =
+        Printf.printf "cannot find sample domain of type (%s)\n" (Nt.layout ty)
+      in
+      _die [%here]
+  | Some cs -> choose_from_list cs
 
 let sample qv =
   match qv.ty with

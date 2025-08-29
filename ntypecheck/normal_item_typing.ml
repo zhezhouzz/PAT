@@ -49,6 +49,16 @@ let map_fa_pat f pat =
 let desugar_pat (env : syn_env) pat =
   map_fa_pat (fun r -> SFA.rich_regex_to_regex @@ desugar_reg env r) pat
 
+let rich_symbolic_global_prop_type_check event_ctx ctx (qvs, prop) =
+  let bctx = { event_ctx; ctx = add_to_rights ctx qvs } in
+  let bc, prop =
+    constraint_rich_regex_type_check bctx (PropTypecheck.BC.empty []) prop
+  in
+  let sol = solve bc in
+  let f = Nt.msubst_nt sol in
+  let prop = map_rich_regex (map_sevent f) prop in
+  prop
+
 let type_check_item env = function
   | MsgDecl { name; pat } ->
       let pat =
@@ -60,6 +70,10 @@ let type_check_item env = function
         event_rtyctx = add_to_right env.event_rtyctx name#:(desugar_pat env pat);
       }
   | SynGoal { qvs; prop } -> (
+      let prop =
+        rich_symbolic_global_prop_type_check env.event_tyctx env.tyctx
+          (qvs, prop)
+      in
       match env.goal with
       | None -> { env with goal = Some { qvs; prop } }
       | Some _ -> _die_with [%here] "multiple goals")

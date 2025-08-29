@@ -5,13 +5,13 @@
  (libraries syntax language rawdesym)
  (modules
   common
-  gamma
-  abduction
+  ; gamma
+  ; abduction
   feature
-  optimize
-  norm
+  ; optimize
+  ; norm
   refine
-  mkTerm
+  ; mkTerm
   synthesis)
  (inline_tests)
  (preprocess

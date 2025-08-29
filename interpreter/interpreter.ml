@@ -3,6 +3,7 @@
 include Common
 include Pool
 module Eval = Eval
+module Sample = Sample
 open Language
 
 let converge_bound = 10000

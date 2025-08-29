@@ -35,19 +35,10 @@ let read_syn source_file () =
   (* let () = Printf.printf "%s\n" (layout_structure code) in *)
   let env = Ntypecheck.(struct_check init_env code) in
   let () = Printf.printf "%s\n" (layout_syn_env env) in
-  let term = Synthesis.syn_one env in
+  let term = Synthesis.synthesize env in
   ()
 
-let syn_term source_file output_file () =
-  let code = read_source_file source_file () in
-  (* let () = Printf.printf "%s\n" (layout_structure code) in *)
-  let env = Ntypecheck.(struct_check init_env code) in
-  let () = Printf.printf "%s\n" (layout_syn_env env) in
-  let () = Stat.init_algo_complexity () in
-  let start_time = Sys.time () in
-  let term = Synthesis.syn_one env in
-  let exec_time = Sys.time () -. start_time in
-  let () = Pp.printf "@{<bold>synthesis time: %f@}\n" exec_time in
+let handle_syn_result env (exec_time, output_file, term) =
   let () = Stat.dump (env, term) ".stat.json" in
   let output_file = spf "%s.scm" output_file in
   let oc = Out_channel.open_text output_file in
@@ -57,6 +48,18 @@ let syn_term source_file output_file () =
   with e ->
     Out_channel.close oc;
     raise e
+
+let syn_term source_file output_file () =
+  let code = read_source_file source_file () in
+  (* let () = Printf.printf "%s\n" (layout_structure code) in *)
+  let env = Ntypecheck.(struct_check init_env code) in
+  let () = Printf.printf "%s\n" (layout_syn_env env) in
+  let () = Stat.init_algo_complexity () in
+  let start_time = Sys.time () in
+  let term = Synthesis.synthesize env in
+  let exec_time = Sys.time () -. start_time in
+  let () = Pp.printf "@{<bold>synthesis time: %f@}\n" exec_time in
+  ()
 
 let benchmark_convension benchname =
   let source_file = spf "benchmarks/%s/task.ml" benchname in
@@ -76,20 +79,11 @@ let syn_benchmark benchname () =
   let () = Printf.printf "%s\n" (layout_syn_env env) in
   let () = Stat.init_algo_complexity () in
   let start_time = Sys.time () in
-  let term = Synthesis.syn_one env in
+  let term = Synthesis.synthesize env in
   let exec_time = Sys.time () -. start_time in
-  let () = Pp.printf "@{<bold>synthesis time: %f@}\n" exec_time in
-  let () = Stat.dump (env, term) stat_file in
-  let output_file = spf "%s.scm" output_file in
-  let oc = Out_channel.open_text output_file in
-  try
-    Sexplib.Sexp.output oc @@ sexp_of_term term;
-    Out_channel.close oc
-  with e ->
-    Out_channel.close oc;
-    raise e
+  ()
 
-let syn_term_timeout source_file output_file timebound () =
+(* let syn_term_timeout source_file output_file timebound () =
   let code = read_source_file source_file () in
   let () = Pp.printf "@{<bold>Time bound:@} %f\n" timebound in
   (* let () = _die [%here] in *)
@@ -110,7 +104,7 @@ let syn_term_timeout source_file output_file timebound () =
       with e ->
         Out_channel.close oc;
         raise e)
-    terms
+    terms *)
 
 let load_syn_result source_file output_file =
   let code = read_source_file source_file () in
@@ -303,6 +297,16 @@ let test_eval s () =
       let test () = Interpreter.once (init, main, check_membership_stack) in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
+  | "set" ->
+      let open Adt.Set in
+      let test () = Interpreter.once (init, main, check_membership_set) in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
+  | "filesystem" ->
+      let open Adt.Filesystem in
+      let test () = Interpreter.once (init, main, filesystem_last_delete) in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
   | "smallbank" ->
       let open MonkeyBD in
       let open Common in
@@ -369,6 +373,14 @@ let test_eval s () =
 
 let test_random s () =
   match s with
+  | "filesystem" ->
+      let open Adt.Filesystem in
+      let test () =
+        Interpreter.seq_random_test
+          (init, (fun () -> randomTest { numOp = 15 }), filesystem_last_delete)
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
   | "stack" ->
       let open Adt.Stack in
       let test () =
@@ -386,6 +398,16 @@ let test_random s () =
           ( init,
             (fun () -> randomTest { numElem = 5; numOp = 15 }),
             check_membership_queue )
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
+  | "set" ->
+      let open Adt.Set in
+      let test () =
+        Interpreter.seq_random_test
+          ( init,
+            (fun () -> randomTest { numElem = 5; numOp = 15 }),
+            check_membership_set )
       in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
@@ -461,7 +483,7 @@ let cmds =
     ("syn-one", two_param_string "syn one" syn_term);
     ("syn-benchmark", one_param_string "run benchmark" syn_benchmark);
     ("eval-benchmark", one_param_string "run benchmark" eval_benchmark);
-    ("syn-timeout", timeout_param "syn timeout" syn_term_timeout);
+    (* ("syn-timeout", timeout_param "syn timeout" syn_term_timeout); *)
     ("eval", two_param_string "eval" eval);
     (* ("compile-to-p", four_param_string "compile to p language" compile_to_p); *)
     ("compile-to-p", one_param_string "compile to p language" compile_to_p);

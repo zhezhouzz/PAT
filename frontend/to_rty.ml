@@ -43,6 +43,34 @@ let rec layout_pat f = function
   | RtyInter (pat1, pat2) ->
       spf "%s ⊓ %s" (layout_pat f pat1) (layout_pat f pat2)
 
+let parallel_to_regex ses =
+  let al = StarA AnyA in
+  let ses_to_regex l =
+    let res = List.concat_map (fun se -> [ MultiAtomic [ se ]; al ]) l in
+    al :: res
+  in
+  let multi_lorA l =
+    let l = List.map (fun x -> SeqA (ses_to_regex x)) l in
+    match l with
+    | [] -> _die_with [%here] "never"
+    | x :: l -> List.fold_left (fun acc y -> LorA (acc, y)) x l
+  in
+  match ses with
+  | [] -> StarA AnyA
+  | [ se ] -> SeqA (ses_to_regex [ se ])
+  | [ se1; se2 ] -> multi_lorA [ [ se1; se2 ]; [ se2; se1 ] ]
+  | [ se1; se2; se3 ] ->
+      multi_lorA
+        [
+          [ se1; se2; se3 ];
+          [ se1; se3; se2 ];
+          [ se2; se1; se3 ];
+          [ se2; se3; se1 ];
+          [ se3; se1; se2 ];
+          [ se3; se2; se1 ];
+        ]
+  | _ -> _die_with [%here] "never"
+
 let rec pat_of_expr expr =
   match expr.pexp_desc with
   | Pexp_constraint _ -> RtyBase (cty_of_expr expr)
@@ -72,7 +100,12 @@ let rec pat_of_expr expr =
           let history = rich_symbolic_regex_of_expr h in
           let adding_se = sevent_of_expr a in
           let parallel = List.map sevent_of_expr es in
-          RtyHAParallel { history; adding_se; parallel }
+          RtyHAF
+            {
+              history;
+              adding = MultiAtomic [ adding_se ];
+              future = parallel_to_regex parallel;
+            }
       | _ ->
           let history, adding, future =
             map3 rich_symbolic_regex_of_expr (h, a, f)

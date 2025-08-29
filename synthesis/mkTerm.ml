@@ -1,7 +1,6 @@
 open Language
 open Zdatatype
 open Common
-open Gamma
 
 let quantifier_elimination (qvs, gprop, qv, local_qvs, prop) =
   let () = Printf.printf "remove qv: %s\n" (layout_qv qv) in

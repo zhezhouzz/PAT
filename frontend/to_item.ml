@@ -62,9 +62,8 @@ let ocaml_structure_item_to_item structure =
          | [ x ] -> (
              match x.attr_name.txt with
              | "goal" ->
-                 _die_with [%here] "TODO: convert rich_regex to srl"
-                 (* let qvs, prop = parse_goal value_binding.pvb_expr in *)
-                 (* SynGoal { qvs; prop } *)
+                 let qvs, prop = parse_goal value_binding.pvb_expr in
+                 SynGoal { qvs; prop }
              | _ ->
                  _die_with [%here]
                    "syntax error: non known rty kind, not axiom | assert | \
@@ -85,7 +84,7 @@ let ocaml_structure_to_p_tyctx structure =
 
 let layout_syn_goal { qvs; prop } =
   spf "%s.%s"
-    (List.split_by "." (fun x -> spf "∀%s" @@ layout_qv x) qvs)
+    (List.split_by "." (fun x -> spf "∃%s" @@ layout_qv x) qvs)
     (layout_rich_symbolic_regex prop)
 
 let layout_msgkind = function Gen -> "gen" | Obs -> "obs"

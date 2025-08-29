@@ -5,6 +5,7 @@
     "max_printing_size": 300,
     "log_tags": [
         "eval",
+        "unification",
         "ntypecheck",
         // "plan",
         // "parsing",
@@ -51,6 +52,10 @@
         ],
         [
             "show_record_type_feilds",
+            true
+        ],
+        [
+            "show_sevent_fds",
             false
         ]
     ],

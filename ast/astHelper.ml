@@ -3,6 +3,9 @@ open Zdatatype
 
 (** Core Language *)
 
+let layout_typed_var { x; ty } = spf "%s:%s" x (Nt.layout_nt ty)
+let layout_typed_var_list l = List.split_by_comma layout_typed_var l
+
 let value_to_nt = function
   | VVar x -> x.ty
   | VConst c -> constant_to_nt c
@@ -194,8 +197,7 @@ let destruct_pat loc r =
   aux r
 
 let destruct_hap loc = function
-  | RtyHAParallel { history; adding_se; parallel } ->
-      (history, adding_se, parallel)
+  | RtyHAF { history; adding; future } -> (history, adding, future)
   | _ -> _die loc
 
 (** Type Context *)
@@ -206,3 +208,46 @@ let rctx_to_prefix rctx =
       let phi = subst_prop_instance default_v (AVar x') x.ty.phi in
       (x' :: qvs, smart_add_to phi prop))
     (ctx_to_list rctx) ([], mk_true)
+
+(* Plan *)
+let msubst_lit m = msubst subst_lit_instance m
+
+let subst_value_with_value x value = function
+  | VVar y -> if String.equal x y.x then value else VVar y
+  | VConst c -> VConst c
+  | VCStlcTy ty -> VCStlcTy ty
+  | VCIntList xs -> VCIntList xs
+
+let lit_to_value loc = function
+  | AVar x -> VVar x
+  | AC c -> VConst c
+  | _ -> _die loc
+
+let subst_name_in_line_elem x z = function
+  | LineAct { aid; aop; aargs } ->
+      LineAct { aid; aop; aargs = List.map (subst_name_qv x z) aargs }
+  | LineStar r ->
+      LineStar (AutomataLibrary.SFA.subst_regex_instance x (AVar z) r)
+(* | _ -> _die_with [%here] "unimp" *)
+
+let subst_name_in_line x z line =
+  { line with elems = List.map (subst_name_in_line_elem x z) line.elems }
+
+let subst_plan x z = List.map (subst_name_in_line x z)
+
+let comple_cs cs cs' =
+  let open AutomataLibrary.SFA in
+  let cs =
+    CharSet.filter_map
+      (fun { op; vs; phi } ->
+        let phis =
+          CharSet.fold
+            (fun se' phis ->
+              if String.equal op se'.op then se'.phi :: phis else phis)
+            cs' []
+        in
+        let phi = smart_add_to phi (smart_not (smart_or phis)) in
+        Some { op; vs; phi })
+      cs
+  in
+  cs

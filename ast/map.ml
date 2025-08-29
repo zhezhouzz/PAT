@@ -69,15 +69,3 @@ let map_item f = function
   | MsgNtDecl { msgkind; name; nt } -> MsgNtDecl { msgkind; name; nt = f nt }
   | MsgDecl { name; pat } -> MsgDecl { name; pat = map_rich_srl_pat f pat }
   | SynGoal syn_goal -> SynGoal (map_syn_goal f syn_goal)
-
-let map_plan_elem f = function
-  | PlanAct { op; args } ->
-      PlanAct { op; args = List.map (fun x -> x#=>f) args }
-  | PlanActBuffer { op; args; phi } ->
-      PlanActBuffer
-        { op; args = List.map (fun x -> x#=>f) args; phi = map_prop f phi }
-  | PlanSe se -> PlanSe (map_sevent f se)
-  | PlanStarInv cs -> PlanStarInv cs
-  | PlanStar cs -> PlanStar cs
-
-let map_plan f = List.map (map_plan_elem f)

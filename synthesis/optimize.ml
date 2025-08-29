@@ -1,38 +1,8 @@
 open Language
-open Common
-open Gamma
+
+(* open Common *)
+(* open Gamma *)
 open AutomataLibrary
-
-let eliminate_buffer_elem ({ bvs; bprop }, elem) =
-  match elem with
-  | PlanActBuffer { op; args; phi } ->
-      let elem = PlanAct { op; args } in
-      let bprop = smart_add_to phi bprop in
-      ({ bvs; bprop }, elem)
-  | _ as elem -> ({ bvs; bprop }, elem)
-
-let eliminate_buffer_plan_aux (gamma, plan) =
-  List.fold_left
-    (fun (gamma, plan) elem ->
-      let gamma, elem = eliminate_buffer_elem (gamma, elem) in
-      (gamma, plan @ [ elem ]))
-    (gamma, []) plan
-
-let eliminate_buffer_plan_goal { gamma; plan; pg; solved } =
-  let gamma, plan = eliminate_buffer_plan_aux (gamma, plan) in
-  { gamma; plan; pg; solved }
-
-let eliminate_buffer_plan_mid_goal { gamma; pre; mid; post; pg; solved } =
-  let gamma, pre = eliminate_buffer_plan_aux (gamma, pre) in
-  let gamma, mid = eliminate_buffer_elem (gamma, mid) in
-  let gamma, post = eliminate_buffer_plan_aux (gamma, post) in
-  { gamma; pre; mid; post; pg; solved }
-
-let eliminate_buffer_plan_pair_goal
-    { gamma; preSolved; postUnsolved; pg; solved } =
-  let gamma, preSolved = eliminate_buffer_plan_aux (gamma, preSolved) in
-  let gamma, postUnsolved = eliminate_buffer_plan_aux (gamma, postUnsolved) in
-  { gamma; preSolved; postUnsolved; pg; solved }
 
 let lit_to_equation = function
   | AAppOp (op, [ a; b ]) when String.equal eq_op op.x ->
@@ -81,7 +51,7 @@ let eq_const_optimize lits =
   in
   res
 
-let eq_in_prop_to_subst_map { bvs; bprop } =
+(* let eq_in_prop_to_subst_map { bvs; bprop } =
   let conjs = to_conjs bprop in
   let lits = List.filter_map to_lit_opt conjs in
   let lits = lits @ eq_const_optimize lits in
@@ -120,9 +90,9 @@ let eq_in_prop_to_subst_map { bvs; bprop } =
       bvs
   in
   let bprop = simpl_eq_in_prop prop in
-  ({ bvs; bprop }, m)
+  ({ bvs; bprop }, m) *)
 
-let optimize_back_goal_aux { gamma; pre; mid; post; pg; solved } =
+(* let optimize_back_goal_aux { gamma; pre; mid; post; pg; solved } =
   let gamma = Gamma.simplify gamma in
   let gamma, m = eq_in_prop_to_subst_map gamma in
   let pre, post = map2 (msubst Plan.subst_plan m) (pre, post) in
@@ -167,54 +137,7 @@ let optimize_back_goal_with_args_record goal args record =
   let p goal () = simp_print_mid goal in
   let () = simp_print_opt_judgement (p goal) m (p goal') in
   (goal', args')
-
-(* let optimize_back_goal ({ gamma; pre; mid; post; pg } as goal) args = *)
-(*   let gamma = Gamma.simplify gamma in *)
-(*   let gamma, m = eq_in_prop_to_subst_map gamma in *)
-(*   let pre, post = map2 (msubst Plan.subst_plan m) (pre, post) in *)
-(*   let mid = msubst Plan.subst_elem m mid in *)
-(*   let args' = *)
-(*     List.filter *)
-(*       (fun x -> not (List.exists (fun (y, _) -> String.equal x.x y) m)) *)
-(*       args *)
-(*   in *)
-(*   let pg' = PlanElemSet.map (msubst Plan.subst_elem m) pg in *)
-(*   let goal' = {gamma, (a, b, c)) in *)
-(*   let goal' =  *)
-(*   let () = simp_print_opt_judgement goal m goal' in *)
-(*   (\* let () = *\) *)
-(*   (\*   Printf.printf "Optimize:\n (%s)\n" (layout_qvs args); *\) *)
-(*   (\*   layout_syn_back_judgement goal; *\) *)
-(*   (\*   Printf.printf "==>\n (%s) \n" (layout_qvs args'); *\) *)
-(*   (\*   layout_syn_back_judgement goal' *\) *)
-(*   (\* in *\) *)
-(*   (args', goal') *)
-
-(* let optimize_back_goal_also_record ((gamma, (a, b, c)) as goal) args record = *)
-(*   let gamma = Gamma.simplify gamma in *)
-(*   let gamma, m = eq_in_prop_to_subst_map gamma in *)
-(*   let a, c = map2 (msubst Plan.subst_plan m) (a, c) in *)
-(*   let b = msubst Plan.subst_elem m b in *)
-(*   let goal' = (gamma, (a, b, c)) in *)
-(*   let args' = *)
-(*     List.filter *)
-(*       (fun x -> not (List.exists (fun (y, _) -> String.equal x.x y) m)) *)
-(*       args *)
-(*   in *)
-(*   let () = *)
-(*     record := *)
-(*       match !record with *)
-(*       | None -> None *)
-(*       | Some elem -> Some (msubst Plan.subst_elem m elem) *)
-(*   in *)
-(*   let () = simp_print_opt_judgement goal m goal' in *)
-(*   (\* let () = *\) *)
-(*   (\*   Printf.printf "Optimize:\n (%s)\n" (layout_qvs args); *\) *)
-(*   (\*   layout_syn_back_judgement goal; *\) *)
-(*   (\*   Printf.printf "==>\n (%s) \n" (layout_qvs args'); *\) *)
-(*   (\*   layout_syn_back_judgement goal' *\) *)
-(*   (\* in *\) *)
-(*   (args', goal') *)
+ *)
 
 (** optimize prop *)
 
@@ -248,27 +171,6 @@ let to_fvec_dnf =
         Some [ cell ]
   in
   aux
-
-(* let unify_dnf ftab ll = *)
-(*   let try_true i ll = *)
-(*     List.for_all (fun l -> List.nth l i) ll *)
-(*   in *)
-(*   let try_false i ll = *)
-(*     List.for_all (fun l -> not (List.nth l i)) ll *)
-(*   in *)
-(*   let simp (ftab, ll) = *)
-(*     let rec res (ftab, ll) = *)
-
-(*   let rec aux ftab ll = *)
-(*     match (ftab, ll) with *)
-(*     | [], [] -> [[]] *)
-(*     | lit :: ftab, _ -> *)
-(*       let lt = List.filter_map (function true :: l-> Some l | _ -> None) ll in *)
-(*       let lf = List.filter_map (function false :: l-> Some l | _ -> None) ll in *)
-(*       let lt = aux ftab lt in *)
-(*       let lf = aux ftab lt in *)
-
-(*       [lit, true] *)
 
 module Predictable = struct
   type lit = Nt.t Prop.lit
@@ -308,16 +210,6 @@ let simp_fvec_prop_opt prop =
       if List.length dnf == List.length dnf' then Some dnf' else None
     in
     let prop = DT.classify_as_prop (Array.of_list ftab) pos in
-    (* let len = List.length ftab in *)
-    (* let total = List.init (pow 2 len) (fun x -> x) in *)
-    (* let total = *)
-    (*   List.map (fun n -> Rawdesym.IntBinary.int_to_bin (len, n)) total *)
-    (* in *)
-    (* let neg = *)
-    (*   List.filter *)
-    (*     (fun l -> not (List.exists (List.equal Bool.equal l) pos)) *)
-    (*     total *)
-    (* in *)
     Some prop
 
 let simp_fvec_prop prop =
@@ -328,11 +220,7 @@ let simp_fvec_cs cs = SFA.CharSet.map simp_fvec_se cs
 let simp_fvec_raw_regex r = map_regex simp_fvec_cs r
 
 let simp_fvec_elem = function
-  | PlanActBuffer { op; args; phi } ->
-      PlanActBuffer { op; args; phi = simp_fvec_prop phi }
-  | PlanAct { op; args } -> PlanAct { op; args }
-  | PlanSe { op; vs; phi } -> PlanSe { op; vs; phi = simp_fvec_prop phi }
-  | PlanStarInv cs -> PlanStarInv (simp_fvec_cs cs)
-  | PlanStar r -> PlanStar (simp_fvec_raw_regex r)
+  | LineAct { aid; aop; aargs } -> LineAct { aid; aop; aargs }
+  | LineStar r -> LineStar (simp_fvec_raw_regex r)
 
 let simp_fvec_plan = List.map simp_fvec_elem
