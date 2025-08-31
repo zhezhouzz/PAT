@@ -78,19 +78,26 @@ type 'r item =
 
 (* For Synthesis *)
 
-type linear_regex =
+(* type linear_regex =
   | LChar of Nt.nt sevent
-  (* | LMultiChar of SFA.CharSet.t *)
+  | LMultiChar of SFA.CharSet.t
+  | LStarMultiChar of SFA.CharSet.t
   | LStar of SFA.CharSet.t regex
-[@@deriving eq, ord]
+[@@deriving eq, ord] *)
 
-type act = { aid : int; aop : string; aargs : (Nt.nt, string) typed list }
+type act = {
+  aop : string;
+  aargs : (Nt.nt, string) typed list;
+  aid : int option;
+  aparent : int option;
+  achildren : int list option;
+}
 [@@deriving eq, ord]
 
 type line_elem =
   | LineAct of act
   (* | LineMultiChar of SFA.CharSet.t *)
-  | LineStar of SFA.CharSet.t regex
+  | LineStarMultiChar of SFA.CharSet.t (* | LineStar of SFA.CharSet.t regex *)
 [@@deriving eq, ord]
 
 open Zdatatype
@@ -99,20 +106,11 @@ module ActMap = Stdlib.Map.Make (struct
   type t = act
 
   let compare act1 act2 =
-    let res = compare act1.aid act2.aid in
+    let res = compare act1.aop act2.aop in
     if res == 0 then List.compare compare act1.aargs act2.aargs else res
 end)
 
 type line = { gprop : Nt.nt prop; elems : line_elem list }
-
-type plan = {
-  freeVars : (Nt.nt, string) typed list; (* extential variables *)
-  assigns : string StrMap.t;
-      (* the assignments of local variables, for efficiency *)
-  line : line; (* one linear sequential code *)
-  actMap : int ActMap.t; (* the map from act to id *)
-  checkedActs : int list IntMap.t; (* the acts within the task to type check *)
-}
 
 type syn_env = {
   event_rtyctx : srl pat ctx;

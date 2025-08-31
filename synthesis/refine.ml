@@ -37,7 +37,17 @@ let rec search_strategy (f : 'a -> 'a list) plans =
   | BFS -> _die_with [%here] "unimp"
 
 let result_expection = 1
-let simp_print_syn_judgement plan = print_plan plan
+
+let simp_print_syn_judgement plan =
+  let () = Pp.printf "@{<bold>@{<red>Synthesis plan:@}@}\n" in
+  print_plan plan
+
+let layout_candidate_plans plans =
+  List.iteri
+    (fun i plan ->
+      Pp.printf "@{<bold>@{<red>%i:@}@}\n%s\n" i (omit_layout_line plan.line))
+    plans;
+  Pp.printf "\n"
 
 let rec deductive_synthesis env (_, r) : plan list =
   let lines = global_prop_to_lines r in
@@ -47,6 +57,9 @@ let rec deductive_synthesis env (_, r) : plan list =
     else if List.length plans == 0 then _die_with [%here] "no more plans"
     else
       let plans = search_strategy (refine_one_step env) plans in
+      Pp.printf "\n@{<bold>@{<red>plans pool(%i):@}@}\n" (List.length plans);
+      let () = layout_candidate_plans plans in
+      let _ = input_line stdin in
       let wf_plans, plans = List.partition well_formed_plan plans in
       refinement_loop (res @ wf_plans, plans)
   in
@@ -56,10 +69,14 @@ and refine_one_step env (goal : plan) : plan list =
   let () = simp_print_syn_judgement goal in
   let ids = underived_act_ids goal in
   match ids with
-  | id :: _ -> backward env goal id
+  | id :: _ ->
+      let () = Pp.printf "@{<bold>@{<red>backward@} on %i@}\n" id in
+      backward env goal id
   | [] -> (
       match unchecked_act_ids goal with
-      | id :: _ -> forward env goal id
+      | id :: _ ->
+          let () = Pp.printf "@{<bold>@{<red>forward@} on %i@}\n" id in
+          forward env goal id
       | [] -> [ goal ])
 
 and backward env (goal : plan) mid : plan list =
@@ -75,8 +92,7 @@ and backward env (goal : plan) mid : plan list =
       List.iteri
         (fun i ((_, se, _), pat) ->
           let () =
-            Pp.printf
-              "@{<bold>available rty %i@}\n@{<red>se@}: %s\n@{<red>pat@}: %s\n"
+            Pp.printf "@{<bold>rty[%i]:@}\n@{<red>se@}: %s\n@{<red>pat@}: %s\n"
               i (layout_sevent se)
               (layout_pat layout_regex pat)
           in
@@ -110,6 +126,7 @@ and backward env (goal : plan) mid : plan list =
       plans
     in
     let goals = List.concat_map handle rules in
+    layout_candidate_plans goals;
     goals
 
 and forward env (goal : plan) mid : plan list =

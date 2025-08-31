@@ -119,7 +119,7 @@ let simp_print_opt_judgement p1 m p2 =
   simp_print_gamma_judgement gamma';
   Pp.printf "%s\n" @@ Plan.omit_layout plan *)
 
-let devide_linear_regex_list_by_op op future =
+(* let devide_linear_regex_list_by_op op future =
   let rec aux prefix = function
     | [] -> None
     | LChar se :: rest when String.equal se.op op -> (
@@ -131,7 +131,7 @@ let devide_linear_regex_list_by_op op future =
             _die [%here])
     | elem :: rest -> aux (prefix @ [ elem ]) rest
   in
-  aux [] future
+  aux [] future *)
 
 let rec filter_rule_by_future op = function
   | RtyHAF { history; adding; future } ->

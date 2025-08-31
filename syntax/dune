@@ -13,14 +13,14 @@
  (name syntax)
  (wrapped true)
  (modules
-   common
-   ; item
-   ; inst
-   ; pmachine
-   ; wrapper
-   plan
-   syntax
- )
+  common
+  ; item
+  ; inst
+  ; pmachine
+  ; wrapper
+  line
+  plan
+  syntax)
  (preprocess
   (pps ppx_optcomp ppx_compare ppx_sexp_conv ppx_here))
  (libraries core ast))

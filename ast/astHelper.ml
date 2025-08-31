@@ -210,6 +210,33 @@ let rctx_to_prefix rctx =
     (ctx_to_list rctx) ([], mk_true)
 
 (* Plan *)
+(* type plan = {
+  freeVars : (Nt.nt, string) typed list; (* extential variables *)
+  line : line; (* one linear sequential code *)
+  actMap : int ActMap.t; (* the map from act to id *)
+  checkedActs : int list IntMap.t; (* the acts within the task to type check *)
+} *)
+
+let _get_freeVars line =
+  List.slow_rm_dup (fun x y -> String.equal x.x y.x)
+  @@ List.concat_map
+       (function LineAct { aargs; _ } -> aargs | _ -> [])
+       line.elems
+
+let _get_aids line =
+  List.concat_map
+    (function LineAct { aid; _ } -> [ aid ] | _ -> [])
+    line.elems
+
+let _get_checkedActs line =
+  List.fold_right
+    (fun x acc ->
+      match x with
+      | LineAct { aid = Some aid; achildren = Some ids; _ } ->
+          IntMap.add aid ids acc
+      | _ -> acc)
+    line.elems IntMap.empty
+
 let msubst_lit m = msubst subst_lit_instance m
 
 let subst_value_with_value x value = function
@@ -223,12 +250,25 @@ let lit_to_value loc = function
   | AC c -> VConst c
   | _ -> _die loc
 
-let subst_name_in_line_elem x z = function
-  | LineAct { aid; aop; aargs } ->
-      LineAct { aid; aop; aargs = List.map (subst_name_qv x z) aargs }
-  | LineStar r ->
-      LineStar (AutomataLibrary.SFA.subst_regex_instance x (AVar z) r)
-(* | _ -> _die_with [%here] "unimp" *)
+let subst_name_in_line_elem x z r =
+  let open AutomataLibrary.SFA in
+  match r with
+  | LineAct { aid; aop; aargs; aparent; achildren } ->
+      LineAct
+        {
+          aid;
+          aop;
+          aargs = List.map (subst_name_qv x z) aargs;
+          aparent;
+          achildren;
+        }
+  (* | LineStar r -> LineStar (subst_regex_instance x (AVar z) r) *)
+  (* | LineMultiChar cs ->
+      LineMultiChar
+        (CharSet.map (AutomataLibrary.subst_sevent_instance x (AVar z)) cs) *)
+  | LineStarMultiChar cs ->
+      LineStarMultiChar
+        (CharSet.map (AutomataLibrary.subst_sevent_instance x (AVar z)) cs)
 
 let subst_name_in_line x z line =
   { line with elems = List.map (subst_name_in_line_elem x z) line.elems }
