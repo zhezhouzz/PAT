@@ -87,6 +87,20 @@ let regex_to_linear_regex r =
   in
   aux r
 
+let linear_regex_to_ses =
+  List.filter_map (function LinearChar se -> Some se | LinearStar _ -> None)
+
+let linear_regex_has_op op r =
+  let ses = linear_regex_to_ses r in
+  List.exists (fun (se : Nt.nt sevent) -> String.equal op se.op) ses
+
+let linear_regex_elem_to_regex = function
+  | LinearChar se -> se_to_regex se
+  | LinearStar cs -> Star (MultiChar cs)
+
+let linear_regex_to_regex r = seq (List.map linear_regex_elem_to_regex r)
+let linear_regexs_to_regexs rs = alt_list (List.map linear_regex_to_regex rs)
+
 let linear_regex_to_line r =
   let rec aux { gprop; elems } = function
     | [] -> { gprop; elems }
@@ -120,6 +134,9 @@ let elems_add_id_children elems id children =
 
 let line_modify_by_id line id f =
   { line with elems = elems_modify_by_id line.elems id f }
+
+let line_label_as_gen_act line id =
+  line_modify_by_id line id (act_add_parent root_aid)
 
 (* let line_to_id_regex any line =
   let aux = function

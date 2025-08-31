@@ -1,7 +1,6 @@
 open Zdatatype
 open AutomataLibrary
-
-(* open Common *)
+open Common
 open Ast
 open SFA
 include Line
@@ -51,17 +50,25 @@ let is_checked_act act =
 
 let is_derived_act act = match act.aparent with None -> false | Some _ -> true
 
+let force_get_act_id act =
+  match act.aid with None -> _die_with [%here] "never" | Some aid -> aid
+
 let unchecked_act_ids line =
   let acts = line_get_acts line in
   let acts = List.filter (fun act -> not (is_checked_act act)) acts in
-  List.map (fun act -> act.aid) acts
+  List.map force_get_act_id acts
 
 let underived_act_ids line =
   let acts = line_get_acts line in
   let acts = List.filter (fun act -> not (is_derived_act act)) acts in
-  List.map (fun act -> act.aid) acts
+  List.map force_get_act_id acts
 
-let well_formed_plan plan =
+(* let well_formed_plan plan =
+  match (unchecked_act_ids plan, underived_act_ids plan) with
+  | [], [] -> true
+  | _ -> false *)
+
+let finished_plan plan =
   match (unchecked_act_ids plan, underived_act_ids plan) with
   | [], [] -> true
   | _ -> false
@@ -236,12 +243,12 @@ let forward_merge line id (history, cur, future) =
   in
   aux ([], []) elems *)
 
-(* let plan_add_cargs plan args =
+let plan_add_cargs plan args =
+  let freeVars = _get_freeVars plan in
   let args, arg_phis = List.split @@ List.map destruct_cty_var args in
-  let line =
-    { plan.line with gprop = smart_and (plan.line.gprop :: arg_phis) }
-  in
-  { plan with line; freeVars = args @ plan.freeVars } *)
+  match List.interset (fun x y -> String.equal x.x y.x) args freeVars with
+  | [] -> { plan with gprop = smart_and (plan.gprop :: arg_phis) }
+  | _ -> _die_with [%here] "never"
 
 let insert_prev_se_into_pre line se =
   line_insert_se (fun act -> not (is_checked_act act)) line se

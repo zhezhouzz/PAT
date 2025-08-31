@@ -119,23 +119,24 @@ let simp_print_opt_judgement p1 m p2 =
   simp_print_gamma_judgement gamma';
   Pp.printf "%s\n" @@ Plan.omit_layout plan *)
 
-(* let devide_linear_regex_list_by_op op future =
+let devide_linear_regex_list_by_op op future =
   let rec aux prefix = function
     | [] -> None
-    | LChar se :: rest when String.equal se.op op -> (
-        let other = aux (prefix @ [ LChar se ]) rest in
+    | LinearChar se :: rest when String.equal se.op op -> (
+        let other = aux (prefix @ [ LinearChar se ]) rest in
         match other with
-        | None -> Some (prefix, se, rest)
+        | None ->
+            Some (linear_regex_to_regex prefix, se, linear_regex_to_regex rest)
         | Some _ ->
             (* HACK: assume each op only has one sevent. *)
             _die [%here])
     | elem :: rest -> aux (prefix @ [ elem ]) rest
   in
-  aux [] future *)
+  aux [] future
 
 let rec filter_rule_by_future op = function
   | RtyHAF { history; adding; future } ->
-      let futures = regex_to_linear_regex_list future in
+      let futures = regex_to_linear_regex future in
       let futures =
         List.filter_map (devide_linear_regex_list_by_op op) futures
       in
@@ -143,10 +144,10 @@ let rec filter_rule_by_future op = function
   | RtyHAParallel _ -> _die [%here]
   | RtyArr { arg; argcty; retrty } ->
       let l = filter_rule_by_future op retrty in
-      List.map (fun (se, retrty) -> (se, RtyArr { arg; argcty; retrty })) l
+      List.map (fun (res, retrty) -> (res, RtyArr { arg; argcty; retrty })) l
   | RtyGArr { arg; argnty; retrty } ->
       let l = filter_rule_by_future op retrty in
-      List.map (fun (se, retrty) -> (se, RtyGArr { arg; argnty; retrty })) l
+      List.map (fun (res, retrty) -> (res, RtyGArr { arg; argnty; retrty })) l
   | _ -> _die [%here]
 
 let rec deinter_pat pat =
@@ -191,11 +192,11 @@ let clearn_trace trace =
 let timebound = ref None
 let start_time = ref 0.0
 
-exception Timeout of float * plan list
+exception Timeout of float * line list
 
 let result_buffer = ref []
 
-let record_result (result : plan) =
+let record_result (result : line) =
   match !timebound with
   | None -> Some result
   | Some _ ->

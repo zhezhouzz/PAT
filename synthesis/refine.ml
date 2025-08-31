@@ -45,13 +45,12 @@ let simp_print_syn_judgement plan =
 let layout_candidate_plans plans =
   List.iteri
     (fun i plan ->
-      Pp.printf "@{<bold>@{<red>%i:@}@}\n%s\n" i (omit_layout_line plan.line))
+      Pp.printf "@{<bold>@{<red>%i:@}@}\n%s\n" i (omit_layout_line plan))
     plans;
   Pp.printf "\n"
 
-let rec deductive_synthesis env (_, r) : plan list =
-  let lines = global_prop_to_lines r in
-  let plans = List.map (fun line -> new_plan [] line) lines in
+let rec deductive_synthesis env r : line list =
+  let plans = regex_to_lines r in
   let rec refinement_loop (res, plans) =
     if List.length res >= result_expection then res
     else if List.length plans == 0 then _die_with [%here] "no more plans"
@@ -60,12 +59,12 @@ let rec deductive_synthesis env (_, r) : plan list =
       Pp.printf "\n@{<bold>@{<red>plans pool(%i):@}@}\n" (List.length plans);
       let () = layout_candidate_plans plans in
       let _ = input_line stdin in
-      let wf_plans, plans = List.partition well_formed_plan plans in
+      let wf_plans, plans = List.partition finished_plan plans in
       refinement_loop (res @ wf_plans, plans)
   in
   refinement_loop ([], plans)
 
-and refine_one_step env (goal : plan) : plan list =
+and refine_one_step env (goal : line) : line list =
   let () = simp_print_syn_judgement goal in
   let ids = underived_act_ids goal in
   match ids with
@@ -79,12 +78,12 @@ and refine_one_step env (goal : plan) : plan list =
           forward env goal id
       | [] -> [ goal ])
 
-and backward env (goal : plan) mid : plan list =
-  let _, (_, midAct, _) = plan_divide_by_task_id goal mid in
+and backward env (goal : line) mid : line list =
+  let _, (_, midAct, _) = line_divide_by_task_id goal mid in
   let op = midAct.aop in
   let () = Printf.printf "%i\n" !forward_synthesis_counter in
   if is_gen env op then
-    let goal = label_as_gen_act goal mid in
+    let goal = line_label_as_gen_act goal mid in
     [ goal ]
   else
     let rules = select_rule_by_future env op in
@@ -105,9 +104,8 @@ and backward env (goal : plan) mid : plan list =
           (layout_sevent se)
           (layout_pat layout_regex pat)
       in
-      let gargs, (args, retrty) = destruct_pat [%here] pat in
+      let _, (args, retrty) = destruct_pat [%here] pat in
       let goal = plan_add_cargs goal args in
-      let goal = { goal with freeVars = gargs @ goal.freeVars } in
       let history, dep_se, _ = destruct_hap [%here] retrty in
       let dep_se =
         match dep_se with
@@ -115,31 +113,21 @@ and backward env (goal : plan) mid : plan list =
             if CharSet.cardinal s == 1 then CharSet.choose s else _die [%here]
         | _ -> _die [%here]
       in
-      let plans =
-        backward_merge env.event_tyctx goal mid
-          ( history,
-            dep_se,
-            linear_regex_list_to_regex future1,
-            se,
-            linear_regex_list_to_regex future2 )
-      in
-      plans
+      backward_merge goal mid (history, dep_se, future1, se, future2)
     in
     let goals = List.concat_map handle rules in
     layout_candidate_plans goals;
     goals
 
-and forward env (goal : plan) mid : plan list =
-  let _, (_, midAct, _) = plan_divide_by_task_id goal mid in
+and forward env (goal : line) mid : line list =
+  let _, (_, midAct, _) = line_divide_by_task_id goal mid in
   let op = midAct.aop in
   let rules = select_rule_by_op env op in
   let handle pat =
-    let gargs, (args, retrty) = destruct_pat [%here] pat in
+    let _, (args, retrty) = destruct_pat [%here] pat in
     let goal = plan_add_cargs goal args in
-    let goal = { goal with freeVars = gargs @ goal.freeVars } in
     let history, se, p = destruct_hap [%here] retrty in
-    let plans = forward_merge env.event_tyctx goal mid (history, se, p) in
-    plans
+    forward_merge goal mid (history, se, p)
   in
   let goals = List.concat_map handle rules in
   goals
