@@ -15,6 +15,7 @@ let print_plan line =
   Pp.printf "@{<bold>freeVars:@} %s\n"
     (layout_typed_var_list (_get_freeVars line));
   Pp.printf "@{<bold>line:@} %s\n" (omit_layout_line line);
+  Pp.printf "@{<bold>elems:@} %s\n" (layout_line_elems line.elems);
   Pp.printf "@{<bold>checkedActs:@} %s\n"
     (List.split_by_comma layout_massage_chain
     @@ IntMap.to_kv_list (_get_checkedActs line))
@@ -40,8 +41,8 @@ let register_elems_under_plan ids elems =
   (ids, elems, newIds)
 
 let register_line_under_plan ids { gprop; elems } =
-  let plan, elems, newIds = register_elems_under_plan ids elems in
-  (plan, { gprop; elems }, newIds)
+  let ids, elems, newIds = register_elems_under_plan ids elems in
+  (ids, { gprop; elems }, newIds)
 
 let label_as_gen_act act = { act with aparent = Some root_aid }
 
@@ -185,13 +186,14 @@ let forward_merge line id (history, cur, future) =
           let knownIds, post, newIds =
             register_elems_under_plan knownIds post
           in
-          let act, act_aid, knownIds =
+          (* let act, act_aid, knownIds =
             match register_act_under_plan knownIds act with
             | None -> _die_with [%here] "never"
             | Some (act, aid) -> (act, aid, aid :: knownIds)
-          in
+          in *)
           let _, pre, _ = register_elems_under_plan knownIds pre in
           let elems = pre @ [ LineAct act ] @ post in
+          let act_aid = force_get_act_id act in
           let elems =
             List.fold_right
               (fun id elems -> elems_add_id_parent elems id act_aid)
@@ -253,15 +255,15 @@ let plan_add_cargs plan args =
 let insert_prev_se_into_pre line se =
   line_insert_se (fun act -> not (is_checked_act act)) line se
 
-let backward_merge plan id (history1, prev, history2, cur, future) =
+let backward_merge plan curId (history1, prev, history2, cur, future) =
   let () =
-    Pp.printf "@{<bold>backward_merge@}[%i]: %s\n" id (omit_layout_line plan);
-    Pp.printf "@{<bold>backward_merge@} %s ; %s ; %s ; %s ; %s\n"
-      (layout_regex history1) (layout_sevent prev) (layout_regex history2)
-      (layout_sevent cur) (layout_regex future)
+    Pp.printf "@{<bold>backward_merge@}[%i]: %s\n" curId (omit_layout_line plan);
+    Pp.printf "%s ; <%s> ; %s ; <%s> ; %s\n" (layout_regex history1)
+      (layout_sevent prev) (layout_regex history2) (layout_sevent cur)
+      (layout_regex future)
   in
   let knownIds = get_aids plan in
-  let gprop, (pre, curAct, post) = line_divide_by_task_id plan id in
+  let gprop, (pre, curAct, post) = line_divide_by_task_id plan curId in
   match merge_act_with_se (gprop, curAct) cur with
   | None ->
       let () = _die_with [%here] "never" in
@@ -277,8 +279,15 @@ let backward_merge plan id (history1, prev, history2, cur, future) =
       in
       List.concat_map
         (fun (prev_id, line) ->
+          let () =
+            Pp.printf "@{<bold>backward merge@} prev_id: %i - %s\n" prev_id
+              (omit_layout_line line)
+          in
           let knownIds = prev_id :: knownIds in
-          let gprop, (pre1, prevAct, pre2) = line_divide_by_task_id line id in
+          let gprop, (pre1, prevAct, pre2) =
+            line_divide_by_task_id line prev_id
+          in
+          let () = Pp.printf "@{<bold>merge pre1@}\n" in
           let res =
             inter_line_with_regex
               (fun _ -> true)
@@ -286,6 +295,11 @@ let backward_merge plan id (history1, prev, history2, cur, future) =
           in
           List.concat_map
             (fun { gprop; elems = pre1 } ->
+              let () =
+                Pp.printf "@{<bold>backward merge@} pre1: %s\n"
+                  (omit_layout_line_elems pre1)
+              in
+              let () = Pp.printf "@{<bold>merge pre2@}\n" in
               let res =
                 inter_line_with_regex
                   (fun _ -> true)
@@ -293,6 +307,7 @@ let backward_merge plan id (history1, prev, history2, cur, future) =
               in
               List.concat_map
                 (fun { gprop; elems = pre2 } ->
+                  let () = Pp.printf "@{<bold>merge post@}\n" in
                   let res =
                     inter_line_with_regex
                       (fun act -> not (is_derived_act act))
@@ -300,18 +315,31 @@ let backward_merge plan id (history1, prev, history2, cur, future) =
                   in
                   List.map
                     (fun { gprop; elems = post } ->
+                      let () =
+                        Pp.printf
+                          "@{<bold>backward merge result@} %s ; <%s> ; %s ; \
+                           <%s> ; %s\n"
+                          (omit_layout_line_elems pre1)
+                          (layout_act prevAct)
+                          (omit_layout_line_elems pre2)
+                          (layout_act curAct)
+                          (omit_layout_line_elems post)
+                      in
                       let knownIds, post, newIds =
                         register_elems_under_plan knownIds
                           (pre2 @ [ LineAct curAct ] @ post)
                       in
                       let _, pre, _ = register_elems_under_plan knownIds pre1 in
                       let elems = pre @ [ LineAct prevAct ] @ post in
+                      let achildren = curId :: newIds in
                       let elems =
                         List.fold_right
                           (fun id elems -> elems_add_id_parent elems id prev_id)
-                          newIds elems
+                          achildren elems
                       in
-                      let elems = elems_add_id_children elems prev_id newIds in
+                      let elems =
+                        elems_add_id_children elems prev_id achildren
+                      in
                       { gprop; elems })
                     res)
                 res)

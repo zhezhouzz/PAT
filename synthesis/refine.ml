@@ -51,6 +51,13 @@ let layout_candidate_plans plans =
 
 let rec deductive_synthesis env r : line list =
   let plans = regex_to_lines r in
+  let plans =
+    List.map
+      (fun plan ->
+        let _, plan, _ = register_line_under_plan [] plan in
+        plan)
+      plans
+  in
   let rec refinement_loop (res, plans) =
     if List.length res >= result_expection then res
     else if List.length plans == 0 then _die_with [%here] "no more plans"
@@ -81,7 +88,6 @@ and refine_one_step env (goal : line) : line list =
 and backward env (goal : line) mid : line list =
   let _, (_, midAct, _) = line_divide_by_task_id goal mid in
   let op = midAct.aop in
-  let () = Printf.printf "%i\n" !forward_synthesis_counter in
   if is_gen env op then
     let goal = line_label_as_gen_act goal mid in
     [ goal ]

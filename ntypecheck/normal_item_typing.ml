@@ -28,7 +28,9 @@ let add_to_env (env : syn_env) = function
 
 let desugar_reg (env : syn_env) reg =
   let op_names = List.map _get_x (ctx_to_list env.event_tyctx) in
-  let reg = rich_regex_desugar (CtxOp { op_names; body = reg }) in
+  let reg =
+    rich_regex_desugar env.event_tyctx (CtxOp { op_names; body = reg })
+  in
   reg
 
 let map_fa_pat f pat =

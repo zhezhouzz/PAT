@@ -4,6 +4,11 @@ open Common
 open Ast
 open SFA
 
+let _check_sat prop =
+  let res = Prover.check_sat_bool (None, prop) in
+  let () = Pp.printf "@{<bold>_check_sat[%b]@} %s\n" res (layout_prop prop) in
+  res
+
 let root_aid = -1
 
 (* let dummy_aid = -100 *)
@@ -27,6 +32,19 @@ let layout_line_elem_aux omit = function
 let layout_line_elems elems =
   List.split_by ";" (layout_line_elem_aux false) elems
 
+let omit_layout_line_elems elems =
+  List.split_by ";" (layout_line_elem_aux true) elems
+
+let layout_linear_elem_aux omit = function
+  | LinearChar se -> layout_sevent se
+  | LinearStar r -> if omit then "□*" else SFA.layout_regex (Star (MultiChar r))
+
+let layout_linear_elems elems =
+  List.split_by ";" (layout_linear_elem_aux false) elems
+
+let omit_layout_linear_elems elems =
+  List.split_by ";" (layout_linear_elem_aux true) elems
+
 let layout_line { gprop; elems } =
   let line = layout_line_elems elems in
   spf "prop: %s\nline: %s" (layout_prop gprop) line
@@ -47,8 +65,15 @@ let get_aids line =
 let fresh_aid ids =
   List.fold_left (fun max id -> if max > id then max else id + 1) 0 ids
 
+let new_var x =
+  let y = Rename.unique_var x.x in
+  if String.equal y x.x then
+    let z = Rename.unique_var x.x in
+    if String.equal z x.x then _die [%here] else z#:x.ty
+  else y#:x.ty
+
 let se_to_dummy_act { op; vs; phi } =
-  let vs' = List.map (fun x -> (Rename.unique_var x.x)#:x.ty) vs in
+  let vs' = List.map new_var vs in
   let () =
     Pp.printf "@{<bold>se_to_dummy_act: fresh vars:@} %s\n"
       (layout_typed_var_list vs')
@@ -57,12 +82,20 @@ let se_to_dummy_act { op; vs; phi } =
     List.map (fun (x, y) -> (x.x, AVar y)) (_safe_combine [%here] vs vs')
   in
   let phi = msubst subst_prop_instance m phi in
-  (phi, { aop = op; aargs = vs'; aid = None; aparent = None; achildren = None })
+  ( phi,
+    {
+      aop = op;
+      aargs = vs';
+      aid = None;
+      aparent = None;
+      achildren = None;
+      tmp = -1;
+    } )
 
 let seq_line x y =
   { gprop = smart_and [ x.gprop; y.gprop ]; elems = x.elems @ y.elems }
 
-type linear_regex_elem = LinearChar of Nt.nt sevent | LinearStar of CharSet.t
+let desyntax_regex r = dfa_to_reg @@ minimize @@ compile_regex_to_dfa r
 
 let regex_to_linear_regex r =
   let rec aux = function
@@ -70,10 +103,10 @@ let regex_to_linear_regex r =
     | Eps -> [ [] ]
     | MultiChar cs ->
         List.map (fun se -> [ LinearChar se ]) (CharSet.to_list cs)
-    | Star (MultiChar cs) -> [ [ LinearStar cs ] ]
-    | Star _ ->
-        _die_with [%here] "never"
-        (* [ { gprop = mk_true; elems = [ LineStar cs ] } ] *)
+    | Star r -> (
+        match desyntax_regex r with
+        | MultiChar cs -> [ [ LinearStar cs ] ]
+        | _ -> _die_with [%here] "never")
     | Seq [] -> [ [] ]
     | Seq (x :: xs) ->
         let x = aux x in
@@ -106,9 +139,11 @@ let linear_regex_to_line r =
     | [] -> { gprop; elems }
     | LinearChar se :: rest ->
         let phi, act = se_to_dummy_act se in
-        aux { gprop = smart_and [ phi; gprop ]; elems = [ LineAct act ] } rest
+        aux
+          { gprop = smart_and [ phi; gprop ]; elems = elems @ [ LineAct act ] }
+          rest
     | LinearStar cs :: rest ->
-        aux { gprop; elems = [ LineStarMultiChar cs ] } rest
+        aux { gprop; elems = elems @ [ LineStarMultiChar cs ] } rest
   in
   aux { gprop = mk_true; elems = [] } r
 
@@ -190,8 +225,8 @@ let charset_to_smap cs =
           | None -> Some (vs, phi)
           | Some (vs', phi') ->
               let () =
-                if not (List.equal (fun x y -> x.x == y.x) vs vs') then
-                  _die [%here]
+                if not (List.equal (fun x y -> String.equal x.x y.x) vs vs')
+                then _die [%here]
               in
               let phi = smart_and [ phi; phi' ] in
               Some (vs, phi))
@@ -219,21 +254,25 @@ let inter_charset cs1 cs2 =
         | None -> res
         | Some (vs', phi') ->
             let () =
-              if not (List.equal (fun x y -> x.x == y.x) vs vs') then
+              if not (List.equal (fun x y -> String.equal x.x y.x) vs vs') then
                 _die [%here]
             in
             let phi = smart_and [ phi; phi' ] in
             StrMap.add op (vs, phi) res)
       m1 StrMap.empty
   in
-  smap_to_charset m
+  let res = smap_to_charset m in
+  (* let () =
+    Pp.printf "@{<bold>inter_charset@} %s inter %s = %s\n" (layout_charset cs1)
+      (layout_charset cs2)
+      (match res with Some cs -> layout_charset cs | None -> "None")
+  in *)
+  res
 
 let check_sat_se prop cs =
   let m = charset_to_smap cs in
   let m =
-    StrMap.filter
-      (fun _ (_, phi) -> Prover.check_sat_bool (None, smart_and [ prop; phi ]))
-      m
+    StrMap.filter (fun _ (_, phi) -> _check_sat @@ smart_and [ prop; phi ]) m
   in
   smap_to_charset m
 
@@ -243,15 +282,23 @@ let merge_charset prop cs1 cs2 =
   | Some cs -> check_sat_se prop cs
 
 let merge_act_with_phi (prop, act) (vs, phi) =
+  let () =
+    Pp.printf "@{<bold>merge_act_with_phi@} %s ; %s\n" (layout_qvs act.aargs)
+      (layout_qvs vs)
+  in
   let s =
     List.map (fun (x, y) -> (x.x, AVar y)) (_safe_combine [%here] vs act.aargs)
   in
   let phi = msubst subst_prop_instance s phi in
-  if Prover.check_sat_bool (None, smart_and [ prop; phi ]) then Some phi
-  else None
+  if _check_sat @@ smart_and [ prop; phi ] then Some phi else None
 
 let merge_act_with_se (prop, act) { op; vs; phi } =
-  if act.aop != op then None else merge_act_with_phi (prop, act) (vs, phi)
+  let () =
+    Pp.printf "@{<bold>merge_act_with_se@} %s ; %s\n" (layout_act act)
+      (layout_sevent { op; vs; phi })
+  in
+  if not (String.equal act.aop op) then None
+  else merge_act_with_phi (prop, act) (vs, phi)
 
 let merge_act_with_charset (prop, act) cs =
   let m = charset_to_smap cs in
@@ -264,157 +311,439 @@ let rec is_empty_lr = function
   | LinearChar _ :: _ -> false
   | LinearStar _ :: rest -> is_empty_lr rest
 
-let rec merge_line_with_linear_regex if_reuse (gprop, prefix) (elems, lr) =
-  match (elems, lr) with
-  | [], _ -> if is_empty_lr lr then [ { gprop; elems = prefix } ] else []
-  | _ :: _, [] -> []
-  | LineAct act :: elems', LinearChar se :: lr' ->
+let rec is_empty_line_elems = function
+  | [] -> true
+  | LineAct _ :: _ -> false
+  | LineStarMultiChar _ :: rest -> is_empty_line_elems rest
+
+let simplify_line { gprop; elems } =
+  let rec aux prevCs elems =
+    match elems with
+    | [] -> (
+        match prevCs with None -> [] | Some c -> [ LineStarMultiChar c ])
+    | LineAct act :: elems' -> (
+        match prevCs with
+        | None -> LineAct act :: aux prevCs elems'
+        | Some c -> [ LineStarMultiChar c; LineAct act ] @ aux None elems')
+    | LineStarMultiChar c :: elems' ->
+        let prevCs =
+          match prevCs with
+          | None -> Some c
+          | Some prevCs -> (
+              match inter_charset c prevCs with
+              | None -> _die [%here]
+              | Some c -> Some c)
+        in
+        aux prevCs elems'
+  in
+  let elems = aux None elems in
+  { gprop; elems }
+
+let clear_tmp_in_elem = function
+  | LineAct act -> LineAct { act with tmp = -1 }
+  | elem -> elem
+
+let clear_tmp_in_line line =
+  { line with elems = List.map clear_tmp_in_elem line.elems }
+
+let merge_line_with_acts if_reuse line ses =
+  let line = clear_tmp_in_line line in
+  let multi_concat x l =
+    List.map (fun { gprop; elems } -> { gprop; elems = x @ elems }) l
+  in
+  let rec aux { gprop; elems } ses =
+    let () =
+      Pp.printf "@{<bold>merge_line_with_acts@} elems: %s\n"
+        (omit_layout_line_elems elems)
+    in
+    let () =
+      Pp.printf "@{<bold>merge_line_with_acts@} ses: %s\n"
+        (List.split_by_comma
+           (fun (idx, se) -> spf "%i, %s" idx (layout_sevent se))
+           ses)
+    in
+    match (elems, ses) with
+    | _, [] -> [ { gprop; elems } ]
+    | [], _ -> []
+    | LineAct act :: elems', (idx, se) :: ses' ->
+        let res1 =
+          multi_concat [ LineAct act ] (aux { gprop; elems = elems' } ses)
+        in
+        let res2 =
+          if if_reuse act then
+            match merge_act_with_se (gprop, act) se with
+            | None -> []
+            | Some phi ->
+                let gprop = smart_and [ phi; gprop ] in
+                let act = { act with tmp = idx } in
+                multi_concat [ LineAct act ]
+                  (aux { gprop; elems = elems' } ses')
+          else []
+        in
+        res1 @ res2
+    | LineStarMultiChar c :: elems', (idx, se) :: ses' ->
+        let res1 =
+          multi_concat [ LineStarMultiChar c ]
+            (aux { gprop; elems = elems' } ses)
+        in
+        let res2 =
+          let phi, act = se_to_dummy_act se in
+          let gprop = smart_and [ phi; gprop ] in
+          let act = { act with tmp = idx } in
+          match merge_act_with_charset (gprop, act) c with
+          | None ->
+              let () =
+                Pp.printf "@{<bold>merge_line_with_acts@} failed: %s\n"
+                  (layout_prop phi)
+              in
+              []
+          | Some phi ->
+              let gprop = smart_and [ phi; gprop ] in
+              multi_concat
+                [ LineStarMultiChar c; LineAct act; LineStarMultiChar c ]
+                (aux { gprop; elems } ses')
+        in
+        res1 @ res2
+  in
+  let res = aux line ses in
+  res
+
+let fill_line line lr =
+  let opt_line_cons x l =
+    match l with
+    | None -> None
+    | Some { gprop; elems } -> Some { gprop; elems = x :: elems }
+  in
+  let rec aux { gprop; elems } lr =
+    match (elems, lr) with
+    | [], _ ->
+        if is_empty_lr (List.map snd lr) then Some { gprop; elems }
+        else _die [%here]
+    | _, [] -> _die [%here]
+    | LineStarMultiChar c :: elems', (_, LinearStar c') :: _ -> (
+        let c'' = merge_charset gprop c c' in
+        match c'' with
+        | None -> None
+        | Some c'' ->
+            opt_line_cons (LineStarMultiChar c'')
+              (aux { gprop; elems = elems' } lr))
+    | LineStarMultiChar _ :: elems', (_, LinearChar _) :: _ ->
+        aux { gprop; elems = elems' } lr
+    | LineAct act :: elems', (idx, LinearChar _) :: lr' ->
+        if act.tmp == -1 then None
+        else if act.tmp == idx then
+          opt_line_cons (LineAct act) (aux { gprop; elems = elems' } lr')
+        else _die [%here]
+    | LineAct act :: elems', (_, LinearStar c') :: lr' ->
+        if act.tmp == -1 then
+          let phi = merge_act_with_charset (gprop, act) c' in
+          match phi with
+          | None -> None
+          | Some phi ->
+              let gprop = smart_and [ phi; gprop ] in
+              opt_line_cons (LineAct act) (aux { gprop; elems = elems' } lr)
+        else aux { gprop; elems } lr'
+  in
+  aux line lr
+
+let layout_tmp_results tag lines =
+  Pp.printf "@{<bold>%s@} lines: %i\n" tag (List.length lines);
+  List.iter
+    (fun line ->
+      Pp.printf "@{<bold>%s@} lines: %s\n%s\n" tag (omit_layout_line line)
+        (layout_line_elems line.elems))
+    lines
+
+let merge_line_with_linear_regex if_reuse line lr =
+  match lr with
+  | [] ->
+      if is_empty_line_elems line.elems then
+        [ { gprop = line.gprop; elems = [] } ]
+      else []
+  | _ ->
+      let lr = List.mapi (fun idx se -> (idx, se)) lr in
+      let ses =
+        List.filter_map
+          (fun (idx, se) ->
+            match se with LinearChar se -> Some (idx, se) | _ -> None)
+          lr
+      in
+      let lines = merge_line_with_acts if_reuse line ses in
+      layout_tmp_results "merge" lines;
+      let lines = List.map simplify_line lines in
+      layout_tmp_results "simplify" lines;
+      let lines = List.filter_map (fun line -> fill_line line lr) lines in
+      layout_tmp_results "fill" lines;
+      let lines = List.map clear_tmp_in_line lines in
+      lines
+
+(* let merge_line_with_lr line lr =
+  let multi_cons x l = List.map (fun l -> x :: l) l in
+  let rec aux ({gprop; elems}, lr) =
+    match (elems, lr) with
+    | _, [] -> if is_empty_line_elems elems then [ {gprop; elems} ] else []
+    | [], _ -> if is_empty_lr lr then [ {gprop; elems} ] else []
+    | [LineAct act], [LinearStar c] ->
+      let phi = merge_act_with_charset (gprop, act) c in
+      (match phi with
+      | None -> []
+      | Some phi -> [{gprop = smart_and [phi; gprop]; elems}])
+    | [LineAct act], [LinearChar se] ->
+      let phi = merge_act_with_se (gprop, act) se in
+      (match phi with
+      | None -> []
+      | Some phi -> [{gprop = smart_and [phi; gprop]; elems}])
+    | [LineAct _], LinearStar _ :: lr' ->
+      aux ({gprop; elems}, lr')
+    | [LineAct act], LinearChar se :: lr' ->
+      let phi = merge_act_with_se (gprop, act) se in
+      (match phi with
+      | None -> []
+      | Some phi -> aux ({gprop = smart_and [phi; gprop]; elems}, lr'))
+    | [LineStarMultiChar c], LinearStar c' :: lr' ->
+      let c'' = merge_charset gprop c c' in
+      (match c'' with
+      | None -> []
+      | Some c'' ->
+        multi_cons (LineStarMultiChar c'') @@
+         aux ({gprop; elems}, lr'))
+    | [LineStarMultiChar c], LinearChar se :: lr' ->
+      let p, act = se_to_dummy_act se in
+      let gprop = smart_and [p; gprop] in
+      let phi = merge_act_with_charset (gprop, act) c in
+      (match phi with
+      | None -> []
+      | Some phi ->
+        multi_cons (LineAct act) @@
+         aux ({gprop = smart_and [phi; gprop]; elems}, lr')) 
+         
+    | LineAct act :: elems', LinearChar se :: lr' ->
+      
+  in
+  aux (elems, ids) *)
+
+let locate_linear_regex_to_line elems (ids : (int * string) list) =
+  let multi_cons x l = List.map (fun l -> x :: l) l in
+  let rec aux (elems, (ids : (int * string) list)) =
+    match (elems, ids) with
+    | [], [] -> [ [] ]
+    | [], _ -> []
+    | _, [] -> [ [] ]
+    | LineAct act :: elems', (id, op) :: ids' ->
+        let res1 = multi_cons (LineAct act, []) @@ aux (elems', ids) in
+        let res2 =
+          if String.equal act.aop op then
+            multi_cons (LineAct act, [ id ]) @@ aux (elems', ids')
+          else []
+        in
+        res1 @ res2
+    | LineStarMultiChar c :: elems', _ ->
+        let rec acc (prev : int list) ids =
+          match ids with
+          | [] -> multi_cons (LineStarMultiChar c, prev) @@ aux (elems', [])
+          | (id, op) :: ids' ->
+              let res1 =
+                multi_cons (LineStarMultiChar c, prev) @@ aux (elems', ids)
+              in
+              let res2 =
+                if CharSet.exists (fun c -> String.equal c.op op) c then
+                  acc (prev @ [ id ]) ids'
+                else []
+              in
+              res1 @ res2
+        in
+        acc [] ids
+  in
+  aux (elems, ids)
+
+(* let strach_to_elems scracth lr =
+  match lr with
+  | [] -> _die_with [%here] "never"
+  | e :: lr' ->
+    let rec aux scracth (id, e, lr) =
+      match scracth with
+      | [] -> _die_with [%here] "never"
+      | (LineAct act, [id']) :: scracth' ->
+        if if_reuse act then
+          match merge_act_with_se (gprop, act) e with
+          | None -> []
+          | Some phi ->
+              let gprop = smart_and [ phi; gprop ] in
+              aux (scracth', lr')
+        match e with
+        | LinearStar c -> (e, ids) :: aux (scracth', lr')
+        | LinearChar se -> (LineAct se, ids) :: aux (scracth', lr')
+    match e with
+    | LinearStar c -> (e, ids) :: aux (scracth, lr')
+    | LinearChar se -> (LineAct se, ids) :: aux (scracth, lr')
+
+   *)
+
+let get_lr_elem_by_id lr id =
+  match List.nth_opt lr id with Some elem -> elem | None -> _die [%here]
+
+let get_prev_lr_star_by_id lr id =
+  if id == 0 then None
+  else
+    match get_lr_elem_by_id lr (id - 1) with
+    | LinearStar c -> Some c
+    | _ -> None
+
+let get_next_lr_star_by_id lr id =
+  match List.nth_opt lr (id + 1) with
+  | Some (LinearStar c) -> Some c
+  | _ -> None
+
+(* let fill_rest scracth len =
+    let fill_ids (start, ids, post) =
+      let start = match start with
+      | None -> (match ids with
+      | [] -> _die [%here]
+      | id :: _ -> id) 
+      | Some id -> id
+    in 
+    let rec aux cur = function
+    | [] -> if cur < post then cur :: aux (cur + 1) [] else []
+    |  *)
+(* let rec aux prev scracth =
+    match scracth with
+    | [] -> []
+    | [(e, ids)] ->
+    | (LineAct act, ids) :: elems', (id, le) :: lr' ->
+      if 
       if if_reuse act then
         match merge_act_with_se (gprop, act) se with
         | None -> []
         | Some phi ->
             let gprop = smart_and [ phi; gprop ] in
-            merge_line_with_linear_regex if_reuse
-              (gprop, prefix @ [ LineAct act ])
-              (elems', lr')
+            aux (gprop, prefix @ [ LineAct act ]) (elems', lr')
       else []
   | LineAct act :: elems', LinearStar c :: lr' ->
-      let res1 =
-        merge_line_with_linear_regex if_reuse (gprop, prefix) (elems, lr')
-      in
+      let res1 = aux (gprop, prefix) (elems, lr') in
       let res2 =
         match merge_act_with_charset (gprop, act) c with
         | Some phi ->
             let gprop = smart_and [ phi; gprop ] in
-            merge_line_with_linear_regex if_reuse
-              (gprop, prefix @ [ LineAct act ])
-              (elems', lr')
+            aux (gprop, prefix @ [ LineAct act ]) (elems', lr)
         | None -> []
       in
       res1 @ res2
-  | LineStarMultiChar c :: elems', LinearChar se :: lr' ->
-      let res1 =
-        merge_line_with_linear_regex if_reuse (gprop, prefix) (elems', lr)
-      in
-      let phi, act = se_to_dummy_act se in
-      let gprop = smart_and [ phi; gprop ] in
-      let res2 =
-        match merge_act_with_charset (gprop, act) c with
-        | Some phi ->
-            let gprop = smart_and [ phi; gprop ] in
-            merge_line_with_linear_regex if_reuse
-              (gprop, prefix @ [ LineAct act ])
-              (elems', lr')
-        | None -> []
-      in
-      res1 @ res2
-  | LineStarMultiChar c :: elems', LinearStar c' :: lr' ->
-      let res1 =
-        merge_line_with_linear_regex if_reuse (gprop, prefix) (elems', lr)
-      in
-      let res2 =
-        merge_line_with_linear_regex if_reuse (gprop, prefix) (elems, lr')
-      in
-      let res3 =
-        match merge_charset gprop c c' with
-        | Some c'' ->
-            merge_line_with_linear_regex if_reuse
-              (gprop, prefix @ [ LineStarMultiChar c'' ])
-              (elems', lr')
-        | None -> []
-      in
-      res1 @ res2 @ res3
-(* let rec merge_line_to_scratch gprop (res : (Nt.t prop * line_scratch list) list)
-    (line_scratch, elems) =
-  match (line_scratch, elems) with
-  | [], _ -> List.map (fun (prop, r) -> (smart_and [ gprop; prop ], r)) res
-  | _ :: _, [] -> []
-  | ScratchAct act :: line_scratch', LineAct act' :: elems' ->
-      if act.aid == act'.aid then
-        let res =
-          List.map (fun (prop, r) -> (prop, r @ [ ScratchAct act ])) res
+  in
+  aux [] len *)
+
+(* let ids_to_lrs_list ids lr =
+  let rec aux = function
+    | [], _ -> []
+    | _, [] -> _die_with [%here] "never"
+    | id :: ids', (i, e) :: lr' ->
+        if id == i - 1 then
+          match e with
+          | LinearChar _ -> aux (id :: ids', lr')
+          | LinearStar _ -> e :: aux (id :: ids', lr')
+        else if id == i then 
+          (match ids', lr' with
+          | 
+          )
+          
+          e :: aux (ids', lr')
+        else if id < i - 1 then aux (id :: ids', lr')
+        else _die [%here]
+  in
+  aux (ids, lr) *)
+
+(* let expand_line_elem (elem, ids) lr = *)
+
+(* let merge_line_with_linear_regex if_reuse (gprop, prefix) (elems, lr) =
+  let rec aux (gprop, prefix) (elems, lr) =
+    (* let () =
+    Pp.printf
+      "@{<bold>aux@}\n\
+       prefix: %s\n\
+       line: %s\n\
+       regex: %s\n"
+      (omit_layout_line { gprop; elems = prefix })
+      (omit_layout_line_elems elems)
+      (omit_layout_linear_elems lr)
+  in *)
+    match (elems, lr) with
+    | [], _ -> if is_empty_lr lr then [ { gprop; elems = prefix } ] else []
+    | _ :: _, [] ->
+        []
+        (* if is_empty_line_elems elems then [ { gprop; elems = prefix } ] else [] *)
+    | LineAct act :: elems', LinearChar se :: lr' ->
+        if if_reuse act then
+          match merge_act_with_se (gprop, act) se with
+          | None -> []
+          | Some phi ->
+              let gprop = smart_and [ phi; gprop ] in
+              aux (gprop, prefix @ [ LineAct act ]) (elems', lr')
+        else []
+    | LineAct act :: elems', LinearStar c :: lr' ->
+        let res1 = aux (gprop, prefix) (elems, lr') in
+        let res2 =
+          match merge_act_with_charset (gprop, act) c with
+          | Some phi ->
+              let gprop = smart_and [ phi; gprop ] in
+              aux (gprop, prefix @ [ LineAct act ]) (elems', lr)
+          | None -> []
         in
-        merge_line_to_scratch gprop res (line_scratch', elems')
-      else []
-  | ScratchAct act :: line_scratch', LineStarMultiChar c :: elems' -> (
-      match line_elems_get_act_by_id act.aid elems with
-      | Some _ -> merge_line_to_scratch gprop res (line_scratch, elems)
-      | None ->
-          let res =
-            List.filter_map
-              (fun (prop, r) ->
-                match
-                  merge_act_with_charset (smart_and [ gprop; prop ], act) c
-                with
-                | Some phi ->
-                    Some (smart_and [ phi; prop ], r @ [ ScratchAct act ])
-                | None -> None)
-              res
-          in
-          let res1 = merge_line_to_scratch gprop res (line_scratch', elems') in
-          let res2 = merge_line_to_scratch gprop res (line_scratch', elems) in
-          res1 @ res2)
-  | ScratchStar _ :: _, LineAct _ :: _ -> []
-  | ScratchStar c :: line_scratch', LineStarMultiChar c' :: elems' ->
-      let res =
-        List.filter_map
-          (fun (prop, r) ->
-            let c = merge_charset (smart_and [ gprop; prop ]) c c' in
-            match c with
-            | None -> None
-            | Some c -> Some (prop, r @ [ ScratchStar c ]))
-          res
-      in
-      let res1 = merge_line_to_scratch gprop res (line_scratch', elems') in
-      let res2 = merge_line_to_scratch gprop res (line_scratch', elems) in
-      res1 @ res2
-  | ScratchStarAny :: _, LineAct _ :: _ -> []
-  | ScratchStarAny :: line_scratch', LineStarMultiChar c' :: elems' ->
-      let res =
-        List.map (fun (prop, r) -> (prop, r @ [ ScratchStar c' ])) res
-      in
-      let res1 = merge_line_to_scratch gprop res (line_scratch', elems') in
-      let res2 = merge_line_to_scratch gprop res (line_scratch', elems) in
-      res1 @ res2 *)
-(* let inter_lines line1 line2 =
-  (* let open IntAutomata in *)
-  let ids1 = List.map (fun act -> act.aid) (line_get_acts line1) in
-  let ids2 = List.map (fun act -> act.aid) (line_get_acts line2) in
-  let dummy_merged_line =
-    { gprop = mk_true; elems = line1.elems @ line2.elems }
+        res1 @ res2
+    | LineStarMultiChar c :: elems', LinearChar se :: lr' ->
+        let res1 = aux (gprop, prefix) (elems', lr) in
+        let phi, act = se_to_dummy_act se in
+        let gprop = smart_and [ phi; gprop ] in
+        let res2 =
+          match merge_act_with_charset (gprop, act) c with
+          | Some phi ->
+              let gprop = smart_and [ phi; gprop ] in
+              aux (gprop, prefix @ [ LineAct act ]) (elems', lr')
+          | None -> []
+        in
+        res1 @ res2
+    | LineStarMultiChar c :: elems', LinearStar c' :: lr' ->
+        (* let res1 =
+        aux  (gprop, prefix) (elems', lr)
+      in *)
+        let res2 = aux (gprop, prefix) (elems, lr') in
+        let res3 =
+          match merge_charset gprop c c' with
+          | Some c'' ->
+              (* let () =
+              Pp.printf "@{<bold>merge_charset@}  %s\n" (layout_charset c'')
+            in *)
+              aux (gprop, prefix @ [ LineStarMultiChar c'' ]) (elems', lr)
+          | None -> []
+        in
+        (* let () =
+        List.iteri
+          (fun i x -> Pp.printf "@{<bold>res3[%i]:@} %s\n" i (layout_line x))
+          res3
+      in *)
+        res2 @ res3
   in
-  let idss = merge_ids [] ids1 ids2 in
-  let make_line_scratch ids =
-    let acts =
-      List.map
-        (fun id ->
-          let act = line_get_act_by_id id dummy_merged_line in
-          ScratchAct act)
-        ids
-    in
-    let res = List.concat_map (fun act -> [ act; ScratchStarAny ]) acts in
-    ScratchStarAny :: res
-  in
-  let gprop = smart_and [ line1.gprop; line2.gprop ] in
-  let scratches = List.map (fun x -> (gprop, make_line_scratch x)) idss in
-  let scratches =
-    List.concat_map
-      (fun (prop, s) -> merge_line_to_scratch prop [] (s, line1.elems))
-      scratches
-  in
-  let scratches =
-    List.concat_map
-      (fun (prop, s) -> merge_line_to_scratch prop [] (s, line2.elems))
-      scratches
-  in
-  let lines = List.map line_scratch_to_line scratches in
-  lines *)
+  if _check_sat gprop then
+    match lr with
+    | [] -> if is_empty_line_elems elems then [ { gprop; elems = [] } ] else []
+    | _ -> aux (gprop, prefix) (elems, lr)
+  else [] *)
 
 let inter_line_with_regex if_reuse line1 regex =
   let lrs = regex_to_linear_regex regex in
   List.concat_map
     (fun lr ->
-      merge_line_with_linear_regex if_reuse (line1.gprop, []) (line1.elems, lr))
+      let () = Pp.printf "@{<bold>inter_line_with_regex@}\n" in
+      let () = Pp.printf "@{<bold>line:@} %s\n" (layout_line line1) in
+      let () = Pp.printf "@{<bold>lr:@} %s\n" (layout_regex regex) in
+      let res = merge_line_with_linear_regex if_reuse line1 lr in
+      let () = Pp.printf "@{<bold>res: %i\n" (List.length res) in
+      let () =
+        List.iteri
+          (fun i x ->
+            Pp.printf "@{<bold>res[%i]:@} %s\n%s\n" i (omit_layout_line x)
+              (layout_line_elems x.elems))
+          res
+      in
+      res)
     lrs
 
 let line_insert_se if_reuse { gprop; elems } (id, se) =

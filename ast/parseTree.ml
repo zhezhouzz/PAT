@@ -78,12 +78,9 @@ type 'r item =
 
 (* For Synthesis *)
 
-(* type linear_regex =
-  | LChar of Nt.nt sevent
-  | LMultiChar of SFA.CharSet.t
-  | LStarMultiChar of SFA.CharSet.t
-  | LStar of SFA.CharSet.t regex
-[@@deriving eq, ord] *)
+type linear_regex_elem =
+  | LinearChar of Nt.nt sevent
+  | LinearStar of SFA.CharSet.t
 
 type act = {
   aop : string;
@@ -91,6 +88,7 @@ type act = {
   aid : int option;
   aparent : int option;
   achildren : int list option;
+  tmp : int;
 }
 [@@deriving eq, ord]
 

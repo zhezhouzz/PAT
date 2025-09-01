@@ -253,7 +253,7 @@ let lit_to_value loc = function
 let subst_name_in_line_elem x z r =
   let open AutomataLibrary.SFA in
   match r with
-  | LineAct { aid; aop; aargs; aparent; achildren } ->
+  | LineAct { aid; aop; aargs; aparent; achildren; tmp } ->
       LineAct
         {
           aid;
@@ -261,6 +261,7 @@ let subst_name_in_line_elem x z r =
           aargs = List.map (subst_name_qv x z) aargs;
           aparent;
           achildren;
+          tmp;
         }
   (* | LineStar r -> LineStar (subst_regex_instance x (AVar z) r) *)
   (* | LineMultiChar cs ->
