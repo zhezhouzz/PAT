@@ -6,7 +6,7 @@ open SFA
 
 let _check_sat prop =
   let res = Prover.check_sat_bool (None, prop) in
-  let () = Pp.printf "@{<bold>_check_sat[%b]@} %s\n" res (layout_prop prop) in
+  (* let () = Pp.printf "@{<bold>_check_sat[%b]@} %s\n" res (layout_prop prop) in *)
   res
 
 let root_aid = -1
@@ -775,3 +775,66 @@ let line_insert_se if_reuse { gprop; elems } (id, se) =
               rest)
   in
   aux ([], []) elems
+
+let _check_eq gprop1 gprop2 =
+  if equal_prop Nt.equal_nt gprop1 gprop2 then true
+  else not (_check_sat (Not (Iff (gprop1, gprop2))))
+
+let _check_eq_charset c1 c2 =
+  let m1 = charset_to_smap c1 in
+  let m2 = charset_to_smap c2 in
+  let res =
+    if StrMap.cardinal m1 == StrMap.cardinal m2 then
+      StrMap.for_all
+        (fun op (_, phi1) ->
+          match StrMap.find_opt m2 op with
+          | None -> false
+          | Some (_, phi2) -> _check_eq phi1 phi2)
+        m1
+    else false
+  in
+  let () =
+    Pp.printf "@{<bold>check_eq_charset@} %s ?= %s :: %b\n" (layout_charset c1)
+      (layout_charset c2) res
+  in
+  res
+
+let unify_line line1 line2 =
+  let () =
+    Pp.printf "@{<bold>unify_line@}\n%s\n%s\n" (omit_layout_line line1)
+      (omit_layout_line line2)
+  in
+  let rec aux elems1 (gprop2, elems2) =
+    match (elems1, elems2) with
+    | [], [] ->
+        let () =
+          Pp.printf "@{<bold>unify check@} %s ?= %s\n" (layout_prop line1.gprop)
+            (layout_prop gprop2)
+        in
+        _check_eq line1.gprop gprop2
+    | [], _ -> false
+    | _, [] -> false
+    | LineAct act1 :: elems1', LineAct act2 :: elems2' ->
+        if String.equal act1.aop act2.aop then
+          let m =
+            List.map
+              (fun (x, y) -> (x.x, AVar y))
+              (_safe_combine [%here] act2.aargs act1.aargs)
+          in
+          let gprop2 = msubst subst_prop_instance m gprop2 in
+          aux elems1' (gprop2, elems2')
+        else false
+    | LineAct _ :: _, _ -> false
+    | LineStarMultiChar c1 :: elems1', LineStarMultiChar c2 :: elems2' ->
+        if _check_eq_charset c1 c2 then aux elems1' (gprop2, elems2') else false
+    | LineStarMultiChar _ :: _, _ -> false
+  in
+  aux line1.elems (line2.gprop, line2.elems)
+
+let unify_lines lines =
+  let length = List.length lines in
+  let res = List.slow_rm_dup unify_line lines in
+  let () =
+    Pp.printf "@{<bold>unify_lines@} %i -> %i\n" length (List.length res)
+  in
+  res

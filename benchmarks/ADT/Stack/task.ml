@@ -1,15 +1,15 @@
 val ( == ) : 'a. 'a -> 'a -> bool
-val initStackReq : < > [@@gen]
 val pushReq : < elem : int > [@@gen]
+val initStackReq : < > [@@gen]
 val popReq : < > [@@gen]
 val popResp : < elem : int > [@@obs]
 val isEmptyReq : < > [@@gen]
 val isEmptyResp : < isEmpty : bool > [@@obs]
 
-let initStackReq = (allA, InitStackReq true, [||])
-
 let pushReq ?l:(x = (true : [%v: int])) =
   (allA, PushReq (elem == x), [| PopReq true |])
+
+let initStackReq = (allA, InitStackReq true, [||])
 
 let popReq =
   ( allA,

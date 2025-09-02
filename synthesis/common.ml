@@ -181,6 +181,14 @@ let select_rule_by_op env op =
       let pat = fresh_srl_pat pat in
       deinter_pat pat
 
+let select_gen_rules env =
+  let gen_names =
+    List.filter_map (fun x -> match x.ty with Gen -> Some x.x | _ -> None)
+    @@ ctx_to_list env.msgkind_ctx
+  in
+  let rules = List.concat_map (select_rule_by_op env) gen_names in
+  rules
+
 let clearn_trace trace =
   List.filter_map
     (function

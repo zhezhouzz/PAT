@@ -20,23 +20,46 @@ let forward_incrAndStop n =
   if !forward_synthesis_counter >= n then _die [%here]
   else forward_synthesis_counter := !forward_synthesis_counter + 1
 
-type search_strategy = DFS | BFS
+type search_strategy = DFS | BFS | BoundBFS of int
 
-let search_strategy_to_string = function DFS -> "DFS" | BFS -> "BFS"
-let _search_strategy = ref DFS
+let search_strategy_to_string = function
+  | DFS -> "DFS"
+  | BFS -> "BFS"
+  | BoundBFS i -> spf "BoundBFS %i" i
+
+let _search_strategy = ref (BoundBFS 10)
+
+let first_n_list n list =
+  if n >= List.length list then (list, [])
+  else
+    ( List.sublist ~start_included:0 ~end_excluded:n list,
+      List.sublist ~start_included:n ~end_excluded:(List.length list) list )
 
 let rec search_strategy (f : 'a -> 'a list) plans =
-  match !_search_strategy with
-  | DFS -> (
-      match plans with
-      | [] -> _die_with [%here] "no more plans"
-      | plan :: plans -> (
+  (* For efficienct, we should unify the plans first *)
+  (* let plans = unify_lines plans in *)
+  match plans with
+  | [] -> _die_with [%here] "no more plans"
+  | plan :: plans' -> (
+      match !_search_strategy with
+      | DFS -> (
           match f plan with
           | [] -> search_strategy f plans
-          | plans' -> plans' @ plans))
-  | BFS -> _die_with [%here] "unimp"
+          | plans'' -> plans'' @ plans')
+      | BFS -> List.concat_map f plans
+      | BoundBFS i ->
+          let plan1, plan2 = first_n_list i plans in
+          let plan1 = List.concat_map f plan1 in
+          plan1 @ plan2)
 
-let result_expection = 1
+let rec merge_new_goals old_goals new_goals =
+  match (old_goals, new_goals) with
+  | [], _ -> new_goals
+  | _, [] -> old_goals
+  | g1 :: old_goals, g2 :: new_goals ->
+      g1 :: g2 :: merge_new_goals old_goals new_goals
+
+let result_expection = 10
 
 let simp_print_syn_judgement plan =
   let () = Pp.printf "@{<bold>@{<red>Synthesis plan:@}@}\n" in
@@ -63,11 +86,14 @@ let rec deductive_synthesis env r : line list =
     else if List.length plans == 0 then _die_with [%here] "no more plans"
     else
       let plans = search_strategy (refine_one_step env) plans in
-      Pp.printf "\n@{<bold>@{<red>plans pool(%i):@}@}\n" (List.length plans);
+      Pp.printf "\n@{<bold>@{<red>res(%i) plans pool(%i):@}@}\n"
+        (List.length res) (List.length plans);
+      let plans = unify_lines plans in
       let () = layout_candidate_plans plans in
       let _ = input_line stdin in
       let wf_plans, plans = List.partition finished_plan plans in
-      refinement_loop (res @ wf_plans, plans)
+      let new_goals = List.concat_map (gen_new_act env) wf_plans in
+      refinement_loop (res @ wf_plans, merge_new_goals plans new_goals)
   in
   refinement_loop ([], plans)
 
@@ -84,6 +110,31 @@ and refine_one_step env (goal : line) : line list =
           let () = Pp.printf "@{<bold>@{<red>forward@} on %i@}\n" id in
           forward env goal id
       | [] -> [ goal ])
+
+and gen_new_act env (goal : line) : line list =
+  let () =
+    Pp.printf "@{<bold>@{<red>gen new act@} on line@}\n%s\n"
+      (omit_layout_line goal)
+  in
+  let oldIds = get_aids goal in
+  let rules = select_gen_rules env in
+  match rules with
+  | [] -> []
+  | pat :: _ ->
+      let _, (args, retrty) = destruct_pat [%here] pat in
+      let goal = plan_add_cargs goal args in
+      let history, se, p = destruct_hap [%here] retrty in
+      let goals =
+        inter_line_with_regex (fun _ -> false) goal (seq [ history; se; p ])
+      in
+      let goals =
+        List.map
+          (fun { gprop; elems } ->
+            let _, elems, _ = register_elems_under_plan oldIds elems in
+            { gprop; elems })
+          goals
+      in
+      goals
 
 and backward env (goal : line) mid : line list =
   let _, (_, midAct, _) = line_divide_by_task_id goal mid in
