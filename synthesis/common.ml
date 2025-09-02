@@ -186,7 +186,13 @@ let select_gen_rules env =
     List.filter_map (fun x -> match x.ty with Gen -> Some x.x | _ -> None)
     @@ ctx_to_list env.msgkind_ctx
   in
-  let rules = List.concat_map (select_rule_by_op env) gen_names in
+  let rules =
+    List.concat_map
+      (fun op ->
+        let pats = select_rule_by_op env op in
+        List.map (fun pat -> (op, pat)) pats)
+      gen_names
+  in
   rules
 
 let clearn_trace trace =

@@ -167,6 +167,49 @@ let merge_act_with_cur_automata ((prop, act), cur) =
       | None -> _die_with [%here] "never")
   | _ -> _die_with [%here] "never"
 
+let gen_merge line op =
+  let knownIds = get_aids line in
+  let rec aux { gprop; elems } =
+    match elems with
+    | [] -> []
+    | LineAct act :: post ->
+        List.map
+          (fun { gprop; elems } -> { gprop; elems = LineAct act :: elems })
+          (aux { gprop; elems = post })
+    | LineStarMultiChar c :: post ->
+        let res1 =
+          List.map
+            (fun { gprop; elems } ->
+              { gprop; elems = LineStarMultiChar c :: elems })
+            (aux { gprop; elems = post })
+        in
+        let res2 =
+          let m = charset_to_smap c in
+          match StrMap.find_opt m op with
+          | Some (vs, phi) ->
+              let phi, act = se_to_dummy_act { op; vs; phi } in
+              let gprop = smart_and [ phi; gprop ] in
+              if _check_sat gprop then
+                let elems =
+                  LineStarMultiChar c :: LineAct act :: LineStarMultiChar c
+                  :: post
+                in
+                [ { gprop; elems } ]
+              else []
+          | None -> []
+        in
+        res2 @ res1
+  in
+  let res = aux line in
+  let res =
+    List.map
+      (fun { gprop; elems } ->
+        let _, elems, _ = register_elems_under_plan knownIds elems in
+        { gprop; elems })
+      res
+  in
+  res
+
 let forward_merge line id (history, cur, future) =
   let knownIds = get_aids line in
   let gprop, (pre, act, post) = line_divide_by_task_id line id in

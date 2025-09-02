@@ -27,7 +27,8 @@ let search_strategy_to_string = function
   | BFS -> "BFS"
   | BoundBFS i -> spf "BoundBFS %i" i
 
-let _search_strategy = ref (BoundBFS 10)
+let _search_strategy = ref (BoundBFS 1)
+let layout_bound = 5
 
 let first_n_list n list =
   if n >= List.length list then (list, [])
@@ -57,19 +58,23 @@ let rec merge_new_goals old_goals new_goals =
   | [], _ -> new_goals
   | _, [] -> old_goals
   | g1 :: old_goals, g2 :: new_goals ->
-      g1 :: g2 :: merge_new_goals old_goals new_goals
+      g2 :: g1 :: merge_new_goals old_goals new_goals
 
-let result_expection = 10
+let result_expection = 3
 
 let simp_print_syn_judgement plan =
   let () = Pp.printf "@{<bold>@{<red>Synthesis plan:@}@}\n" in
   print_plan plan
 
 let layout_candidate_plans plans =
+  let len = List.length plans in
+  let plans, rest = first_n_list layout_bound plans in
   List.iteri
     (fun i plan ->
       Pp.printf "@{<bold>@{<red>%i:@}@}\n%s\n" i (omit_layout_line plan))
     plans;
+  if List.length rest > 0 then
+    Pp.printf "@{<bold>@{<red>total (%i); rest is omitted@}@}\n" len;
   Pp.printf "\n"
 
 let rec deductive_synthesis env r : line list =
@@ -86,10 +91,10 @@ let rec deductive_synthesis env r : line list =
     else if List.length plans == 0 then _die_with [%here] "no more plans"
     else
       let plans = search_strategy (refine_one_step env) plans in
-      Pp.printf "\n@{<bold>@{<red>res(%i) plans pool(%i):@}@}\n"
-        (List.length res) (List.length plans);
       let plans = unify_lines plans in
       let () = layout_candidate_plans plans in
+      Pp.printf "\n@{<bold>@{<red>res(%i) plans pool(%i):@}@}\n"
+        (List.length res) (List.length plans);
       let _ = input_line stdin in
       let wf_plans, plans = List.partition finished_plan plans in
       let new_goals = List.concat_map (gen_new_act env) wf_plans in
@@ -116,24 +121,11 @@ and gen_new_act env (goal : line) : line list =
     Pp.printf "@{<bold>@{<red>gen new act@} on line@}\n%s\n"
       (omit_layout_line goal)
   in
-  let oldIds = get_aids goal in
   let rules = select_gen_rules env in
   match rules with
   | [] -> []
-  | pat :: _ ->
-      let _, (args, retrty) = destruct_pat [%here] pat in
-      let goal = plan_add_cargs goal args in
-      let history, se, p = destruct_hap [%here] retrty in
-      let goals =
-        inter_line_with_regex (fun _ -> false) goal (seq [ history; se; p ])
-      in
-      let goals =
-        List.map
-          (fun { gprop; elems } ->
-            let _, elems, _ = register_elems_under_plan oldIds elems in
-            { gprop; elems })
-          goals
-      in
+  | (op, _) :: _ ->
+      let goals = gen_merge goal op in
       goals
 
 and backward env (goal : line) mid : line list =
