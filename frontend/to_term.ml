@@ -13,7 +13,9 @@ let rec layout_term = function
         (layout_term rhs.x) (layout_term body.x)
   | CAppOp { op; args } ->
       spf "%s %s" op.x (List.split_by " " layout_typed_value args)
-  | CObs { op; prop } -> spf "obs %s; assert %s" op.x (layout_prop prop)
+  | CObs { op; prop } ->
+      if is_true prop then spf "obs %s" op.x
+      else spf "obs %s; assert %s" op.x (layout_prop prop)
   | CGen { op; args } ->
       spf "gen %s(%s)" op.x (List.split_by " " layout_typed_value args)
   | CUnion es -> List.split_by " ⊕\n" layout_term (List.map _get_x es)

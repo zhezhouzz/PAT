@@ -90,13 +90,13 @@ type act = {
   achildren : int list option;
   tmp : int;
 }
-[@@deriving eq, ord]
+[@@deriving eq, ord, sexp]
 
 type line_elem =
   | LineAct of act
   (* | LineMultiChar of SFA.CharSet.t *)
   | LineStarMultiChar of SFA.CharSet.t (* | LineStar of SFA.CharSet.t regex *)
-[@@deriving eq, ord]
+[@@deriving eq, ord, sexp]
 
 open Zdatatype
 
@@ -108,7 +108,7 @@ module ActMap = Stdlib.Map.Make (struct
     if res == 0 then List.compare compare act1.aargs act2.aargs else res
 end)
 
-type line = { gprop : Nt.nt prop; elems : line_elem list }
+type line = { gprop : Nt.nt prop; elems : line_elem list } [@@deriving sexp]
 
 type syn_env = {
   event_rtyctx : srl pat ctx;

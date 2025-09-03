@@ -29,17 +29,21 @@ let seq_random_test (init, main, checker) =
   his
 
 let once (init, main, checker) =
+  let main = List.nth main (Random.int (List.length main)) in
   Pool.init ();
   init ();
   run (fun () -> Eval.eval_to_unit main);
   let his = !Runtime.hisTrace in
   let () =
+    if checker his then raise (NoBugDetected "no bug detected") else ()
+  in
+  (* let () =
     if checker his then
       _die_with [%here]
         "should not happen: the trace doesn't realized the expect errounous \
          pattern"
     else ()
-  in
+  in *)
   his
 
 let eval_until_detect_bug test =

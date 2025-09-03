@@ -1,9 +1,31 @@
 open Language
 open Zdatatype
-open AutomataLibrary
-open Refine
+(* open AutomataLibrary
+open Refine *)
 
 (* open MkTerm *)
+
+let tmp_plans_file = "/tmp/plans.sexp"
+
+let save_plans plans =
+  let sexp = Sexplib.Sexp.List (List.map sexp_of_line plans) in
+  Sexplib.Sexp.save tmp_plans_file sexp
+
+let load_plans () =
+  let sexp = Sexplib.Sexp.load_sexp tmp_plans_file in
+  Sexplib.Std.list_of_sexp line_of_sexp sexp
+
+let output_prefix = "output"
+
+let save_progs name terms =
+  let output_file = spf "%s/%s.scm" output_prefix name in
+  let sexp = Sexplib.Sexp.List (List.map sexp_of_term terms) in
+  Sexplib.Sexp.save output_file sexp
+
+let load_progs name () =
+  let output_file = spf "%s/%s.scm" output_prefix name in
+  let sexp = Sexplib.Sexp.load_sexp output_file in
+  Sexplib.Std.list_of_sexp term_of_sexp sexp
 
 let synthesize (env : syn_env) =
   let _, reg =
@@ -17,8 +39,11 @@ let synthesize (env : syn_env) =
   in
   let r = SFA.rich_regex_to_regex reg in
   let () = Pp.printf "\n@{<red>Original Reg:@} %s\n" (SFA.layout_regex r) in
-  let plans = deductive_synthesis env r in
+  let plans = Refine.deductive_synthesis env r in
   let () = Pp.printf "\n@{<yellow>Result plans:@}\n" in
+  (* let () = save_plans plans in
+  let plans = load_plans () in *)
   List.iter (fun p -> Plan.print_plan p) plans;
   (* let term = instantiation env (g.gamma, g.plan) in *)
-  plans
+  let progs = List.map (fun p -> Compile.compile_term env p) plans in
+  progs

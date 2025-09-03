@@ -6,12 +6,12 @@
  (modules
   common
   ; gamma
-  ; abduction
+  abduction
   feature
   ; optimize
   ; norm
   refine
-  ; mkTerm
+  compile
   synthesis)
  (inline_tests)
  (preprocess

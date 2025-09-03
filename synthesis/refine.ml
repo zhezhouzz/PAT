@@ -60,7 +60,7 @@ let rec merge_new_goals old_goals new_goals =
   | g1 :: old_goals, g2 :: new_goals ->
       g2 :: g1 :: merge_new_goals old_goals new_goals
 
-let result_expection = 3
+let result_expection = 4
 
 let simp_print_syn_judgement plan =
   let () = Pp.printf "@{<bold>@{<red>Synthesis plan:@}@}\n" in

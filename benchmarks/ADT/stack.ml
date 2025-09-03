@@ -2,6 +2,7 @@ open Interpreter
 open Language
 open Zdatatype
 
+(** Core Implementation *)
 module Stack = struct
   let _max_size = 3
   let init s = s := []
@@ -23,17 +24,17 @@ end
 
 open Stack
 
+(** Handlers *)
+
 let _stack : int list ref = ref []
 
 let initStackReqHandler (msg : msg) =
   let () = match msg.ev.args with [] -> () | _ -> _die [%here] in
-  init _stack;
-  send ("initStackResp", [])
+  init _stack
 
 let pushReqHandler (msg : msg) =
   let x = match msg.ev.args with [ VConst (I x) ] -> x | _ -> _die [%here] in
-  push _stack x;
-  send ("pushResp", [])
+  push _stack x
 
 let popReqHandler (msg : msg) =
   let () = match msg.ev.args with [] -> () | _ -> _die [%here] in
@@ -52,22 +53,21 @@ let pushRespHandler (_ : msg) = ()
 let popRespHandler (_ : msg) = ()
 let isEmptyRespHandler (_ : msg) = ()
 
+(** Initialization *)
 let init () =
   register_handler "initStackReq" initStackReqHandler;
   register_handler "pushReq" pushReqHandler;
   register_handler "popReq" popReqHandler;
   register_handler "isEmptyReq" isEmptyReqHandler;
-  register_handler "initStackResp" initStackRespHandler;
-  register_handler "pushResp" pushRespHandler;
   register_handler "popResp" popRespHandler;
   register_handler "isEmptyResp" isEmptyRespHandler;
   init _stack
 
-open Nt
+(* open Nt
 
-let record l = Ty_record { alias = None; fds = l }
+let record l = Ty_record { alias = None; fds = l } *)
 
-let testCtx =
+(* let testCtx =
   Typectx.add_to_rights Typectx.emp
     [
       "initStackReq"#:(record []);
@@ -75,21 +75,19 @@ let testCtx =
       "popReq"#:(record []);
       "isEmptyReq"#:(record []);
       "initStackResp"#:(record []);
-      "pushResp"#:(record []);
       "popResp"#:(record [ "x"#:int_ty ]);
-      "isEmptyResp"#:(record [ "isEmpty"#:bool_ty ]);
-    ]
+    ] *)
 
-let gen name args body =
+(* let gen name args body =
   mk_term_gen testCtx name (List.map (fun x -> VVar x) args) body
 
 let obs name k = mk_term_obs_fresh testCtx name (fun _ -> k)
 let obsInitStackResp e = mk_term_obs_fresh testCtx "initStackResp" (fun _ -> e)
 let obsPushResp e = mk_term_obs_fresh testCtx "pushResp" (fun _ -> e)
 let obsPopResp e = mk_term_obs_fresh testCtx "popResp" (fun _ -> e)
-let obsIsEmptyResp e = mk_term_obs_fresh testCtx "isEmptyResp" (fun _ -> e)
+let obsIsEmptyResp e = mk_term_obs_fresh testCtx "isEmptyResp" (fun _ -> e) *)
 
-let trace_checker trace =
+(* let trace_checker trace =
   let update_first_pushed firstPushed x =
     match firstPushed with None -> Some x | Some _ -> firstPushed
   in
@@ -115,8 +113,9 @@ let trace_checker trace =
         res && check (firstPushed, lastPopped) rest
     | _ :: rest -> check (firstPushed, lastPopped) rest
   in
-  check (None, None) trace
+  check (None, None) trace *)
 
+(** Executable Properties *)
 let check_membership_stack trace =
   let rec check (inSet, outSet) = function
     | [] -> true
@@ -136,7 +135,7 @@ let check_membership_stack trace =
   in
   check (IntSet.empty, IntSet.empty) trace
 
-let main =
+(* let main =
   mk_term_assume_fresh_neq int_ty [] (fun x ->
       mk_term_assume_fresh_neq int_ty [ x ] (fun y ->
           mk_term_assume_fresh_neq int_ty [ x; y ] (fun z ->
@@ -148,7 +147,9 @@ let main =
                   @@ obsPopResp @@ gen "popReq" [] @@ obsPopResp
                   @@ gen "popReq" [] @@ obsPopResp @@ gen "popReq" []
                   @@ obsPopResp @@ gen "isEmptyReq" []
-                  @@ obsIsEmptyResp mk_term_tt))))
+                  @@ obsIsEmptyResp mk_term_tt)))) *)
+
+(** QuickCheck Generators*)
 
 type stack_bench_config = { numElem : int; numOp : int }
 

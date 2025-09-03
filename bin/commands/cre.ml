@@ -35,7 +35,18 @@ let read_syn source_file () =
   (* let () = Printf.printf "%s\n" (layout_structure code) in *)
   let env = Ntypecheck.(struct_check init_env code) in
   let () = Printf.printf "%s\n" (layout_syn_env env) in
+  let () = Stat.init_algo_complexity () in
   let term = Synthesis.synthesize env in
+  ()
+
+let do_syn name source_file () =
+  let code = read_source_file source_file () in
+  (* let () = Printf.printf "%s\n" (layout_structure code) in *)
+  let env = Ntypecheck.(struct_check init_env code) in
+  let () = Printf.printf "%s\n" (layout_syn_env env) in
+  let () = Stat.init_algo_complexity () in
+  let progs = Synthesis.synthesize env in
+  let () = Synthesis.save_progs name progs in
   ()
 
 let handle_syn_result env (exec_time, output_file, term) =
@@ -189,6 +200,18 @@ let two_param message f =
       let () = Myconfig.meta_config_path := config_file in
       f file1 source_file)
 
+let tag_and_file message f =
+  Command.basic ~summary:message
+    Command.Let_syntax.(
+      let%map_open config_file =
+        flag "config"
+          (optional_with_default Myconfig.default_meta_config_path regular_file)
+          ~doc:"config file path"
+      and file1 = anon ("file1" %: string)
+      and source_file = anon ("source_code_file" %: regular_file) in
+      let () = Myconfig.meta_config_path := config_file in
+      f file1 source_file)
+
 let three_param message f =
   Command.basic ~summary:message
     Command.Let_syntax.(
@@ -289,22 +312,23 @@ let test_eval s () =
   match s with
   | "queue" ->
       let open Adt.Queue in
-      let test () = Interpreter.once (init, main, check_membership_queue) in
+      let test () = Interpreter.once (init, [ main ], check_membership_queue) in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
   | "stack" ->
       let open Adt.Stack in
+      let main = Synthesis.load_progs "stack" () in
       let test () = Interpreter.once (init, main, check_membership_stack) in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
   | "set" ->
       let open Adt.Set in
-      let test () = Interpreter.once (init, main, check_membership_set) in
+      let test () = Interpreter.once (init, [ main ], check_membership_set) in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
   | "filesystem" ->
       let open Adt.Filesystem in
-      let test () = Interpreter.once (init, main, filesystem_last_delete) in
+      let test () = Interpreter.once (init, [ main ], filesystem_last_delete) in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
   | "smallbank" ->
@@ -313,7 +337,7 @@ let test_eval s () =
       let open Smallbank in
       let test () =
         Interpreter.once
-          (init Causal, main, SmallbankDB.serializable_trace_checker)
+          (init Causal, [ main ], SmallbankDB.serializable_trace_checker)
       in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
@@ -323,7 +347,7 @@ let test_eval s () =
       let open Twitter in
       let test () =
         Interpreter.once
-          (init Causal, main, TwitterDB.serializable_trace_checker)
+          (init Causal, [ main ], TwitterDB.serializable_trace_checker)
       in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
@@ -332,7 +356,8 @@ let test_eval s () =
       let open Common in
       let open Cart in
       let test () =
-        Interpreter.once (init Causal, main, CartDB.serializable_trace_checker)
+        Interpreter.once
+          (init Causal, [ main ], CartDB.serializable_trace_checker)
       in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
@@ -342,7 +367,7 @@ let test_eval s () =
       let open Courseware in
       let test () =
         Interpreter.once
-          (init Causal, main, CoursewareDB.serializable_trace_checker)
+          (init Causal, [ main ], CoursewareDB.serializable_trace_checker)
       in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
@@ -351,7 +376,8 @@ let test_eval s () =
       let open Common in
       let open TreiberStack in
       let test () =
-        Interpreter.once (init Causal, main, StackDB.serializable_trace_checker)
+        Interpreter.once
+          (init Causal, [ main ], StackDB.serializable_trace_checker)
       in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
@@ -360,7 +386,7 @@ let test_eval s () =
       let test () =
         Interpreter.once
           ( init,
-            main,
+            [ main ],
             fun _ ->
               try
                 let _ = Stlc.mstep_stlcTerm !EvaluationCtx._tmp in
@@ -480,6 +506,7 @@ let cmds =
     ("test-eval", one_param_string "test eval" test_eval);
     ("test-random", one_param_string "test random" test_random);
     ("read-syn", one_param "read syn" read_syn);
+    ("do-syn", tag_and_file "read syn" do_syn);
     ("syn-one", two_param_string "syn one" syn_term);
     ("syn-benchmark", one_param_string "run benchmark" syn_benchmark);
     ("eval-benchmark", one_param_string "run benchmark" eval_benchmark);

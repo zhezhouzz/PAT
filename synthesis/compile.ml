@@ -1,0 +1,129 @@
+open Language
+open Zdatatype
+(* open Common *)
+
+module SimpleRename = struct
+  let _gen_var_counter = ref 0
+  let _obs_var_counter = ref 0
+  let default_gen_var = "__x"
+  let default_obs_var = "__y"
+
+  let init () =
+    _gen_var_counter := 0;
+    _obs_var_counter := 0
+
+  let new_gen_var x =
+    let fresh_var = spf "%s%i" default_gen_var !_gen_var_counter in
+    _gen_var_counter := !_gen_var_counter + 1;
+    fresh_var#:x.ty
+
+  let new_obs_var x =
+    let fresh_var = spf "%s%i" default_obs_var !_obs_var_counter in
+    _obs_var_counter := !_obs_var_counter + 1;
+    fresh_var#:x.ty
+end
+
+open SimpleRename
+
+let msubst_prop (vars1, vars2) prop =
+  let m =
+    List.map (fun (x, y) -> (x.x, AVar y)) @@ _safe_combine [%here] vars1 vars2
+  in
+  msubst subst_prop_instance m prop
+
+let prop_to_conjuncts phi =
+  let rec aux prop =
+    match prop with
+    | Lit x -> [ Lit x ]
+    | And xs -> List.concat_map aux xs
+    | _ -> [ prop ]
+  in
+  aux phi
+
+let get_assigns conjs vs =
+  let assignments =
+    List.filter_map
+      (fun x ->
+        let l = List.filter_map (fun prop -> is_eq_phi x prop) conjs in
+        match l with
+        | [] -> None
+        | [ AVar y ] -> Some y
+        | _ -> _die_with [%here] "never")
+      vs
+  in
+  if List.length assignments < List.length vs then None else Some assignments
+
+let normalize_prop (vars, prop) =
+  let fvs = fv_prop prop in
+  let fvs =
+    List.filter
+      (fun x -> not (List.exists (fun y -> String.equal x.x y.x) vars))
+      fvs
+  in
+  let ass =
+    match get_assigns (prop_to_conjuncts prop) fvs with
+    | None -> _die [%here]
+    | Some ass -> ass
+  in
+  (* let () = Printf.printf "fvs: %s\n" (layout_qvs fvs) in *)
+  (* let () = Printf.printf "ass: %s\n" (List.split_by_comma layout_qv ass) in *)
+  let gprop = msubst_prop (fvs, ass) prop in
+  let gprop = simpl_eq_in_prop gprop in
+  (* let () = Printf.printf "gprop: %s\n" (layout_prop gprop) in *)
+  gprop
+
+let act_to_term env { aop; aargs; _ } =
+  if is_gen env aop then
+    let args = List.map (fun x -> VVar x) aargs in
+    mk_term_gen env.event_tyctx aop args
+  else if is_obs env aop then mk_term_obs env.event_tyctx aop aargs mk_true
+  else _die [%here]
+
+let rec acts_to_term env = function
+  | [] -> mk_term_tt
+  | act :: acts -> act_to_term env act @@ acts_to_term env acts
+
+let normalize_line env { gprop; elems } =
+  let () = SimpleRename.init () in
+  let rec aux gen_vars obs_vars (gprop, acts) = function
+    | [] -> (gen_vars, obs_vars, (gprop, acts))
+    | LineAct act :: post ->
+        if is_gen env act.aop then
+          let aargs' = List.map new_gen_var act.aargs in
+          let gprop = msubst_prop (act.aargs, aargs') gprop in
+          let act = { act with aargs = aargs' } in
+          aux (gen_vars @ aargs') obs_vars (gprop, acts @ [ act ]) post
+        else if is_obs env act.aop then
+          let aargs' = List.map new_obs_var act.aargs in
+          let gprop = msubst_prop (act.aargs, aargs') gprop in
+          let act = { act with aargs = aargs' } in
+          aux gen_vars (obs_vars @ aargs') (gprop, acts @ [ act ]) post
+        else _die [%here]
+    | LineStarMultiChar _ :: post -> aux gen_vars obs_vars (gprop, acts) post
+  in
+  let gen_vars, obs_vars, (gprop, acts) = aux [] [] (gprop, []) elems in
+  let gprop = normalize_prop (gen_vars @ obs_vars, gprop) in
+  let prog = acts_to_term env acts in
+  (gen_vars, obs_vars, gprop, prog)
+
+let append_post term post =
+  let rec aux = function
+    | CLetE { lhs; rhs; body } ->
+        CLetE { lhs; rhs; body = (aux body.x)#:body.ty }
+    | CVal _ -> CAssertP post
+    | _ -> _die [%here]
+  in
+  aux term
+
+let compile_term env e =
+  let gen_vars, obs_vars, gprop, prog = normalize_line env e in
+  let pre = Abduction.do_abduction (gen_vars @ obs_vars, gen_vars, gprop) in
+  let post = Abduction.pre_simplify_prop (gen_vars @ obs_vars, pre) gprop in
+  let prog = mk_term_assume gen_vars pre prog in
+  (* let prog = append_post prog post in *)
+  let () = Pp.printf "@{<bold>prog:@}\n%s\n" (layout_term prog) in
+  let () = Pp.printf "@{<bold>post:@}\n%s\n" (layout_prop post) in
+  (* let () = Printf.printf "gprop: %s\n" (layout_prop gprop) in *)
+  (* let () = Pp.printf "@{<bold>pre:@}\n%s\n" (layout_prop pre) in *)
+  (* let _ = _die [%here] in *)
+  prog

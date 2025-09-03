@@ -2,6 +2,67 @@ open Language
 open Zdatatype
 open Common
 
+module SimpleRename = struct
+  let _gen_var_counter = ref 0
+  let _obs_var_counter = ref 0
+  let default_gen_var = "__x"
+  let default_obs_var = "__y"
+
+  let init () =
+    _gen_var_counter := 0;
+    _obs_var_counter := 0
+
+  let new_gen_var x =
+    let fresh_var = spf "%s%i" default_gen_var !_gen_var_counter in
+    _gen_var_counter := !_gen_var_counter + 1;
+    fresh_var#:x.ty
+
+  let new_obs_var x =
+    let fresh_var = spf "%s%i" default_obs_var !_obs_var_counter in
+    _obs_var_counter := !_obs_var_counter + 1;
+    fresh_var#:x.ty
+end
+
+open SimpleRename
+
+let msubst_prop (vars1, vars2) prop =
+  let m =
+    List.map (fun (x, y) -> (x.x, AVar y)) @@ _safe_combine [%here] vars1 vars2
+  in
+  msubst subst_prop_instance m prop
+
+let normalize_prop (vars, prop) =
+  let fvs = fv_prop prop in
+  let fvs =
+    List.filter
+      (fun x -> not (List.exists (fun (y, _) -> String.equal x.x y) vars))
+      fvs
+  in
+  let () = Printf.printf "fvs: %s\n" (layout_qvs fvs) in
+  let () = _die [%here] in
+  ()
+
+let normalize_line env { gprop; elems } =
+  let () = SimpleRename.init () in
+  let rec aux gen_vars obs_vars (gprop, acts) = function
+    | [] -> (gen_vars, obs_vars, (gprop, acts))
+    | LineAct act :: post ->
+        if is_gen env act.aop then
+          let aargs' = List.map new_gen_var act.aargs in
+          let gprop = msubst_prop (act.aargs, aargs') gprop in
+          let act = { act with aargs = aargs' } in
+          aux (gen_vars @ aargs') obs_vars (gprop, acts @ [ act ]) post
+        else if is_obs env act.aop then
+          let aargs' = List.map new_obs_var act.aargs in
+          let gprop = msubst_prop (act.aargs, aargs') gprop in
+          let act = { act with aargs = aargs' } in
+          aux gen_vars (obs_vars @ aargs') (gprop, acts @ [ act ]) post
+        else _die [%here]
+    | LineStarMultiChar _ :: post -> aux gen_vars obs_vars (gprop, acts) post
+  in
+  let gen_vars, obs_vars, (gprop, acts) = aux [] [] (gprop, []) elems in
+  ((gen_vars, obs_vars), (gprop, acts))
+
 let quantifier_elimination (qvs, gprop, qv, local_qvs, prop) =
   let () = Printf.printf "remove qv: %s\n" (layout_qv qv) in
   let () = Printf.printf "qvs: %s\n" (layout_qvs qvs) in

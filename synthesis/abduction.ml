@@ -2,40 +2,64 @@
 include Language
 open Zdatatype
 
-let check_valid_feature gamma lit =
-  let aux lit = Gamma.check_valid gamma lit in
-  (not (aux (lit_to_prop lit))) && not (aux @@ Not (lit_to_prop lit))
-
-let check_valid_pre gamma prop = not (Gamma.check_valid gamma (Not prop))
-
-let build_features { bvs; bprop } (abd_vars, lits) =
-  let lits =
-    List.filter (check_valid_feature { bvs = bvs @ abd_vars; bprop }) lits
+(* let check_valid_feature (qvs, gprop) p =
+  let aux p =
+    let q = smart_forall qvs @@ smart_implies gprop p in
+    let () = Pp.printf "@{<bold>check_valid_feature:@}\n%s\n" (layout_prop q) in
+    Prover.check_valid (None, q)
   in
+  (not (aux (lit_to_prop p))) && not (aux @@ Not (lit_to_prop p)) *)
+
+let pre_simplify_lit (qvs, pre) lit =
+  let q1 = smart_forall qvs @@ smart_implies pre (lit_to_prop lit) in
+  let q2 = smart_forall qvs @@ smart_implies pre (Not (lit_to_prop lit)) in
+  (* let () = Pp.printf "@{<bold>pre_simplify_lit:@}\n%s\n" (layout_prop q1) in *)
+  (* let () = Pp.printf "@{<bold>pre_simplify_lit:@}\n%s\n" (layout_prop q2) in *)
+  match (Prover.check_valid (None, q1), Prover.check_valid (None, q2)) with
+  | true, true -> _die [%here]
+  | true, false -> mk_true
+  | false, true -> mk_false
+  | false, false -> lit_to_prop lit
+
+let pre_simplify_prop (qvs, pre) prop =
+  let rec aux = function
+    | Lit lit -> pre_simplify_lit (qvs, pre) lit.x
+    | Not p -> Not (aux p)
+    | And lits -> smart_and (List.map aux lits)
+    | Or lits -> smart_or (List.map aux lits)
+    | Implies (p1, p2) -> smart_implies (aux p1) (aux p2)
+    | Ite _ -> _die [%here]
+    | Iff (p1, p2) -> smart_iff (aux p1) (aux p2)
+    | Forall _ | Exists _ -> _die [%here]
+  in
+  aux prop
+
+let check_valid_feature (_, gprop) p =
+  let q = smart_add_to (lit_to_prop p) gprop in
+  (* let () = Pp.printf "@{<bold>check_valid_feature:@}\n%s\n" (layout_prop q) in *)
+  Prover.check_sat_bool (None, q)
+
+let check_valid_pre prop = not (Prover.check_valid (None, prop))
+
+let build_features _ (lits : Nt.nt lit list) =
+  (* let lits = List.filter (check_valid_feature (qvs, gprop)) lits in *)
   let fvs = List.init (List.length lits) (fun _ -> [ true; false ]) in
   let fvs = List.choose_list_list fvs in
   let fvs =
     List.map
-      smart_and#.(List.mapi (fun idx x ->
-                      let lit = lit_to_prop @@ List.nth lits idx in
-                      if x then lit else Not lit))
+      (fun l ->
+        smart_and
+          (List.mapi
+             (fun idx x ->
+               let lit = lit_to_prop (List.nth lits idx) in
+               if x then lit else Not lit)
+             l))
       fvs
   in
-  let fvs = List.filter (check_valid_pre { bvs = bvs @ abd_vars; bprop }) fvs in
+  (* let fvs = List.filter check_valid_pre fvs in *)
   fvs
 
-let do_abduction { bvs; bprop } (checker : gamma -> bool) (abd_vars, fvs) =
-  let fvs =
-    List.filter
-      (fun p -> checker { bvs = bvs @ abd_vars; bprop = smart_add_to bprop p })
-      fvs
-  in
-  fvs
-
-let mk_abd_prop fvs =
-  match fvs with [] -> None | _ -> Some (simp_fvec_prop @@ smart_or fvs)
-
-let build_fvtab env lits =
+(* let build_fvtab env lits =
   let () =
     Pp.printf "@{<bold>lits:@} %s\n" (List.split_by_comma layout_typed_lit lits)
   in
@@ -84,7 +108,68 @@ let build_fvtab env lits =
   let () =
     Pp.printf "@{<bold>build_fvtab:@} %s\n" (List.split_by_comma layout_lit res)
   in
-  res
+  res *)
+
+let mk_eq_features (abd_vars : (Nt.nt, string) typed list) =
+  let l = List.combination_l abd_vars 2 in
+  let l =
+    List.filter_map
+      (function
+        | [ x; y ] ->
+            if Nt.equal_nt x.ty y.ty && not (String.equal x.x y.x) then
+              Some (mk_var_eq_var [%here] x y)
+            else None
+        | _ -> _die_with [%here] "never")
+      l
+  in
+  l
+
+let mk_b_features (abd_vars : (Nt.nt, string) typed list) =
+  List.filter_map
+    (fun x -> if Nt.equal_nt Nt.bool_ty x.ty then Some (AVar x) else None)
+    abd_vars
+
+let mk_basic_features (abd_vars : (Nt.nt, string) typed list) =
+  let l1 = mk_eq_features abd_vars in
+  let l2 = mk_b_features abd_vars in
+  l1 @ l2
+
+let mk_fvtab (qvs, abd_vars, gprop) =
+  let _ = Prop.get_lits gprop in
+  (* let () =
+    Pp.printf "@{<bold>qvs:@}\n%s\n" (List.split_by_comma layout_qv qvs)
+  in
+  let () =
+    Pp.printf "@{<bold>abd_vars:@}\n%s\n"
+      (List.split_by_comma layout_qv abd_vars)
+  in *)
+  let lits = mk_basic_features abd_vars in
+  (* let () =
+    Pp.printf "@{<bold>lits:@}\n%s\n" (List.split_by_comma layout_lit lits)
+  in *)
+  build_features (qvs, gprop) lits
+
+let do_abduction (qvs, abd_vars, gprop) =
+  let fvs = mk_fvtab (qvs, abd_vars, gprop) in
+  (* let () =
+    Pp.printf "@{<bold>feature vectors:@}\n%s\n"
+      (List.split_by_comma layout_prop fvs)
+  in *)
+  match fvs with
+  | [] -> mk_true
+  | _ ->
+      (* let () =
+        Pp.printf "@{<bold>fvs:@}\n%s\n" (List.split_by_comma layout_prop fvs)
+      in *)
+      let fvs =
+        List.filter
+          (fun p -> Prover.check_sat_bool (None, smart_add_to p gprop))
+          fvs
+      in
+      smart_or fvs
+(* 
+let mk_abd_prop fvs =
+  match fvs with [] -> None | _ -> Some (simp_fvec_prop @@ smart_or fvs)
 
 let mk_raw_all env =
   let l =
@@ -162,4 +247,4 @@ let abduction_mid_goal env gamma (plan1, elem, plan2) abd_vars =
         {
           bvs = gamma.bvs @ abd_vars;
           bprop = smart_add_to (smart_or fvs) gamma.bprop;
-        }
+        } *)
