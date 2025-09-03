@@ -26,7 +26,7 @@ let seq_random_test (init, main, checker) =
   let () =
     if checker his then raise (NoBugDetected "no bug detected") else ()
   in
-  his
+  List.filter (fun msg -> not (String.equal msg.ev.op "dummy")) his
 
 let once (init, main, checker) =
   let main = List.nth main (Random.int (List.length main)) in
