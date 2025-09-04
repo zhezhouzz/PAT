@@ -8,15 +8,17 @@ The easiest way to install the dependencies is via [OPAM](https://opam.ocaml.org
 ```
   opam init --auto-setup
   opam update
-  opam switch create PPBT --package=ocaml-variants.4.14.1+options,ocaml-option-flambda
+  opam switch create YOUR_NAME ocaml-base-compiler.5.2.0
   eval $(opam env)
-  opam install dune core core_unix yojson conf-c++ conf-python qcheck ocolor dolog ocamlbuild z3 ppx_deriving_yojson menhirLib menhir
+  opam install dune core core_unix yojson conf-c++ conf-python qcheck ocolor dolog ocamlbuild z3 ppx_deriving_yojson menhirLib menhir spectrum
 ```
 
-The download the dependent library: https://github.com/zhezhouzz/language_utils, then install it.
+The download the dependent library: https://github.com/OCamlRefinementType/zutils, and https://github.com/OCamlRefinementType/AutomataLibrary/tree/main  then install it.
 
 ```
-    cd language_utils
+    cd zutils
+    opam install .
+    cd AutomataLibrary
     opam install .
 ```
 
@@ -29,45 +31,21 @@ Then compile this repo:
 # Run Synthesizer
 
 ```
-    python3 script/run_bench.py [path to TestExamples-PTestGeneration] [command] [benchmark name] [spec name] (verbose)
+    mkdir output
+    dune exec -- bin/main.exe do-syn stack benchmarks/ADT/stack_spec.ml
 ```
 
-The supported benchmarks and specs are shown in `benchmarks`.
-Add `verbose` can print the actual shell commands.
-Currently, please set `command` as `random-p-sfa` to generate random client.
+This command will store the synthesized programs as output/stack.scm
 
-For example,
+# Run Synthesized Programs
 
 ```
-    python3 script/run_bench.py ~/workplace/zzws/src/TestExamples-PTestGeneration random-p-sfa ClockBoundFormalModels ClockBoundInvariants
+    dune exec -- bin/main.exe test-eval stack
 ```
-
-A script run all cases:
-
-```
-    ./script/run.sh
-```
-
-# Run P
-
-Goto corresponding folder with the same name as benchmark name in `TestExamples-PTestGeneration` repo.
+# Run QuickCheck Programs
 
 ```
-    p compile && p check -tc Syn
+    dune exec -- bin/main.exe test-random stack
 ```
 
-The generated code are in `PSyn` folder, structured as following:
-
-```
-PSyn
-├── Library.p
-├── SynClient.p
-├── SynDriver.p
-└── Warapper.p
-```
-
-+ `SynClient.p`: output of synthesizer.
-+ `Library.p`: auxiliary functions used by synthesized client machines in `SynClient.p`.
-+ `Warapper.p`: A wrapper convert messages into the format can be recognized by P Model.
-+ `SynDriver.p`: test driver and script for synthesized client machines.
-
+Now the benchmark names are hardcoded in the file `bin/commands/cre.ml`.
