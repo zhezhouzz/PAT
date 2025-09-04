@@ -250,8 +250,7 @@ let _fs : t ref = ref StrMap.empty
 
 let initReqHandler (msg : msg) =
   let () = match msg.ev.args with [] -> () | _ -> _die [%here] in
-  init _fs;
-  send ("initResp", [])
+  init _fs
 
 let createFileReqHandler (msg : msg) =
   let path =
@@ -293,7 +292,6 @@ let init () =
   register_handler "createDirReq" createDirReqHandler;
   register_handler "deleteFileReq" deleteFileReqHandler;
   register_handler "existsPathReq" existsPathReqHandler;
-  register_handler "initResp" initRespHandler;
   register_handler "createFileResp" createFileRespHandler;
   register_handler "createDirResp" createDirRespHandler;
   register_handler "deleteFileResp" deleteFileRespHandler;
@@ -312,7 +310,6 @@ let testCtx =
       "createDirReq"#:(record [ "path"#:string_ty ]);
       "deleteFileReq"#:(record [ "path"#:string_ty ]);
       "existsPathReq"#:(record [ "path"#:string_ty ]);
-      "initResp"#:(record []);
       "createFileResp"#:(record [ "success"#:bool_ty ]);
       "createDirResp"#:(record [ "success"#:bool_ty ]);
       "deleteFileResp"#:(record [ "success"#:bool_ty ]);

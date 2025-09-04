@@ -1,5 +1,6 @@
 open Language
 open AutomataLibrary
+open Zdatatype
 
 let init_env =
   {
@@ -8,6 +9,7 @@ let init_env =
     msgkind_ctx = emp;
     tyctx = emp;
     event_rtyctx = emp;
+    axioms = StrMap.empty;
   }
 
 let add_to_env (env : syn_env) = function
@@ -25,6 +27,7 @@ let add_to_env (env : syn_env) = function
       { env with event_tyctx; msgkind_ctx }
   | MsgDecl _ -> env
   | SynGoal _ -> env
+  | PrAxiom _ -> env
 
 let desugar_reg (env : syn_env) reg =
   let op_names = List.map _get_x (ctx_to_list env.event_tyctx) in
@@ -79,10 +82,27 @@ let type_check_item env = function
       match env.goal with
       | None -> { env with goal = Some { qvs; prop } }
       | Some _ -> _die_with [%here] "multiple goals")
+  | PrAxiom { name; prop } ->
+      let prop = PropTypecheck.prop_type_check env.tyctx [] prop in
+      {
+        env with
+        axioms =
+          StrMap.update name
+            (function
+              | None -> Some prop
+              | Some _ -> _die_with [%here] (spf "duplicate axiom: %s" name))
+            env.axioms;
+      }
   | _ -> env
 
 let struct_check env l =
   let env = List.fold_left add_to_env env l in
   let () = Printf.printf "%s\n" (layout_syn_env env) in
   let env = List.fold_left type_check_item env l in
+  let () =
+    Prover.update_axioms
+      (List.map
+         (fun (name, prop) -> (name, [], prop))
+         (StrMap.to_kv_list env.axioms))
+  in
   env

@@ -69,3 +69,4 @@ let map_item f = function
   | MsgNtDecl { msgkind; name; nt } -> MsgNtDecl { msgkind; name; nt = f nt }
   | MsgDecl { name; pat } -> MsgDecl { name; pat = map_rich_srl_pat f pat }
   | SynGoal syn_goal -> SynGoal (map_syn_goal f syn_goal)
+  | PrAxiom { name; prop } -> PrAxiom { name; prop = map_prop f prop }

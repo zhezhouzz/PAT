@@ -60,5 +60,6 @@ let rec fv_item (item_e : 't item) =
   | MsgNtDecl { name; nt; _ } -> []
   | MsgDecl { name; pat } -> fv_pat pat
   | SynGoal syn_goal -> fv_syn_goal syn_goal
+  | PrAxiom { name; prop } -> fv_prop prop
 
 and typed_fv_item (item_e : ('t, 't item) typed) = fv_item item_e.x

@@ -75,6 +75,7 @@ type 'r item =
   | MsgNtDecl of { msgkind : message_kind; name : string; nt : Nt.nt }
   | MsgDecl of { name : string; pat : 'r pat }
   | SynGoal of syn_goal
+  | PrAxiom of { name : string; prop : Nt.nt prop }
 
 (* For Synthesis *)
 
@@ -116,6 +117,7 @@ type syn_env = {
   msgkind_ctx : message_kind ctx;
   tyctx : Nt.t ctx;
   goal : syn_goal option;
+  axioms : Nt.nt prop StrMap.t;
 }
 
 exception IsolationViolation of string

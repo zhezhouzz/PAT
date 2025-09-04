@@ -12,8 +12,10 @@ include To_term
 (* end *)
 
 open AutomataLibrary
+open Zdatatype
 
-let layout_syn_env { event_rtyctx; msgkind_ctx; event_tyctx; tyctx; goal } =
+let layout_syn_env
+    { event_rtyctx; msgkind_ctx; event_tyctx; tyctx; goal; axioms } =
   let str = "" in
   let str = spf "%s\n    tyctx:\n%s\n" str (layout_ctx Nt.layout tyctx) in
   let str =
@@ -29,5 +31,12 @@ let layout_syn_env { event_rtyctx; msgkind_ctx; event_tyctx; tyctx; goal } =
   let str =
     spf "%s\n    goal:\n%s\n" str
       (match goal with None -> "none" | Some srl -> layout_syn_goal srl)
+  in
+  let str = spf "%s\n    axioms (%i):\n" str (StrMap.cardinal axioms) in
+  let str =
+    spf "%s\n%s\n" str
+      (List.split_by "\n"
+         (fun (name, prop) -> spf "%s: %s" name (layout_prop prop))
+         (StrMap.to_kv_list axioms))
   in
   str

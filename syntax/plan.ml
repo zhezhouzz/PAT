@@ -11,14 +11,16 @@ let layout_assigns m =
 let layout_massage_chain (x, xs) =
   spf "%s->[%s]" (string_of_int x) (List.split_by_comma string_of_int xs)
 
+let layout_plan_checkedActs line =
+  List.split_by_comma layout_massage_chain
+  @@ IntMap.to_kv_list (_get_checkedActs line)
+
 let print_plan line =
   Pp.printf "@{<bold>freeVars:@} %s\n"
     (layout_typed_var_list (_get_freeVars line));
   Pp.printf "@{<bold>line:@} %s\n" (omit_layout_line line);
   Pp.printf "@{<bold>elems:@} %s\n" (layout_line_elems line.elems);
-  Pp.printf "@{<bold>checkedActs:@} %s\n"
-    (List.split_by_comma layout_massage_chain
-    @@ IntMap.to_kv_list (_get_checkedActs line))
+  Pp.printf "@{<bold>checkedActs:@} %s\n" (layout_plan_checkedActs line)
 
 let register_act_under_plan ids act =
   match act.aid with
@@ -127,6 +129,10 @@ let plan_task_id_to_act line task_id =
   match res with Some act -> act | None -> _die_with [%here] "never"
 
 let elems_divide_by_task_id elems task_id =
+  (* let () =
+    Pp.printf "@{<bold>elems_divide_by_task_id[%i]@} %s\n" task_id
+      (layout_line_elems elems)
+  in *)
   let rec aux pre = function
     | [] -> _die_with [%here] "never"
     | LineAct ({ aid = Some aid; _ } as act) :: post ->
@@ -301,8 +307,9 @@ let insert_prev_se_into_pre line se =
 let backward_merge plan curId (history1, prev, history2, cur, future) =
   let () =
     Pp.printf "@{<bold>backward_merge@}[%i]: %s\n" curId (omit_layout_line plan);
-    Pp.printf "%s ; <%s> ; %s ; <%s> ; %s\n" (layout_regex history1)
-      (layout_sevent prev) (layout_regex history2) (layout_sevent cur)
+    Pp.printf "  his1: %s\n  prev: %s\n  his2: %s\n" (layout_regex history1)
+      (layout_sevent prev) (layout_regex history2);
+    Pp.printf "  cur: %s\n  future: %s\n" (layout_sevent cur)
       (layout_regex future)
   in
   let knownIds = get_aids plan in
@@ -313,22 +320,30 @@ let backward_merge plan curId (history1, prev, history2, cur, future) =
       []
   | Some phi ->
       let () =
-        Pp.printf "@{<bold>backward_merge@} curActProp: %s; curAct: %s\n"
+        Pp.printf "@{<bold>before insert@} curActProp: %s; curAct: %s\n"
           (layout_prop phi) (layout_act curAct)
       in
       let gprop = smart_and [ phi; gprop ] in
       let res =
         insert_prev_se_into_pre { gprop; elems = pre } (fresh_aid knownIds, prev)
       in
+      let () =
+        Pp.printf "@{<bold>after insert (%i)@}\n" (List.length res);
+        List.iter
+          (fun (i, line) -> Pp.printf "at %i | %s\n" i (omit_layout_line line))
+          res
+      in
       List.concat_map
         (fun (prev_id, line) ->
-          let () =
-            Pp.printf "@{<bold>backward merge@} prev_id: %i - %s\n" prev_id
-              (omit_layout_line line)
-          in
           let knownIds = prev_id :: knownIds in
           let gprop, (pre1, prevAct, pre2) =
             line_divide_by_task_id line prev_id
+          in
+          let () =
+            Pp.printf "@{<bold>backward merge@}\n%s\n%s\n%s\n"
+              (omit_layout_line_elems pre1)
+              (layout_act prevAct)
+              (omit_layout_line_elems pre2)
           in
           let () = Pp.printf "@{<bold>merge pre1@}\n" in
           let res =

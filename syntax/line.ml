@@ -56,11 +56,11 @@ let omit_layout_line { gprop; elems } =
 let line_get_acts line =
   List.filter_map (function LineAct act -> Some act | _ -> None) line.elems
 
+let act_get_id act = match act.aid with Some aid -> aid | None -> _die [%here]
+
 let get_aids line =
   (* only can be applied with registered line *)
-  List.map
-    (fun e -> match e.aid with Some aid -> aid | None -> _die [%here])
-    (line_get_acts line)
+  List.map act_get_id (line_get_acts line)
 
 let fresh_aid ids =
   List.fold_left (fun max id -> if max > id then max else id + 1) 0 ids
@@ -366,9 +366,6 @@ let merge_line_with_acts if_reuse line ses =
     | _, [] -> [ { gprop; elems } ]
     | [], _ -> []
     | LineAct act :: elems', (idx, se) :: ses' ->
-        let res1 =
-          multi_concat [ LineAct act ] (aux { gprop; elems = elems' } ses)
-        in
         let res2 =
           if if_reuse act then
             match merge_act_with_se (gprop, act) se with
@@ -380,12 +377,11 @@ let merge_line_with_acts if_reuse line ses =
                   (aux { gprop; elems = elems' } ses')
           else []
         in
+        let res1 =
+          multi_concat [ LineAct act ] (aux { gprop; elems = elems' } ses)
+        in
         res1 @ res2
     | LineStarMultiChar c :: elems', (idx, se) :: ses' ->
-        let res1 =
-          multi_concat [ LineStarMultiChar c ]
-            (aux { gprop; elems = elems' } ses)
-        in
         let res2 =
           let phi, act = se_to_dummy_act se in
           let gprop = smart_and [ phi; gprop ] in
@@ -402,6 +398,10 @@ let merge_line_with_acts if_reuse line ses =
               multi_concat
                 [ LineStarMultiChar c; LineAct act; LineStarMultiChar c ]
                 (aux { gprop; elems } ses')
+        in
+        let res1 =
+          multi_concat [ LineStarMultiChar c ]
+            (aux { gprop; elems = elems' } ses)
         in
         res1 @ res2
   in
@@ -732,7 +732,7 @@ let inter_line_with_regex if_reuse line1 regex =
   List.concat_map
     (fun lr ->
       let () = Pp.printf "@{<bold>inter_line_with_regex@}\n" in
-      let () = Pp.printf "@{<bold>line:@} %s\n" (layout_line line1) in
+      let () = Pp.printf "@{<bold>line:@} %s\n" (omit_layout_line line1) in
       let () = Pp.printf "@{<bold>lr:@} %s\n" (layout_regex regex) in
       let res = merge_line_with_linear_regex if_reuse line1 lr in
       let () = Pp.printf "@{<bold>res: %i\n" (List.length res) in
@@ -751,12 +751,21 @@ let line_insert_se if_reuse { gprop; elems } (id, se) =
     | [] -> res
     | LineAct act :: rest ->
         if if_reuse act then
+          let () =
+            Pp.printf "@{<bold>try merge act(%s) with se@}\n" (layout_act act)
+          in
           match merge_act_with_se (gprop, act) se with
-          | None -> aux (res, prefix @ [ LineAct act ]) rest
+          | None ->
+              let () = Pp.printf "@{<bold>act merge failed@}\n" in
+              aux (res, prefix @ [ LineAct act ]) rest
           | Some phi ->
+              let () = Pp.printf "@{<bold>act merge successed@}\n" in
               let gprop = smart_and [ phi; gprop ] in
               let elems = prefix @ [ LineAct act ] @ rest in
-              aux ((id, { gprop; elems }) :: res, prefix @ [ LineAct act ]) rest
+              aux
+                ( (act_get_id act, { gprop; elems }) :: res,
+                  prefix @ [ LineAct act ] )
+                rest
         else aux (res, prefix @ [ LineAct act ]) rest
     | LineStarMultiChar c :: rest -> (
         let phi, act = se_to_dummy_act se in

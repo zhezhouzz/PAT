@@ -71,7 +71,8 @@ let layout_candidate_plans plans =
   let plans, rest = first_n_list layout_bound plans in
   List.iteri
     (fun i plan ->
-      Pp.printf "@{<bold>@{<red>%i:@}@}\n%s\n" i (omit_layout_line plan))
+      Pp.printf "@{<bold>@{<red>%i:@}@}\n%s\n%s\n" i (omit_layout_line plan)
+        (layout_plan_checkedActs plan))
     plans;
   if List.length rest > 0 then
     Pp.printf "@{<bold>@{<red>total (%i); rest is omitted@}@}\n" len;
@@ -108,11 +109,13 @@ and refine_one_step env (goal : line) : line list =
   match ids with
   | id :: _ ->
       let () = Pp.printf "@{<bold>@{<red>backward@} on %i@}\n" id in
+      let _ = input_line stdin in
       backward env goal id
   | [] -> (
       match unchecked_act_ids goal with
       | id :: _ ->
           let () = Pp.printf "@{<bold>@{<red>forward@} on %i@}\n" id in
+          let _ = input_line stdin in
           forward env goal id
       | [] -> [ goal ])
 
@@ -165,6 +168,9 @@ and backward env (goal : line) mid : line list =
       backward_merge goal mid (history, dep_se, future1, se, future2)
     in
     let goals = List.concat_map handle rules in
+    let goals =
+      List.sort (fun x y -> Int.compare (plan_size x) (plan_size y)) goals
+    in
     layout_candidate_plans goals;
     goals
 
@@ -179,4 +185,7 @@ and forward env (goal : line) mid : line list =
     forward_merge goal mid (history, se, p)
   in
   let goals = List.concat_map handle rules in
+  let goals =
+    List.sort (fun x y -> Int.compare (plan_size x) (plan_size y)) goals
+  in
   goals

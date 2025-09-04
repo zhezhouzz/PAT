@@ -64,6 +64,9 @@ let ocaml_structure_item_to_item structure =
              | "goal" ->
                  let qvs, prop = parse_goal value_binding.pvb_expr in
                  SynGoal { qvs; prop }
+             | "axiom" ->
+                 let prop = prop_of_expr value_binding.pvb_expr in
+                 PrAxiom { name; prop }
              | _ ->
                  _die_with [%here]
                    "syntax error: non known rty kind, not axiom | assert | \
@@ -96,5 +99,6 @@ let layout_item = function
   | MsgDecl { name; pat } ->
       spf "rty %s:\n  %s" name (layout_pat layout_rich_symbolic_regex pat)
   | SynGoal g -> spf "goal:\n  %s" (layout_syn_goal g)
+  | PrAxiom { name; prop } -> spf "axiom %s:\n  %s" name (layout_prop prop)
 
 let layout_structure l = spf "%s\n" (List.split_by "\n" layout_item l)
