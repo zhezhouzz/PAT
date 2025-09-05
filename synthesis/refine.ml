@@ -60,7 +60,7 @@ let rec merge_new_goals old_goals new_goals =
   | g1 :: old_goals, g2 :: new_goals ->
       g2 :: g1 :: merge_new_goals old_goals new_goals
 
-let result_expection = 4
+let result_expection = 1
 
 let simp_print_syn_judgement plan =
   let () = Pp.printf "@{<bold>@{<red>Synthesis plan:@}@}\n" in
@@ -92,6 +92,7 @@ let rec deductive_synthesis env r : line list =
     else if List.length plans == 0 then _die_with [%here] "no more plans"
     else
       let plans = search_strategy (refine_one_step env) plans in
+      let plans = List.map LineOpt.optimize_line plans in
       let plans = unify_lines plans in
       let () = layout_candidate_plans plans in
       Pp.printf "\n@{<bold>@{<red>res(%i) plans pool(%i):@}@}\n"

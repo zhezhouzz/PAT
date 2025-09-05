@@ -149,6 +149,20 @@ let mk_fvtab (qvs, abd_vars, gprop) =
   in *)
   build_features (qvs, gprop) lits
 
+let simp_abduction (_, abd_vars, gprop) =
+  let ps = prop_to_conjuncts gprop in
+  let ps =
+    List.filter
+      (fun p ->
+        let fvs = fv_prop p in
+        List.for_all
+          (fun x -> List.exists (fun y -> String.equal x.x y.x) abd_vars)
+          fvs)
+      ps
+  in
+  let pre = smart_and ps in
+  Prop.SimplProp.simpl_query_by_eq pre
+
 let do_abduction (qvs, abd_vars, gprop) =
   let fvs = mk_fvtab (qvs, abd_vars, gprop) in
   (* let () =

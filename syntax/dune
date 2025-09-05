@@ -19,6 +19,7 @@
   ; pmachine
   ; wrapper
   line
+  lineOpt
   plan
   syntax)
  (preprocess

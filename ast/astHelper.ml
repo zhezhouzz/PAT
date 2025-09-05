@@ -292,3 +292,18 @@ let comple_cs cs cs' =
       cs
   in
   cs
+
+let msubst_prop (vars1, vars2) prop =
+  let m =
+    List.map (fun (x, y) -> (x.x, AVar y)) @@ _safe_combine [%here] vars1 vars2
+  in
+  msubst subst_prop_instance m prop
+
+let prop_to_conjuncts phi =
+  let rec aux prop =
+    match prop with
+    | Lit x -> [ Lit x ]
+    | And xs -> List.concat_map aux xs
+    | _ -> [ prop ]
+  in
+  aux phi
