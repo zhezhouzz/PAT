@@ -41,8 +41,8 @@ let synthesize (env : syn_env) =
   let () = Pp.printf "\n@{<red>Original Reg:@} %s\n" (SFA.layout_regex r) in
   let plans = Refine.deductive_synthesis env r in
   let () = Pp.printf "\n@{<yellow>Result plans:@}\n" in
-  (* let () = save_plans plans in
-  let plans = load_plans () in *)
+  let () = save_plans plans in
+  let plans = load_plans () in
   List.iter (fun p -> Plan.print_plan p) plans;
   (* let term = instantiation env (g.gamma, g.plan) in *)
   let progs = List.map (fun p -> Compile.compile_term env p) plans in

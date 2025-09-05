@@ -5,13 +5,11 @@ val parent : Path.t -> Path.t
 let[@axiom] parent_is_root (p : Path.t) = iff (p == parent p) (is_root p)
 (* Basic Typing *)
 
-val initReq : < > [@@gen]
 val createDirReq : < path : Path.t > [@@gen]
+val initReq : < > [@@gen]
 val createDirResp : < success : bool > [@@obs]
 val deleteDirReq : < path : Path.t > [@@gen]
 val deleteDirResp : < success : bool > [@@obs]
-val existsPathReq : < path : Path.t > [@@gen]
-val existsPathResp : < success : bool > [@@obs]
 
 (* PATs *)
 let initReq = (epsilonA, InitReq true, starA (anyA - InitReq true))

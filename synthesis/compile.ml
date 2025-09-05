@@ -47,7 +47,7 @@ let get_assigns conjs vs =
         let l = List.filter_map (fun prop -> is_eq_phi x prop) conjs in
         match l with
         | [] -> None
-        | [ AVar y ] -> Some y
+        | AVar y :: _ -> Some y
         | _ -> _die_with [%here] "never")
       vs
   in
