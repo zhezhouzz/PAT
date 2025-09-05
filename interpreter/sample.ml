@@ -83,7 +83,7 @@ let sample qv =
           _die [%here]
       | Some cs -> (qv.x, choose_from_list cs))
 
-let sample_phi store (vs, prop) =
+let direct_sample_phi store (vs, prop) =
   let rec aux (n : int) =
     if n <= 0 then
       let () =
@@ -96,6 +96,49 @@ let sample_phi store (vs, prop) =
       if Store.eval_prop store' prop then s else aux (n - 1)
   in
   aux 10000
+
+let rec mk_alias (used, ass) =
+  match ass with
+  | [] -> []
+  | (x, lit) :: ass -> (
+      let fvs = fv_lit lit in
+      let fvs = List.interset (fun a b -> String.equal a.x b) fvs used in
+      match fvs with
+      | [] -> (x, lit) :: mk_alias (x :: used, ass)
+      | _ -> mk_alias (used, ass))
+
+let sample_phi store (vs, prop) =
+  match LineOpt.get_assigns (prop_to_conjuncts prop) vs with
+  | None -> direct_sample_phi store (vs, prop)
+  | Some ass ->
+      let () =
+        Printf.printf "ass: %s\n"
+          (List.split_by_comma
+             (fun (x, lit) -> spf "%s -> %s" x (layout_lit lit))
+             ass)
+      in
+      let alias = mk_alias ([], ass) in
+      let () =
+        Printf.printf "alias: %s\n"
+          (List.split_by_comma
+             (fun (x, lit) -> spf "%s -> %s" x (layout_lit lit))
+             alias)
+      in
+      (* let () = _die [%here] in *)
+      (* let () = Printf.printf "fvs: %s\n" (layout_qvs fvs) in *)
+      (* let () = Printf.printf "ass: %s\n" (List.split_by_comma layout_qv ass) in *)
+      let gprop = msubst subst_prop_instance alias prop in
+      let gprop = simpl_eq_in_prop gprop in
+      (* let () = Printf.printf "gprop: %s\n" (layout_prop gprop) in *)
+      let res = direct_sample_phi store (vs, gprop) in
+      let store' = StrMap.add_seq (List.to_seq res) store in
+      let res' =
+        List.map
+          (fun (x, lit) ->
+            (x, VConst (Store.eval_lit store' (lit_to_tlit lit))))
+          alias
+      in
+      res @ res'
 
 (* let mk_assume store (vs, prop) =
   let s = sample_phi store (vs, prop) in

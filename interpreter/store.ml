@@ -8,10 +8,22 @@ let value_to_const loc = function VConst c -> c | _ -> _die_with loc "never"
 let value_to_bool loc v = value_to_const loc v |> const_to_bool loc
 
 let eval_app_op_const op cs =
-  match (op.x, cs) with
-  | "==", [ a; b ] -> B (equal_constant a b)
-  | ">", [ I a; I b ] -> B (a > b)
-  | _ -> _die_with [%here] "unimp"
+  let res =
+    match (op.x, cs) with
+    | "==", [ a; b ] -> B (equal_constant a b)
+    | ">", [ I a; I b ] -> B (a > b)
+    | "parent", [ S a ] -> (
+        match get_parent_path a with None -> S "/" | Some p -> S p)
+    | "is_root", [ S a ] -> if String.equal a "/" then B true else B false
+    | _ -> _die_with [%here] "unimp"
+  in
+  (* let () =
+    Pp.printf "@{<red>%s(%s)@} --> %s\n" op.x
+      (List.split_by_comma layout_constant cs)
+      (layout_constant res)
+  in *)
+  (* let () = if String.equal op.x "parent" then _die_with [%here] "unimp" in *)
+  res
 
 let eval_app_op loc op vs =
   let cs = List.map (value_to_const loc) vs in

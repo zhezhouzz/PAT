@@ -8,8 +8,8 @@ let[@axiom] parent_is_root (p : Path.t) = iff (p == parent p) (is_root p)
 val createDirReq : < path : Path.t > [@@gen]
 val initReq : < > [@@gen]
 val createDirResp : < success : bool > [@@obs]
-val deleteDirReq : < path : Path.t > [@@gen]
-val deleteDirResp : < success : bool > [@@obs]
+val deletePathReq : < path : Path.t > [@@gen]
+val deletePathResp : < success : bool > [@@obs]
 
 (* PATs *)
 let initReq = (epsilonA, InitReq true, starA (anyA - InitReq true))
@@ -21,17 +21,17 @@ let createDirReq =
         CreateDirReq (path == p),
         (CreateDirResp (success == true);
          allA;
-         DeleteDirReq (path == p);
+         DeletePathReq (path == p);
          allA) ));
     (fun ?l:(p = (not (is_root (parent v)) : [%v: Path.t])) ->
       ( (allA;
          CreateDirReq (path == parent p);
          CreateDirResp (success == true);
-         starA (anyA - DeleteDirReq (path == parent p))),
+         starA (anyA - DeletePathReq (path == parent p))),
         CreateDirReq (path == p),
         (CreateDirResp (success == true);
          allA;
-         DeleteDirReq (path == p);
+         DeletePathReq (path == p);
          allA) ));
   |]
 
@@ -39,20 +39,20 @@ let createDirResp =
  fun ?l:(s = (v == true : [%v: bool])) ->
   (allA, CreateDirResp (success == s), allA)
 
-let deleteDirReq =
+let deletePathReq =
  fun ?l:(p = (not (is_root v) : [%v: Path.t])) ->
   ( (InitReq true;
      allA;
      CreateDirReq (path == p);
      CreateDirResp (success == true);
-     starA (anyA - DeleteDirReq (path == p))),
-    DeleteDirReq (path == p),
-    (DeleteDirResp (success == true);
+     starA (anyA - DeletePathReq (path == p))),
+    DeletePathReq (path == p),
+    (DeletePathResp (success == true);
      allA) )
 
-let deleteDirResp =
+let deletePathResp =
  fun ?l:(s = (v == true : [%v: bool])) ->
-  (allA, DeleteDirResp (success == s), allA)
+  (allA, DeletePathResp (success == s), allA)
 
 (* Global Properties *)
 
@@ -60,19 +60,19 @@ let deleteDirResp =
   allA;
   CreateDirReq (path == parent chp);
   CreateDirResp (success == true);
-  starA (anyA - DeleteDirReq (path == chp));
+  starA (anyA - DeletePathReq (path == chp));
   CreateDirReq (path == chp);
   CreateDirResp (success == true);
-  starA (anyA - DeleteDirReq (path == chp));
-  DeleteDirReq (path == parent chp);
-  DeleteDirResp (success == true);
+  starA (anyA - DeletePathReq (path == chp));
+  DeletePathReq (path == parent chp);
+  DeletePathResp (success == true);
   allA *)
 
 let[@goal] deleteNoneEmptyDir (chp : Path.t) =
   allA;
   CreateDirReq (path == chp);
   CreateDirResp (success == true);
-  starA (anyA - DeleteDirReq (path == chp));
-  DeleteDirReq (path == parent chp);
-  DeleteDirResp (success == true);
+  starA (anyA - DeletePathReq (path == chp));
+  DeletePathReq (path == parent chp);
+  DeletePathResp (success == true);
   allA

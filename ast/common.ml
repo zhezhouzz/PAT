@@ -57,3 +57,18 @@ let is_empty_record_ty = function
   | _ -> false
 
 let is_record_ty = function Nt.Ty_record _ -> true | _ -> false
+
+(* Filesystem *)
+
+open Zdatatype
+
+let get_parent_path path =
+  let path = String.split_on_char '/' path in
+  let path = List.filter (fun x -> not (String.equal x "")) path in
+  (* let () =
+    Pp.printf "path list: %s\n"
+      (List.split_by_comma (fun x -> spf "|%s|" x) path)
+  in *)
+  match List.last_destruct_opt path with
+  | None -> None
+  | Some (parent, _) -> Some ("/" ^ String.concat "/" parent)

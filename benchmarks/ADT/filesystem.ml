@@ -4,17 +4,6 @@ open Zdatatype
 
 type fileKind = File | Directory
 
-let get_parent_path path =
-  let path = String.split_on_char '/' path in
-  let path = List.filter (fun x -> not (String.equal x "")) path in
-  let () =
-    Pp.printf "path list: %s\n"
-      (List.split_by_comma (fun x -> spf "|%s|" x) path)
-  in
-  match List.last_destruct_opt path with
-  | None -> None
-  | Some (parent, _) -> Some ("/" ^ String.concat "/" parent)
-
 module CorrectFilesystem = struct
   type file = { kind : fileKind; name : string }
   type t = Node of file * t list
@@ -185,6 +174,28 @@ module Filesystem = struct
             match file_kind with File -> FileNode () | Directory -> DirNode []
           in
           fs := StrMap.add path file !fs;
+          (* fs :=
+            StrMap.update parent
+              (fun x ->
+                match x with
+                | None -> _die [%here]
+                | Some (DirNode children) -> Some (DirNode (path :: children))
+                | Some (FileNode _) -> _die [%here])
+              !fs; *)
+          true)
+        else false
+
+  let correct_create_file fs file_kind path =
+    match get_parent_path path with
+    | None -> false
+    | Some parent ->
+        let () = Pp.printf "path: %s\n" path in
+        let () = Pp.printf "parent: %s\n" parent in
+        if check_valid_path fs parent && is_dir fs parent then (
+          let file =
+            match file_kind with File -> FileNode () | Directory -> DirNode []
+          in
+          fs := StrMap.add path file !fs;
           fs :=
             StrMap.update parent
               (fun x ->
@@ -266,12 +277,12 @@ let createDirReqHandler (msg : msg) =
   let success = create_file _fs Directory path in
   send ("createDirResp", [ mk_value_bool success ])
 
-let deleteFileReqHandler (msg : msg) =
+let deletePathReqHandler (msg : msg) =
   let path =
     match msg.ev.args with [ VConst (S path) ] -> path | _ -> _die [%here]
   in
   let success = delete_file _fs path in
-  send ("deleteFileResp", [ mk_value_bool success ])
+  send ("deletePathResp", [ mk_value_bool success ])
 
 let existsPathReqHandler (msg : msg) =
   let path =
@@ -283,18 +294,18 @@ let existsPathReqHandler (msg : msg) =
 let initRespHandler (_ : msg) = ()
 let createFileRespHandler (_ : msg) = ()
 let createDirRespHandler (_ : msg) = ()
-let deleteFileRespHandler (_ : msg) = ()
+let deletePathRespHandler (_ : msg) = ()
 let existsPathRespHandler (_ : msg) = ()
 
 let init () =
   register_handler "initReq" initReqHandler;
   register_handler "createFileReq" createFileReqHandler;
   register_handler "createDirReq" createDirReqHandler;
-  register_handler "deleteFileReq" deleteFileReqHandler;
+  register_handler "deletePathReq" deletePathReqHandler;
   register_handler "existsPathReq" existsPathReqHandler;
   register_handler "createFileResp" createFileRespHandler;
   register_handler "createDirResp" createDirRespHandler;
-  register_handler "deleteFileResp" deleteFileRespHandler;
+  register_handler "deletePathResp" deletePathRespHandler;
   register_handler "existsPathResp" existsPathRespHandler;
   init _fs
 
@@ -308,11 +319,11 @@ let testCtx =
       "initReq"#:(record []);
       "createFileReq"#:(record [ "path"#:string_ty ]);
       "createDirReq"#:(record [ "path"#:string_ty ]);
-      "deleteFileReq"#:(record [ "path"#:string_ty ]);
+      "deletePathReq"#:(record [ "path"#:string_ty ]);
       "existsPathReq"#:(record [ "path"#:string_ty ]);
       "createFileResp"#:(record [ "success"#:bool_ty ]);
       "createDirResp"#:(record [ "success"#:bool_ty ]);
-      "deleteFileResp"#:(record [ "success"#:bool_ty ]);
+      "deletePathResp"#:(record [ "success"#:bool_ty ]);
       "existsPathResp"#:(record [ "success"#:bool_ty ]);
     ]
 
@@ -327,8 +338,8 @@ let obsCreateFileResp e =
 
 let obsCreateDirResp e = mk_term_obs_fresh testCtx "createDirResp" (fun _ -> e)
 
-let obsDeleteFileResp e =
-  mk_term_obs_fresh testCtx "deleteFileResp" (fun _ -> e)
+let obsDeletePathResp e =
+  mk_term_obs_fresh testCtx "deletePathResp" (fun _ -> e)
 
 let obsExistsPathResp e =
   mk_term_obs_fresh testCtx "existsPathResp" (fun _ -> e)
@@ -344,15 +355,15 @@ let filesystem_last_delete trace =
     | { ev = { op = "createDirReq"; args = [ VConst (S path) ] }; _ }
       :: { ev = { op = "createDirResp"; args = [ VConst (B success) ] }; _ }
       :: rest ->
-        let success' = Filesystem.create_file fs Directory path in
+        let success' = Filesystem.correct_create_file fs Directory path in
         if success != success' then false else check rest
     | { ev = { op = "createFileReq"; args = [ VConst (S path) ] }; _ }
       :: { ev = { op = "createFileResp"; args = [ VConst (B success) ] }; _ }
       :: rest ->
         let success' = Filesystem.create_file fs File path in
         if success != success' then false else check rest
-    | { ev = { op = "deleteFileReq"; args = [ VConst (S path) ] }; _ }
-      :: { ev = { op = "deleteFileResp"; args = [ VConst (B success) ] }; _ }
+    | { ev = { op = "deletePathReq"; args = [ VConst (S path) ] }; _ }
+      :: { ev = { op = "deletePathResp"; args = [ VConst (B success) ] }; _ }
       :: rest ->
         let success' = Filesystem.correct_delete_file fs path in
         if success != success' then false else check rest
@@ -375,9 +386,9 @@ let main =
         (fun p2 ->
           gen "createDirReq" [ p1 ] @@ obsCreateDirResp
           @@ gen "createDirReq" [ p2 ] @@ obsCreateDirResp
-          @@ gen "deleteFileReq" [ p2 ] @@ obsDeleteFileResp
-          @@ gen "deleteFileReq" [ p1 ]
-          @@ obsDeleteFileResp mk_term_tt))
+          @@ gen "deletePathReq" [ p2 ] @@ obsDeletePathResp
+          @@ gen "deletePathReq" [ p1 ]
+          @@ obsDeletePathResp mk_term_tt))
 
 type filesystem_bench_config = { numOp : int }
 
@@ -388,7 +399,7 @@ let randomTest { numOp } =
   in
   let random_delete_file () =
     let path = Sample.sample_by_ty (mk_p_abstract_ty "Path.t") in
-    send ("deleteFileReq", [ path ])
+    send ("deletePathReq", [ path ])
   in
   let random_init () = send ("initReq", []) in
   let rec genOp restNum =

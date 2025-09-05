@@ -317,7 +317,7 @@ let test_eval s () =
       ()
   | "stack" ->
       let open Adt.Stack in
-      let main = Synthesis.load_progs "stack" () in
+      let main = Synthesis.load_progs s () in
       let test () = Interpreter.once (init, main, check_membership_stack) in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
@@ -328,7 +328,8 @@ let test_eval s () =
       ()
   | "filesystem" ->
       let open Adt.Filesystem in
-      let test () = Interpreter.once (init, [ main ], filesystem_last_delete) in
+      let main = Synthesis.load_progs s () in
+      let test () = Interpreter.once (init, main, filesystem_last_delete) in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
   | "smallbank" ->
