@@ -41,7 +41,8 @@ let createDirResp =
 
 let deleteDirReq =
  fun ?l:(p = (not (is_root v) : [%v: Path.t])) ->
-  ( (allA;
+  ( (InitReq true;
+     allA;
      CreateDirReq (path == p);
      CreateDirResp (success == true);
      starA (anyA - DeleteDirReq (path == p))),
