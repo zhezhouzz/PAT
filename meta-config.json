@@ -20,7 +20,7 @@
     "bool_options": [
         [
             "if_sort_record",
-            true
+            false
         ],
         [
             "show_type_infer_pre_judgement",

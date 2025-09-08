@@ -68,14 +68,60 @@ let append_post term post =
   in
   aux term
 
+let distribute_assumption (qvs, term, gprop) =
+  (* let rec gather_adj_gen term =
+    match term with
+    | CLetE { lhs; rhs; body } -> (
+        match rhs with
+        | { x = CGen { args; _ }; _ } ->
+            let gvars, k, term = gather_adj_gen body.x in
+            let args =
+              List.map
+                (fun x -> match x.x with VVar x -> x | _ -> _die [%here])
+                args
+            in
+            let gvars = gvars @ args in
+            let k = fun e -> CLetE { lhs; rhs; body = (k e)#:body.ty } in
+            (gvars, k, term)
+        | _ -> ([], (fun e -> e), body.x))
+    | CVal _ -> ([], (fun e -> e), term)
+    | _ -> _die [%here]
+  in *)
+  let rec aux lvars (term, gprop) =
+    match term with
+    | CLetE { lhs; rhs; body } -> (
+        match rhs with
+        | { x = CGen { args; _ }; _ } ->
+            let args =
+              List.map
+                (fun x -> match x.x with VVar x -> x | _ -> _die [%here])
+                args
+            in
+            let lvars = lvars @ args in
+            let pre = Abduction.simp_abduction (lvars, args, gprop) in
+            let post = Abduction.pre_simplify_prop (qvs, pre) gprop in
+            let body', gprop = aux lvars (body.x, post) in
+            let term = CLetE { lhs; rhs; body = body'#:body.ty } in
+            (mk_term_assume args pre term, gprop)
+        | { x = CObs { prop; _ }; _ } ->
+            let lvars = lvars @ lhs in
+            let body', gprop = aux lvars (body.x, smart_add_to prop gprop) in
+            (CLetE { lhs; rhs; body = body'#:body.ty }, gprop)
+        | _ -> _die [%here])
+    | CVal _ -> (term, gprop)
+    | _ -> _die [%here]
+  in
+  aux [] (term, gprop)
+
 let compile_term env e =
   let gen_vars, obs_vars, gprop, prog = normalize_line env e in
-  let pre = Abduction.simp_abduction (gen_vars @ obs_vars, gen_vars, gprop) in
+  let prog, post = distribute_assumption (gen_vars @ obs_vars, prog, gprop) in
+  (* let pre = Abduction.simp_abduction (gen_vars @ obs_vars, gen_vars, gprop) in
   let post = Abduction.pre_simplify_prop (gen_vars @ obs_vars, pre) gprop in
-  let prog = mk_term_assume gen_vars pre prog in
-  (* let prog = append_post prog post in *)
+  let prog = mk_term_assume gen_vars pre prog in *)
   let () = Pp.printf "@{<bold>prog:@}\n%s\n" (layout_term prog) in
   let () = Pp.printf "@{<bold>post:@}\n%s\n" (layout_prop post) in
+  (* let prog = append_post prog post in *)
   (* let () = Printf.printf "gprop: %s\n" (layout_prop gprop) in *)
   (* let () = Pp.printf "@{<bold>pre:@}\n%s\n" (layout_prop pre) in *)
   (* let _ = _die [%here] in *)

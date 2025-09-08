@@ -29,6 +29,7 @@ let search_strategy_to_string = function
 
 let _search_strategy = ref (BoundBFS 1)
 let layout_bound = 5
+let result_expection = 2
 
 let first_n_list n list =
   if n >= List.length list then (list, [])
@@ -59,8 +60,6 @@ let rec merge_new_goals old_goals new_goals =
   | _, [] -> old_goals
   | g1 :: old_goals, g2 :: new_goals ->
       g2 :: g1 :: merge_new_goals old_goals new_goals
-
-let result_expection = 1
 
 let simp_print_syn_judgement plan =
   let () = Pp.printf "@{<bold>@{<red>Synthesis plan:@}@}\n" in
@@ -93,7 +92,7 @@ let rec deductive_synthesis env r : line list =
     else
       let plans = search_strategy (refine_one_step env) plans in
       let plans = List.map LineOpt.optimize_line plans in
-      let plans = unify_lines plans in
+      (* let plans = unify_lines plans in *)
       let () = layout_candidate_plans plans in
       Pp.printf "\n@{<bold>@{<red>res(%i) plans pool(%i):@}@}\n"
         (List.length res) (List.length plans);

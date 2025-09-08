@@ -149,15 +149,23 @@ let mk_fvtab (qvs, abd_vars, gprop) =
   in *)
   build_features (qvs, gprop) lits
 
-let simp_abduction (_, abd_vars, gprop) =
+let simp_abduction (lvars, abd_vars, gprop) =
   let ps = prop_to_conjuncts gprop in
   let ps =
     List.filter
       (fun p ->
         let fvs = fv_prop p in
-        List.for_all
-          (fun x -> List.exists (fun y -> String.equal x.x y.x) abd_vars)
-          fvs)
+        let cond1 =
+          List.for_all
+            (fun x -> List.exists (fun y -> String.equal x.x y.x) lvars)
+            fvs
+        in
+        let cond2 =
+          List.exists
+            (fun x -> List.exists (fun y -> String.equal x.x y.x) abd_vars)
+            fvs
+        in
+        cond1 && cond2)
       ps
   in
   let pre = smart_and ps in

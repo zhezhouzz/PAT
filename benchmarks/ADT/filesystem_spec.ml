@@ -56,18 +56,6 @@ let deletePathResp =
 
 (* Global Properties *)
 
-(* let[@goal] deleteNoneEmptyDir (chp : Path.t) =
-  allA;
-  CreateDirReq (path == parent chp);
-  CreateDirResp (success == true);
-  starA (anyA - DeletePathReq (path == chp));
-  CreateDirReq (path == chp);
-  CreateDirResp (success == true);
-  starA (anyA - DeletePathReq (path == chp));
-  DeletePathReq (path == parent chp);
-  DeletePathResp (success == true);
-  allA *)
-
 let[@goal] deleteNoneEmptyDir (chp : Path.t) =
   allA;
   CreateDirReq (path == chp);
