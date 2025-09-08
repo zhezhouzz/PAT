@@ -169,8 +169,8 @@ let merge_act_with_cur_automata ((prop, act), cur) =
   match cur with
   | MultiChar cs -> (
       match merge_act_with_charset (prop, act) cs with
-      | Some phi -> (smart_and [ phi; prop ], act)
-      | None -> _die_with [%here] "never")
+      | Some phi -> Some (smart_and [ phi; prop ], act)
+      | None -> None)
   | _ -> _die_with [%here] "never"
 
 let gen_merge line op =
@@ -219,39 +219,41 @@ let gen_merge line op =
 let forward_merge line id (history, cur, future) =
   let knownIds = get_aids line in
   let gprop, (pre, act, post) = line_divide_by_task_id line id in
-  let gprop, act = merge_act_with_cur_automata ((gprop, act), cur) in
-  let res =
-    inter_line_with_regex (fun _ -> true) { gprop; elems = pre } history
-  in
-  List.concat_map
-    (fun { gprop; elems = pre } ->
+  match merge_act_with_cur_automata ((gprop, act), cur) with
+  | None -> []
+  | Some (gprop, act) ->
       let res =
-        inter_line_with_regex
-          (fun act -> not (is_derived_act act))
-          { gprop; elems = post } future
+        inter_line_with_regex (fun _ -> true) { gprop; elems = pre } history
       in
-      List.map
-        (fun { gprop; elems = post } ->
-          let knownIds, post, newIds =
-            register_elems_under_plan knownIds post
+      List.concat_map
+        (fun { gprop; elems = pre } ->
+          let res =
+            inter_line_with_regex
+              (fun act -> not (is_derived_act act))
+              { gprop; elems = post } future
           in
-          (* let act, act_aid, knownIds =
+          List.map
+            (fun { gprop; elems = post } ->
+              let knownIds, post, newIds =
+                register_elems_under_plan knownIds post
+              in
+              (* let act, act_aid, knownIds =
             match register_act_under_plan knownIds act with
             | None -> _die_with [%here] "never"
             | Some (act, aid) -> (act, aid, aid :: knownIds)
           in *)
-          let _, pre, _ = register_elems_under_plan knownIds pre in
-          let elems = pre @ [ LineAct act ] @ post in
-          let act_aid = force_get_act_id act in
-          let elems =
-            List.fold_right
-              (fun id elems -> elems_add_id_parent elems id act_aid)
-              newIds elems
-          in
-          let elems = elems_add_id_children elems act_aid newIds in
-          { gprop; elems })
-        res)
-    res
+              let _, pre, _ = register_elems_under_plan knownIds pre in
+              let elems = pre @ [ LineAct act ] @ post in
+              let act_aid = force_get_act_id act in
+              let elems =
+                List.fold_right
+                  (fun id elems -> elems_add_id_parent elems id act_aid)
+                  newIds elems
+              in
+              let elems = elems_add_id_children elems act_aid newIds in
+              { gprop; elems })
+            res)
+        res
 
 (* let get_id_from_varname plan varname =
   let res =

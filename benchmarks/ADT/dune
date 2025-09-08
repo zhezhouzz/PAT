@@ -3,7 +3,7 @@
  (name adt)
  (wrapped true)
  (libraries language interpreter)
- (modules queue stack set filesystem connectedGraph)
+ (modules queue stack set filesystem connectedGraph nfa)
  (inline_tests)
  (preprocess
   (pps ppx_here ppx_inline_test)))

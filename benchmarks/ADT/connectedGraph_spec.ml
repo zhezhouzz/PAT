@@ -4,73 +4,75 @@ val ( == ) : 'a. 'a -> 'a -> bool
 
 val addEdge : < st : int ; ed : int > [@@gen]
 val init : < > [@@gen]
-val newEdgeReq : < > [@@gen]
-val newEdgeResp : < nid : int > [@@obs]
+val newNodeReq : < > [@@gen]
+val newNodeResp : < nid : int > [@@obs]
 val isConnectedReq : < > [@@gen]
 val isConnectedResp : < isConnected : bool > [@@obs]
 
 (* PATs *)
 let init = (epsilonA, Init true, starA (anyA - Init true))
 
-let newEdgeReq =
+let newNodeReq =
   ( (Init true;
      allA),
-    NewEdgeReq true,
-    (NewEdgeResp true;
+    NewNodeReq true,
+    (NewNodeResp true;
      allA) )
 
-let newEdgeResp =
+let newNodeResp =
   [|
     (fun ?l:(x = (true : [%v: int])) ->
-      (starA (anyA - NewEdgeResp true), NewEdgeResp (nid == x), [||]));
+      (starA (anyA - NewNodeResp true), NewNodeResp (nid == x), allA));
     (fun ?l:(x = (true : [%v: int])) ->
-      ( (starA (anyA - NewEdgeResp (nid == x));
-         NewEdgeResp true;
-         starA (anyA - NewEdgeResp (nid == x))),
-        NewEdgeResp (nid == x),
-        [| AddEdge (ed == x) |] ));
+      ( (starA (anyA - NewNodeResp true);
+         NewNodeResp (not (nid == x));
+         starA (anyA - NewNodeResp (nid == x))),
+        NewNodeResp (nid == x),
+        (allA;
+         AddEdge (ed == x);
+         allA) ));
   |]
 
 let addEdge =
   [|
     (fun ?l:(x = (true : [%v: int])) ?l:(y = (not (v == x) : [%v: int])) ->
-      ( (starA (anyA - NewEdgeResp true);
-         NewEdgeResp (nid == x);
+      ( (starA (anyA - NewNodeResp true);
+         NewNodeResp (nid == x);
          allA;
-         NewEdgeResp (nid == y);
+         NewNodeResp (nid == y);
          allA),
         AddEdge (st == x && ed == y),
-        starA (anyA - NewEdgeReq true - AddEdge (st == x && ed == y)) ));
+        starA (anyA - NewNodeReq true - AddEdge (st == x && ed == y)) ));
     (fun ?l:(x = (true : [%v: int])) ?l:(y = (not (v == x) : [%v: int])) ->
       ( (allA;
-         NewEdgeResp (nid == y);
+         NewNodeResp (nid == y);
          allA;
-         NewEdgeResp (nid == x);
+         NewNodeResp (nid == x);
          allA;
          AddEdge (ed == x);
          allA),
         AddEdge (st == x && ed == y),
-        starA (anyA - NewEdgeReq true - AddEdge (st == x && ed == y)) ));
+        starA (anyA - NewNodeReq true - AddEdge (st == x && ed == y)) ));
     (fun ?l:(x = (true : [%v: int])) ?l:(y = (not (v == x) : [%v: int])) ->
       ( (allA;
-         NewEdgeResp (nid == x);
+         NewNodeResp (nid == x);
          allA;
          AddEdge (ed == x);
          allA;
-         NewEdgeResp (nid == y);
+         NewNodeResp (nid == y);
          allA),
         AddEdge (st == x && ed == y),
-        starA (anyA - NewEdgeReq true - AddEdge (st == x && ed == y)) ));
+        starA (anyA - NewNodeReq true - AddEdge (st == x && ed == y)) ));
     (fun ?l:(x = (true : [%v: int])) ?l:(y = (not (v == x) : [%v: int])) ->
       ( (allA;
-         NewEdgeResp (nid == x);
+         NewNodeResp (nid == x);
          allA;
-         NewEdgeResp (nid == y);
+         NewNodeResp (nid == y);
          allA;
          AddEdge (ed == x);
          allA),
         AddEdge (st == x && ed == y),
-        starA (anyA - NewEdgeReq true - AddEdge (st == x && ed == y)) ));
+        starA (anyA - NewNodeReq true - AddEdge (st == x && ed == y)) ));
   |]
 
 let isConnectedReq =
@@ -85,9 +87,9 @@ let isConnectedResp =
 
 let[@goal] isConnected (x : int) (y : int) =
   allA;
-  NewEdgeResp (nid == x);
+  NewNodeResp (nid == x);
   allA;
-  NewEdgeResp (nid == y);
+  NewNodeResp (nid == y);
   allA;
   IsConnectedReq true;
   IsConnectedResp (isConnected == true)

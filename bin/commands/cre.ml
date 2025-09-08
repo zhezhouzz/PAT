@@ -332,6 +332,18 @@ let test_eval s () =
       let test () = Interpreter.once (init, main, filesystem_last_delete) in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
+  | "connectedGraph" ->
+      let open Adt.ConnectedGraph in
+      let main = Synthesis.load_progs s () in
+      let test () = Interpreter.once (init, main, trace_is_not_connected) in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
+  | "nfa" ->
+      let open Adt.Nfa in
+      let main = Synthesis.load_progs s () in
+      let test () = Interpreter.once (init, main, trace_is_not_nfa) in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
   | "smallbank" ->
       let open MonkeyBD in
       let open Common in
@@ -405,6 +417,22 @@ let test_random s () =
       let test () =
         Interpreter.seq_random_test
           (init, (fun () -> randomTest { numOp = 15 }), filesystem_last_delete)
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
+  | "connectedGraph" ->
+      let open Adt.ConnectedGraph in
+      let test () =
+        Interpreter.seq_random_test
+          (init, (fun () -> randomTest { numOp = 15 }), trace_is_not_connected)
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
+  | "nfa" ->
+      let open Adt.Nfa in
+      let test () =
+        Interpreter.seq_random_test
+          (init, (fun () -> randomTest { numOp = 15 }), trace_is_not_nfa)
       in
       let _ = Interpreter.eval_until_detect_bug test in
       ()

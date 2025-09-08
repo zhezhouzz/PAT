@@ -282,15 +282,24 @@ let merge_charset prop cs1 cs2 =
   | Some cs -> check_sat_se prop cs
 
 let merge_act_with_phi (prop, act) (vs, phi) =
-  let () =
-    Pp.printf "@{<bold>merge_act_with_phi@} %s ; %s\n" (layout_qvs act.aargs)
-      (layout_qvs vs)
-  in
-  let s =
-    List.map (fun (x, y) -> (x.x, AVar y)) (_safe_combine [%here] vs act.aargs)
-  in
-  let phi = msubst subst_prop_instance s phi in
-  if _check_sat @@ smart_and [ prop; phi ] then Some phi else None
+  if not (_check_sat prop) then _die_with [%here] "never"
+  else
+    (* let () =
+      Pp.printf "@{<bold>merge_act_with_phi@} %s ; (%s, %s)\n"
+        (layout_qvs act.aargs) (layout_qvs vs) (layout_prop phi)
+    in *)
+    let s =
+      List.map
+        (fun (x, y) -> (x.x, AVar y))
+        (_safe_combine [%here] vs act.aargs)
+    in
+    let phi = msubst subst_prop_instance s phi in
+    let q = smart_and [ prop; phi ] in
+    (* let () =
+      Pp.printf "@{<bold>merge_act_with_phi[%b]@} %s\n" (_check_sat q)
+        (layout_prop q)
+    in *)
+    if _check_sat q then Some phi else None
 
 let merge_act_with_se (prop, act) { op; vs; phi } =
   let () =
