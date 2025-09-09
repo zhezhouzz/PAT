@@ -2,8 +2,8 @@
  (public_name haft.adt)
  (name adt)
  (wrapped true)
- (libraries language interpreter)
- (modules queue stack set filesystem connectedGraph nfa)
+ (libraries language interpreter qcheck)
+ (modules queue stack set filesystem connectedGraph nfa stlc)
  (inline_tests)
  (preprocess
   (pps ppx_here ppx_inline_test)))

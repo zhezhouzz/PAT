@@ -26,23 +26,35 @@ let find_stlcTy ctx x =
   ty
 
 let rec typeinfer_stlcTerm ctx e =
-  (* let () =
-    Printf.printf "typeinfer_stlcTerm %s |- %s\n" (layout_stlcCtx ctx)
-      (layout_stlcTerm e)
-  in *)
-  match e with
-  | StlcVar x -> find_stlcTy ctx x
-  | StlcConst _ -> StlcInt
-  | StlcAbs { absTy; absBody } ->
-      let ty = typeinfer_stlcTerm (absTy :: ctx) absBody in
-      StlcArrow (absTy, ty)
-  | StlcApp { appFun; appArg } -> (
-      let ty1 = typeinfer_stlcTerm ctx appFun in
-      let ty2 = typeinfer_stlcTerm ctx appArg in
-      match ty1 with
-      | StlcArrow (ty11, ty12) ->
-          if equal_stlcTy ty11 ty2 then ty12 else _die_with [%here] "type error"
-      | _ -> _die_with [%here] "type error")
+  let type_error () =
+    let () =
+      Printf.printf "typeinfer_stlcTerm %s |- %s\n" (layout_stlcCtx ctx)
+        (layout_stlcTerm e)
+    in
+    _die_with [%here] "type error"
+  in
+  let res =
+    match e with
+    | StlcVar x ->
+        if x >= List.length ctx then type_error ();
+        find_stlcTy ctx x
+    | StlcConst _ -> StlcInt
+    | StlcAbs { absTy; absBody } ->
+        let ty = typeinfer_stlcTerm (absTy :: ctx) absBody in
+        StlcArrow (absTy, ty)
+    | StlcApp { appFun; appArg } -> (
+        let ty1 = typeinfer_stlcTerm ctx appFun in
+        let ty2 = typeinfer_stlcTerm ctx appArg in
+        match ty1 with
+        | StlcArrow (ty11, ty12) ->
+            if equal_stlcTy ty11 ty2 then ty12 else type_error ()
+        | _ -> type_error ())
+  in
+  let () =
+    Printf.printf "typeinfer_stlcTerm %s |- %s: %s\n" (layout_stlcCtx ctx)
+      (layout_stlcTerm e) (layout_stlcTy res)
+  in
+  res
 
 let tyinfer_from_empty e = typeinfer_stlcTerm [] e
 
@@ -74,28 +86,40 @@ let rec wrong_subst (n, e) = function
           appArg = wrong_subst (n, e) appArg;
         }
 
-let rec step_stlcTerm = function
+type eval_result =
+  | EvalSuccess of stlcTerm
+  | EvalError of stlcTerm
+  | EvalNormalFrom of stlcTerm
+
+let rec step_stlcTerm term =
+  match term with
   | StlcApp { appFun = StlcAbs { absBody; absTy }; appArg } -> (
       match step_stlcTerm appArg with
-      | None ->
+      | EvalError _ -> EvalError term
+      | EvalNormalFrom appArg ->
           (* let e =
             shift_stlcTerm 0 (-1)
             @@ subst_stlcTerm (0, shift_stlcTerm 0 1 appArg) absBody
           in *)
           let e = shift_stlcTerm 0 (-1) (wrong_subst (0, appArg) absBody) in
           (* let e = subst_stlcTerm (0, appArg) (shift_stlcTerm 0 (-1) absBody) in *)
-          Some e
-      | Some e ->
-          Some (StlcApp { appFun = StlcAbs { absBody; absTy }; appArg = e }))
+          EvalSuccess e
+      | EvalSuccess e ->
+          EvalSuccess
+            (StlcApp { appFun = StlcAbs { absBody; absTy }; appArg = e }))
   | StlcApp { appFun; appArg } -> (
       match step_stlcTerm appFun with
-      | None -> _die_with [%here] "not a beta-reducible term"
-      | Some e -> Some (StlcApp { appFun = e; appArg }))
-  | _ -> None
+      | EvalError _ -> EvalError term
+      | EvalNormalFrom _ -> EvalError term
+      | EvalSuccess e -> EvalSuccess (StlcApp { appFun = e; appArg }))
+  | _ -> EvalNormalFrom term
 
 let rec mstep_stlcTerm e =
   let () = Printf.printf "mstep_stlcTerm: %s\n" (layout_stlcTerm e) in
-  match step_stlcTerm e with None -> e | Some e -> mstep_stlcTerm e
+  match step_stlcTerm e with
+  | EvalError _ -> EvalError e
+  | EvalNormalFrom e -> EvalNormalFrom e
+  | EvalSuccess e -> mstep_stlcTerm e
 
 open Interpreter
 
@@ -184,6 +208,15 @@ module EvaluationCtx = struct
         sendCurTy (typeinfer_stlcTerm (eCtx2Ctx !eCtx) !_tmp)
 
   let curTyHandler (_ : msg) = ()
+
+  let evalReqHandler (_ : msg) =
+    let res = mstep_stlcTerm !_tmp in
+    match res with
+    | EvalNormalFrom _ -> send ("evalResp", [ mk_value_bool true ])
+    | EvalError _ -> send ("evalResp", [ mk_value_bool false ])
+    | EvalSuccess _ -> send ("evalResp", [ mk_value_bool false ])
+
+  let evalRespHandler (_ : msg) = ()
 end
 
 open EvaluationCtx
@@ -197,7 +230,18 @@ let init () =
   register_handler "mkApp" mkAppHandler;
   register_handler "closeAppL" closeAppLHandler;
   register_handler "closeAppR" closeAppRHandler;
-  register_handler "curTy" curTyHandler
+  register_handler "curTy" curTyHandler;
+  register_handler "evalReq" evalReqHandler;
+  register_handler "evalResp" evalRespHandler
+
+let trace_eval_correct trace =
+  let rec check = function
+    | [] -> true
+    | { ev = { op = "evalResp"; args = [ VConst (B res) ] }; _ } :: rest ->
+        if not res then false else check rest
+    | _ :: rest -> check rest
+  in
+  check trace
 
 open Nt
 
@@ -214,6 +258,8 @@ let testCtx =
       "closeAppL"#:(record []);
       "closeAppR"#:(record []);
       "curTy"#:(record [ "ty"#:(mk_p_abstract_ty "stlcTy") ]);
+      "evalReq"#:(record []);
+      "evalResp"#:(record [ "res"#:bool_ty ]);
     ]
 
 let genMkAbs ty body = mk_term_gen testCtx "mkAbs" [ mk_value_stlcTy ty ] body
@@ -223,6 +269,8 @@ let genMkCon = mk_term_gen testCtx "mkCon" []
 let genCloseAbs = mk_term_gen testCtx "closeAbs" []
 let genCloseAppL = mk_term_gen testCtx "closeAppL" []
 let genCloseAppR = mk_term_gen testCtx "closeAppR" []
+let genEvalReq = mk_term_gen testCtx "evalReq" []
+let obsEvalResp e = mk_term_obs_fresh testCtx "evalResp" (fun _ -> e)
 
 let obsCurTy k =
   mk_term_obs_fresh testCtx "curTy" (function
@@ -258,8 +306,8 @@ let testAst () =
     Printf.printf "typeinfer_stlcTerm: %s\n"
       (layout_stlcTy (typeinfer_stlcTerm [] e))
   in
-  let res = mstep_stlcTerm e in
-  let () = Printf.printf "res: %s\n" (layout_stlcTerm res) in
+  let _ = mstep_stlcTerm e in
+  (* let () = Printf.printf "res: %s\n" (layout_stlcTerm res) in *)
   ()
 
 let main =
@@ -276,11 +324,134 @@ let main =
   in
   let mkVarClosure i = genMkVar i (obsCurTy (fun _ -> mk_term_tt)) in
   let mkConstClosure = genMkCon (obsCurTy (fun _ -> mk_term_tt)) in
-  mkAppClosure
-    (mkAppClosure
-       (mkAbsClosure
-          (StlcArrow (StlcInt, StlcInt))
-          (mkAbsClosure StlcInt
-             (mkAppClosure (mkVarClosure 1) (mkVarClosure 0))))
-       (mkAbsClosure StlcInt (mkVarClosure 0)))
-    mkConstClosure
+  let e =
+    mkAppClosure
+      (mkAppClosure
+         (mkAbsClosure
+            (StlcArrow (StlcInt, StlcInt))
+            (mkAbsClosure StlcInt
+               (mkAppClosure (mkVarClosure 1) (mkVarClosure 0))))
+         (mkAbsClosure StlcInt (mkVarClosure 0)))
+      mkConstClosure
+  in
+  term_concat e (genEvalReq (obsEvalResp mk_term_tt))
+
+type stlc_bench_config = { depthBound : int; constRange : int }
+
+let ty_gen depth =
+  let open QCheck.Gen in
+  fix
+    (fun self depth ->
+      if depth <= 0 then pure StlcInt
+      else
+        frequency
+          [
+            (1, pure StlcInt);
+            ( 1,
+              map2
+                (fun ty1 ty2 -> StlcArrow (ty1, ty2))
+                (self (depth - 1))
+                (self (depth - 1)) );
+          ])
+    depth
+
+let stlc_gen { depthBound; constRange } =
+  let open QCheck.Gen in
+  let genvar ctx ty =
+    let is =
+      List.filter_map (fun (i, x) -> if equal_stlcTy x ty then Some i else None)
+      @@ List.mapi (fun i x -> (i, x)) ctx
+    in
+    if List.length is == 0 then None
+    else Some (map (fun i -> StlcVar i) (oneofl is))
+  in
+  let genconst = map (fun i -> StlcConst i) (int_range 0 (constRange - 1)) in
+  let rec gen_base ctx ty =
+    match ty with
+    | StlcInt -> (
+        match genvar ctx ty with
+        | None -> genconst
+        | Some g -> frequency [ (1, g); (1, genconst) ])
+    | StlcArrow (ty1, ty2) ->
+        map
+          (fun e2 -> StlcAbs { absTy = ty1; absBody = e2 })
+          (gen_base (ty1 :: ctx) ty2)
+  in
+  let rec aux (ctx : stlcTy list) numApp ty =
+    if numApp <= 0 then gen_base ctx ty
+    else
+      match ty with
+      | StlcInt -> (
+          match genvar ctx ty with
+          | None -> frequency [ (1, genconst); (1, aux_app ctx numApp ty) ]
+          | Some g ->
+              frequency [ (1, g); (1, genconst); (1, aux_app ctx numApp ty) ])
+      | StlcArrow (ty1, ty2) -> (
+          let abs =
+            map
+              (fun e2 -> StlcAbs { absTy = ty1; absBody = e2 })
+              (aux (ty1 :: ctx) (numApp - 1) ty2)
+          in
+          let app = aux_app ctx numApp ty in
+          match genvar ctx ty with
+          | None -> frequency [ (1, app); (1, abs) ]
+          | Some g -> frequency [ (1, g); (1, app); (1, abs) ])
+  and aux_app ctx numApp ty =
+    ty_gen 3 >>= fun t2 ->
+    let t1 = StlcArrow (t2, ty) in
+    aux ctx (numApp - 1) t1 >>= fun e1 ->
+    aux ctx (numApp - 1) t2 >>= fun e2 ->
+    pure (StlcApp { appFun = e1; appArg = e2 })
+  in
+  ty_gen 3 >>= fun ty -> aux [] depthBound ty
+
+let exec_stlc e =
+  let rec aux e =
+    match e with
+    | StlcVar x -> send ("mkVar", [ mk_value_int x ])
+    | StlcConst x -> send ("mkCon", [ mk_value_int x ])
+    | StlcAbs { absTy; absBody } ->
+        send ("mkAbs", [ mk_value_stlcTy absTy ]);
+        aux absBody;
+        send ("closeAbs", [])
+    | StlcApp { appFun; appArg } ->
+        send ("mkApp", []);
+        aux appFun;
+        send ("closeAppL", []);
+        aux appArg;
+        send ("closeAppR", [])
+  in
+  aux e;
+  send ("evalReq", []);
+  Effect.perform End
+
+let random_wt_stlc_term { depthBound; constRange } num =
+  let res = QCheck.Gen.generate ~n:num (stlc_gen { depthBound; constRange }) in
+  (* let () =
+    List.iter
+      (fun e ->
+        let _ = typeinfer_stlcTerm [] e in
+        ())
+      res
+  in *)
+  res
+
+let _store = ref []
+
+let _next conf =
+  match !_store with
+  | [] -> (
+      let res = QCheck.Gen.generate ~n:10000 (stlc_gen conf) in
+      match res with
+      | [] -> _die_with [%here] "never"
+      | e :: es ->
+          _store := es;
+          e)
+  | e :: es ->
+      _store := es;
+      e
+
+let randomTest conf =
+  let e = _next conf in
+  let () = Pp.printf "@{<yellow>randomTest@}: %s\n" (layout_stlcTerm e) in
+  exec_stlc e

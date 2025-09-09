@@ -10,7 +10,6 @@
   monkeyBD
   adt
   quickstorm
-  stlc
   ; pbackend
   )
  (modules caux ctest cre)

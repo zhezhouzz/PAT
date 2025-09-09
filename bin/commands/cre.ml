@@ -395,17 +395,8 @@ let test_eval s () =
       let _ = Interpreter.eval_until_detect_bug test in
       ()
   | "stlc" ->
-      let open Stlc in
-      let test () =
-        Interpreter.once
-          ( init,
-            [ main ],
-            fun _ ->
-              try
-                let _ = Stlc.mstep_stlcTerm !EvaluationCtx._tmp in
-                true
-              with _ -> false )
-      in
+      let open Adt.Stlc in
+      let test () = Interpreter.once (init, [ main ], trace_eval_correct) in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
   | _ -> _die_with [%here] "unknown benchmark"
@@ -433,6 +424,16 @@ let test_random s () =
       let test () =
         Interpreter.seq_random_test
           (init, (fun () -> randomTest { numOp = 15 }), trace_is_not_nfa)
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
+  | "stlc" ->
+      let open Adt.Stlc in
+      let test () =
+        Interpreter.seq_random_test
+          ( init,
+            (fun () -> randomTest { depthBound = 2; constRange = 4 }),
+            trace_eval_correct )
       in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
@@ -527,7 +528,6 @@ let test_random s () =
       let _ = Interpreter.eval_until_detect_bug test in
       ()
   | "todoMVC" -> _die_with [%here] "unimp"
-  | "stlc" -> _die_with [%here] "unimp"
   | _ -> _die_with [%here] "unknown benchmark"
 
 let cmds =

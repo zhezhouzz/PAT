@@ -50,7 +50,7 @@ let rec layout_stlcTy = function
       spf "%s -> %s" s1 s2
 
 let rec layout_stlcTerm = function
-  | StlcVar x -> spf "[%d]" x
+  | StlcVar x -> spf "[%i]" x
   | StlcConst n -> string_of_int n
   | StlcAbs { absTy; absBody } ->
       spf "\\(%s).%s" (layout_stlcTy absTy) (layout_stlcTerm absBody)
