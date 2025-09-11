@@ -43,8 +43,8 @@ let default_sample_domain =
            [
              StlcInt;
              StlcArrow (StlcInt, StlcInt);
-             StlcArrow (StlcInt, StlcArrow (StlcInt, StlcInt));
-             StlcArrow (StlcArrow (StlcInt, StlcInt), StlcInt);
+             (* StlcArrow (StlcInt, StlcArrow (StlcInt, StlcInt));
+             StlcArrow (StlcArrow (StlcInt, StlcInt), StlcInt); *)
            ] );
        ( mk_p_abstract_ty "filterOption",
          List.map

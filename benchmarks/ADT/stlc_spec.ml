@@ -5,6 +5,12 @@ val is_int_ty : stlcTy -> bool
 val fstTy : stlcTy * stlcTy -> bool
 val sndTy : stlcTy * stlcTy -> bool
 
+let[@axiom] fst_not_eq_self (a : stlcTy) (b : stlcTy) =
+  implies (fstTy (a, b)) (not (a == b))
+
+let[@axiom] snd_not_eq_self (a : stlcTy) (b : stlcTy) =
+  implies (sndTy (a, b)) (not (a == b))
+
 let[@axiom] fst_implies_not_int (a : stlcTy) (b : stlcTy) =
   implies (fstTy (a, b)) (not (is_int_ty a))
 
@@ -36,11 +42,6 @@ val curTy : < ty : stlcTy > [@@obs]
 val closureId : < sid : int > [@@obs]
 
 (* PATs *)
-let mkCon =
-  ( allA,
-    MkCon true,
-    (CurTy (is_int_ty ty);
-     allA) )
 
 let mkVar =
   [|
@@ -61,6 +62,12 @@ let mkVar =
         CurTy (ty == tp),
         allA ));
   |]
+
+let mkCon =
+  ( allA,
+    MkCon true,
+    (CurTy (is_int_ty ty);
+     allA) )
 
 let mkAbs (tp : stlcTy) (i : int) ?l:(x = (true : [%v: stlcTy])) =
   ( starA (anyA - ClosureId (sid >= i)),

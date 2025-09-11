@@ -347,6 +347,7 @@ let test_eval s () =
   | "stlc" ->
       let open Adt.Stlc in
       let main = Synthesis.load_progs s () in
+      (* let main = [ default_main ] in *)
       let test () = Interpreter.once (init, main, trace_eval_correct) in
       let _ = Interpreter.eval_until_detect_bug test in
       ()

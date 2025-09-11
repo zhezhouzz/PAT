@@ -76,8 +76,8 @@ let rec subst_stlcTerm (n, e) = function
         }
 
 let rec wrong_subst (n, e) = function
-  | StlcVar x -> if x == n then e else StlcVar x
-  | StlcConst c -> StlcConst c
+  | StlcVar x -> StlcConst x (* if x == n then e else StlcVar x *)
+  | StlcConst x -> if x == n then e else StlcVar x (* StlcConst c *)
   | StlcAbs { absTy; absBody } ->
       StlcAbs { absTy; absBody = wrong_subst (n, e) absBody }
   | StlcApp { appFun; appArg } ->
@@ -167,7 +167,7 @@ module EvaluationCtx = struct
         ctx
 
   let mkConHandler (_ : msg) =
-    _tmp := StlcConst (Random.int 10);
+    _tmp := StlcConst (Random.int 5);
     sendCurTy StlcInt
 
   (* let findTyInCtx ctx x =
@@ -342,7 +342,7 @@ let testAst () =
   (* let () = Printf.printf "res: %s\n" (layout_stlcTerm res) in *)
   ()
 
-let main =
+let default_main =
   (* testAst ();
   let () = _die_with [%here] "done" in *)
   let mkAbsClosure ty e =

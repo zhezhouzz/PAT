@@ -28,7 +28,7 @@ let load_progs name () =
   Sexplib.Std.list_of_sexp term_of_sexp sexp
 
 let synthesize (env : syn_env) =
-  (* let _, reg =
+  let _, reg =
     match env.goal with
     | None -> _die_with [%here] "no goal"
     | Some { qvs; prop } -> (qvs, prop)
@@ -41,7 +41,7 @@ let synthesize (env : syn_env) =
   let () = Pp.printf "\n@{<red>Original Reg:@} %s\n" (SFA.layout_regex r) in
   let plans = Refine.deductive_synthesis env r in
   let () = Pp.printf "\n@{<yellow>Result plans:@}\n" in
-  let () = save_plans plans in *)
+  let () = save_plans plans in
   let plans = load_plans () in
   List.iter (fun p -> Plan.print_plan p) plans;
   (* let term = instantiation env (g.gamma, g.plan) in *)
