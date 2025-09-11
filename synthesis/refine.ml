@@ -29,7 +29,14 @@ let search_strategy_to_string = function
 
 let _search_strategy = ref (BoundBFS 1)
 let layout_bound = 5
-let result_expection = 2
+let result_expection = 1
+let _pause = ref false
+
+let try_pause () =
+  if !_pause then
+    let _ = input_line stdin in
+    ()
+  else ()
 
 let first_n_list n list =
   if n >= List.length list then (list, [])
@@ -96,7 +103,7 @@ let rec deductive_synthesis env r : line list =
       let () = layout_candidate_plans plans in
       Pp.printf "\n@{<bold>@{<red>res(%i) plans pool(%i):@}@}\n"
         (List.length res) (List.length plans);
-      let _ = input_line stdin in
+      let _ = try_pause () in
       let wf_plans, plans = List.partition finished_plan plans in
       let new_goals = List.concat_map (gen_new_act env) wf_plans in
       refinement_loop (res @ wf_plans, merge_new_goals plans new_goals)
@@ -109,13 +116,13 @@ and refine_one_step env (goal : line) : line list =
   match ids with
   | id :: _ ->
       let () = Pp.printf "@{<bold>@{<red>backward@} on %i@}\n" id in
-      let _ = input_line stdin in
+      let _ = try_pause () in
       backward env goal id
   | [] -> (
       match unchecked_act_ids goal with
       | id :: _ ->
           let () = Pp.printf "@{<bold>@{<red>forward@} on %i@}\n" id in
-          let _ = input_line stdin in
+          let _ = try_pause () in
           forward env goal id
       | [] -> [ goal ])
 

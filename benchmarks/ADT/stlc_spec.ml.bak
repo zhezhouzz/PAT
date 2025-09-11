@@ -1,0 +1,143 @@
+val ( == ) : 'a. 'a -> 'a -> bool
+val is_int_ty : stlcTy -> bool
+val fstTy : stlcTy * stlcTy -> bool
+val sndTy : stlcTy * stlcTy -> bool
+
+let[@axiom] fst_implies_not_int (a : stlcTy) (b : stlcTy) =
+  implies (fstTy (a, b)) (not (is_int_ty a))
+
+let[@axiom] snd_implies_not_int (a : stlcTy) (b : stlcTy) =
+  implies (sndTy (a, b)) (not (is_int_ty a))
+
+let[@axiom] same_implies_fst_same (a : stlcTy) (b : stlcTy) (c : stlcTy) =
+  implies (fstTy (a, b) && fstTy (a, c)) (b == c)
+
+let[@axiom] same_implies_snd_same (a : stlcTy) (b : stlcTy) (c : stlcTy) =
+  implies (sndTy (a, b) && sndTy (a, c)) (b == c)
+
+let[@axiom] fst_snd_same_implies_same (a : stlcTy) (b : stlcTy) (c : stlcTy)
+    (d : stlcTy) =
+  implies (fstTy (a, c) && sndTy (a, d) && fstTy (b, c) && sndTy (b, d)) (a == b)
+
+(* Basic Typing *)
+
+val mkCon : < > [@@gen]
+val mkVar : < bid : int > [@@gen]
+val mkAbs : < absTy : stlcTy > [@@gen]
+val closeAbs : < > [@@gen]
+val mkApp : < > [@@gen]
+val closeAppL : < > [@@gen]
+val closeAppR : < > [@@gen]
+val evalReq : < > [@@gen]
+val evalResp : < res : bool > [@@obs]
+val curTy : < ty : stlcTy > [@@obs]
+
+(* PATs *)
+let mkCon =
+  ( allA,
+    MkCon true,
+    (CurTy (is_int_ty ty);
+     allA) )
+
+let mkVar ?l:(i = (true : [%v: int])) =
+  ( allA,
+    MkVar (bid == i),
+    (CurTy true;
+     allA) )
+
+let mkAbs ?l:(x = (true : [%v: stlcTy])) =
+  ( allA,
+    MkAbs (absTy == x),
+    (allA;
+     MkVar true;
+     allA;
+     CloseAbs true;
+     allA) )
+
+let closeAbs =
+  ( allA,
+    CloseAbs true,
+    (CurTy true;
+     allA) )
+
+let mkApp =
+  ( allA,
+    MkApp true,
+    (allA;
+     CloseAppL true;
+     allA;
+     CloseAppR true;
+     allA) )
+
+let closeAppL = (allA, CloseAppL true, allA)
+
+let closeAppR =
+  ( allA,
+    CloseAppR true,
+    (CurTy true;
+     allA) )
+
+let evalReq =
+  ( allA,
+    EvalReq true,
+    (EvalResp true;
+     allA) )
+
+let curTy =
+  [|
+    (fun ?l:(x = (is_int_ty v : [%v: stlcTy])) ->
+      ( (allA;
+         MkCon true),
+        CurTy (ty == x),
+        allA ));
+    (fun ?l:(x = (true : [%v: stlcTy])) ->
+      ( (allA;
+         MkAbs (absTy == x);
+         starA (anyA - CloseAbs true);
+         MkVar (bid == 0)),
+        CurTy (ty == x),
+        allA ));
+    (fun ?l:(x = (true : [%v: stlcTy])) ->
+      ( (allA;
+         MkAbs (absTy == x);
+         starA (anyA - CloseAbs true);
+         MkAbs true;
+         starA (anyA - CloseAbs true);
+         MkVar (bid == 1)),
+        CurTy (ty == x),
+        allA ));
+    (fun ?l:(x = (true : [%v: stlcTy])) ->
+      ( (allA;
+         MkAbs (sndTy (x, absTy));
+         starA (anyA - MkAbs true);
+         CurTy (fstTy (x, ty));
+         CloseAbs true),
+        CurTy (ty == x),
+        allA ));
+    (fun (tp : stlcTy) ?l:(x = (sndTy (tp, v) : [%v: stlcTy])) ->
+      ( (allA;
+         CurTy (ty == tp);
+         CloseAppL true;
+         starA (anyA - MkApp true);
+         CurTy (fstTy (tp, ty));
+         CloseAppR true),
+        CurTy (ty == x),
+        allA ));
+  |]
+
+(* Global Properties *)
+
+let[@goal] stlcInt =
+  allA;
+  MkApp true;
+  allA
+
+(* let[@goal] stlcInt =
+  allA;
+  MkApp true;
+  allA;
+  MkApp true;
+  allA;
+  CurTy (is_int_ty ty);
+  EvalReq true;
+  EvalResp (res == true) *)

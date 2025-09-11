@@ -11,6 +11,7 @@
   ; optimize
   ; norm
   refine
+  simpEq
   compile
   synthesis)
  (inline_tests)

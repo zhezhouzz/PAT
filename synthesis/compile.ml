@@ -3,23 +3,19 @@ open Zdatatype
 (* open Common *)
 
 module SimpleRename = struct
-  let _gen_var_counter = ref 0
-  let _obs_var_counter = ref 0
+  let _var_counter = ref 0
   let default_gen_var = "__x"
   let default_obs_var = "__y"
-
-  let init () =
-    _gen_var_counter := 0;
-    _obs_var_counter := 0
+  let init () = _var_counter := 0
 
   let new_gen_var x =
-    let fresh_var = spf "%s%i" default_gen_var !_gen_var_counter in
-    _gen_var_counter := !_gen_var_counter + 1;
+    let fresh_var = spf "%s%i" default_gen_var !_var_counter in
+    _var_counter := !_var_counter + 1;
     fresh_var#:x.ty
 
   let new_obs_var x =
-    let fresh_var = spf "%s%i" default_obs_var !_obs_var_counter in
-    _obs_var_counter := !_obs_var_counter + 1;
+    let fresh_var = spf "%s%i" default_obs_var !_var_counter in
+    _var_counter := !_var_counter + 1;
     fresh_var#:x.ty
 end
 
@@ -55,7 +51,7 @@ let normalize_line env { gprop; elems } =
     | LineStarMultiChar _ :: post -> aux gen_vars obs_vars (gprop, acts) post
   in
   let gen_vars, obs_vars, (gprop, acts) = aux [] [] (gprop, []) elems in
-  let gprop = LineOpt.optimize_prop (gen_vars @ obs_vars, gprop) in
+  (* let gprop = LineOpt.optimize_prop (gen_vars @ obs_vars, gprop) in *)
   let prog = acts_to_term env acts in
   (gen_vars, obs_vars, gprop, prog)
 
@@ -97,6 +93,12 @@ let distribute_assumption (qvs, term, gprop) =
                 (fun x -> match x.x with VVar x -> x | _ -> _die [%here])
                 args
             in
+            let args =
+              List.filter
+                (fun x ->
+                  not (List.exists (fun y -> String.equal x.x y.x) lvars))
+                args
+            in
             let lvars = lvars @ args in
             let pre = Abduction.simp_abduction (lvars, args, gprop) in
             let post = Abduction.pre_simplify_prop (qvs, pre) gprop in
@@ -115,6 +117,20 @@ let distribute_assumption (qvs, term, gprop) =
 
 let compile_term env e =
   let gen_vars, obs_vars, gprop, prog = normalize_line env e in
+  let tmp_vars =
+    List.filter
+      (fun x ->
+        not (List.exists (fun y -> String.equal x.x y.x) (gen_vars @ obs_vars)))
+      (fv_prop gprop)
+  in
+  let () = Pp.printf "@{<bold>prog:@}\n%s\n" (layout_term prog) in
+  let () = Pp.printf "@{<bold>gprop:@}\n%s\n\n" (layout_prop gprop) in
+  let _, gprop, prog = SimpEq.simp (List.map _get_x tmp_vars, gprop, prog) in
+  let () = Pp.printf "@{<bold>remove tmp prog:@}\n%s\n" (layout_term prog) in
+  let () = Pp.printf "@{<bold>gprop:@}\n%s\n\n" (layout_prop gprop) in
+  let gprop, prog = SimpEq.mk_eq_from_prev (gprop, prog) in
+  let () = Pp.printf "@{<bold>simp eq prog:@}\n%s\n" (layout_term prog) in
+  let () = Pp.printf "@{<bold>gprop:@}\n%s\n\n" (layout_prop gprop) in
   let prog, post = distribute_assumption (gen_vars @ obs_vars, prog, gprop) in
   (* let pre = Abduction.simp_abduction (gen_vars @ obs_vars, gen_vars, gprop) in
   let post = Abduction.pre_simplify_prop (gen_vars @ obs_vars, pre) gprop in

@@ -9,7 +9,7 @@ let rec subst_value (string_x : string) f (value_e : value) =
   | VCIntList xs -> VCIntList xs
   | VVar v ->
       if String.equal v.x string_x then
-        match f v with AC c -> VConst c | _ -> _die [%here]
+        match f v with AC c -> VConst c | AVar y -> VVar y | _ -> _die [%here]
       else VVar v
 
 and typed_subst_value (string_x : string) f (value_e : (Nt.nt, value) typed) =
@@ -74,6 +74,7 @@ let rec subst_pat_ subst_srl (string_x : string) f (rty_e : 'a pat) =
       RtyInter
         (subst_pat_ subst_srl string_x f p1, subst_pat_ subst_srl string_x f p2)
 
+let subst_term_instance x y z = subst_f_to_instance subst_term x y z
 let subst_rich_srl_pat = subst_pat_ subst_rich_regex
 let subst_srl_pat x f (regex : srl pat) = subst_pat_ SFA.subst_regex x f regex
 let subst_cty_instance x y z = subst_f_to_instance subst_cty x y z

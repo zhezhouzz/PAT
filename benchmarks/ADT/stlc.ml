@@ -31,28 +31,29 @@ let rec typeinfer_stlcTerm ctx e =
       Printf.printf "typeinfer_stlcTerm %s |- %s\n" (layout_stlcCtx ctx)
         (layout_stlcTerm e)
     in
-    _die_with [%here] "type error"
+    None
   in
   let res =
     match e with
     | StlcVar x ->
-        if x >= List.length ctx then type_error ();
-        find_stlcTy ctx x
-    | StlcConst _ -> StlcInt
-    | StlcAbs { absTy; absBody } ->
+        if x >= List.length ctx then type_error () else Some (find_stlcTy ctx x)
+    | StlcConst _ -> Some StlcInt
+    | StlcAbs { absTy; absBody } -> (
         let ty = typeinfer_stlcTerm (absTy :: ctx) absBody in
-        StlcArrow (absTy, ty)
+        match ty with Some ty -> Some (StlcArrow (absTy, ty)) | None -> None)
     | StlcApp { appFun; appArg } -> (
         let ty1 = typeinfer_stlcTerm ctx appFun in
         let ty2 = typeinfer_stlcTerm ctx appArg in
-        match ty1 with
-        | StlcArrow (ty11, ty12) ->
-            if equal_stlcTy ty11 ty2 then ty12 else type_error ()
+        match (ty1, ty2) with
+        | None, _ | _, None -> None
+        | Some (StlcArrow (ty11, ty12)), Some ty2 ->
+            if equal_stlcTy ty11 ty2 then Some ty12 else type_error ()
         | _ -> type_error ())
   in
   let () =
     Printf.printf "typeinfer_stlcTerm %s |- %s: %s\n" (layout_stlcCtx ctx)
-      (layout_stlcTerm e) (layout_stlcTy res)
+      (layout_stlcTerm e)
+      (match res with None -> "None" | Some ty -> layout_stlcTy ty)
   in
   res
 
@@ -126,6 +127,21 @@ open Interpreter
 module EvaluationCtx = struct
   type t = MkAbs of stlcTy | MkAppL | MkAppR of stlcTerm
 
+  let _sid = ref 0
+
+  let next_sid () =
+    let sid = !_sid in
+    _sid := sid + 1;
+    sid
+
+  let _tmp = ref (StlcConst 0)
+  let eCtx = ref []
+
+  let ec_init () =
+    _sid := 0;
+    _tmp := StlcConst 0;
+    eCtx := []
+
   let layout ctx =
     let rec aux = function
       | [] -> "□"
@@ -134,9 +150,6 @@ module EvaluationCtx = struct
       | MkAppR e :: ctx -> spf "(%s %s)" (layout_stlcTerm e) (aux ctx)
     in
     aux (List.rev ctx)
-
-  let _tmp = ref (StlcConst 0)
-  let eCtx = ref []
 
   let sendCurTy ty =
     let () = Printf.printf "tmp: %s\n" (layout_stlcTerm !_tmp) in
@@ -184,16 +197,23 @@ module EvaluationCtx = struct
     let ty =
       match msg.ev.args with [ VCStlcTy ty ] -> ty | _ -> _die [%here]
     in
-    eCtx := MkAbs ty :: !eCtx
+    eCtx := MkAbs ty :: !eCtx;
+    send ("closureId", [ mk_value_int (next_sid ()) ])
 
   let closeAbsHandler (_ : msg) =
     match !eCtx with
     | [] -> _die_with [%here] "not a well-formed term"
-    | _ ->
+    | _ -> (
         eCtx := step !_tmp !eCtx;
-        sendCurTy (typeinfer_stlcTerm (eCtx2Ctx !eCtx) !_tmp)
+        match typeinfer_stlcTerm (eCtx2Ctx !eCtx) !_tmp with
+        | Some ty -> sendCurTy ty
+        | None -> ())
 
-  let mkAppHandler (_ : msg) = eCtx := MkAppL :: !eCtx
+  let mkAppHandler (_ : msg) =
+    eCtx := MkAppL :: !eCtx;
+    send ("closureId", [ mk_value_int (next_sid ()) ])
+
+  let closureIdHandler (_ : msg) = ()
 
   let closeAppLHandler (_ : msg) =
     match !eCtx with
@@ -203,9 +223,11 @@ module EvaluationCtx = struct
   let closeAppRHandler (_ : msg) =
     match !eCtx with
     | [] -> _die_with [%here] "not a well-formed term"
-    | _ ->
+    | _ -> (
         eCtx := step !_tmp !eCtx;
-        sendCurTy (typeinfer_stlcTerm (eCtx2Ctx !eCtx) !_tmp)
+        match typeinfer_stlcTerm (eCtx2Ctx !eCtx) !_tmp with
+        | Some ty -> sendCurTy ty
+        | None -> ())
 
   let curTyHandler (_ : msg) = ()
 
@@ -232,7 +254,9 @@ let init () =
   register_handler "closeAppR" closeAppRHandler;
   register_handler "curTy" curTyHandler;
   register_handler "evalReq" evalReqHandler;
-  register_handler "evalResp" evalRespHandler
+  register_handler "evalResp" evalRespHandler;
+  register_handler "closureId" closureIdHandler;
+  ec_init ()
 
 let trace_eval_correct trace =
   let rec check = function
@@ -253,11 +277,12 @@ let testCtx =
       "mkCon"#:(record []);
       "mkVar"#:(record [ "x"#:int_ty ]);
       "mkAbs"#:(record [ "ty"#:(mk_p_abstract_ty "stlcTy") ]);
-      "closeAbs"#:(record []);
+      "closeAbs"#:(record [ "sid"#:int_ty ]);
       "mkApp"#:(record []);
-      "closeAppL"#:(record []);
-      "closeAppR"#:(record []);
+      "closeAppL"#:(record [ "sid"#:int_ty; "ty"#:(mk_p_abstract_ty "stlcTy") ]);
+      "closeAppR"#:(record [ "sid"#:int_ty; "ty"#:(mk_p_abstract_ty "stlcTy") ]);
       "curTy"#:(record [ "ty"#:(mk_p_abstract_ty "stlcTy") ]);
+      "closureId"#:(record [ "sid"#:int_ty ]);
       "evalReq"#:(record []);
       "evalResp"#:(record [ "res"#:bool_ty ]);
     ]
@@ -266,9 +291,14 @@ let genMkAbs ty body = mk_term_gen testCtx "mkAbs" [ mk_value_stlcTy ty ] body
 let genMkApp = mk_term_gen testCtx "mkApp" []
 let genMkVar x = mk_term_gen testCtx "mkVar" [ mk_value_int x ]
 let genMkCon = mk_term_gen testCtx "mkCon" []
-let genCloseAbs = mk_term_gen testCtx "closeAbs" []
-let genCloseAppL = mk_term_gen testCtx "closeAppL" []
-let genCloseAppR = mk_term_gen testCtx "closeAppR" []
+let genCloseAbs = mk_term_gen testCtx "closeAbs" [ mk_value_int 0 ]
+
+let genCloseAppL =
+  mk_term_gen testCtx "closeAppL" [ mk_value_int 0; mk_value_stlcTy StlcInt ]
+
+let genCloseAppR =
+  mk_term_gen testCtx "closeAppR" [ mk_value_int 0; mk_value_stlcTy StlcInt ]
+
 let genEvalReq = mk_term_gen testCtx "evalReq" []
 let obsEvalResp e = mk_term_obs_fresh testCtx "evalResp" (fun _ -> e)
 
@@ -304,7 +334,9 @@ let testAst () =
   let () = Printf.printf "testAst: %s\n" (layout_stlcTerm e) in
   let () =
     Printf.printf "typeinfer_stlcTerm: %s\n"
-      (layout_stlcTy (typeinfer_stlcTerm [] e))
+      (match typeinfer_stlcTerm [] e with
+      | Some ty -> layout_stlcTy ty
+      | None -> "None")
   in
   let _ = mstep_stlcTerm e in
   (* let () = Printf.printf "res: %s\n" (layout_stlcTerm res) in *)

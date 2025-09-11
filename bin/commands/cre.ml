@@ -344,6 +344,12 @@ let test_eval s () =
       let test () = Interpreter.once (init, main, trace_is_not_nfa) in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
+  | "stlc" ->
+      let open Adt.Stlc in
+      let main = Synthesis.load_progs s () in
+      let test () = Interpreter.once (init, main, trace_eval_correct) in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
   | "smallbank" ->
       let open MonkeyBD in
       let open Common in
@@ -392,11 +398,6 @@ let test_eval s () =
         Interpreter.once
           (init Causal, [ main ], StackDB.serializable_trace_checker)
       in
-      let _ = Interpreter.eval_until_detect_bug test in
-      ()
-  | "stlc" ->
-      let open Adt.Stlc in
-      let test () = Interpreter.once (init, [ main ], trace_eval_correct) in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
   | _ -> _die_with [%here] "unknown benchmark"

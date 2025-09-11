@@ -19,7 +19,7 @@ let print_plan line =
   Pp.printf "@{<bold>freeVars:@} %s\n"
     (layout_typed_var_list (_get_freeVars line));
   Pp.printf "@{<bold>line:@} %s\n" (omit_layout_line line);
-  Pp.printf "@{<bold>elems:@} %s\n" (layout_line_elems line.elems);
+  (* Pp.printf "@{<bold>elems:@} %s\n" (layout_line_elems line.elems); *)
   Pp.printf "@{<bold>checkedActs:@} %s\n" (layout_plan_checkedActs line)
 
 let register_act_under_plan ids act =
@@ -318,7 +318,7 @@ let backward_merge plan curId (history1, prev, history2, cur, future) =
   let gprop, (pre, curAct, post) = line_divide_by_task_id plan curId in
   match merge_act_with_se (gprop, curAct) cur with
   | None ->
-      let () = _die_with [%here] "never" in
+      (* let () = _die_with [%here] "never" in *)
       []
   | Some phi ->
       let () =

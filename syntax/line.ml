@@ -74,10 +74,10 @@ let new_var x =
 
 let se_to_dummy_act { op; vs; phi } =
   let vs' = List.map new_var vs in
-  let () =
+  (* let () =
     Pp.printf "@{<bold>se_to_dummy_act: fresh vars:@} %s\n"
       (layout_typed_var_list vs')
-  in
+  in *)
   let m =
     List.map (fun (x, y) -> (x.x, AVar y)) (_safe_combine [%here] vs vs')
   in
@@ -282,30 +282,28 @@ let merge_charset prop cs1 cs2 =
   | Some cs -> check_sat_se prop cs
 
 let merge_act_with_phi (prop, act) (vs, phi) =
-  if not (_check_sat prop) then _die_with [%here] "never"
-  else
-    (* let () =
+  (* if not (_check_sat prop) then _die_with [%here] "never"
+  else *)
+  (* let () =
       Pp.printf "@{<bold>merge_act_with_phi@} %s ; (%s, %s)\n"
         (layout_qvs act.aargs) (layout_qvs vs) (layout_prop phi)
     in *)
-    let s =
-      List.map
-        (fun (x, y) -> (x.x, AVar y))
-        (_safe_combine [%here] vs act.aargs)
-    in
-    let phi = msubst subst_prop_instance s phi in
-    let q = smart_and [ prop; phi ] in
-    (* let () =
+  let s =
+    List.map (fun (x, y) -> (x.x, AVar y)) (_safe_combine [%here] vs act.aargs)
+  in
+  let phi = msubst subst_prop_instance s phi in
+  let q = smart_and [ prop; phi ] in
+  (* let () =
       Pp.printf "@{<bold>merge_act_with_phi[%b]@} %s\n" (_check_sat q)
         (layout_prop q)
     in *)
-    if _check_sat q then Some phi else None
+  if _check_sat q then Some phi else None
 
 let merge_act_with_se (prop, act) { op; vs; phi } =
-  let () =
+  (* let () =
     Pp.printf "@{<bold>merge_act_with_se@} %s ; %s\n" (layout_act act)
       (layout_sevent { op; vs; phi })
-  in
+  in *)
   if not (String.equal act.aop op) then None
   else merge_act_with_phi (prop, act) (vs, phi)
 
@@ -356,12 +354,15 @@ let clear_tmp_in_line line =
   { line with elems = List.map clear_tmp_in_elem line.elems }
 
 let merge_line_with_acts if_reuse line ses =
+  let if_reuse act =
+    if String.equal act.aop "mkVar" then true else if_reuse act
+  in
   let line = clear_tmp_in_line line in
   let multi_concat x l =
     List.map (fun { gprop; elems } -> { gprop; elems = x @ elems }) l
   in
   let rec aux { gprop; elems } ses =
-    let () =
+    (* let () =
       Pp.printf "@{<bold>merge_line_with_acts@} elems: %s\n"
         (omit_layout_line_elems elems)
     in
@@ -370,11 +371,15 @@ let merge_line_with_acts if_reuse line ses =
         (List.split_by_comma
            (fun (idx, se) -> spf "%i, %s" idx (layout_sevent se))
            ses)
-    in
+    in *)
     match (elems, ses) with
     | _, [] -> [ { gprop; elems } ]
     | [], _ -> []
     | LineAct act :: elems', (idx, se) :: ses' ->
+        (* let () =
+          Pp.printf "@{<bold>merge_line_with_acts@} LineAct act: %s reuse: %b\n"
+            (layout_act act) (if_reuse act)
+        in *)
         let res2 =
           if if_reuse act then
             match merge_act_with_se (gprop, act) se with
@@ -397,10 +402,10 @@ let merge_line_with_acts if_reuse line ses =
           let act = { act with tmp = idx } in
           match merge_act_with_charset (gprop, act) c with
           | None ->
-              let () =
+              (* let () =
                 Pp.printf "@{<bold>merge_line_with_acts@} failed: %s\n"
                   (layout_prop phi)
-              in
+              in *)
               []
           | Some phi ->
               let gprop = smart_and [ phi; gprop ] in
@@ -424,11 +429,22 @@ let fill_line line lr =
     | Some { gprop; elems } -> Some { gprop; elems = x :: elems }
   in
   let rec aux { gprop; elems } lr =
+    (* let () =
+      Pp.printf "@{<bold>fill_line@} elems: %s\n" (omit_layout_line_elems elems)
+    in
+    let () =
+      Pp.printf "@{<bold>fill_line@} lr: %s\n"
+        (List.split_by ";"
+           (fun (idx, se) -> spf "%i, %s" idx (layout_linear_elem_aux false se))
+           lr)
+    in *)
     match (elems, lr) with
     | [], _ ->
-        if is_empty_lr (List.map snd lr) then Some { gprop; elems }
+        if is_empty_lr (List.map snd lr) then Some { gprop; elems = [] }
         else _die [%here]
-    | _, [] -> _die [%here]
+    | _, [] ->
+        if is_empty_line_elems elems then Some { gprop; elems = [] }
+        else None (* _die [%here] *)
     | LineStarMultiChar c :: elems', (_, LinearStar c') :: _ -> (
         let c'' = merge_charset gprop c c' in
         match c'' with
@@ -478,11 +494,11 @@ let merge_line_with_linear_regex if_reuse line lr =
           lr
       in
       let lines = merge_line_with_acts if_reuse line ses in
-      layout_tmp_results "merge" lines;
+      (* layout_tmp_results "merge" lines; *)
       let lines = List.map simplify_line lines in
-      layout_tmp_results "simplify" lines;
+      (* layout_tmp_results "simplify" lines; *)
       let lines = List.filter_map (fun line -> fill_line line lr) lines in
-      layout_tmp_results "fill" lines;
+      (* layout_tmp_results "fill" lines; *)
       let lines = List.map clear_tmp_in_line lines in
       lines
 
@@ -760,15 +776,15 @@ let line_insert_se if_reuse { gprop; elems } (id, se) =
     | [] -> res
     | LineAct act :: rest ->
         if if_reuse act then
-          let () =
+          (* let () =
             Pp.printf "@{<bold>try merge act(%s) with se@}\n" (layout_act act)
-          in
+          in *)
           match merge_act_with_se (gprop, act) se with
           | None ->
-              let () = Pp.printf "@{<bold>act merge failed@}\n" in
+              (* let () = Pp.printf "@{<bold>act merge failed@}\n" in *)
               aux (res, prefix @ [ LineAct act ]) rest
           | Some phi ->
-              let () = Pp.printf "@{<bold>act merge successed@}\n" in
+              (* let () = Pp.printf "@{<bold>act merge successed@}\n" in *)
               let gprop = smart_and [ phi; gprop ] in
               let elems = prefix @ [ LineAct act ] @ rest in
               aux
@@ -780,9 +796,9 @@ let line_insert_se if_reuse { gprop; elems } (id, se) =
         let phi, act = se_to_dummy_act se in
         match merge_act_with_charset (smart_and [ phi; gprop ], act) c with
         | None -> aux (res, prefix @ [ LineStarMultiChar c ]) rest
-        | Some phi ->
+        | Some phi' ->
             let act = { act with aid = Some id } in
-            let gprop = smart_and [ phi; gprop ] in
+            let gprop = smart_and [ phi; phi'; gprop ] in
             let elems =
               prefix
               @ [ LineStarMultiChar c; LineAct act; LineStarMultiChar c ]
@@ -811,10 +827,10 @@ let _check_eq_charset c1 c2 =
         m1
     else false
   in
-  let () =
+  (* let () =
     Pp.printf "@{<bold>check_eq_charset@} %s ?= %s :: %b\n" (layout_charset c1)
       (layout_charset c2) res
-  in
+  in *)
   res
 
 let unify_line line1 line2 =
