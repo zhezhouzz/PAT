@@ -5,7 +5,7 @@ val ( - ) : int -> int -> int
 
 (* Basic Typing *)
 
-(* val pushPublic : < elem : int > [@@gen] *)
+val pushPublic : < elem : int > [@@gen]
 val pushPrivate : < lelem : int ; relem : int > [@@gen]
 val pop : < > [@@gen]
 val load : < > [@@gen]
@@ -16,7 +16,7 @@ val stackDepth : < depth : int > [@@obs]
 val enniResp : < enni : bool > [@@obs]
 
 (* PATs *)
-(* let pushPublic =
+let pushPublic =
   [|
     (fun ?l:(x = (true : [%v: int])) ->
       ( starA (anyA - StackDepth true),
@@ -30,7 +30,7 @@ val enniResp : < enni : bool > [@@obs]
         PushPublic (elem == x && 2 > elem && elem > -1),
         (StackDepth (depth == d + 1);
          allA) ));
-  |] *)
+  |]
 
 let pushPrivate =
   [|
@@ -64,10 +64,14 @@ let pop (d : int) =
 
 let load (d : int) =
   ( (allA;
-     StackDepth (depth == d && depth > 0);
-     starA (anyA - StackDepth true)),
+     Store true;
+     allA;
+     PushPrivate (lelem == 0 && relem == 1);
+     StackDepth (depth == d && depth > 0)),
     Load true,
     (StackDepth (depth == d);
+     Store true;
+     allA;
      allA) )
 
 let store (d : int) =
@@ -87,11 +91,7 @@ let add (d : int) =
      allA) )
 
 let enniReq =
-  ( (allA;
-     PushPrivate true;
-     allA;
-     Store true;
-     starA (StackDepth true)),
+  ( allA,
     EnniReq true,
     (EnniResp true;
      allA) )
@@ -101,8 +101,20 @@ let enniResp ?l:(x = (true : [%v: bool])) = (allA, EnniResp (enni == x), allA)
 let stackDepth ?l:(d = (true : [%v: int])) =
   (allA, StackDepth (depth == d), allA)
 
+(* let[@goal] load_enni =
+  allA;
+  Load true;
+  allA;
+  EnniResp (enni == true) *)
+
 let[@goal] store_enni =
   allA;
   Store true;
   allA;
   EnniResp (enni == true)
+
+(* let[@goal] add_enni =
+  allA;
+  Add true;
+  allA;
+  EnniResp (enni == true) *)

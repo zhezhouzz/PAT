@@ -419,5 +419,3 @@ let backward_merge plan curId (history1, prev, history2, cur, future) =
 (*   let* pre, cur, post = left_most_se (List.rev plan) in *)
 (*   (\* let () = if !counter >= 2 then _die [%here] in *\) *)
 (*   Some (List.rev post, cur, List.rev pre) *)
-
-let plan_size plan = List.length (line_get_acts plan)

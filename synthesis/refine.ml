@@ -176,7 +176,7 @@ and backward env (goal : line) mid : line list =
     in
     let goals = List.concat_map handle rules in
     let goals =
-      List.sort (fun x y -> Int.compare (plan_size x) (plan_size y)) goals
+      List.sort (fun x y -> Int.compare (line_size x) (line_size y)) goals
     in
     layout_candidate_plans goals;
     goals
@@ -193,6 +193,6 @@ and forward env (goal : line) mid : line list =
   in
   let goals = List.concat_map handle rules in
   let goals =
-    List.sort (fun x y -> Int.compare (plan_size x) (plan_size y)) goals
+    List.sort (fun x y -> Int.compare (line_size x) (line_size y)) goals
   in
   goals

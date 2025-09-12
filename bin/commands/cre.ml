@@ -353,6 +353,21 @@ let test_eval s () =
       ()
   | "ifc_store" ->
       let open Adt.Ifc in
+      let () = set_ruleset_store () in
+      let main = Synthesis.load_progs s () in
+      let test () = Interpreter.once (init, main, trace_enni) in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
+  | "ifc_add" ->
+      let open Adt.Ifc in
+      let () = set_ruleset_add () in
+      let main = Synthesis.load_progs s () in
+      let test () = Interpreter.once (init, main, trace_enni) in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
+  | "ifc_load" ->
+      let open Adt.Ifc in
+      let () = set_ruleset_load () in
       let main = Synthesis.load_progs s () in
       let test () = Interpreter.once (init, main, trace_enni) in
       let _ = Interpreter.eval_until_detect_bug test in
@@ -454,6 +469,33 @@ let test_random s () =
           ( init,
             (fun () -> randomTest { depthBound = 2; constRange = 4 }),
             trace_eval_correct )
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
+  | "ifc_store" ->
+      let open Adt.Ifc in
+      let () = set_ruleset_store () in
+      let test () =
+        Interpreter.seq_random_test
+          (init, (fun () -> randomTest { numOp = 15 }), trace_enni)
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
+  | "ifc_add" ->
+      let open Adt.Ifc in
+      let () = set_ruleset_add () in
+      let test () =
+        Interpreter.seq_random_test
+          (init, (fun () -> randomTest { numOp = 15 }), trace_enni)
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
+  | "ifc_load" ->
+      let open Adt.Ifc in
+      let () = set_ruleset_load () in
+      let test () =
+        Interpreter.seq_random_test
+          (init, (fun () -> randomTest { numOp = 15 }), trace_enni)
       in
       let _ = Interpreter.eval_until_detect_bug test in
       ()

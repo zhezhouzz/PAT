@@ -353,6 +353,8 @@ let clear_tmp_in_elem = function
 let clear_tmp_in_line line =
   { line with elems = List.map clear_tmp_in_elem line.elems }
 
+let line_size plan = List.length (line_get_acts plan)
+
 let merge_line_with_acts if_reuse line ses =
   let if_reuse act =
     if String.equal act.aop "mkVar" then true else if_reuse act
@@ -420,7 +422,7 @@ let merge_line_with_acts if_reuse line ses =
         res1 @ res2
   in
   let res = aux line ses in
-  res
+  List.sort (fun x y -> Int.compare (line_size x) (line_size y)) res
 
 let fill_line line lr =
   let opt_line_cons x l =
