@@ -3,7 +3,12 @@
  (name adt)
  (wrapped true)
  (libraries language interpreter qcheck)
- (modules queue stack set filesystem connectedGraph nfa stlc)
+ (modules queue stack set filesystem connectedGraph nfa stlc ifc)
  (inline_tests)
  (preprocess
-  (pps ppx_here ppx_inline_test)))
+  (pps
+   ppx_here
+   ppx_inline_test
+   ppx_deriving.show
+   ppx_deriving.eq
+   ppx_deriving.ord)))

@@ -123,7 +123,6 @@ let handle_obs op f =
         b)
       msgs
   in
-
   match msgs with
   | [] -> None
   | _ -> (
@@ -302,7 +301,11 @@ let rec run main =
                       run (fun () -> hd.k msg);
                       jump_back ();
                       continue k (Some msg)
-                  | None -> continue k None)
+                  | None ->
+                      _log "eval" @@ fun _ ->
+                      Pp.printf "@{<yellow>cannot find handler for obs:@} %s\n"
+                        op;
+                      continue k None)
           | _ -> None);
     }
 

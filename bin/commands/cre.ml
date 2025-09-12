@@ -351,6 +351,24 @@ let test_eval s () =
       let test () = Interpreter.once (init, main, trace_eval_correct) in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
+  | "ifc_store" ->
+      let open Adt.Ifc in
+      let main = Synthesis.load_progs s () in
+      let test () = Interpreter.once (init, main, trace_enni) in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
+  | "ifcStore" ->
+      let open Adt.Ifc in
+      let () = test_store_b_main () in
+      ()
+  | "ifcAdd" ->
+      let open Adt.Ifc in
+      let () = test_add_main () in
+      ()
+  | "ifcLoad" ->
+      let open Adt.Ifc in
+      let () = test_load_main () in
+      ()
   | "smallbank" ->
       let open MonkeyBD in
       let open Common in
