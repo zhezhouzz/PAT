@@ -10,9 +10,13 @@ val isEmptyResp : < isEmpty : bool > [@@obs]
 
 (* PATs *)
 let pushReq ?l:(x = (true : [%v: int])) =
-  (starA (anyA - PushReq (elem == x)), PushReq (elem == x), [| PopReq true |])
+  ( starA (anyA - PushReq (elem == x)),
+    PushReq (elem == x),
+    (allA;
+     PopReq true;
+     allA) )
 
-let initStackReq = (allA, InitStackReq true, [||])
+let initStackReq = (allA, InitStackReq true, allA)
 
 let popReq =
   ( allA,
@@ -29,7 +33,7 @@ let isEmptyReq =
      allA) )
 
 let isEmptyResp ?l:(z = (true : [%v: bool])) =
-  (allA, IsEmptyResp (isEmpty == z), [||])
+  (allA, IsEmptyResp (isEmpty == z), allA)
 
 (* Global Properties *)
 (* previous inserted element is lost *)

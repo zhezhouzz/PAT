@@ -128,7 +128,7 @@ let evalReq =
     (EvalResp true;
      allA) )
 
-let evalResp ?l:(x = (true : [%v: bool])) = (allA, EvalResp (res == x), [||])
+let evalResp ?l:(x = (true : [%v: bool])) = (allA, EvalResp (res == x), allA)
 
 let curTy =
   [| (fun ?l:(x = (true : [%v: stlcTy])) -> (allA, CurTy (ty == x), allA)) |]
