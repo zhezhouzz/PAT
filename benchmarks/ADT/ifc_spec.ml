@@ -25,8 +25,7 @@ let pushPublic =
          allA) ));
     (fun (d : int) ?l:(x = (true : [%v: int])) ->
       ( (allA;
-         StackDepth (depth == d);
-         starA (anyA - StackDepth true)),
+         StackDepth (depth == d)),
         PushPublic (elem == x && 2 > elem && elem > -1),
         (StackDepth (depth == d + 1);
          allA) ));
@@ -44,11 +43,10 @@ let pushPrivate =
          allA) ));
     (fun (d : int) ?l:(x = (true : [%v: int])) ?l:(y = (true : [%v: int])) ->
       ( (allA;
-         StackDepth (depth == d);
-         starA (anyA - StackDepth true)),
+         StackDepth (depth == d)),
         PushPrivate
           (lelem == x && relem == y
-          && (not (x == y))
+          && (not (lelem == relem))
           && 2 > lelem && 2 > relem && lelem > -1 && relem > -1),
         (StackDepth (depth == d + 1);
          allA) ));
@@ -56,8 +54,7 @@ let pushPrivate =
 
 let pop (d : int) =
   ( (allA;
-     StackDepth (depth == d && depth > 0);
-     starA (anyA - StackDepth true)),
+     StackDepth (depth == d && depth > 0)),
     Pop true,
     (StackDepth (depth == d - 1);
      allA) )
@@ -76,16 +73,14 @@ let load (d : int) =
 
 let store (d : int) =
   ( (allA;
-     StackDepth (depth == d && depth > 1);
-     starA (anyA - StackDepth true)),
+     StackDepth (depth == d && depth > 1)),
     Store true,
     (StackDepth (depth == d - 2);
      allA) )
 
 let add (d : int) =
   ( (allA;
-     StackDepth (depth == d && depth > 1);
-     starA (anyA - StackDepth true)),
+     StackDepth (depth == d && depth > 1)),
     Add true,
     (StackDepth (depth == d - 1);
      allA) )
@@ -101,20 +96,20 @@ let enniResp ?l:(x = (true : [%v: bool])) = (allA, EnniResp (enni == x), allA)
 let stackDepth ?l:(d = (true : [%v: int])) =
   (allA, StackDepth (depth == d), allA)
 
-(* let[@goal] load_enni =
-  allA;
-  Load true;
-  allA;
-  EnniResp (enni == true) *)
-
-let[@goal] store_enni =
+let[@goal] ifc_store =
   allA;
   Store true;
   allA;
   EnniResp (enni == true)
 
-(* let[@goal] add_enni =
+let[@goal] ifc_add =
   allA;
   Add true;
   allA;
-  EnniResp (enni == true) *)
+  EnniResp (enni == true)
+
+let[@goal] ifc_load =
+  allA;
+  Load true;
+  allA;
+  EnniResp (enni == true)

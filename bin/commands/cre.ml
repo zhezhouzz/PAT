@@ -45,7 +45,7 @@ let do_syn name source_file () =
   let env = Ntypecheck.(struct_check init_env code) in
   let () = Printf.printf "%s\n" (layout_syn_env env) in
   let () = Stat.init_algo_complexity () in
-  let progs = Synthesis.synthesize env in
+  let progs = Synthesis.synthesize env name in
   let () = Synthesis.save_progs name progs in
   ()
 

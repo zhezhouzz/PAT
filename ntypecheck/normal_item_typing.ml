@@ -4,7 +4,7 @@ open Zdatatype
 
 let init_env =
   {
-    goal = None;
+    goals = StrMap.empty;
     event_tyctx = emp;
     msgkind_ctx = emp;
     tyctx = emp;
@@ -74,13 +74,14 @@ let type_check_item env = function
         env with
         event_rtyctx = add_to_right env.event_rtyctx name#:(desugar_pat env pat);
       }
-  | SynGoal { qvs; prop } -> (
+  | SynGoal { name; qvs; prop } -> (
       let prop =
         rich_symbolic_global_prop_type_check env.event_tyctx env.tyctx
           (qvs, prop)
       in
-      match env.goal with
-      | None -> { env with goal = Some { qvs; prop } }
+      match StrMap.find_opt env.goals name with
+      | None ->
+          { env with goals = StrMap.add name { name; qvs; prop } env.goals }
       | Some _ -> _die_with [%here] "multiple goals")
   | PrAxiom { name; prop } ->
       let prop = PropTypecheck.prop_type_check env.tyctx [] prop in

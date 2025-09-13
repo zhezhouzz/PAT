@@ -63,7 +63,7 @@ let ocaml_structure_item_to_item structure =
              match x.attr_name.txt with
              | "goal" ->
                  let qvs, prop = parse_goal value_binding.pvb_expr in
-                 SynGoal { qvs; prop }
+                 SynGoal { name; qvs; prop }
              | "axiom" ->
                  let prop = prop_of_expr value_binding.pvb_expr in
                  PrAxiom { name; prop }
@@ -85,8 +85,8 @@ let ocaml_structure_to_items structure =
 let ocaml_structure_to_p_tyctx structure =
   StrMap.from_kv_list @@ List.map ocaml_structure_item_to_p_event_decl structure
 
-let layout_syn_goal { qvs; prop } =
-  spf "%s.%s"
+let layout_syn_goal { name; qvs; prop } =
+  spf "%s: %s.%s" name
     (List.split_by "." (fun x -> spf "∃%s" @@ layout_qv x) qvs)
     (layout_rich_symbolic_regex prop)
 

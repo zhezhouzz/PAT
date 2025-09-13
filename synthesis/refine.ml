@@ -22,18 +22,60 @@ let forward_incrAndStop n =
 
 type search_strategy = DFS | BFS | BoundBFS of int
 
+type strategy = {
+  search : search_strategy;
+  layout_bound : int;
+  result_expection : int;
+  search_new_goals : bool;
+  pause : bool;
+}
+
+let _strategy =
+  ref
+    {
+      search = DFS;
+      layout_bound = 5;
+      result_expection = 1;
+      pause = false;
+      search_new_goals = false;
+    }
+
+let init_strategy env =
+  if List.length (ctx_to_list env.event_tyctx) <= 3 then
+    _strategy := { !_strategy with search = DFS; search_new_goals = true }
+  else
+    _strategy :=
+      { !_strategy with search = BoundBFS 10; search_new_goals = false }
+
 let search_strategy_to_string = function
   | DFS -> "DFS"
   | BFS -> "BFS"
   | BoundBFS i -> spf "BoundBFS %i" i
 
-let _search_strategy = ref (BoundBFS 1)
-let layout_bound = 5
-let result_expection = 1
-let _pause = ref false
+let layout_strategy
+    { search; layout_bound; result_expection; search_new_goals; pause } =
+  spf
+    "search: %s\n\
+     layout_bound: %i\n\
+     result_expection: %i\n\
+     search_new_goals: %b\n\
+     pause: %b"
+    (search_strategy_to_string search)
+    layout_bound result_expection search_new_goals pause
+
+let merge_new_goals old_goals new_goals =
+  if !_strategy.search_new_goals then
+    let rec aux old_goals new_goals =
+      match (old_goals, new_goals) with
+      | [], _ -> new_goals
+      | _, [] -> old_goals
+      | g1 :: old_goals, g2 :: new_goals -> g2 :: g1 :: aux old_goals new_goals
+    in
+    aux old_goals new_goals
+  else old_goals @ new_goals
 
 let try_pause () =
-  if !_pause then
+  if !_strategy.pause then
     let _ = input_line stdin in
     ()
   else ()
@@ -44,29 +86,25 @@ let first_n_list n list =
     ( List.sublist ~start_included:0 ~end_excluded:n list,
       List.sublist ~start_included:n ~end_excluded:(List.length list) list )
 
-let rec search_strategy (f : 'a -> 'a list) plans =
+let rec search_on_strategy (f : 'a -> 'a list) plans =
   (* For efficienct, we should unify the plans first *)
   (* let plans = unify_lines plans in *)
   match plans with
   | [] -> _die_with [%here] "no more plans"
   | plan :: plans' -> (
-      match !_search_strategy with
+      match !_strategy.search with
       | DFS -> (
           match f plan with
-          | [] -> search_strategy f plans
+          | [] -> search_on_strategy f plans
           | plans'' -> plans'' @ plans')
       | BFS -> List.concat_map f plans
       | BoundBFS i ->
-          let plan1, plan2 = first_n_list i plans in
+          let plans =
+            List.sort (fun x y -> Int.compare (line_size x) (line_size y)) plans
+          in
+          let plan1, _ = first_n_list i plans in
           let plan1 = List.concat_map f plan1 in
-          plan1 @ plan2)
-
-let rec merge_new_goals old_goals new_goals =
-  match (old_goals, new_goals) with
-  | [], _ -> new_goals
-  | _, [] -> old_goals
-  | g1 :: old_goals, g2 :: new_goals ->
-      g2 :: g1 :: merge_new_goals old_goals new_goals
+          plan1)
 
 let simp_print_syn_judgement plan =
   let () = Pp.printf "@{<bold>@{<red>Synthesis plan:@}@}\n" in
@@ -74,7 +112,7 @@ let simp_print_syn_judgement plan =
 
 let layout_candidate_plans plans =
   let len = List.length plans in
-  let plans, rest = first_n_list layout_bound plans in
+  let plans, rest = first_n_list !_strategy.layout_bound plans in
   List.iteri
     (fun i plan ->
       Pp.printf "@{<bold>@{<red>%i:@}@}\n%s\n%s\n" i (omit_layout_line plan)
@@ -93,11 +131,15 @@ let rec deductive_synthesis env r : line list =
         plan)
       plans
   in
+  let () = init_strategy env in
+  let () =
+    Pp.printf "@{<bold>@{<red>strategy:@}@}\n%s\n" (layout_strategy !_strategy)
+  in
   let rec refinement_loop (res, plans) =
-    if List.length res >= result_expection then res
+    if List.length res >= !_strategy.result_expection then res
     else if List.length plans == 0 then _die_with [%here] "no more plans"
     else
-      let plans = search_strategy (refine_one_step env) plans in
+      let plans = search_on_strategy (refine_one_step env) plans in
       (* let plans = List.map LineOpt.optimize_line plans in *)
       (* let plans = unify_lines plans in *)
       let () = layout_candidate_plans plans in

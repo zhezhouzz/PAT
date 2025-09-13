@@ -52,7 +52,7 @@ let rec fv_pat (pat_e : rich_srl pat) =
 
 and typed_fv_pat (pat_e : (Nt.nt, rich_srl pat) typed) = fv_pat pat_e.x
 
-let fv_syn_goal { qvs; prop } = substract_fvs (fv_rich_srl prop) qvs
+let fv_syn_goal { qvs; prop; _ } = substract_fvs (fv_rich_srl prop) qvs
 
 let rec fv_item (item_e : 't item) =
   match item_e with

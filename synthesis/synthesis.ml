@@ -27,11 +27,11 @@ let load_progs name () =
   let sexp = Sexplib.Sexp.load_sexp output_file in
   Sexplib.Std.list_of_sexp term_of_sexp sexp
 
-let synthesize (env : syn_env) =
+let synthesize (env : syn_env) name =
   let _, reg =
-    match env.goal with
+    match StrMap.find_opt env.goals name with
     | None -> _die_with [%here] "no goal"
-    | Some { qvs; prop } -> (qvs, prop)
+    | Some { qvs; prop; _ } -> (qvs, prop)
   in
   let op_names = List.map _get_x (ctx_to_list env.event_tyctx) in
   let reg =
@@ -46,4 +46,10 @@ let synthesize (env : syn_env) =
   List.iter (fun p -> Plan.print_plan p) plans;
   (* let term = instantiation env (g.gamma, g.plan) in *)
   let progs = List.map (fun p -> Compile.compile_term env p) plans in
+  let () = Pp.printf "@{<bold>num of progs:@}%i\n" (List.length progs) in
+  let () =
+    List.iteri
+      (fun i p -> Pp.printf "@{<bold>Prog[%i]:@}\n%s\n" i (layout_term p))
+      progs
+  in
   progs

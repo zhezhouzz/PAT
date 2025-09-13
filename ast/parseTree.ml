@@ -64,7 +64,12 @@ type term =
   | CAssertP of Nt.nt prop
 [@@deriving sexp, show, eq, ord]
 
-type syn_goal = { qvs : (Nt.nt, string) typed list; prop : rich_srl }
+type syn_goal = {
+  name : string;
+  qvs : (Nt.nt, string) typed list;
+  prop : rich_srl;
+}
+
 type message_kind = Gen | Obs [@@deriving sexp, show, eq, ord]
 
 let is_generative = function Gen -> true | Obs -> false
@@ -116,7 +121,7 @@ type syn_env = {
   event_tyctx : t ctx;
   msgkind_ctx : message_kind ctx;
   tyctx : Nt.t ctx;
-  goal : syn_goal option;
+  goals : syn_goal StrMap.t;
   axioms : Nt.nt prop StrMap.t;
 }
 

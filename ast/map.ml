@@ -58,8 +58,9 @@ and typed_map_term f { x; ty } = { x = map_term f x; ty = f ty }
 let map_trace_elem f { op; args } = { op; args = List.map f args }
 let map_trace f = List.map (map_trace_elem f)
 
-let map_syn_goal f { qvs; prop } =
+let map_syn_goal f { qvs; prop; name } =
   {
+    name;
     qvs = List.map (fun x -> x#=>f) qvs;
     prop = map_rich_regex (map_sevent f) prop;
   }
