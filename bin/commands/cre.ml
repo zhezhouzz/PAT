@@ -332,8 +332,8 @@ let test_eval s () =
       let test () = Interpreter.once (init, main, filesystem_last_delete) in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
-  | "connectedGraph" ->
-      let open Adt.ConnectedGraph in
+  | "graph" ->
+      let open Adt.Graph in
       let main = Synthesis.load_progs s () in
       let test () = Interpreter.once (init, main, trace_is_not_connected) in
       let _ = Interpreter.eval_until_detect_bug test in
@@ -446,8 +446,8 @@ let test_random s () =
       in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
-  | "connectedGraph" ->
-      let open Adt.ConnectedGraph in
+  | "graph" ->
+      let open Adt.Graph in
       let test () =
         Interpreter.seq_random_test
           (init, (fun () -> randomTest { numOp = 15 }), trace_is_not_connected)

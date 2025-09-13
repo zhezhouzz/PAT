@@ -121,7 +121,7 @@ let isNFAResp =
     IsNFAResp (isNFA == x),
     allA )
 
-let[@goal] isNFA (x : int) (c1 : char) (c2 : char) (y : int) =
+let[@goal] nfa (x : int) (c1 : char) (c2 : char) (y : int) =
   allA;
   AddEdge (st == x && ch == c1 && ed == y);
   allA;

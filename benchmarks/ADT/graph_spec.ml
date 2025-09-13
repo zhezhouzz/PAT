@@ -85,7 +85,8 @@ let isConnectedResp =
  fun ?l:(x = (true : [%v: bool])) ->
   (allA, IsConnectedResp (isConnected == x), allA)
 
-let[@goal] isConnected (x : int) (y : int) =
+(* all nodes are connected to each other *)
+let[@goal] graph (x : int) (y : int) =
   allA;
   NewNodeResp (nid == x);
   allA;

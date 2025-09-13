@@ -138,12 +138,7 @@ let closureId =
 
 (* Global Properties *)
 
-(* let[@goal] stlcInt =
-  allA;
-  MkApp true;
-  allA *)
-
-let[@goal] stlcInt =
+let[@goal] stlc =
   allA;
   MkApp true;
   allA;

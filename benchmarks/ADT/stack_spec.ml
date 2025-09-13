@@ -32,7 +32,8 @@ let isEmptyResp ?l:(z = (true : [%v: bool])) =
   (allA, IsEmptyResp (isEmpty == z), [||])
 
 (* Global Properties *)
-let[@goal] elemLost (y : int) =
+(* previous inserted element is lost *)
+let[@goal] stack (y : int) =
   allA;
   PushReq (elem == y);
   starA (anyA - PopResp (elem == y));

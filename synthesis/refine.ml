@@ -20,7 +20,7 @@ let forward_incrAndStop n =
   if !forward_synthesis_counter >= n then _die [%here]
   else forward_synthesis_counter := !forward_synthesis_counter + 1
 
-type search_strategy = DFS | BFS | BoundBFS of int
+type search_strategy = DFS | BFS | BoundBFS of int | UnSortedDFS of int
 
 type strategy = {
   search : search_strategy;
@@ -35,14 +35,27 @@ let _strategy =
     {
       search = DFS;
       layout_bound = 5;
-      result_expection = 1;
+      result_expection = 5;
       pause = false;
       search_new_goals = false;
     }
 
 let init_strategy env =
-  if List.length (ctx_to_list env.event_tyctx) <= 3 then
-    _strategy := { !_strategy with search = DFS; search_new_goals = true }
+  let num_gen =
+    List.length
+    @@ List.filter (fun x -> is_generative x.ty) (ctx_to_list env.msgkind_ctx)
+  in
+  if num_gen <= 4 && StrMap.cardinal env.axioms == 0 then
+    _strategy :=
+      { !_strategy with search = UnSortedDFS 1; search_new_goals = true }
+  else if StrMap.cardinal env.axioms > 5 then
+    _strategy :=
+      {
+        !_strategy with
+        search = UnSortedDFS 1;
+        search_new_goals = false;
+        result_expection = 1;
+      }
   else
     _strategy :=
       { !_strategy with search = BoundBFS 10; search_new_goals = false }
@@ -50,6 +63,7 @@ let init_strategy env =
 let search_strategy_to_string = function
   | DFS -> "DFS"
   | BFS -> "BFS"
+  | UnSortedDFS i -> spf "UnSortedDFS %i" i
   | BoundBFS i -> spf "BoundBFS %i" i
 
 let layout_strategy
@@ -98,6 +112,10 @@ let rec search_on_strategy (f : 'a -> 'a list) plans =
           | [] -> search_on_strategy f plans
           | plans'' -> plans'' @ plans')
       | BFS -> List.concat_map f plans
+      | UnSortedDFS i ->
+          let plan1, plan2 = first_n_list i plans in
+          let plan1 = List.concat_map f plan1 in
+          plan1 @ plan2
       | BoundBFS i ->
           let plans =
             List.sort (fun x y -> Int.compare (line_size x) (line_size y)) plans
@@ -135,6 +153,8 @@ let rec deductive_synthesis env r : line list =
   let () =
     Pp.printf "@{<bold>@{<red>strategy:@}@}\n%s\n" (layout_strategy !_strategy)
   in
+  let () = try_pause () in
+  (* let () = _die [%here] in *)
   let rec refinement_loop (res, plans) =
     if List.length res >= !_strategy.result_expection then res
     else if List.length plans == 0 then _die_with [%here] "no more plans"
@@ -147,6 +167,7 @@ let rec deductive_synthesis env r : line list =
         (List.length res) (List.length plans);
       let _ = try_pause () in
       let wf_plans, plans = List.partition finished_plan plans in
+      (* let wf_plans = unify_lines wf_plans in *)
       let new_goals = List.concat_map (gen_new_act env) wf_plans in
       refinement_loop (res @ wf_plans, merge_new_goals plans new_goals)
   in

@@ -56,7 +56,9 @@ let deletePathResp =
 
 (* Global Properties *)
 
-let[@goal] deleteNoneEmptyDir (chp : Path.t) =
+(* delete a none empty directory *)
+
+let[@goal] filesystem (chp : Path.t) =
   allA;
   CreateDirReq (path == chp);
   CreateDirResp (success == true);
