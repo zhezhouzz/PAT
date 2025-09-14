@@ -405,6 +405,50 @@ let test_eval s () =
       in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
+  | "twitter_rc" ->
+      let open MonkeyBD in
+      let open Common in
+      let open Twitter in
+      let main = Synthesis.load_progs s () in
+      let test () =
+        Interpreter.once
+          (init ReadCommitted, main, TwitterDB.serializable_trace_checker)
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
+  | "twitter_cc" ->
+      let open MonkeyBD in
+      let open Common in
+      let open Twitter in
+      let main = Synthesis.load_progs s () in
+      let test () =
+        Interpreter.once
+          (init Causal, main, TwitterDB.serializable_trace_checker)
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
+  | "courseware_rc" ->
+      let open MonkeyBD in
+      let open Common in
+      let open Courseware in
+      let main = Synthesis.load_progs s () in
+      let test () =
+        Interpreter.once
+          (init ReadCommitted, main, CoursewareDB.serializable_trace_checker)
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
+  | "courseware_cc" ->
+      let open MonkeyBD in
+      let open Common in
+      let open Courseware in
+      let main = Synthesis.load_progs s () in
+      let test () =
+        Interpreter.once
+          (init Causal, main, CoursewareDB.serializable_trace_checker)
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
   | "cart" ->
       let open MonkeyBD in
       let open Common in
