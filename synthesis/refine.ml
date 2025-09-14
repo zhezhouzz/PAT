@@ -45,10 +45,12 @@ let init_strategy env =
     List.length
     @@ List.filter (fun x -> is_generative x.ty) (ctx_to_list env.msgkind_ctx)
   in
-  if num_gen <= 4 && StrMap.cardinal env.axioms == 0 then
-    _strategy :=
-      { !_strategy with search = UnSortedDFS 1; search_new_goals = true }
-  else if StrMap.cardinal env.axioms > 5 then
+  let num_obs =
+    List.length
+    @@ List.filter (fun x -> is_observable x.ty) (ctx_to_list env.msgkind_ctx)
+  in
+  let () = Pp.printf "num_gen: %i, num_obs: %i\n" num_gen num_obs in
+  if StrMap.cardinal env.axioms > 3 || num_obs > num_gen + 3 then
     _strategy :=
       {
         !_strategy with
@@ -56,6 +58,9 @@ let init_strategy env =
         search_new_goals = false;
         result_expection = 1;
       }
+  else if num_gen <= 4 && StrMap.cardinal env.axioms == 0 then
+    _strategy :=
+      { !_strategy with search = UnSortedDFS 1; search_new_goals = true }
   else
     _strategy :=
       { !_strategy with search = BoundBFS 10; search_new_goals = false }

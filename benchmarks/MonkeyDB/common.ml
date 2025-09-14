@@ -17,7 +17,7 @@ module MyDB (C : Config) = struct
                  ]
                 @ value_tys));
       "put"#:(Nt.mk_record None ([ "tid"#:int_ty; "x"#:int_ty ] @ value_tys));
-      "begin"#:(Nt.mk_record None [ "tid"#:int_ty ]);
+      "beginT"#:(Nt.mk_record None [ "tid"#:int_ty ]);
       "commit"#:(Nt.mk_record None [ "tid"#:int_ty; "cid"#:int_ty ]);
     ]
 
@@ -53,7 +53,7 @@ module MyDB (C : Config) = struct
     async ("put", [ mk_value_int tid; mk_value_int x ] @ value_to_args v)
 
   let do_trans f =
-    let msg = async ("begin", []) in
+    let msg = async ("beginT", []) in
     let tid =
       match msg.ev.args with [ VConst (I tid) ] -> tid | _ -> _die [%here]
     in

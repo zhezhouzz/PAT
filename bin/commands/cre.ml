@@ -384,6 +384,37 @@ let test_eval s () =
       let open Adt.Ifc in
       let () = test_load_main () in
       ()
+  | "cart_rc" ->
+      let open MonkeyBD in
+      let open Common in
+      let open Cart in
+      let main = Synthesis.load_progs s () in
+      let test () =
+        Interpreter.once
+          (init ReadCommitted, main, CartDB.serializable_trace_checker)
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
+  | "cart_cc" ->
+      let open MonkeyBD in
+      let open Common in
+      let open Cart in
+      let main = Synthesis.load_progs s () in
+      let test () =
+        Interpreter.once (init Causal, main, CartDB.serializable_trace_checker)
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
+  | "cart" ->
+      let open MonkeyBD in
+      let open Common in
+      let open Cart in
+      let test () =
+        Interpreter.once
+          (init Causal, [ main ], CartDB.serializable_trace_checker)
+      in
+      let _ = Interpreter.eval_until_detect_bug test in
+      ()
   | "smallbank" ->
       let open MonkeyBD in
       let open Common in
@@ -401,16 +432,6 @@ let test_eval s () =
       let test () =
         Interpreter.once
           (init Causal, [ main ], TwitterDB.serializable_trace_checker)
-      in
-      let _ = Interpreter.eval_until_detect_bug test in
-      ()
-  | "cart" ->
-      let open MonkeyBD in
-      let open Common in
-      let open Cart in
-      let test () =
-        Interpreter.once
-          (init Causal, [ main ], CartDB.serializable_trace_checker)
       in
       let _ = Interpreter.eval_until_detect_bug test in
       ()

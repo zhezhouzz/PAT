@@ -121,18 +121,17 @@ let simp_print_opt_judgement p1 m p2 =
 
 let devide_linear_regex_list_by_op op future =
   let rec aux prefix = function
-    | [] -> None
-    | LinearChar se :: rest when String.equal se.op op -> (
-        let other = aux (prefix @ [ LinearChar se ]) rest in
-        match other with
-        | None ->
-            Some (linear_regex_to_regex prefix, se, linear_regex_to_regex rest)
-        | Some _ ->
-            (* HACK: assume each op only has one sevent. *)
-            _die [%here])
+    | [] -> []
+    | LinearChar se :: rest when String.equal se.op op ->
+        let result =
+          (linear_regex_to_regex prefix, se, linear_regex_to_regex rest)
+        in
+        let others = aux (prefix @ [ LinearChar se ]) rest in
+        result :: others
     | elem :: rest -> aux (prefix @ [ elem ]) rest
   in
-  aux [] future
+  let res = aux [] future in
+  if List.length res == 0 then None else Some res
 
 let rec filter_rule_by_future op = function
   | RtyHAF { history; adding; future } ->
@@ -140,6 +139,7 @@ let rec filter_rule_by_future op = function
       let futures =
         List.filter_map (devide_linear_regex_list_by_op op) futures
       in
+      let futures = List.concat futures in
       List.map (fun res -> (res, RtyHAF { history; adding; future })) futures
   | RtyHAParallel _ -> _die [%here]
   | RtyArr { arg; argcty; retrty } ->

@@ -38,7 +38,7 @@ let addItemRespHandler (_ : msg) = ()
 let deleteItemRespHandler (_ : msg) = ()
 
 let init isolation_level () =
-  register_async_has_ret "begin" beginAsync;
+  register_async_has_ret "beginT" beginAsync;
   register_async_has_ret "commit" commitAsync;
   register_async_has_ret "get" getAsync;
   register_async_no_ret "put" putAsync;
@@ -72,7 +72,7 @@ let obsDeleteItemResp e =
   mk_term_obs_fresh testCtx "deleteItemResp" (fun _ -> e)
 
 let obsBegin k =
-  mk_term_obs_fresh testCtx "begin" (function
+  mk_term_obs_fresh testCtx "beginT" (function
     | tid' :: _ -> k tid'
     | _ -> _die [%here])
 

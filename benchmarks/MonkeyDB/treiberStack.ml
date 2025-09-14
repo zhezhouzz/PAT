@@ -47,7 +47,7 @@ let pushReqHandler (msg : msg) =
   match msg.ev.args with
   | [ VConst (I v) ] ->
       let _ = aux v in
-      send ("pushResp", [])
+      ()
   | _ -> _die [%here]
 
 let popReqHandler (msg : msg) =
@@ -71,7 +71,7 @@ let popReqHandler (msg : msg) =
 
 let initReqHandler (_ : msg) =
   let _ = do_trans (fun tid -> do_write tid 0) in
-  send ("initResp", [])
+  ()
 
 let initRespHandler (_ : msg) = ()
 let pushRespHandler (_ : msg) = ()
@@ -79,7 +79,7 @@ let popRespHandler (_ : msg) = ()
 let topRespHandler (_ : msg) = ()
 
 let init isolation_level () =
-  register_async_has_ret "begin" beginAsync;
+  register_async_has_ret "beginT" beginAsync;
   register_async_has_ret "commit" commitAsync;
   register_async_has_ret "read" readAsync;
   register_async_no_ret "write" writeAsync;
@@ -89,8 +89,6 @@ let init isolation_level () =
   register_handler "pushReq" pushReqHandler;
   register_handler "popReq" popReqHandler;
   register_handler "topReq" topReqHandler;
-  register_handler "initResp" initRespHandler;
-  register_handler "pushResp" pushRespHandler;
   register_handler "popResp" popRespHandler;
   register_handler "topResp" topRespHandler;
   StackDB.init isolation_level
@@ -103,9 +101,7 @@ let testCtx =
   Typectx.add_to_rights Typectx.emp
     ([
        "initReq"#:(record []);
-       "initResp"#:(record []);
        "pushReq"#:(record [ "x"#:int_ty ]);
-       "pushResp"#:(record []);
        "popReq"#:(record []);
        "popResp"#:(record [ "x"#:int_ty ]);
        "topReq"#:(record []);
@@ -117,13 +113,11 @@ let gen name args body =
   mk_term_gen testCtx name (List.map (fun x -> VVar x) args) body
 
 let obs name k = mk_term_obs_fresh testCtx name (fun _ -> k)
-let obsInitResp e = mk_term_obs_fresh testCtx "initResp" (fun _ -> e)
-let obsPushResp e = mk_term_obs_fresh testCtx "pushResp" (fun _ -> e)
 let obsPopResp e = mk_term_obs_fresh testCtx "popResp" (fun _ -> e)
 let obsTopResp e = mk_term_obs_fresh testCtx "topResp" (fun _ -> e)
 
 let obsBegin k =
-  mk_term_obs_fresh testCtx "begin" (function
+  mk_term_obs_fresh testCtx "beginT" (function
     | tid' :: _ -> k tid'
     | _ -> _die [%here])
 
@@ -169,8 +163,7 @@ let main =
         (fun y ->
           let initProcedure e =
             gen "initReq" []
-              (obsBegin (fun tid ->
-                   obsWrite tid @@ obsCommit tid @@ obsInitResp e))
+              (obsBegin (fun tid -> obsWrite tid @@ obsCommit tid e))
           in
           let pushProcedure e =
             gen "pushReq" [ x ]
@@ -184,8 +177,7 @@ let main =
                                         obsRead tid1' @@ obsWrite tid1'
                                         @@ obsPut tid1' @@ obsRead tid2'
                                         @@ obsWrite tid2' @@ obsPut tid2'
-                                        @@ obsCommit tid2' @@ obsCommit tid1'
-                                        @@ obsPushResp @@ obsPushResp e))))))
+                                        @@ obsCommit tid2' @@ obsCommit tid1' e))))))
           in
           let topProcedure e =
             gen "topReq" []
@@ -201,8 +193,7 @@ let main1 =
         (fun _ ->
           let initProcedure e =
             gen "initReq" []
-              (obsBegin (fun tid ->
-                   obsWrite tid @@ obsCommit tid @@ obsInitResp e))
+              (obsBegin (fun tid -> obsWrite tid @@ obsCommit tid e))
           in
           let pushProcedure e =
             gen "pushReq" [ x ]
@@ -210,7 +201,7 @@ let main1 =
                    obsRead tid @@ obsCommit tid
                    @@ obsBegin (fun tid2 ->
                           obsRead tid2 @@ obsWrite tid2 @@ obsPut tid2
-                          @@ obsCommit tid2 @@ obsPushResp e)))
+                          @@ obsCommit tid2 e)))
           in
           let popProcedure e =
             gen "popReq" []
