@@ -671,7 +671,13 @@ let cmds =
     (* ("compile-to-p", four_param_string "compile to p language" compile_to_p); *)
     ("compile-to-p", one_param_string "compile to p language" compile_to_p);
     ("show-term", one_param "show term" show_term);
-    ("test-db", zero_param "run cart" BackendMariaDB.test_cart);
+    ("test-db", one_param_string "run cart" BackendMariaDB.test_cart);
+    ( "test-non-repeatable-read",
+      one_param_string "run non repeatable read"
+        BackendMariaDB.test_non_repeatable_read );
+    ( "test-dirty-read",
+      one_param_string "run dirty read" BackendMariaDB.test_dirty_read );
+    ("test-causal", one_param_string "run causal" BackendMariaDB.test_causal);
     (* ("read-automata", one_param "read_automata" read_automata); *)
     (* ("read-sfa", one_param "read_sfa" read_sfa); *)
     (* ("read-p", one_param "read_p" read_p); *)
