@@ -1,5 +1,6 @@
 open Language
 open Zdatatype
+open Plan
 (* open Common *)
 
 module SimpleRename = struct
@@ -115,7 +116,7 @@ let distribute_assumption (qvs, term, gprop) =
   in
   aux [] (term, gprop)
 
-let compile_term env e =
+let compile_term_from_line env e =
   let gen_vars, obs_vars, gprop, prog = normalize_line env e in
   let tmp_vars =
     List.filter
@@ -123,22 +124,59 @@ let compile_term env e =
         not (List.exists (fun y -> String.equal x.x y.x) (gen_vars @ obs_vars)))
       (fv_prop gprop)
   in
-  let () = Pp.printf "@{<bold>prog:@}\n%s\n" (layout_term prog) in
-  let () = Pp.printf "@{<bold>gprop:@}\n%s\n\n" (layout_prop gprop) in
   let _, gprop, prog = SimpEq.simp (List.map _get_x tmp_vars, gprop, prog) in
-  let () = Pp.printf "@{<bold>remove tmp prog:@}\n%s\n" (layout_term prog) in
-  let () = Pp.printf "@{<bold>gprop:@}\n%s\n\n" (layout_prop gprop) in
   let gprop, prog = SimpEq.mk_eq_from_prev (gprop, prog) in
-  let () = Pp.printf "@{<bold>simp eq prog:@}\n%s\n" (layout_term prog) in
-  let () = Pp.printf "@{<bold>gprop:@}\n%s\n\n" (layout_prop gprop) in
   let prog, post = distribute_assumption (gen_vars @ obs_vars, prog, gprop) in
-  (* let pre = Abduction.simp_abduction (gen_vars @ obs_vars, gen_vars, gprop) in
-  let post = Abduction.pre_simplify_prop (gen_vars @ obs_vars, pre) gprop in
-  let prog = mk_term_assume gen_vars pre prog in *)
   let () = Pp.printf "@{<bold>prog:@}\n%s\n" (layout_term prog) in
   let () = Pp.printf "@{<bold>post:@}\n%s\n" (layout_prop post) in
-  (* let prog = append_post prog post in *)
-  (* let () = Printf.printf "gprop: %s\n" (layout_prop gprop) in *)
-  (* let () = Pp.printf "@{<bold>pre:@}\n%s\n" (layout_prop pre) in *)
-  (* let _ = _die [%here] in *)
   prog
+
+let add_kstar (pre_len, length) e =
+  let () = Pp.printf "@{<bold>add_kstar@}\n" in
+  let () = Pp.printf "@{<bold>pre_len:@}\n%i\n" pre_len in
+  let () = Pp.printf "@{<bold>length:@}\n%i\n" length in
+  let () = Pp.printf "@{<bold>e:@}\n%s\n" (layout_term e.x) in
+  let rec add length (k, term) =
+    if length == 0 then
+      let body = k mk_term_tt#:Nt.unit_ty in
+      (CLetE
+         {
+           lhs = [];
+           rhs = { x = KStar { body }; ty = Nt.unit_ty };
+           body = term;
+         })#:Nt.unit_ty
+    else
+      match term.x with
+      | CLetE { lhs; rhs = { x = CAssume _; _ } as rhs; body } ->
+          let k = fun e -> k (CLetE { lhs; rhs; body = e })#:Nt.unit_ty in
+          add length (k, body)
+      | CLetE { lhs; rhs; body } ->
+          let k = fun e -> k (CLetE { lhs; rhs; body = e })#:Nt.unit_ty in
+          add (length - 1) (k, body)
+      | _ -> _die [%here]
+  in
+  let rec aux pre_len term =
+    if pre_len == 0 then add length ((fun e -> e), term)
+    else
+      match term.x with
+      | CLetE { lhs; rhs = { x = CAssume _; _ } as rhs; body } ->
+          let body' = aux pre_len body in
+          (CLetE { lhs; rhs; body = body' })#:term.ty
+      | CLetE { lhs; rhs; body } ->
+          let body' = aux (pre_len - 1) body in
+          (CLetE { lhs; rhs; body = body' })#:term.ty
+      | _ ->
+          let () = Pp.printf "@{<bold>term:@}\n%s\n" (layout_term term.x) in
+          _die [%here]
+  in
+  aux pre_len e
+
+let compile_term env e =
+  match e with
+  | SynMidPlan line -> compile_term_from_line env line
+  | SynMidKStar (pre_len, line, post_len) ->
+      let e = compile_term_from_line env line in
+      let size = line_size line in
+      let length = size - pre_len - post_len in
+      let res = add_kstar (pre_len, length) e#:(term_to_nt e) in
+      res.x

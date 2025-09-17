@@ -61,6 +61,7 @@ type term =
   | CUnion of (Nt.nt, term) typed list
   | CAssume of (Nt.nt list * Nt.nt prop)
   | CWhile of { body : (Nt.nt, term) typed; cond : Nt.nt prop }
+  | KStar of { body : (Nt.nt, term) typed }
   | CAssertP of Nt.nt prop
 [@@deriving sexp, show, eq, ord]
 
@@ -115,6 +116,9 @@ module ActMap = Stdlib.Map.Make (struct
 end)
 
 type line = { gprop : Nt.nt prop; elems : line_elem list } [@@deriving sexp]
+
+type synMidResult = SynMidPlan of line | SynMidKStar of (int * line * int)
+[@@deriving sexp]
 
 type syn_env = {
   event_rtyctx : srl pat ctx;

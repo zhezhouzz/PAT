@@ -31,6 +31,7 @@ and subst_term (string_x : string) f (term_e : term) =
   | CUnion es -> CUnion (List.map (typed_subst_term string_x f) es)
   | CAssertP phi -> CAssertP (subst_prop string_x f phi)
   | CAssume (args, prop) -> CAssume (args, subst_prop string_x f prop)
+  | KStar { body } -> KStar { body = typed_subst_term string_x f body }
   | CWhile { body; cond } ->
       CWhile
         {

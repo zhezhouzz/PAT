@@ -671,6 +671,7 @@ let cmds =
     (* ("compile-to-p", four_param_string "compile to p language" compile_to_p); *)
     ("compile-to-p", one_param_string "compile to p language" compile_to_p);
     ("show-term", one_param "show term" show_term);
+    ("test-db", zero_param "run cart" BackendMariaDB.test_cart);
     (* ("read-automata", one_param "read_automata" read_automata); *)
     (* ("read-sfa", one_param "read_sfa" read_sfa); *)
     (* ("read-p", one_param "read_p" read_p); *)

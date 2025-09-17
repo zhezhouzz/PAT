@@ -56,4 +56,10 @@ Now the benchmark names are hardcoded in the file `bin/commands/cre.ml`.
     python3 script/run2025.py [NAME]
 ```
 
-Currently support: `graph`, `nfa`, `stlc`, `stack`, `filesystem`, `ifc_store`, `ifc_add`, `ifc_load`.
+Currently support:
+
++ ADT: `graph`, `nfa`, `stlc`, `stack`, `filesystem`, `ifc_store`, `ifc_add`, `ifc_load`.
+
++ Database (Causal and Read Committed): `cart`, `courseware`, `tiwtter`. Timeout: `triber_stack`. TODO: `OTLP` benchmarks.
+
++ P Language (need to fix the legacy code to current version).

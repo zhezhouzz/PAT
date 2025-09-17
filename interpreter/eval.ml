@@ -56,6 +56,8 @@ let rec eval code =
       if eval_prop (Store.get ()) phi then []
       else raise (RuntimeInconsistent "assertion is not satisfied (need retry)")
   | CAssume _ -> _die_with [%here] "never"
+  | KStar { body } ->
+      if Random.bool () then [] else eval (term_concat body.x code)
   | CWhile { body; cond } ->
       let () =
         match eval body.x with

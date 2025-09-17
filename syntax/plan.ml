@@ -22,6 +22,20 @@ let print_plan line =
   (* Pp.printf "@{<bold>elems:@} %s\n" (layout_line_elems line.elems); *)
   Pp.printf "@{<bold>checkedActs:@} %s\n" (layout_plan_checkedActs line)
 
+let print_plan_kstar (pre_len, line, post_len) =
+  Pp.printf "@{<bold>freeVars:@} %s\n"
+    (layout_typed_var_list (_get_freeVars line));
+  Pp.printf "@{<bold>line:@} %s\n" (omit_layout_line line);
+  (* Pp.printf "@{<bold>elems:@} %s\n" (layout_line_elems line.elems); *)
+  Pp.printf "@{<bold>checkedActs:@} %s\n" (layout_plan_checkedActs line);
+  Pp.printf "@{<bold>pre_len:@} %i\n" pre_len;
+  Pp.printf "@{<bold>post_len:@} %i\n" post_len
+
+let print_mid_result = function
+  | SynMidPlan line -> print_plan line
+  | SynMidKStar (pre_len, line, post_len) ->
+      print_plan_kstar (pre_len, line, post_len)
+
 let register_act_under_plan ids act =
   match act.aid with
   | Some _ -> None
@@ -405,6 +419,22 @@ let backward_merge plan curId (history1, prev, history2, cur, future) =
                 res)
             res)
         res
+
+let mk_singleton_star ({ gprop; elems } : line) =
+  let rec aux (res, prefix) rest =
+    match rest with
+    | [] -> res
+    | LineStarMultiChar cur :: rest ->
+        let act_rest =
+          List.filter (function LineAct _ -> true | _ -> false) rest
+        in
+        let elems = prefix @ [ LineStarMultiChar cur ] @ act_rest in
+        let r = (List.length prefix, { gprop; elems }, List.length act_rest) in
+        aux (res @ [ r ], prefix) rest
+    | LineAct act :: rest -> aux (res, prefix @ [ LineAct act ]) rest
+  in
+  let lines = aux ([], []) elems in
+  lines
 
 (* let left_most_se plan = *)
 (*   let rec aux (pre, rest) = *)

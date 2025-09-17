@@ -8,12 +8,12 @@ open Refine *)
 let tmp_plans_file = "/tmp/plans.sexp"
 
 let save_plans plans =
-  let sexp = Sexplib.Sexp.List (List.map sexp_of_line plans) in
+  let sexp = Sexplib.Sexp.List (List.map sexp_of_synMidResult plans) in
   Sexplib.Sexp.save tmp_plans_file sexp
 
 let load_plans () =
   let sexp = Sexplib.Sexp.load_sexp tmp_plans_file in
-  Sexplib.Std.list_of_sexp line_of_sexp sexp
+  Sexplib.Std.list_of_sexp synMidResult_of_sexp sexp
 
 let output_prefix = "output"
 
@@ -43,7 +43,7 @@ let synthesize (env : syn_env) name =
   let () = Pp.printf "\n@{<yellow>Result plans:@}\n" in
   let () = save_plans plans in
   let plans = load_plans () in
-  List.iter (fun p -> Plan.print_plan p) plans;
+  List.iter (fun p -> Plan.print_mid_result p) plans;
   (* let term = instantiation env (g.gamma, g.plan) in *)
   let progs = List.map (fun p -> Compile.compile_term env p) plans in
   let () = Pp.printf "@{<bold>num of progs:@}%i\n" (List.length progs) in

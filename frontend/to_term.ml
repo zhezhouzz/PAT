@@ -31,5 +31,6 @@ let layout_term term =
     | CAssertP phi -> spf "assert %s" (layout_prop phi)
     | CWhile { body; cond } ->
         spf "do{\n%s\n} while(%s)\n" (aux body.x) (layout_prop cond)
+    | KStar { body } -> spf "while(*) {\n%s\n}" (aux body.x)
   in
   aux term

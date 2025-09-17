@@ -10,6 +10,7 @@
   monkeyBD
   adt
   quickstorm
+  BackendMariaDB
   ; pbackend
   )
  (modules caux ctest cre)

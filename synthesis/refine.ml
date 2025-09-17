@@ -28,6 +28,7 @@ type strategy = {
   result_expection : int;
   search_new_goals : bool;
   pause : bool;
+  addKstar : bool;
 }
 
 let _strategy =
@@ -38,6 +39,7 @@ let _strategy =
       result_expection = 5;
       pause = false;
       search_new_goals = false;
+      addKstar = true;
     }
 
 let init_strategy env =
@@ -72,15 +74,22 @@ let search_strategy_to_string = function
   | BoundBFS i -> spf "BoundBFS %i" i
 
 let layout_strategy
-    { search; layout_bound; result_expection; search_new_goals; pause } =
+    {
+      search;
+      layout_bound;
+      result_expection;
+      search_new_goals;
+      pause;
+      addKstar;
+    } =
   spf
     "search: %s\n\
      layout_bound: %i\n\
      result_expection: %i\n\
      search_new_goals: %b\n\
-     pause: %b"
+     pause: %baddKstar: %b"
     (search_strategy_to_string search)
-    layout_bound result_expection search_new_goals pause
+    layout_bound result_expection search_new_goals pause addKstar
 
 let merge_new_goals old_goals new_goals =
   if !_strategy.search_new_goals then
@@ -145,7 +154,7 @@ let layout_candidate_plans plans =
     Pp.printf "@{<bold>@{<red>total (%i); rest is omitted@}@}\n" len;
   Pp.printf "\n"
 
-let rec deductive_synthesis env r : line list =
+let rec deductive_synthesis env r : synMidResult list =
   let plans = regex_to_lines r in
   let plans =
     List.map
@@ -162,7 +171,7 @@ let rec deductive_synthesis env r : line list =
   (* let () = _die [%here] in *)
   let rec refinement_loop (res, plans) =
     if List.length res >= !_strategy.result_expection then res
-    else if List.length plans == 0 then _die_with [%here] "no more plans"
+    else if List.length plans == 0 then []
     else
       let plans = search_on_strategy (refine_one_step env) plans in
       (* let plans = List.map LineOpt.optimize_line plans in *)
@@ -176,7 +185,47 @@ let rec deductive_synthesis env r : line list =
       let new_goals = List.concat_map (gen_new_act env) wf_plans in
       refinement_loop (res @ wf_plans, merge_new_goals plans new_goals)
   in
-  refinement_loop ([], plans)
+  let res = refinement_loop ([], plans) in
+  if List.length res == 0 then _die_with [%here] "no more plans"
+  else if !_strategy.addKstar then
+    let res' = List.concat_map (gen_new_kstar env) res in
+    (* let () =
+      Pp.printf "@{<bold>@{<red>gen new kstar result@}@}\n";
+      List.iter (fun (x, y, z) -> print_mid_result (SynMidKStar (x, y, z))) res';
+      Pp.printf "\n";
+      _die [%here]
+    in *)
+    let () =
+      _strategy :=
+        {
+          !_strategy with
+          search = UnSortedDFS 1;
+          search_new_goals = false;
+          result_expection = 1;
+        }
+    in
+    let res' =
+      List.fold_left
+        (fun final_res (pre_len, line, post_len) ->
+          if List.length final_res >= 1 then final_res
+          else
+            let r = refinement_loop ([], [ line ]) in
+            let r = List.map (fun x -> SynMidKStar (pre_len, x, post_len)) r in
+            (* let () =
+              if List.length r > 0 then (
+                Pp.printf "@{<bold>@{<red>gen new kstar@} on line@}\n%s\n"
+                  (omit_layout_line line);
+                Pp.printf "@{<bold>@{<red>gen new kstar result@} on line@}\n";
+                print_mid_result (List.nth r 0);
+                _die [%here])
+              else ()
+            in *)
+            let final_res = final_res @ r in
+            final_res)
+        [] res'
+    in
+    res' (* List.map (fun x -> SynMidPlan x) res @ res' *)
+  else List.map (fun x -> SynMidPlan x) res
 
 and refine_one_step env (goal : line) : line list =
   let () = simp_print_syn_judgement goal in
@@ -204,6 +253,25 @@ and gen_new_act env (goal : line) : line list =
   | [] -> []
   | (op, _) :: _ ->
       let goals = gen_merge goal op in
+      goals
+
+and gen_new_kstar env (goal : line) : (int * line * int) list =
+  let () =
+    Pp.printf "@{<bold>@{<red>gen new act@} on line@}\n%s\n"
+      (omit_layout_line goal)
+  in
+  let lines = mk_singleton_star goal in
+  let rules = select_gen_rules env in
+  match rules with
+  | [] -> []
+  | (op, _) :: _ ->
+      let goals =
+        List.concat_map
+          (fun (pre_len, g, post_len) ->
+            let lines = gen_merge g op in
+            List.map (fun line -> (pre_len, line, post_len)) lines)
+          lines
+      in
       goals
 
 and backward env (goal : line) mid : line list =

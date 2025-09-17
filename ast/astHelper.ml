@@ -35,7 +35,7 @@ let term_to_nt = function
   | CLetE { body; _ } -> body.ty
   | CAppOp { op; _ } -> snd @@ Nt.destruct_arr_tp op.ty
   | CObs { op; _ } -> snd @@ Nt.destruct_arr_tp op.ty
-  | CGen _ | CUnion _ | CAssertP _ | CWhile _ -> Nt.unit_ty
+  | CGen _ | CUnion _ | CAssertP _ | CWhile _ | KStar _ -> Nt.unit_ty
   | CAssume (nts, _) -> Nt.Ty_tuple nts
 
 let mk_let lhs rhs body =

@@ -52,6 +52,7 @@ let rec map_term f = function
   | CAssume (args, prop) -> CAssume (List.map f args, map_prop f prop)
   | CWhile { body; cond } ->
       CWhile { body = typed_map_term f body; cond = map_prop f cond }
+  | KStar { body } -> KStar { body = typed_map_term f body }
 
 and typed_map_term f { x; ty } = { x = map_term f x; ty = f ty }
 
