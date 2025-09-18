@@ -116,7 +116,7 @@ module MyMariaDB = struct
         Hashtbl.add connMap thread_id conn;
         k conn
 
-  let _init_db () =
+  let aync_init_db () =
     let* conn =
       M.connect
         ~host:(env "OCAML_MARIADB_HOST" "localhost")
@@ -166,7 +166,7 @@ module MyMariaDB = struct
   let init db_name isolation =
     _db_name := db_name;
     _isolation := isolation;
-    Lwt_main.run (_init_db ())
+    Lwt_main.run (aync_init_db ())
 
   let close () =
     let r =
@@ -182,13 +182,16 @@ module MyMariaDB = struct
     in
     Lwt_main.run r
 
+  let async_begin ~conn () = no_param_no_ret conn "BEGIN"
+
   let raw_begin ~thread_id =
     let _ =
-      Lwt_main.run
-        (get_conn thread_id (fun conn -> no_param_no_ret conn "BEGIN"))
+      Lwt_main.run (get_conn thread_id (fun conn -> async_begin ~conn ()))
     in
     let tid = next_tid () in
     tid
+
+  let async_commit ~conn () = no_param_no_ret conn "COMMIT"
 
   let raw_commit ~thread_id ~tid =
     match Hashtbl.find_opt commit_tid tid with
@@ -201,39 +204,36 @@ module MyMariaDB = struct
         let () = Printf.printf "commit tid: %i with cid %i\n" tid cid in
         let () = Hashtbl.add commit_tid tid cid in
         let _ =
-          Lwt_main.run
-            (get_conn thread_id (fun conn -> no_param_no_ret conn "COMMIT"))
+          Lwt_main.run (get_conn thread_id (fun conn -> async_commit ~conn ()))
         in
         cid
 
-  let raw_put ~thread_id ~tid ~table ~key ~json =
+  let async_put ~conn ~table ~key ~json () =
+    let json = Yojson.Basic.to_string json in
     let raw_key = Zutils.spf "%s:%s" table key in
-    let raw_json =
-      Yojson.Basic.to_string
-        (`Assoc
-           [
-             (wrapper_tid_json_feild, `Int tid); (wrapper_value_json_feild, json);
-           ])
+    let* stmt =
+      M.prepare conn
+        (Zutils.spf
+           "INSERT INTO %s (id, %s) VALUES (?, ?) ON DUPLICATE KEY UPDATE %s = \
+            ?"
+           table feild_name feild_name)
+      >>= or_die "prepare"
     in
-    let r =
-      get_conn thread_id (fun conn ->
-          let* stmt =
-            M.prepare conn
-              (Zutils.spf
-                 "INSERT INTO %s (id, %s) VALUES (?, ?) ON DUPLICATE KEY \
-                  UPDATE %s = ?"
-                 table feild_name feild_name)
-            >>= or_die "prepare"
-          in
-          let* _ =
-            M.Stmt.execute stmt
-              [| `String raw_key; `String raw_json; `String raw_json |]
-            >>= or_die "exec"
-          in
-          Lwt.return_unit)
+    let* _ =
+      M.Stmt.execute stmt [| `String raw_key; `String json; `String json |]
+      >>= or_die "exec"
     in
-    Lwt_main.run r;
-    let () = Printf.printf "put tid: %i with %s -> %s\n" tid raw_key raw_json in
+    let* _ = M.Stmt.close stmt >>= or_die "stmt close" in
+    let () = Printf.printf "put %s -> %s\n" raw_key json in
+    Lwt.return_unit
+
+  let raw_put ~thread_id ~tid ~table ~key ~json =
+    let json =
+      `Assoc
+        [ (wrapper_tid_json_feild, `Int tid); (wrapper_value_json_feild, json) ]
+    in
+    Lwt_main.run
+      (get_conn thread_id (fun conn -> async_put ~conn ~table ~key ~json ()));
     ()
 
   let res_to_list res =
@@ -257,39 +257,44 @@ module MyMariaDB = struct
           (M.Time.second t)
     | `Null -> Lwt_io.printf "NULL\n%!"
 
-  let raw_get ~thread_id ~table ~key =
+  let async_get ~conn ~table ~key () =
     let raw_key = Zutils.spf "%s:%s" table key in
-    let r =
-      get_conn thread_id (fun conn ->
-          let* stmt =
-            M.prepare conn
-              (Zutils.spf "SELECT values_json FROM %s WHERE id = ?" table)
-            >>= or_die "prepare"
-          in
-          let* res =
-            M.Stmt.execute stmt [| `String raw_key |] >>= or_die "exec"
-          in
-          let* s = res_to_list res in
-          match s with
-          | [] -> Zutils.(_die_with [%here] (spf "key %s not found" raw_key))
-          | [ row ] ->
-              let json = M.Row.StringMap.find feild_name row in
-              Lwt.return json
-          | _ ->
-              Zutils.(
-                _die_with [%here] (spf "key %s store invalid valures" raw_key)))
+    let* stmt =
+      M.prepare conn
+        (Zutils.spf "SELECT values_json FROM %s WHERE id = ?" table)
+      >>= or_die "prepare"
     in
-    let json = Lwt_main.run r in
+    let* res = M.Stmt.execute stmt [| `String raw_key |] >>= or_die "exec" in
+    let* s = res_to_list res in
     let json =
-      match M.Field.value json with
-      | `String s -> Yojson.Basic.from_string s
-      | `Null -> Zutils.(_die_with [%here] "invalid null")
-      | `Int _ -> Zutils.(_die_with [%here] "invalid int")
-      | `Float _ -> Zutils.(_die_with [%here] "invalid float")
-      | `Bytes bytes -> Yojson.Basic.from_string (Bytes.to_string bytes)
-      | `Time _ -> Zutils.(_die_with [%here] "invalid time")
-      (* let () = Lwt_main.run (layout_field json) in *)
-      (* Zutils.(_die_with [%here] "invalid json") *)
+      match s with
+      | [] -> Zutils.(_die_with [%here] (spf "key %s not found" raw_key))
+      | [ row ] ->
+          let json = M.Row.StringMap.find feild_name row in
+          let json =
+            match M.Field.value json with
+            | `String s -> Yojson.Basic.from_string s
+            | `Null -> Zutils.(_die_with [%here] "invalid null")
+            | `Int _ -> Zutils.(_die_with [%here] "invalid int")
+            | `Float _ -> Zutils.(_die_with [%here] "invalid float")
+            | `Bytes bytes -> Yojson.Basic.from_string (Bytes.to_string bytes)
+            | `Time _ -> Zutils.(_die_with [%here] "invalid time")
+          in
+          let () =
+            Printf.printf "get %s -> %s\n" raw_key (Yojson.Basic.to_string json)
+          in
+          json
+      | _ ->
+          Zutils.(
+            _die_with [%here] (spf "key %s store invalid valures" raw_key))
+    in
+    let* _ = M.Stmt.close stmt >>= or_die "stmt close" in
+    Lwt.return json
+
+  let raw_get ~thread_id ~table ~key =
+    let json =
+      Lwt_main.run
+        (get_conn thread_id (fun conn -> async_get ~conn ~table ~key ()))
     in
     let prev_tid =
       json
@@ -313,14 +318,56 @@ module MyMariaDB = struct
                 _die_with [%here] (spf "tid %i is not committed yet" prev_tid)))
     in
     let json = json |> Yojson.Basic.Util.member wrapper_value_json_feild in
-    let () =
-      Printf.printf "get  with %s -> [%i][%i] %s\n" raw_key prev_tid prev_cid
-        (Yojson.Basic.to_string json)
-    in
     (prev_tid, prev_cid, json)
 end
 
 open MyMariaDB
+
+let run_in_parallel f =
+  let f () = Lwt_main.run (f ()) in
+  Lwt_preemptive.detach f ()
+
+let test_dirty_read_concurrent isolation () =
+  let isolation = isolation_of_string isolation in
+  let db_name = "dirty_read_concurrent" in
+  let table = "dirty_read_concurrent" in
+  let () = init db_name isolation in
+  let key = "3" in
+  let thread1 n =
+    get_conn 1 (fun conn ->
+        let* _ = async_begin ~conn () in
+        let* _ = async_put ~conn ~table ~key ~json:(`Int n) () in
+        let* _ = Lwt_unix.sleep (Random.float 0.01) in
+        async_commit ~conn ())
+  in
+  let thread3 _ =
+    get_conn 3 (fun conn ->
+        let* _ = async_begin ~conn () in
+        let* res1 = async_get ~conn ~table ~key () in
+        let* _ = Lwt_unix.sleep (Random.float 0.01) in
+        let* res2 = async_get ~conn ~table ~key () in
+        let* _ = async_commit ~conn () in
+        if Yojson.Basic.equal res1 res2 then Lwt.return_unit
+        else
+          Lwt.fail_with
+            (Printf.sprintf "%s != %s"
+               (Yojson.Basic.to_string res1)
+               (Yojson.Basic.to_string res2)))
+  in
+  let () = Lwt_main.run (thread1 1) in
+  let rec mk_loop n f () =
+    if n <= 0 then Lwt.return_unit
+    else
+      let* _ = f n in
+      let* _ = Lwt_unix.sleep (Random.float 0.01) in
+      mk_loop (n - 1) f ()
+  in
+  let test m =
+    Lwt_main.run (Lwt.join [ mk_loop m thread1 (); mk_loop m thread3 () ])
+  in
+  let () = test 1000 in
+  let () = close () in
+  ()
 
 let test_dirty_read isolation () =
   let isolation = isolation_of_string isolation in

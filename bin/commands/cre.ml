@@ -678,6 +678,9 @@ let cmds =
     ( "test-dirty-read",
       one_param_string "run dirty read" BackendMariaDB.test_dirty_read );
     ("test-causal", one_param_string "run causal" BackendMariaDB.test_causal);
+    ( "test-dirty-read-concurrent",
+      one_param_string "run dirty read concurrent"
+        BackendMariaDB.test_dirty_read_concurrent );
     (* ("read-automata", one_param "read_automata" read_automata); *)
     (* ("read-sfa", one_param "read_sfa" read_sfa); *)
     (* ("read-p", one_param "read_p" read_p); *)
