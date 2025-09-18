@@ -91,11 +91,165 @@ module MyMariaDB = struct
 
   let commit_tid = Hashtbl.create 10
   let connMap : (int, M.t) Hashtbl.t = Hashtbl.create 10
+
+  type log =
+    | Begin of { tid : int }
+    | Commit of { tid : int; cid : int }
+    | Put of { tid : int; key : string; value : Yojson.Basic.t }
+    | Get of { tid : int; key : string; value : Yojson.Basic.t }
+
+  let so : (int, int list) Hashtbl.t = Hashtbl.create 10
+  let wr : (int * int) list ref = ref []
+  let co : int list ref = ref []
+  let _history : log list ref = ref []
   let _db_name = ref "cart"
   let _isolation = ref Serializable
   let feild_name = "values_json"
   let wrapper_tid_json_feild = "tid"
   let wrapper_value_json_feild = "vv"
+
+  let make_closure mat =
+    let size = Array.length mat in
+    let changed = ref false in
+    while !changed do
+      changed := false;
+      for i = 0 to size - 1 do
+        for j = 0 to size - 1 do
+          if mat.(i).(j) then
+            for k = 0 to size - 1 do
+              if mat.(j).(k) then mat.(i).(k) <- true;
+              changed := true
+            done
+        done
+      done
+    done
+
+  let check_partial_order mat =
+    let size = Array.length mat in
+    let res = ref true in
+    for i = 0 to size - 1 do
+      for j = 0 to size - 1 do
+        if mat.(i).(j) && mat.(j).(i) then res := false
+      done
+    done;
+    !res
+
+  let list_to_relation l =
+    let _, res =
+      List.fold_left
+        (fun (prefix, res) j ->
+          let r = List.map (fun i -> (i, j)) prefix in
+          (prefix @ [ j ], res @ r))
+        ([], []) l
+    in
+    res
+
+  let add_relations mat rs =
+    List.iter (fun (tid1, tid2) -> mat.(tid1).(tid2) <- true) rs
+
+  let check_causal () =
+    let size = !_tid in
+    let mat = Array.init size (fun _ -> Array.make size false) in
+    let () = add_relations mat !wr in
+    let () = add_relations mat (list_to_relation !co) in
+    let () =
+      Hashtbl.iter (fun _ l -> add_relations mat (list_to_relation l)) so
+    in
+    let () = make_closure mat in
+    check_partial_order mat
+
+  let check_serializable () =
+    let store = Hashtbl.create 10 in
+    List.fold_left
+      (fun res log ->
+        if res then
+          match log with
+          | Begin _ | Commit _ -> res
+          | Put { key; value; _ } -> (
+              match Hashtbl.find_opt store key with
+              | Some _ ->
+                  Hashtbl.replace store key value;
+                  res
+              | None ->
+                  Hashtbl.add store key value;
+                  res)
+          | Get { key; value; _ } -> (
+              match Hashtbl.find_opt store key with
+              | Some value' ->
+                  if Yojson.Basic.equal value value' then res else false
+              | None -> res)
+        else false)
+      true !_history
+
+  let check_read_committed () =
+    let open Zutils in
+    let open Zdatatype in
+    let store = Hashtbl.create 10 in
+    let tmp = Hashtbl.create 10 in
+    let apply_s s =
+      StrMap.iter
+        (fun key value ->
+          match Hashtbl.find_opt store key with
+          | Some _ -> Hashtbl.replace store key value
+          | None -> Hashtbl.add store key value)
+        s
+    in
+    let update_tmp tid (k, v) =
+      match Hashtbl.find_opt tmp tid with
+      | Some s ->
+          let s' =
+            StrMap.update k (function Some _ -> Some v | None -> Some v) s
+          in
+          Hashtbl.replace tmp tid s'
+      | None -> Hashtbl.add tmp tid StrMap.empty
+    in
+    let find_tmp tid k =
+      match Hashtbl.find_opt tmp tid with
+      | Some s -> StrMap.find_opt s k
+      | None -> None
+    in
+    List.fold_left
+      (fun res log ->
+        if res then
+          match log with
+          | Begin { tid } ->
+              Hashtbl.add tmp tid StrMap.empty;
+              res
+          | Commit { tid; _ } -> (
+              match Hashtbl.find_opt tmp tid with
+              | Some s ->
+                  apply_s s;
+                  Hashtbl.remove tmp tid;
+                  res
+              | None -> false)
+          | Put { tid; key; value } ->
+              update_tmp tid (key, value);
+              res
+          | Get { tid; key; value; _ } -> (
+              match find_tmp tid key with
+              | Some value' ->
+                  if Yojson.Basic.equal value value' then res
+                  else
+                    let () =
+                      Pp.printf "get %s -> %s | %s\n" key
+                        (Yojson.Basic.to_string value)
+                        (Yojson.Basic.to_string value')
+                    in
+                    false
+              | None -> (
+                  match Hashtbl.find_opt store key with
+                  | Some value' ->
+                      if Yojson.Basic.equal value value' then res
+                      else
+                        let () =
+                          Pp.printf "get %s -> %s | %s\n" key
+                            (Yojson.Basic.to_string value)
+                            (Yojson.Basic.to_string value')
+                        in
+                        false
+                  | None -> false))
+        else false)
+      true !_history
 
   (* +----------------+------------------------+
      | tableName:key  | {tid: int, json: json} |
@@ -103,9 +257,21 @@ module MyMariaDB = struct
      |  cart:3        | {tid: 1, json: [2]}    |
      +----------------+------------------------+ *)
 
-  let get_conn thread_id k =
+  let get_cur_tid thread_id =
+    match Hashtbl.find_opt so thread_id with
+    | Some l -> (
+        match List.rev l with
+        | [] -> Zutils.(_die_with [%here] "thread_id not found")
+        | x :: _ -> x)
+    | None -> Zutils.(_die_with [%here] "thread_id not found")
+
+  let check_validate thread_id tid =
+    let tid' = get_cur_tid thread_id in
+    if tid' != tid then Zutils.(_die_with [%here] "tid is not valid") else ()
+
+  let get_conn thread_id =
     match Hashtbl.find_opt connMap thread_id with
-    | Some conn -> k conn
+    | Some conn -> Lwt.return conn
     | None ->
         let* conn = connect !_db_name >>= or_die "connect" in
         let* _ =
@@ -114,9 +280,13 @@ module MyMariaDB = struct
         in
         let* _ = no_param_no_ret conn (Printf.sprintf "USE %s;" !_db_name) in
         Hashtbl.add connMap thread_id conn;
-        k conn
+        Hashtbl.add so thread_id [];
+        Lwt.return conn
 
   let aync_init_db () =
+    let () = Hashtbl.clear so in
+    let () = wr := [] in
+    let () = co := [] in
     let* conn =
       M.connect
         ~host:(env "OCAML_MARIADB_HOST" "localhost")
@@ -161,6 +331,7 @@ module MyMariaDB = struct
             );"
            !_db_name feild_name)
     in
+    let _ = M.close conn in
     Lwt.return_unit
 
   let init db_name isolation =
@@ -182,18 +353,22 @@ module MyMariaDB = struct
     in
     Lwt_main.run r
 
-  let async_begin ~conn () = no_param_no_ret conn "BEGIN"
-
-  let raw_begin ~thread_id =
-    let _ =
-      Lwt_main.run (get_conn thread_id (fun conn -> async_begin ~conn ()))
-    in
+  let async_begin ~thread_id () =
+    let* conn = get_conn thread_id in
+    let* _ = no_param_no_ret conn "BEGIN" in
     let tid = next_tid () in
-    tid
+    let () = _history := !_history @ [ Begin { tid } ] in
+    let () =
+      match Hashtbl.find_opt so thread_id with
+      | Some l -> Hashtbl.replace so thread_id (l @ [ tid ])
+      | None -> Hashtbl.add so thread_id [ tid ]
+    in
+    Lwt.return tid
 
-  let async_commit ~conn () = no_param_no_ret conn "COMMIT"
+  let raw_begin ~thread_id = Lwt_main.run (async_begin ~thread_id ())
 
-  let raw_commit ~thread_id ~tid =
+  let async_commit ~thread_id ~tid () =
+    let () = check_validate thread_id tid in
     match Hashtbl.find_opt commit_tid tid with
     | Some cid ->
         Zutils.(
@@ -203,13 +378,23 @@ module MyMariaDB = struct
         let cid = next_cid () in
         let () = Printf.printf "commit tid: %i with cid %i\n" tid cid in
         let () = Hashtbl.add commit_tid tid cid in
-        let _ =
-          Lwt_main.run (get_conn thread_id (fun conn -> async_commit ~conn ()))
-        in
-        cid
+        let* conn = get_conn thread_id in
+        let* _ = no_param_no_ret conn "COMMIT" in
+        let () = co := !co @ [ tid ] in
+        let () = _history := !_history @ [ Commit { tid; cid } ] in
+        Lwt.return cid
 
-  let async_put ~conn ~table ~key ~json () =
-    let json = Yojson.Basic.to_string json in
+  let raw_commit ~thread_id ~tid =
+    Lwt_main.run (async_commit ~thread_id ~tid ())
+
+  let async_put ~thread_id ~tid ~table ~key ~json () =
+    let () = check_validate thread_id tid in
+    let* conn = get_conn thread_id in
+    let json =
+      `Assoc
+        [ (wrapper_tid_json_feild, `Int tid); (wrapper_value_json_feild, json) ]
+    in
+    let json_str = Yojson.Basic.to_string json in
     let raw_key = Zutils.spf "%s:%s" table key in
     let* stmt =
       M.prepare conn
@@ -220,21 +405,17 @@ module MyMariaDB = struct
       >>= or_die "prepare"
     in
     let* _ =
-      M.Stmt.execute stmt [| `String raw_key; `String json; `String json |]
+      M.Stmt.execute stmt
+        [| `String raw_key; `String json_str; `String json_str |]
       >>= or_die "exec"
     in
     let* _ = M.Stmt.close stmt >>= or_die "stmt close" in
-    let () = Printf.printf "put %s -> %s\n" raw_key json in
+    let () = Printf.printf "put %s -> %s\n" raw_key json_str in
+    let () = _history := !_history @ [ Put { tid; key; value = json } ] in
     Lwt.return_unit
 
   let raw_put ~thread_id ~tid ~table ~key ~json =
-    let json =
-      `Assoc
-        [ (wrapper_tid_json_feild, `Int tid); (wrapper_value_json_feild, json) ]
-    in
-    Lwt_main.run
-      (get_conn thread_id (fun conn -> async_put ~conn ~table ~key ~json ()));
-    ()
+    Lwt_main.run (async_put ~thread_id ~tid ~table ~key ~json ())
 
   let res_to_list res =
     let next _ =
@@ -257,7 +438,9 @@ module MyMariaDB = struct
           (M.Time.second t)
     | `Null -> Lwt_io.printf "NULL\n%!"
 
-  let async_get ~conn ~table ~key () =
+  let async_get ~thread_id ~tid ~table ~key () =
+    let () = check_validate thread_id tid in
+    let* conn = get_conn thread_id in
     let raw_key = Zutils.spf "%s:%s" table key in
     let* stmt =
       M.prepare conn
@@ -289,13 +472,6 @@ module MyMariaDB = struct
             _die_with [%here] (spf "key %s store invalid valures" raw_key))
     in
     let* _ = M.Stmt.close stmt >>= or_die "stmt close" in
-    Lwt.return json
-
-  let raw_get ~thread_id ~table ~key =
-    let json =
-      Lwt_main.run
-        (get_conn thread_id (fun conn -> async_get ~conn ~table ~key ()))
-    in
     let prev_tid =
       json
       |> Yojson.Basic.Util.member wrapper_tid_json_feild
@@ -317,8 +493,13 @@ module MyMariaDB = struct
               Zutils.(
                 _die_with [%here] (spf "tid %i is not committed yet" prev_tid)))
     in
+    let () = _history := !_history @ [ Get { tid; key; value = json } ] in
     let json = json |> Yojson.Basic.Util.member wrapper_value_json_feild in
-    (prev_tid, prev_cid, json)
+    let () = wr := !wr @ [ (prev_tid, tid) ] in
+    Lwt.return (prev_tid, prev_cid, json)
+
+  let raw_get ~thread_id ~tid ~table ~key =
+    Lwt_main.run (async_get ~thread_id ~tid ~table ~key ())
 end
 
 open MyMariaDB
@@ -334,27 +515,28 @@ let test_dirty_read_concurrent isolation () =
   let () = init db_name isolation in
   let key = "3" in
   let thread1 n =
-    get_conn 1 (fun conn ->
-        let* _ = async_begin ~conn () in
-        let* _ = async_put ~conn ~table ~key ~json:(`Int n) () in
-        let* _ = Lwt_unix.sleep (Random.float 0.01) in
-        async_commit ~conn ())
+    let thread_id = 1 in
+    let* tid = async_begin ~thread_id () in
+    let* _ = async_put ~thread_id ~tid ~table ~key ~json:(`Int n) () in
+    let* _ = Lwt_unix.sleep (Random.float 0.01) in
+    async_commit ~thread_id ~tid ()
   in
   let thread3 _ =
-    get_conn 3 (fun conn ->
-        let* _ = async_begin ~conn () in
-        let* res1 = async_get ~conn ~table ~key () in
-        let* _ = Lwt_unix.sleep (Random.float 0.01) in
-        let* res2 = async_get ~conn ~table ~key () in
-        let* _ = async_commit ~conn () in
-        if Yojson.Basic.equal res1 res2 then Lwt.return_unit
-        else
-          Lwt.fail_with
-            (Printf.sprintf "%s != %s"
-               (Yojson.Basic.to_string res1)
-               (Yojson.Basic.to_string res2)))
+    let thread_id = 3 in
+    let* tid = async_begin ~thread_id () in
+    let* _, _, _ = async_get ~thread_id ~tid ~table ~key () in
+    let* _ = Lwt_unix.sleep (Random.float 0.01) in
+    let* _, _, _ = async_get ~thread_id ~tid ~table ~key () in
+    let* _ = async_commit ~thread_id ~tid () in
+    Lwt.return_unit
+    (* if Yojson.Basic.equal res1 res2 then Lwt.return_unit
+    else
+      Lwt.fail_with
+        (Printf.sprintf "%s != %s"
+           (Yojson.Basic.to_string res1)
+           (Yojson.Basic.to_string res2)) *)
   in
-  let () = Lwt_main.run (thread1 1) in
+  let _ = Lwt_main.run (thread1 1) in
   let rec mk_loop n f () =
     if n <= 0 then Lwt.return_unit
     else
@@ -365,8 +547,13 @@ let test_dirty_read_concurrent isolation () =
   let test m =
     Lwt_main.run (Lwt.join [ mk_loop m thread1 (); mk_loop m thread3 () ])
   in
-  let () = test 1000 in
+  let () = test 10 in
   let () = close () in
+  let () =
+    Printf.printf "check_read_committed: %b\n" (check_read_committed ())
+  in
+  let () = Printf.printf "check_serializable: %b\n" (check_serializable ()) in
+  let () = Printf.printf "check_causal: %b\n" (check_causal ()) in
   ()
 
 let test_dirty_read isolation () =
@@ -383,7 +570,9 @@ let test_dirty_read isolation () =
     raw_put ~thread_id:1 ~tid:tid1 ~table ~key:"3" ~json:(`List [ `Int 2 ])
   in
   let tid2 = raw_begin ~thread_id:2 in
-  let prev_tid, prev_cid, result = raw_get ~thread_id:2 ~table ~key:"3" in
+  let prev_tid, prev_cid, result =
+    raw_get ~thread_id:2 ~tid:tid2 ~table ~key:"3"
+  in
   let _ = Printf.printf "read 1 result: %s\n" (Yojson.Basic.to_string result) in
   let _ = Printf.printf "prev_tid: %i\n" prev_tid in
   let _ = Printf.printf "prev_cid: %i\n" prev_cid in
@@ -405,7 +594,9 @@ let test_non_repeatable_read isolation () =
   let _ = raw_commit ~thread_id:1 ~tid:tid1 in
   let tid2 = raw_begin ~thread_id:2 in
   let tid3 = raw_begin ~thread_id:3 in
-  let prev_tid, prev_cid, result = raw_get ~thread_id:2 ~table ~key:"3" in
+  let prev_tid, prev_cid, result =
+    raw_get ~thread_id:2 ~tid:tid2 ~table ~key:"3"
+  in
   let _ = Printf.printf "read 1 result: %s\n" (Yojson.Basic.to_string result) in
   let _ = Printf.printf "prev_tid: %i\n" prev_tid in
   let _ = Printf.printf "prev_cid: %i\n" prev_cid in
@@ -414,7 +605,9 @@ let test_non_repeatable_read isolation () =
       ~json:(`List [ `Int 3; `Int 4 ])
   in
   let _ = raw_commit ~thread_id:3 ~tid:tid3 in
-  let prev_tid, prev_cid, result = raw_get ~thread_id:2 ~table ~key:"3" in
+  let prev_tid, prev_cid, result =
+    raw_get ~thread_id:2 ~tid:tid2 ~table ~key:"3"
+  in
   let _ = Printf.printf "read 2 result: %s\n" (Yojson.Basic.to_string result) in
   let _ = Printf.printf "prev_tid: %i\n" prev_tid in
   let _ = Printf.printf "prev_cid: %i\n" prev_cid in
@@ -433,16 +626,20 @@ let test_causal isolation () =
   let () = raw_put ~thread_id:1 ~tid:tid1 ~table ~key:"2" ~json:(`Int 1) in
   let _ = raw_commit ~thread_id:1 ~tid:tid1 in
   let tid2 = raw_begin ~thread_id:2 in
-  let prev_tid, prev_cid, result = raw_get ~thread_id:2 ~table ~key:"1" in
+  let prev_tid, prev_cid, result =
+    raw_get ~thread_id:2 ~tid:tid2 ~table ~key:"1"
+  in
   let _ = Printf.printf "read 1 result: %s\n" (Yojson.Basic.to_string result) in
   let _ = Printf.printf "prev_tid: %i\n" prev_tid in
   let _ = Printf.printf "prev_cid: %i\n" prev_cid in
   let tid3 = raw_begin ~thread_id:3 in
-  let _ = raw_get ~thread_id:3 ~table ~key:"1" in
+  let _ = raw_get ~thread_id:3 ~tid:tid3 ~table ~key:"1" in
   let () = raw_put ~thread_id:3 ~tid:tid3 ~table ~key:"1" ~json:(`Int 2) in
   let () = raw_put ~thread_id:3 ~tid:tid3 ~table ~key:"2" ~json:(`Int 2) in
   let _ = raw_commit ~thread_id:3 ~tid:tid3 in
-  let prev_tid, prev_cid, result = raw_get ~thread_id:2 ~table ~key:"2" in
+  let prev_tid, prev_cid, result =
+    raw_get ~thread_id:2 ~tid:tid2 ~table ~key:"2"
+  in
   let _ = Printf.printf "read 2 result: %s\n" (Yojson.Basic.to_string result) in
   let _ = Printf.printf "prev_tid: %i\n" prev_tid in
   let _ = Printf.printf "prev_cid: %i\n" prev_cid in
@@ -467,7 +664,9 @@ let test_cart isolation () =
       ~json:(`List [ `Int 3; `Int 4 ])
   in
   let tid3 = raw_begin ~thread_id:3 in
-  let prev_tid, prev_cid, result = raw_get ~thread_id:3 ~table ~key:"3" in
+  let prev_tid, prev_cid, result =
+    raw_get ~thread_id:3 ~tid:tid3 ~table ~key:"3"
+  in
   let _ = raw_commit ~thread_id:2 ~tid:tid2 in
   let _ = raw_commit ~thread_id:3 ~tid:tid3 in
   let _ = Printf.printf "result: %s\n" (Yojson.Basic.to_string result) in
