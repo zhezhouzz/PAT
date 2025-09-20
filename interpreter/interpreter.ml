@@ -6,7 +6,7 @@ module Eval = Eval
 module Sample = Sample
 open Language
 
-let converge_bound = 100
+let converge_bound = 0
 
 let random_test (init, main, checker) =
   Pool.init ();
@@ -56,7 +56,14 @@ let eval_until_detect_bug test =
         let his = test () in
         (i, his)
       with
-      | RuntimeInconsistent _ | IsolationViolation _ | NoBugDetected _ ->
+      | RuntimeInconsistent msg ->
+          Pp.printf "@{<red>Error:@} %s\n" msg;
+          aux (i + 1)
+      | IsolationViolation _ ->
+          Pp.printf "@{<red>Error:@} %s\n" "isolation violation";
+          aux (i + 1)
+      | NoBugDetected _ ->
+          Pp.printf "@{<red>Error:@} %s\n" "no bug detected";
           aux (i + 1)
       | e -> raise e
   in

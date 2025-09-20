@@ -1,66 +1,9 @@
 open Common
 open Language
 open Interpreter
-module CartDB = ListDB
+module CartDB = CartDB
 open CartDB
-
-let addItemReqHandler (msg : msg) =
-  let aux (user : int) (item : int) =
-    do_trans (fun tid ->
-        let oldCart = do_get tid user in
-        let newCart =
-          if List.mem item oldCart then oldCart else item :: oldCart
-        in
-        let _ = do_put tid user newCart in
-        ())
-  in
-  match msg.ev.args with
-  | [ VConst (I user); VConst (I item) ] ->
-      let _ = aux user item in
-      send ("addItemResp", [])
-  | _ -> _die [%here]
-
-let deleteItemReqHandler (msg : msg) =
-  let aux (user : int) (item : int) =
-    do_trans (fun tid ->
-        let oldCart = do_get tid user in
-        let newCart = List.filter (fun x -> x <> item) oldCart in
-        let _ = do_put tid user newCart in
-        ())
-  in
-  match msg.ev.args with
-  | [ VConst (I user); VConst (I item) ] ->
-      let _ = aux user item in
-      send ("deleteItemResp", [])
-  | _ -> _die [%here]
-
-let addItemRespHandler (_ : msg) = ()
-let deleteItemRespHandler (_ : msg) = ()
-
-let init isolation_level () =
-  register_async_has_ret "beginT" beginAsync;
-  register_async_has_ret "commit" commitAsync;
-  register_async_has_ret "get" getAsync;
-  register_async_no_ret "put" putAsync;
-  register_handler "addItemReq" addItemReqHandler;
-  register_handler "deleteItemReq" deleteItemReqHandler;
-  register_handler "addItemResp" addItemRespHandler;
-  register_handler "deleteItemResp" deleteItemRespHandler;
-  CartDB.init isolation_level
-
 open Nt
-
-let record l = Ty_record { alias = None; fds = l }
-
-let testCtx =
-  Typectx.add_to_rights Typectx.emp
-    ([
-       "addItemReq"#:(record [ "x"#:int_ty; "y"#:int_ty ]);
-       "addItemResp"#:(record []);
-       "deleteItemReq"#:(record [ "x"#:int_ty; "y"#:int_ty ]);
-       "deleteItemResp"#:(record []);
-     ]
-    @ event_typectx)
 
 let gen name args body =
   mk_term_gen testCtx name (List.map (fun x -> VVar x) args) body
@@ -70,6 +13,8 @@ let obsAddItemResp e = mk_term_obs_fresh testCtx "addItemResp" (fun _ -> e)
 
 let obsDeleteItemResp e =
   mk_term_obs_fresh testCtx "deleteItemResp" (fun _ -> e)
+
+let obsNewUserResp e = mk_term_obs_fresh testCtx "newUserResp" (fun _ -> e)
 
 let obsBegin k =
   mk_term_obs_fresh testCtx "beginT" (function
@@ -105,20 +50,39 @@ let obsPut tid k =
         (prop, k)
     | _ -> _die [%here])
 
+(* let main =
+  mk_term_assume_fresh_true int_ty (fun user ->
+      mk_term_assume_fresh_true int_ty (fun item ->
+          gen "newUserReq" [ user ]
+          @@ obsBegin (fun tid0 ->
+                 obsPut tid0 @@ obsCommit tid0 @@ obsNewUserResp
+                 @@ gen "addItemReq" [ user; item ]
+                 @@ gen "deleteItemReq" [ user; item ]
+                 @@ obsBegin (fun tid1 ->
+                        obsBegin (fun tid2 ->
+                            obsGet tid2 @@ obsGet tid1 @@ obsPut tid1
+                            @@ obsCommit tid1 @@ obsPut tid2 @@ obsAddItemResp
+                            @@ gen "addItemReq" [ user; item ]
+                            @@ obsBegin (fun tid3 ->
+                                   obsGetPrev tid3 tid1 @@ obsCommit tid2
+                                   @@ obsDeleteItemResp @@ obsPut tid3
+                                   @@ obsCommit tid3
+                                   @@ obsAddItemResp mk_term_tt)))))) *)
+
 let main =
   mk_term_assume_fresh_true int_ty (fun user ->
       mk_term_assume_fresh_true int_ty (fun item ->
-          gen "addItemReq" [ user; item ]
-          @@ gen "deleteItemReq" [ user; item ]
-          @@ obsBegin (fun tid1 ->
-                 obsBegin (fun tid2 ->
-                     obsGet tid2 @@ obsGet tid1 @@ obsPut tid1 @@ obsPut tid2
-                     @@ obsCommit tid2 @@ obsCommit tid1 @@ obsDeleteItemResp
-                     @@ obsAddItemResp
-                     @@ gen "addItemReq" [ user; item ]
-                     @@ obsBegin (fun tid3 ->
-                            obsGetPrev tid3 tid1 @@ obsPut tid3
-                            @@ obsCommit tid3 @@ obsAddItemResp mk_term_tt)))))
+          gen "newUserReq" [ user ]
+          @@ obsBegin (fun tid0 ->
+                 obsPut tid0 @@ obsCommit tid0 @@ obsNewUserResp
+                 @@ gen "addItemReq" [ user; item ]
+                 @@ gen "deleteItemReq" [ user; item ]
+                 @@ obsBegin (fun tid1 ->
+                        obsBegin (fun tid2 ->
+                            obsGet tid2 @@ obsPut tid2 @@ obsGet tid1
+                            @@ obsCommit tid2 @@ obsDeleteItemResp
+                            @@ obsPut tid1 @@ obsCommit tid1
+                            @@ obsAddItemResp mk_term_tt)))))
 
 type cart_bench_config = { numUser : int; numItem : int; numOp : int }
 

@@ -2,7 +2,7 @@
  (public_name haft.BackendMariaDB)
  (name BackendMariaDB)
  (wrapped true)
- (libraries mariadb lwt lwt.unix yojson zutils)
+ (libraries mariadb lwt lwt.unix yojson zutils language)
  (modules backendMariaDB)
  (inline_tests)
  (preprocess

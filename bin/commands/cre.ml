@@ -391,7 +391,9 @@ let test_eval s () =
       let main = Synthesis.load_progs s () in
       let test () =
         Interpreter.once
-          (init ReadCommitted, main, CartDB.serializable_trace_checker)
+          ( CartDB.init "cart" ReadCommitted,
+            main,
+            CartDB.check_isolation_level Serializable )
       in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
@@ -401,11 +403,14 @@ let test_eval s () =
       let open Cart in
       let main = Synthesis.load_progs s () in
       let test () =
-        Interpreter.once (init Causal, main, CartDB.serializable_trace_checker)
+        Interpreter.once
+          ( CartDB.init "cart" Causal,
+            main,
+            CartDB.check_isolation_level Serializable )
       in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
-  | "twitter_rc" ->
+  (* | "twitter_rc" ->
       let open MonkeyBD in
       let open Common in
       let open Twitter in
@@ -448,18 +453,20 @@ let test_eval s () =
           (init Causal, main, CoursewareDB.serializable_trace_checker)
       in
       let _ = Interpreter.eval_until_detect_bug test in
-      ()
+      () *)
   | "cart" ->
       let open MonkeyBD in
       let open Common in
       let open Cart in
       let test () =
         Interpreter.once
-          (init Causal, [ main ], CartDB.serializable_trace_checker)
+          ( CartDB.init "cart" ReadCommitted,
+            [ main ],
+            CartDB.check_isolation_level Serializable )
       in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
-  | "smallbank" ->
+  (* | "smallbank" ->
       let open MonkeyBD in
       let open Common in
       let open Smallbank in
@@ -468,8 +475,8 @@ let test_eval s () =
           (init Causal, [ main ], SmallbankDB.serializable_trace_checker)
       in
       let _ = Interpreter.eval_until_detect_bug test in
-      ()
-  | "twitter" ->
+      () *)
+  (* | "twitter" ->
       let open MonkeyBD in
       let open Common in
       let open Twitter in
@@ -498,7 +505,7 @@ let test_eval s () =
           (init Causal, [ main ], StackDB.serializable_trace_checker)
       in
       let _ = Interpreter.eval_until_detect_bug test in
-      ()
+      () *)
   | _ -> _die_with [%here] "unknown benchmark"
 
 let test_random s () =
@@ -594,7 +601,7 @@ let test_random s () =
       in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
-  | "smallbank" ->
+  (* | "smallbank" ->
       let open MonkeyBD in
       let open Common in
       let open Smallbank in
@@ -641,16 +648,16 @@ let test_random s () =
             CoursewareDB.serializable_trace_checker )
       in
       let _ = Interpreter.eval_until_detect_bug test in
-      ()
+      () *)
   | "cart" ->
       let open MonkeyBD in
       let open Common in
       let open Cart in
       let test () =
         Interpreter.random_test
-          ( init Causal,
+          ( CartDB.init "cart" Causal,
             (fun () -> random_user { numUser = 4; numItem = 4; numOp = 2 }),
-            CartDB.serializable_trace_checker )
+            CartDB.check_isolation_level Serializable )
       in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
@@ -681,6 +688,7 @@ let cmds =
     ( "test-dirty-read-concurrent",
       one_param_string "run dirty read concurrent"
         BackendMariaDB.test_dirty_read_concurrent );
+    ("test-stuck", one_param_string "run stuck" BackendMariaDB.test_stuck);
     (* ("read-automata", one_param "read_automata" read_automata); *)
     (* ("read-sfa", one_param "read_sfa" read_sfa); *)
     (* ("read-p", one_param "read_p" read_p); *)

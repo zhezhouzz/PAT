@@ -27,7 +27,7 @@ type 'r pat =
 [@@deriving show, eq, ord]
 
 type stlcTy = StlcInt | StlcArrow of stlcTy * stlcTy
-[@@deriving show, eq, ord, sexp]
+[@@deriving show, eq, ord, sexp, yojson]
 
 type stlcTerm =
   | StlcVar of int
@@ -41,7 +41,7 @@ type value =
   | VConst of constant
   | VCStlcTy of stlcTy
   | VCIntList of int list
-[@@deriving sexp, show, eq, ord]
+[@@deriving sexp, show, eq, ord, yojson]
 
 type trace_elem = { op : string; args : constant list }
 [@@deriving show, eq, ord]
@@ -131,3 +131,15 @@ type syn_env = {
 
 exception IsolationViolation of string
 exception NoBugDetected of string
+
+type isolation = Serializable | Causal | ReadCommitted | ReadUncommitted
+[@@deriving sexp, show, eq, ord]
+
+let isolation_of_string = function
+  | "Serializable" -> Serializable
+  | "Causal" -> Causal
+  | "ReadCommitted" -> ReadCommitted
+  | "ReadUncommitted" -> ReadUncommitted
+  | _ -> Zutils.(_die_with [%here] "invalid isolation")
+
+let __counter = ref 0

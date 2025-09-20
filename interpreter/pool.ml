@@ -287,10 +287,17 @@ let rec run main =
                   continue k ())
           | Obs (op, f) ->
               let () =
-                _log "eval" @@ fun _ -> Pp.printf "@{<bold>OBS:@} %s\n" op
+                _log "eval" @@ fun _ ->
+                Pp.printf "@{<bold>OBS(%i):@} %s\n" __LINE__ op
               in
               Some
                 (fun (k : (b, _) continuation) ->
+                  let () = __counter := !__counter + 1 in
+                  let () =
+                    _log "eval" @@ fun _ ->
+                    Pp.printf "@{<bold>before handle_obs(%i):@} %s\n" !__counter
+                      op
+                  in
                   match handle_obs op f with
                   | Some (hd, ak, msg) ->
                       jump_to_tid hd.tid;

@@ -3,7 +3,14 @@
  (name monkeyBD)
  (wrapped true)
  (libraries language interpreter BackendMariaDB)
- (modules database common cart twitter courseware treiberStack smallbank)
+ (modules
+  common
+  cart
+  ; twitter 
+  ; courseware 
+  ; treiberStack 
+  ; smallbank
+  )
  (inline_tests)
  (preprocess
   (pps ppx_here ppx_inline_test)))

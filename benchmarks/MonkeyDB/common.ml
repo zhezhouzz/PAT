@@ -1,56 +1,115 @@
-open Database
 open Language
 open Interpreter
 
+module type Config = sig
+  val values_to_json : value list -> Yojson.Basic.t
+  val json_to_values : Yojson.Basic.t -> value list
+  val key_to_string : constant -> string
+  val string_to_key : string -> constant
+end
+
 module MyDB (C : Config) = struct
-  include MakeBD (C)
+  module DB = BackendMariaDB.MyMariaDB
+  open C
 
-  let event_typectx =
-    let open Nt in
-    [
-      "get"#:(Nt.mk_record None
-                ([
-                   "tid"#:int_ty;
-                   "x"#:int_ty;
-                   "prevTid"#:int_ty;
-                   "prevCid"#:int_ty;
-                 ]
-                @ value_tys));
-      "put"#:(Nt.mk_record None ([ "tid"#:int_ty; "x"#:int_ty ] @ value_tys));
-      "beginT"#:(Nt.mk_record None [ "tid"#:int_ty ]);
-      "commit"#:(Nt.mk_record None [ "tid"#:int_ty; "cid"#:int_ty ]);
-    ]
+  let beginAsync (ev : ev) =
+    let tid = DB.raw_begin ~thread_id:!Runtime._curTid in
+    { ev with args = [ mk_value_int tid ] }
 
-  let msg_to_operation msg =
-    let mk_put (k, v) =
-      Some { opKind = Write; key = k; value = v; oid = { tid = 0; pid = 0 } }
+  let commitAsync (ev : ev) =
+    let tid =
+      match ev.args with [ VConst (I tid) ] -> tid | _ -> _die [%here]
     in
-    let mk_get (k, v) =
-      Some { opKind = Read; key = k; value = v; oid = { tid = 0; pid = 0 } }
+    let cid = DB.raw_commit ~tid in
+    { ev with args = [ mk_value_int tid; mk_value_int cid ] }
+
+  let _getAsync table (ev : ev) =
+    let tid, key =
+      match ev.args with
+      | [ VConst (I tid); VConst key ] -> (tid, key)
+      | _ -> _die [%here]
     in
-    match msg.ev.op with
-    | "put" -> (
-        match msg.ev.args with
-        | _ :: VConst (I x) :: v -> mk_put (x, args_to_value v)
-        | _ -> _die [%here])
-    | "get" -> (
-        match msg.ev.args with
-        | _ :: VConst (I x) :: _ :: _ :: v -> mk_get (x, args_to_value v)
-        | _ -> _die [%here])
-    | _ -> None
+    let prev_tid, prev_cid, value =
+      DB.raw_get ~tid ~table ~key:(key_to_string key)
+    in
+    {
+      ev with
+      args =
+        [
+          mk_value_int tid;
+          VConst key;
+          mk_value_int prev_tid;
+          mk_value_int prev_cid;
+        ]
+        @ json_to_values value;
+    }
 
-  let serializable_trace_checker his =
-    let his = List.filter_map msg_to_operation his in
-    serializable_trace_check his
+  let _putAsync table (ev : ev) =
+    let () =
+      Printf.printf "start _putAsync %s : %s\n" table
+        (Yojson.Basic.to_string (values_to_json ev.args))
+    in
+    let tid, key, v =
+      match ev.args with
+      | VConst (I tid) :: VConst key :: v -> (tid, key, v)
+      | _ -> _die [%here]
+    in
+    let () =
+      DB.raw_put ~tid ~table ~key:(key_to_string key) ~json:(values_to_json v)
+    in
+    ()
 
-  let do_get tid x =
-    let msg = async ("get", [ mk_value_int tid; mk_value_int x ]) in
+  let init db_name isolation_level = DB.init db_name isolation_level
+  let close () = DB.close ()
+
+  let check_isolation_level isolation_level _ =
+    match isolation_level with
+    | ReadCommitted -> DB.check_read_committed ()
+    | Causal -> DB.check_causal ()
+    | Serializable -> DB.check_serializable ()
+    | ReadUncommitted -> true
+end
+
+let safe_to_basic_via_string (json : Yojson.Safe.t) : Yojson.Basic.t =
+  Yojson.Safe.to_string json |> Yojson.Basic.from_string
+
+let basic_to_safe_via_string (json : Yojson.Basic.t) : Yojson.Safe.t =
+  Yojson.Basic.to_string json |> Yojson.Safe.from_string
+
+module Config = struct
+  let values_to_json vs =
+    `List (List.map (fun x -> safe_to_basic_via_string @@ value_to_yojson x) vs)
+
+  let json_to_values j =
+    let js =
+      Yojson.Basic.Util.to_list j
+      |> List.map (fun x -> basic_to_safe_via_string x)
+    in
+    List.map
+      (fun x ->
+        match value_of_yojson x with Ok v -> v | Error _ -> _die [%here])
+      js
+
+  let key_to_string i = layout_constant i
+
+  let string_to_key s =
+    match int_of_string_opt s with Some i -> I i | None -> S s
+end
+
+module IntDB = struct
+  include MyDB (Config)
+end
+
+module TreiberStack = struct
+  include MyDB (Config)
+
+  let do_get tid key =
+    let msg = async ("get", [ mk_value_int tid; VConst key ]) in
     match msg.ev.args with
-    | _ :: _ :: _ :: _ :: args -> args_to_value args
+    | _ :: _ :: _ :: _ :: args -> args
     | _ -> _die [%here]
 
-  let do_put tid x v =
-    async ("put", [ mk_value_int tid; mk_value_int x ] @ value_to_args v)
+  let do_put tid key v = async ("put", [ mk_value_int tid; VConst key ] @ v)
 
   let do_trans f =
     let msg = async ("beginT", []) in
@@ -61,551 +120,123 @@ module MyDB (C : Config) = struct
     let _ = async ("commit", [ mk_value_int tid ]) in
     res
 
-  let beginAsync (ev : ev) =
-    let tid = begin_transaction !Runtime._curTid in
-    { ev with args = [ mk_value_int tid ] }
-
-  let commitAsync (ev : ev) =
-    let tid =
-      match ev.args with [ VConst (I tid) ] -> tid | _ -> _die [%here]
-    in
-    let cid = commit_transaction !Runtime._curTid tid in
-    { ev with args = [ mk_value_int tid; mk_value_int cid ] }
-
-  let getAsync (ev : ev) =
-    let tid, x =
-      match ev.args with
-      | [ VConst (I tid); VConst (I x) ] -> (tid, x)
-      | _ -> _die [%here]
-    in
-    let prev_tid, prev_cid, value = get !Runtime._curTid x in
-    {
-      ev with
-      args =
-        [
-          mk_value_int tid;
-          mk_value_int x;
-          mk_value_int prev_tid;
-          mk_value_int prev_cid;
-        ]
-        @ value_to_args value;
-    }
-
-  let putAsync (ev : ev) =
-    let _, x, v =
-      match ev.args with
-      | VConst (I tid) :: VConst (I x) :: v -> (tid, x, args_to_value v)
-      | _ -> _die [%here]
-    in
-    put !Runtime._curTid x v
+  let getAsync (ev : ev) = _getAsync "stack" ev
+  let putAsync (ev : ev) = _putAsync "stack" ev
+  let readAsync (ev : ev) = _getAsync "cell" ev
+  let writeAsync (ev : ev) = _putAsync "cell" ev
 end
 
-module IntDB = struct
-  include MyDB (struct
-    type value = int
+module CartDB = struct
+  module D = MyDB (Config)
+  include D
 
-    let args_to_value args =
-      match args with [ VConst (I y) ] -> y | _ -> _die [%here]
+  let getAsync (ev : ev) = _getAsync "cart" ev
+  let putAsync (ev : ev) = _putAsync "cart" ev
 
-    let value_to_args y = [ mk_value_int y ]
-    let equal_value x y = x == y
-    let value_tys = Nt.[ "y"#:int_ty ]
-    let initial_value = 0
-    let layout_value x = spf "%i" x
-  end)
-
-  let event_typectx =
-    let open Nt in
-    event_typectx
-    @ [
-        "selectName"#:(Nt.mk_record None
-                         [
-                           "tid"#:int_ty;
-                           "id"#:int_ty;
-                           "prevTid"#:int_ty;
-                           "prevCid"#:int_ty;
-                           "name"#:int_ty;
-                         ]);
-        "updateName"#:(Nt.mk_record None
-                         [ "tid"#:int_ty; "id"#:int_ty; "name"#:int_ty ]);
-        "selectSaving"#:(Nt.mk_record None
-                           [
-                             "tid"#:int_ty;
-                             "id"#:int_ty;
-                             "prevTid"#:int_ty;
-                             "prevCid"#:int_ty;
-                             "savings"#:int_ty;
-                           ]);
-        "updateSaving"#:(Nt.mk_record None
-                           [ "tid"#:int_ty; "id"#:int_ty; "savings"#:int_ty ]);
-        "selectChecking"#:(Nt.mk_record None
-                             [
-                               "tid"#:int_ty;
-                               "id"#:int_ty;
-                               "prevTid"#:int_ty;
-                               "prevCid"#:int_ty;
-                               "checking"#:int_ty;
-                             ]);
-        "updateChecking"#:(Nt.mk_record None
-                             [ "tid"#:int_ty; "id"#:int_ty; "checking"#:int_ty ]);
-      ]
-
-  let interval = 100
-
-  let wr_to_put_get msg =
-    match msg.ev.op with
-    | "selectName" -> (
-        match msg.ev.args with
-        | [
-         VConst (I tid);
-         VConst (I id);
-         VConst (I prev_tid);
-         VConst (I prev_cid);
-         VConst (I name);
-        ] ->
-            let ev =
-              {
-                op = "put";
-                args =
-                  [
-                    mk_value_int tid;
-                    mk_value_int id;
-                    mk_value_int prev_tid;
-                    mk_value_int prev_cid;
-                    mk_value_int name;
-                  ];
-              }
-            in
-            { msg with ev }
-        | _ -> _die [%here])
-    | "updateName" -> (
-        match msg.ev.args with
-        | [ VConst (I tid); VConst (I id); VConst (I name) ] ->
-            let ev =
-              {
-                op = "put";
-                args = [ mk_value_int tid; mk_value_int id; mk_value_int name ];
-              }
-            in
-            { msg with ev }
-        | _ -> _die [%here])
-    | "selectSaving" -> (
-        match msg.ev.args with
-        | [
-         VConst (I tid);
-         VConst (I id);
-         VConst (I prev_tid);
-         VConst (I prev_cid);
-         VConst (I savings);
-        ] ->
-            let ev =
-              {
-                op = "get";
-                args =
-                  [
-                    mk_value_int tid;
-                    mk_value_int (id + interval);
-                    mk_value_int prev_tid;
-                    mk_value_int prev_cid;
-                    mk_value_int savings;
-                  ];
-              }
-            in
-            { msg with ev }
-        | _ -> _die [%here])
-    | "updateSaving" -> (
-        match msg.ev.args with
-        | [ VConst (I tid); VConst (I id); VConst (I savings) ] ->
-            let ev =
-              {
-                op = "put";
-                args =
-                  [
-                    mk_value_int tid;
-                    mk_value_int (id + interval);
-                    mk_value_int savings;
-                  ];
-              }
-            in
-            { msg with ev }
-        | _ -> _die [%here])
-    | "selectChecking" -> (
-        match msg.ev.args with
-        | [
-         VConst (I tid);
-         VConst (I id);
-         VConst (I prev_tid);
-         VConst (I prev_cid);
-         VConst (I checking);
-        ] ->
-            let ev =
-              {
-                op = "get";
-                args =
-                  [
-                    mk_value_int tid;
-                    mk_value_int (id + (2 * interval));
-                    mk_value_int prev_tid;
-                    mk_value_int prev_cid;
-                    mk_value_int checking;
-                  ];
-              }
-            in
-            { msg with ev }
-        | _ -> _die [%here])
-    | "updateChecking" -> (
-        match msg.ev.args with
-        | [ VConst (I tid); VConst (I id); VConst (I checking) ] ->
-            let ev =
-              {
-                op = "put";
-                args =
-                  [
-                    mk_value_int tid;
-                    mk_value_int (id + (2 * interval));
-                    mk_value_int checking;
-                  ];
-              }
-            in
-            { msg with ev }
-        | _ -> _die [%here])
-    | _ -> msg
-
-  let serializable_trace_checker his =
-    let his = List.map wr_to_put_get his in
-    serializable_trace_checker his
-
-  let do_selectName tid id =
-    let msg = async ("selectName", [ mk_value_int tid; mk_value_int id ]) in
+  let do_get tid key =
+    let msg = async ("get", [ mk_value_int tid; mk_value_int key ]) in
     match msg.ev.args with
-    | [ VConst (I _); VConst (I _); VConst (I _); VConst (I _); VConst (I y) ]
-      ->
-        y
+    | _ :: _ :: _ :: _ :: args -> args
     | _ -> _die [%here]
 
-  let do_updateName tid id name =
-    async
-      ("updateName", [ mk_value_int tid; mk_value_int id; mk_value_int name ])
+  let do_put tid key v =
+    async ("put", [ mk_value_int tid; mk_value_int key ] @ v)
 
-  let do_selectSaving tid id =
-    let msg = async ("selectSaving", [ mk_value_int tid; mk_value_int id ]) in
-    match msg.ev.args with
-    | [ VConst (I _); VConst (I _); VConst (I _); VConst (I _); VConst (I y) ]
-      ->
-        y
-    | _ -> _die [%here]
-
-  let do_updateSaving tid id savings =
-    async
-      ( "updateSaving",
-        [ mk_value_int tid; mk_value_int id; mk_value_int savings ] )
-
-  let do_selectChecking tid id =
-    let msg = async ("selectChecking", [ mk_value_int tid; mk_value_int id ]) in
-    match msg.ev.args with
-    | [ VConst (I _); VConst (I _); VConst (I _); VConst (I _); VConst (I y) ]
-      ->
-        y
-    | _ -> _die [%here]
-
-  let do_updateChecking tid id checking =
-    async
-      ( "updateChecking",
-        [ mk_value_int tid; mk_value_int id; mk_value_int checking ] )
-
-  let selectNameAsync (ev : ev) =
-    let tid, id =
-      match ev.args with
-      | [ VConst (I tid); VConst (I id) ] -> (tid, id)
-      | _ -> _die [%here]
-    in
-    let prev_tid, prev_cid, y = get !Runtime._curTid id in
-    {
-      ev with
-      args =
-        [
-          mk_value_int tid;
-          mk_value_int id;
-          mk_value_int prev_tid;
-          mk_value_int prev_cid;
-          mk_value_int y;
-        ];
-    }
-
-  let updateNameAsync (ev : ev) =
-    let _, id, name =
-      match ev.args with
-      | [ VConst (I tid); VConst (I id); VConst (I name) ] -> (tid, id, name)
-      | _ -> _die [%here]
-    in
-    put !Runtime._curTid id name
-
-  let selectSavingAsync (ev : ev) =
-    let tid, id =
-      match ev.args with
-      | [ VConst (I tid); VConst (I id) ] -> (tid, id)
-      | _ -> _die [%here]
-    in
-    let prev_tid, prev_cid, y = get !Runtime._curTid (id + interval) in
-    {
-      ev with
-      args =
-        [
-          mk_value_int tid;
-          mk_value_int id;
-          mk_value_int prev_tid;
-          mk_value_int prev_cid;
-          mk_value_int y;
-        ];
-    }
-
-  let updateSavingAsync (ev : ev) =
-    let _, id, savings =
-      match ev.args with
-      | [ VConst (I tid); VConst (I id); VConst (I savings) ] ->
-          (tid, id, savings)
-      | _ -> _die [%here]
-    in
-    put !Runtime._curTid (id + interval) savings
-
-  let selectCheckingAsync (ev : ev) =
-    let tid, id =
-      match ev.args with
-      | [ VConst (I tid); VConst (I id) ] -> (tid, id)
-      | _ -> _die [%here]
-    in
-    let prev_tid, prev_cid, y = get !Runtime._curTid (id + (2 * interval)) in
-    {
-      ev with
-      args =
-        [
-          mk_value_int tid;
-          mk_value_int id;
-          mk_value_int prev_tid;
-          mk_value_int prev_cid;
-          mk_value_int y;
-        ];
-    }
-
-  let updateCheckingAsync (ev : ev) =
-    let _, id, checking =
-      match ev.args with
-      | [ VConst (I tid); VConst (I id); VConst (I checking) ] ->
-          (tid, id, checking)
-      | _ -> _die [%here]
-    in
-    put !Runtime._curTid (id + (2 * interval)) checking
-end
-
-module PairDB = struct
-  include MyDB (struct
-    type value = int * int
-
-    let args_to_value args =
-      match args with
-      | [ VConst (I y); VConst (I z) ] -> (y, z)
-      | _ -> _die [%here]
-
-    let value_to_args (y, z) = [ mk_value_int y; mk_value_int z ]
-    let equal_value (x, y) (x', y') = x == x' && y == y'
-    let value_tys = Nt.[ "y"#:int_ty; "z"#:int_ty ]
-    let initial_value = (0, 0)
-    let layout_value (x, y) = spf "(%i, %i)" x y
-  end)
-
-  let event_typectx =
-    let open Nt in
-    event_typectx
-    @ [
-        "read"#:(Nt.mk_record None
-                   [
-                     "tid"#:int_ty;
-                     "prevTid"#:int_ty;
-                     "prevCid"#:int_ty;
-                     "y"#:int_ty;
-                   ]);
-        "write"#:(Nt.mk_record None [ "tid"#:int_ty; "y"#:int_ty ]);
-      ]
-
-  let wr_to_put_get msg =
-    match msg.ev.op with
-    | "write" -> (
-        match msg.ev.args with
-        | [ VConst (I tid); VConst (I y) ] ->
-            let ev =
-              {
-                op = "put";
-                args =
-                  [
-                    mk_value_int tid;
-                    mk_value_int predefined_key;
-                    mk_value_int y;
-                    mk_value_int y;
-                  ];
-              }
-            in
-            { msg with ev }
-        | _ -> _die [%here])
-    | "read" -> (
-        match msg.ev.args with
-        | [
-         VConst (I tid); VConst (I prev_tid); VConst (I prev_cid); VConst (I y);
-        ] ->
-            let ev =
-              {
-                op = "get";
-                args =
-                  [
-                    mk_value_int tid;
-                    mk_value_int predefined_key;
-                    mk_value_int prev_tid;
-                    mk_value_int prev_cid;
-                    mk_value_int y;
-                    mk_value_int y;
-                  ];
-              }
-            in
-            { msg with ev }
-        | _ -> _die [%here])
-    | _ -> msg
-
-  let serializable_trace_checker his =
-    let his = List.map wr_to_put_get his in
-    serializable_trace_checker his
-
-  let do_read tid =
-    let msg = async ("read", [ mk_value_int tid ]) in
-    match msg.ev.args with
-    | [ VConst (I _); VConst (I _); VConst (I _); VConst (I y) ] -> y
-    | _ -> _die [%here]
-
-  let do_write tid x = async ("write", [ mk_value_int tid; mk_value_int x ])
-
-  let readAsync (ev : ev) =
+  let do_trans f =
+    let msg = async ("beginT", []) in
     let tid =
-      match ev.args with [ VConst (I tid) ] -> tid | _ -> _die [%here]
+      match msg.ev.args with [ VConst (I tid) ] -> tid | _ -> _die [%here]
     in
-    let prev_tid, prev_cid, (_, y) = read !Runtime._curTid in
-    {
-      ev with
-      args =
-        [
-          mk_value_int tid;
-          mk_value_int prev_tid;
-          mk_value_int prev_cid;
-          mk_value_int y;
-        ];
-    }
+    let res = f tid in
+    let _ = async ("commit", [ mk_value_int tid ]) in
+    res
 
-  let writeAsync (ev : ev) =
-    let x =
-      match ev.args with
-      | [ VConst (I _); VConst (I x) ] -> x
-      | _ -> _die [%here]
+  let int_list_to_values l = [ VCIntList l ]
+
+  let values_to_int_list l =
+    match l with [ VCIntList l ] -> l | _ -> _die [%here]
+
+  let addItemReqHandler (msg : msg) =
+    let aux (user : int) (item : int) =
+      do_trans (fun tid ->
+          let oldCart = values_to_int_list (do_get tid user) in
+          let newCart =
+            if List.mem item oldCart then oldCart else item :: oldCart
+          in
+          let _ = do_put tid user (int_list_to_values newCart) in
+          ())
     in
-    write !Runtime._curTid (x, x)
-end
-
-module ListDB = struct
-  include MyDB (struct
-    type value = int list
-
-    let equal_value l l' = List.equal ( == ) l l'
-    let value_tys = Nt.[ "y"#:(mk_list_ty int_ty) ]
-    let initial_value = []
-
-    let args_to_value args =
-      match args with [ VCIntList y ] -> y | _ -> _die [%here]
-
-    let value_to_args y = [ mk_value_intList y ]
-
-    let layout_value l =
-      spf "[%s]" (String.concat ", " (List.map string_of_int l))
-  end)
-
-  let event_typectx =
-    let open Nt in
-    event_typectx
-    @ [
-        "read"#:(Nt.mk_record None
-                   ([ "tid"#:int_ty; "prevTid"#:int_ty; "prevCid"#:int_ty ]
-                   @ value_tys));
-        "write"#:(Nt.mk_record None ([ "tid"#:int_ty ] @ value_tys));
-      ]
-
-  let wr_to_put_get msg =
-    match msg.ev.op with
-    | "write" -> (
-        match msg.ev.args with
-        | [ VConst (I tid); VCIntList y ] ->
-            let ev =
-              {
-                op = "put";
-                args =
-                  [
-                    mk_value_int tid;
-                    mk_value_int predefined_key;
-                    mk_value_intList y;
-                  ];
-              }
-            in
-            { msg with ev }
-        | _ -> _die [%here])
-    | "read" -> (
-        match msg.ev.args with
-        | [
-         VConst (I tid); VConst (I prev_tid); VConst (I prev_cid); VCIntList y;
-        ] ->
-            let ev =
-              {
-                op = "get";
-                args =
-                  [
-                    mk_value_int tid;
-                    mk_value_int predefined_key;
-                    mk_value_int prev_tid;
-                    mk_value_int prev_cid;
-                    mk_value_intList y;
-                  ];
-              }
-            in
-            { msg with ev }
-        | _ -> _die [%here])
-    | _ -> msg
-
-  let serializable_trace_checker his =
-    let his = List.map wr_to_put_get his in
-    serializable_trace_checker his
-
-  let do_read tid =
-    let msg = async ("read", [ mk_value_int tid ]) in
     match msg.ev.args with
-    | [ VConst (I _); VConst (I _); VConst (I _); VCIntList y ] -> y
+    | [ VConst (I user); VConst (I item) ] ->
+        let _ = aux user item in
+        send ("addItemResp", [])
     | _ -> _die [%here]
 
-  let do_write tid x = async ("write", [ mk_value_int tid; mk_value_intList x ])
-
-  let readAsync (ev : ev) =
-    let tid =
-      match ev.args with [ VConst (I tid) ] -> tid | _ -> _die [%here]
+  let deleteItemReqHandler (msg : msg) =
+    let aux (user : int) (item : int) =
+      do_trans (fun tid ->
+          let oldCart = values_to_int_list (do_get tid user) in
+          let newCart = List.filter (fun x -> x <> item) oldCart in
+          let _ = do_put tid user (int_list_to_values newCart) in
+          ())
     in
-    let prev_tid, prev_cid, y = read !Runtime._curTid in
-    {
-      ev with
-      args =
-        [
-          mk_value_int tid;
-          mk_value_int prev_tid;
-          mk_value_int prev_cid;
-          mk_value_intList y;
-        ];
-    }
+    match msg.ev.args with
+    | [ VConst (I user); VConst (I item) ] ->
+        let _ = aux user item in
+        send ("deleteItemResp", [])
+    | _ -> _die [%here]
 
-  let writeAsync (ev : ev) =
-    let x =
-      match ev.args with
-      | [ VConst (I _); VCIntList x ] -> x
-      | _ -> _die [%here]
+  let newUserReqHandler (msg : msg) =
+    let aux (user : int) =
+      do_trans (fun tid ->
+          let _ = do_put tid user (int_list_to_values []) in
+          ())
     in
-    write !Runtime._curTid x
+    match msg.ev.args with
+    | [ VConst (I user) ] ->
+        let _ = aux user in
+        send ("newUserResp", [])
+    | _ -> _die [%here]
+
+  let addItemRespHandler (_ : msg) = ()
+  let deleteItemRespHandler (_ : msg) = ()
+  let newUserRespHandler (_ : msg) = ()
+
+  let init db_name isolation_level () =
+    register_async_has_ret "beginT" beginAsync;
+    register_async_has_ret "commit" commitAsync;
+    register_async_has_ret "get" getAsync;
+    register_async_no_ret "put" putAsync;
+    register_handler "addItemReq" addItemReqHandler;
+    register_handler "deleteItemReq" deleteItemReqHandler;
+    register_handler "addItemResp" addItemRespHandler;
+    register_handler "deleteItemResp" deleteItemRespHandler;
+    register_handler "newUserReq" newUserReqHandler;
+    register_handler "newUserResp" newUserRespHandler;
+    D.init db_name isolation_level
+
+  let testCtx =
+    let open Nt in
+    let record l = Ty_record { alias = None; fds = l } in
+    Typectx.add_to_rights Typectx.emp
+      [
+        "beginT"#:(record [ "tid"#:int_ty ]);
+        "commit"#:(record [ "tid"#:int_ty; "cid"#:int_ty ]);
+        "put"#:(record
+                  [ "tid"#:int_ty; "key"#:int_ty; "value"#:(mk_list_ty int_ty) ]);
+        "get"#:(record
+                  [
+                    "tid"#:int_ty;
+                    "key"#:int_ty;
+                    "prev_tid"#:int_ty;
+                    "prev_cid"#:int_ty;
+                    "value"#:(mk_list_ty int_ty);
+                  ]);
+        "newUserReq"#:(record [ "user"#:int_ty ]);
+        "newUserResp"#:(record []);
+        "addItemReq"#:(record [ "user"#:int_ty; "item"#:int_ty ]);
+        "addItemResp"#:(record []);
+        "deleteItemReq"#:(record [ "user"#:int_ty; "item"#:int_ty ]);
+        "deleteItemResp"#:(record []);
+      ]
 end
