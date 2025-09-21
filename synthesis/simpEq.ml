@@ -22,6 +22,13 @@ let mk_eq_from_prev (gprop, term) =
   in
   let try_find_ass lvars (gprop, x) =
     let ass = select_by_ty x.ty lvars in
+    (* let () =
+      Pp.printf "@{<bold>[%s]ass:@} %s\n" (Nt.layout x.ty)
+        (List.split_by_comma layout_typed_var ass)
+    in
+    let () =
+      Pp.printf "@{<bold>[%s]gprop:@} %s\n" (Nt.layout x.ty) (layout_prop gprop)
+    in *)
     let ass =
       List.filter_map
         (fun y ->
@@ -114,7 +121,11 @@ let rename_plan ass (gen_vars, gprop, prog) =
   match ass with
   | [] -> None
   | _ ->
+      let _ = Prover.check_sat_bool (None, gprop) in
+      let () = Pp.printf "@{<bold>gprop:@} %s\n" (layout_prop gprop) in
       let gprop, prog = do_rename_plan ass (gprop, prog) in
+      let () = Pp.printf "@{<bold>gprop:@} %s\n" (layout_prop gprop) in
+      let _ = Prover.check_sat_bool (None, gprop) in
       Some (gen_vars, gprop, prog)
 
 let simp_partial_func (gen_vars, gprop, prog) =
@@ -176,7 +187,14 @@ let get_assign_names conjs vs =
       (fun x ->
         let l = List.filter_map (fun prop -> is_eq_phi x prop) conjs in
         let l = List.filter_map (function AVar x -> Some x | _ -> None) l in
-        match l with [] -> None | y :: _ -> Some (x.x, y))
+        match l with
+        | [] -> None
+        | y :: _ ->
+            let () =
+              Pp.printf "@{<bold>assignment:@} %s -> %s\n" (layout_typed_var x)
+                (layout_typed_var y)
+            in
+            Some (x.x, y))
       vs
   in
   if List.length assignments == 0 then None else Some assignments

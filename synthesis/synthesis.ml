@@ -33,6 +33,13 @@ let synthesize (env : syn_env) name =
     | None -> _die_with [%here] "no goal"
     | Some { qvs; prop; _ } -> (qvs, prop)
   in
+  (* let qvs, reg =
+    match StrMap.find_opt env.goals name with
+    | None -> _die_with [%here] "no goal"
+    | Some { qvs; prop; _ } -> (qvs, prop)
+  in
+  let m = List.map (fun x -> (x.x, AVar (Rename.unique_var x.x)#:x.ty)) qvs in
+  let reg = msubst subst_rich_regex_instance m reg in *)
   let op_names = List.map _get_x (ctx_to_list env.event_tyctx) in
   let reg =
     rich_regex_desugar env.event_tyctx (CtxOp { op_names; body = reg })
@@ -42,6 +49,7 @@ let synthesize (env : syn_env) name =
   let plans = Refine.deductive_synthesis env r in
   let () = Pp.printf "\n@{<yellow>Result plans:@}\n" in
   let () = save_plans plans in
+  let () = Pp.printf "@{<bold>load plans:@}%s\n" name in
   let plans = load_plans () in
   List.iter (fun p -> Plan.print_mid_result p) plans;
   (* let term = instantiation env (g.gamma, g.plan) in *)

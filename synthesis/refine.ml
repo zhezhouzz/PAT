@@ -37,7 +37,7 @@ let _strategy =
       search = DFS;
       layout_bound = 5;
       result_expection = 5;
-      pause = true;
+      pause = false;
       search_new_goals = false;
       addKstar = false;
     }
