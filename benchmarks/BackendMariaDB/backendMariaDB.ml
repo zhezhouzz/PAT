@@ -90,7 +90,46 @@ let no_param_no_ret db query =
   M.Stmt.execute stmt [||] >>= or_die "exec" >>= fun _ ->
   M.Stmt.close stmt >>= or_die "stmt close" >>= fun () -> Lwt.return_unit
 
-module MyMariaDB = struct
+module type MyDB = sig
+  val maria_context : string -> Language.isolation -> (unit -> unit) -> unit
+  val async_clear_db : unit -> unit Lwt.t
+  val async_begin : thread_id:int -> unit -> int Lwt.t
+  val async_commit : tid:int -> unit -> int Lwt.t
+
+  val async_get :
+    tid:int ->
+    table:string ->
+    key:string ->
+    unit ->
+    (int * int * Yojson.Basic.t) Lwt.t
+
+  val async_put :
+    tid:int ->
+    table:string ->
+    key:string ->
+    json:Yojson.Basic.t ->
+    unit ->
+    unit Lwt.t
+
+  val async_get_current_isolation : tid:int -> unit -> unit Lwt.t
+  val raw_clear_db : unit -> unit
+  val raw_begin : thread_id:int -> int
+  val raw_commit : tid:int -> int
+
+  val raw_get :
+    tid:int -> table:string -> key:string -> int * int * Yojson.Basic.t
+
+  val raw_put :
+    tid:int -> table:string -> key:string -> json:Yojson.Basic.t -> unit
+
+  val raw_get_current_isolation : tid:int -> unit
+  val check_causal : unit -> bool
+  val check_serializable : unit -> bool
+  val check_read_committed : unit -> bool
+  val layout_field : M.Field.t -> unit Lwt.t
+end
+
+module MyMariaDB : MyDB = struct
   (** Schema *)
 
   let _tid = ref 0
@@ -131,7 +170,7 @@ module MyMariaDB = struct
         id
     | None -> Zutils.(_die_with [%here] "no connection available")
 
-  let release_connection id = Hashtbl.replace connectionStatus id true
+  (* let release_connection id = Hashtbl.replace connectionStatus id true *)
 
   type log =
     | Begin of { tid : int }
@@ -298,37 +337,28 @@ module MyMariaDB = struct
      |  cart:3        | {tid: 1, json: [2]}    |
      +----------------+------------------------+ *)
 
-  let get_cur_tid thread_id =
+  (* let get_cur_tid thread_id =
     match Hashtbl.find_opt so thread_id with
     | Some l -> (
         match List.rev l with
         | [] -> Zutils.(_die_with [%here] "thread_id not found")
         | x :: _ -> x)
-    | None -> Zutils.(_die_with [%here] "thread_id not found")
+    | None -> Zutils.(_die_with [%here] "thread_id not found") *)
 
-  let check_validate thread_id tid =
+  (* let check_validate thread_id tid =
     let tid' = get_cur_tid thread_id in
-    if tid' != tid then Zutils.(_die_with [%here] "tid is not valid") else ()
+    if tid' != tid then Zutils.(_die_with [%here] "tid is not valid") else () *)
 
   let get_conn tid =
     match Hashtbl.find_opt connMap tid with
     | Some conn -> Hashtbl.find connectionPool conn
     | None -> Zutils.(_die_with [%here] "tid not found")
-  (* let* conn = connect !_db_name >>= or_die "connect" in
-        let* _ =
-          no_param_no_ret conn
-            (Printf.sprintf "SET SESSION wsrep_sync_wait = 1;")
-        in
-        let* _ = no_param_no_ret conn (Printf.sprintf "USE %s;" !_db_name) in
-        Hashtbl.add connMap thread_id conn;
-        Hashtbl.add so thread_id [];
-        Lwt.return conn *)
 
   let gelara1_port = 3307
   let gelara2_port = 3308
   let gelara3_port = 3309
 
-  let aync_clear_db () =
+  let async_clear_db () =
     let () = Hashtbl.clear so in
     let () = wr := [] in
     let () = co := [] in
@@ -364,8 +394,8 @@ module MyMariaDB = struct
     in
     Lwt.return_unit
 
-  let aync_init_db () =
-    let* () = aync_clear_db () in
+  let async_init_db () =
+    let* () = async_clear_db () in
     let mk_conn port =
       let* conn = connect port !_db_name >>= or_die "connect" in
       let () = Hashtbl.add connectionPool port conn in
@@ -379,16 +409,22 @@ module MyMariaDB = struct
         match !_isolation with
         | Serializable ->
             no_param_no_ret conn
-              (Printf.sprintf
-                 "SET GLOBAL TRANSACTION ISOLATION LEVEL SERIALIZABLE;")
+              "SET GLOBAL TRANSACTION ISOLATION LEVEL SERIALIZABLE;"
         | ReadUncommitted ->
             no_param_no_ret conn
-              (Printf.sprintf
-                 "SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;")
-        | ReadCommitted | Causal ->
-            no_param_no_ret conn
-              (Printf.sprintf
-                 "SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED;")
+              "SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;"
+        | ReadCommitted ->
+            let* _ =
+              no_param_no_ret conn
+                "SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED;"
+            in
+            no_param_no_ret conn "SET GLOBAL wsrep_sync_wait = 0;"
+        | Causal ->
+            let* _ =
+              no_param_no_ret conn
+                "SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED;"
+            in
+            no_param_no_ret conn "SET GLOBAL wsrep_sync_wait = 1;"
       in
       Lwt.return_unit
     in
@@ -400,9 +436,9 @@ module MyMariaDB = struct
   let init db_name isolation =
     _db_name := db_name;
     _isolation := isolation;
-    Lwt_main.run (aync_init_db ())
+    Lwt_main.run (async_init_db ())
 
-  let clear () = Lwt_main.run (aync_clear_db ())
+  let raw_clear_db () = Lwt_main.run (async_clear_db ())
 
   let close () =
     let r =
@@ -459,7 +495,8 @@ module MyMariaDB = struct
 
   let raw_commit ~tid = Lwt_main.run (async_commit ~tid ())
 
-  let async_get_current_isolation conn () =
+  let async_get_current_isolation ~tid () =
+    let conn = get_conn tid in
     let* stmt =
       M.prepare conn (Zutils.spf "SELECT @@transaction_isolation;")
       >>= or_die "prepare"
@@ -472,6 +509,9 @@ module MyMariaDB = struct
     let* () = print_row (List.nth s 0) in
     let* _ = M.Stmt.close stmt >>= or_die "stmt close" in
     Lwt.return_unit
+
+  let raw_get_current_isolation ~tid =
+    Lwt_main.run (async_get_current_isolation ~tid ())
 
   let async_put ~tid ~table ~key ~json () =
     (* let () = check_validate thread_id tid in *)
@@ -583,6 +623,12 @@ module MyMariaDB = struct
     Lwt.return (prev_tid, prev_cid, json)
 
   let raw_get ~tid ~table ~key = Lwt_main.run (async_get ~tid ~table ~key ())
+
+  let maria_context db_name isolation k =
+    let () = init db_name isolation in
+    let () = k () in
+    let () = close () in
+    ()
 end
 
 open MyMariaDB
@@ -594,157 +640,163 @@ let run_in_parallel f =
 let test_dirty_read_concurrent isolation () =
   let isolation = Language.isolation_of_string isolation in
   let db_name = "dirty_read_concurrent" in
-  let table = "dirty_read_concurrent" in
-  let () = init db_name isolation in
-  let key = "3" in
-  let thread1 n =
-    let thread_id = 1 in
-    let* tid = async_begin ~thread_id () in
-    let* _ = async_put ~tid ~table ~key ~json:(`Int n) () in
-    let* _ = Lwt_unix.sleep (Random.float 0.01) in
-    async_commit ~tid ()
-  in
-  let thread3 _ =
-    let thread_id = 3 in
-    let* tid = async_begin ~thread_id () in
-    let* _, _, _ = async_get ~tid ~table ~key () in
-    let* _ = Lwt_unix.sleep (Random.float 0.01) in
-    let* _, _, _ = async_get ~tid ~table ~key () in
-    let* _ = async_commit ~tid () in
-    Lwt.return_unit
-    (* if Yojson.Basic.equal res1 res2 then Lwt.return_unit
+  maria_context db_name isolation (fun () ->
+      let table = "dirty_read_concurrent" in
+      let key = "3" in
+      let thread1 n =
+        let thread_id = 1 in
+        let* tid = async_begin ~thread_id () in
+        let* _ = async_put ~tid ~table ~key ~json:(`Int n) () in
+        let* _ = Lwt_unix.sleep (Random.float 0.01) in
+        async_commit ~tid ()
+      in
+      let thread3 _ =
+        let thread_id = 3 in
+        let* tid = async_begin ~thread_id () in
+        let* _, _, _ = async_get ~tid ~table ~key () in
+        let* _ = Lwt_unix.sleep (Random.float 0.01) in
+        let* _, _, _ = async_get ~tid ~table ~key () in
+        let* _ = async_commit ~tid () in
+        Lwt.return_unit
+        (* if Yojson.Basic.equal res1 res2 then Lwt.return_unit
     else
       Lwt.fail_with
         (Printf.sprintf "%s != %s"
            (Yojson.Basic.to_string res1)
            (Yojson.Basic.to_string res2)) *)
-  in
-  let _ = Lwt_main.run (thread1 1) in
-  let rec mk_loop n f () =
-    if n <= 0 then Lwt.return_unit
-    else
-      let* _ = f n in
-      let* _ = Lwt_unix.sleep (Random.float 0.01) in
-      mk_loop (n - 1) f ()
-  in
-  let test m =
-    Lwt_main.run (Lwt.join [ mk_loop m thread1 (); mk_loop m thread3 () ])
-  in
-  let () = test 10 in
-  let () = close () in
-  let () =
-    Printf.printf "check_read_committed: %b\n" (check_read_committed ())
-  in
-  let () = Printf.printf "check_serializable: %b\n" (check_serializable ()) in
-  let () = Printf.printf "check_causal: %b\n" (check_causal ()) in
-  ()
+      in
+      let _ = Lwt_main.run (thread1 1) in
+      let rec mk_loop n f () =
+        if n <= 0 then Lwt.return_unit
+        else
+          let* _ = f n in
+          let* _ = Lwt_unix.sleep (Random.float 0.01) in
+          mk_loop (n - 1) f ()
+      in
+      let test m =
+        Lwt_main.run (Lwt.join [ mk_loop m thread1 (); mk_loop m thread3 () ])
+      in
+      let () = test 10 in
+      let () =
+        Printf.printf "check_read_committed: %b\n" (check_read_committed ())
+      in
+      let () =
+        Printf.printf "check_serializable: %b\n" (check_serializable ())
+      in
+      let () = Printf.printf "check_causal: %b\n" (check_causal ()) in
+      ())
 
 let test_stuck isolation () =
   let isolation = Language.isolation_of_string isolation in
-  let () = Printf.printf "%i\n" __LINE__ in
   let db_name = "stuck" in
-  let table = "stuck" in
-  let () = init db_name isolation in
-  let tid1 = raw_begin ~thread_id:1 in
-  let tid2 = raw_begin ~thread_id:2 in
-  let () = raw_put ~tid:tid1 ~table ~key:"3" ~json:(`List [ `Int 1 ]) in
-  let _ = raw_commit ~tid:tid1 in
-  let () = raw_put ~tid:tid2 ~table ~key:"3" ~json:(`List [ `Int 2 ]) in
-  let _ = raw_commit ~tid:tid2 in
-  let () = close () in
-  ()
+  maria_context db_name isolation (fun () ->
+      let table = "stuck" in
+      let tid1 = raw_begin ~thread_id:1 in
+      let tid2 = raw_begin ~thread_id:2 in
+      let () = raw_put ~tid:tid1 ~table ~key:"3" ~json:(`List [ `Int 1 ]) in
+      let _ = raw_commit ~tid:tid1 in
+      let () = raw_put ~tid:tid2 ~table ~key:"3" ~json:(`List [ `Int 2 ]) in
+      let _ = raw_commit ~tid:tid2 in
+      ())
 
 let test_dirty_read isolation () =
   let isolation = Language.isolation_of_string isolation in
-  let () = Printf.printf "%i\n" __LINE__ in
   let db_name = "non_repeatable_read" in
-  let table = "non_repeatable_read" in
-  let () = Printf.printf "%i\n" __LINE__ in
-  let () = init db_name isolation in
-  let () = Printf.printf "%i\n" __LINE__ in
-  let tid1 = raw_begin ~thread_id:1 in
-  let _ = Printf.printf "tid1: %i\n" tid1 in
-  let () = raw_put ~tid:tid1 ~table ~key:"3" ~json:(`List [ `Int 2 ]) in
-  let tid2 = raw_begin ~thread_id:2 in
-  let prev_tid, prev_cid, result = raw_get ~tid:tid2 ~table ~key:"3" in
-  let _ = Printf.printf "read 1 result: %s\n" (Yojson.Basic.to_string result) in
-  let _ = Printf.printf "prev_tid: %i\n" prev_tid in
-  let _ = Printf.printf "prev_cid: %i\n" prev_cid in
-  let _ = raw_commit ~tid:tid1 in
-  let _ = raw_commit ~tid:tid2 in
-  let () = close () in
-  ()
+  maria_context db_name isolation (fun () ->
+      let table = "non_repeatable_read" in
+      let tid1 = raw_begin ~thread_id:1 in
+      let _ = Printf.printf "tid1: %i\n" tid1 in
+      let () = raw_put ~tid:tid1 ~table ~key:"3" ~json:(`List [ `Int 2 ]) in
+      let tid2 = raw_begin ~thread_id:2 in
+      let prev_tid, prev_cid, result = raw_get ~tid:tid2 ~table ~key:"3" in
+      let _ =
+        Printf.printf "read 1 result: %s\n" (Yojson.Basic.to_string result)
+      in
+      let _ = Printf.printf "prev_tid: %i\n" prev_tid in
+      let _ = Printf.printf "prev_cid: %i\n" prev_cid in
+      let _ = raw_commit ~tid:tid1 in
+      let _ = raw_commit ~tid:tid2 in
+      ())
 
 let test_non_repeatable_read isolation () =
   let isolation = Language.isolation_of_string isolation in
   let db_name = "non_repeatable_read" in
-  let table = "non_repeatable_read" in
-  let () = init db_name isolation in
-  let tid1 = raw_begin ~thread_id:1 in
-  let _ = Printf.printf "tid1: %i\n" tid1 in
-  let () = raw_put ~tid:tid1 ~table ~key:"3" ~json:(`List [ `Int 2 ]) in
-  let _ = raw_commit ~tid:tid1 in
-  let tid2 = raw_begin ~thread_id:2 in
-  let tid3 = raw_begin ~thread_id:3 in
-  let prev_tid, prev_cid, result = raw_get ~tid:tid2 ~table ~key:"3" in
-  let _ = Printf.printf "read 1 result: %s\n" (Yojson.Basic.to_string result) in
-  let _ = Printf.printf "prev_tid: %i\n" prev_tid in
-  let _ = Printf.printf "prev_cid: %i\n" prev_cid in
-  let () = raw_put ~tid:tid3 ~table ~key:"3" ~json:(`List [ `Int 3; `Int 4 ]) in
-  let _ = raw_commit ~tid:tid3 in
-  let prev_tid, prev_cid, result = raw_get ~tid:tid2 ~table ~key:"3" in
-  let _ = Printf.printf "read 2 result: %s\n" (Yojson.Basic.to_string result) in
-  let _ = Printf.printf "prev_tid: %i\n" prev_tid in
-  let _ = Printf.printf "prev_cid: %i\n" prev_cid in
-  let _ = raw_commit ~tid:tid2 in
-  let () = close () in
-  ()
+  maria_context db_name isolation (fun () ->
+      let table = "non_repeatable_read" in
+      let tid1 = raw_begin ~thread_id:1 in
+      let _ = Printf.printf "tid1: %i\n" tid1 in
+      let () = raw_put ~tid:tid1 ~table ~key:"3" ~json:(`List [ `Int 2 ]) in
+      let _ = raw_commit ~tid:tid1 in
+      let tid2 = raw_begin ~thread_id:2 in
+      let tid3 = raw_begin ~thread_id:3 in
+      let prev_tid, prev_cid, result = raw_get ~tid:tid2 ~table ~key:"3" in
+      let _ =
+        Printf.printf "read 1 result: %s\n" (Yojson.Basic.to_string result)
+      in
+      let _ = Printf.printf "prev_tid: %i\n" prev_tid in
+      let _ = Printf.printf "prev_cid: %i\n" prev_cid in
+      let () =
+        raw_put ~tid:tid3 ~table ~key:"3" ~json:(`List [ `Int 3; `Int 4 ])
+      in
+      let _ = raw_commit ~tid:tid3 in
+      let prev_tid, prev_cid, result = raw_get ~tid:tid2 ~table ~key:"3" in
+      let _ =
+        Printf.printf "read 2 result: %s\n" (Yojson.Basic.to_string result)
+      in
+      let _ = Printf.printf "prev_tid: %i\n" prev_tid in
+      let _ = Printf.printf "prev_cid: %i\n" prev_cid in
+      let _ = raw_commit ~tid:tid2 in
+      ())
 
 let test_causal isolation () =
   let isolation = Language.isolation_of_string isolation in
   let db_name = "causal" in
   let table = "causal" in
-  let () = init db_name isolation in
-  let tid1 = raw_begin ~thread_id:1 in
-  let _ = Printf.printf "tid1: %i\n" tid1 in
-  let () = raw_put ~tid:tid1 ~table ~key:"1" ~json:(`Int 1) in
-  let () = raw_put ~tid:tid1 ~table ~key:"2" ~json:(`Int 1) in
-  let _ = raw_commit ~tid:tid1 in
-  let tid2 = raw_begin ~thread_id:2 in
-  let prev_tid, prev_cid, result = raw_get ~tid:tid2 ~table ~key:"1" in
-  let _ = Printf.printf "read 1 result: %s\n" (Yojson.Basic.to_string result) in
-  let _ = Printf.printf "prev_tid: %i\n" prev_tid in
-  let _ = Printf.printf "prev_cid: %i\n" prev_cid in
-  let tid3 = raw_begin ~thread_id:3 in
-  let _ = raw_get ~tid:tid3 ~table ~key:"1" in
-  let () = raw_put ~tid:tid3 ~table ~key:"1" ~json:(`Int 2) in
-  let () = raw_put ~tid:tid3 ~table ~key:"2" ~json:(`Int 2) in
-  let _ = raw_commit ~tid:tid3 in
-  let prev_tid, prev_cid, result = raw_get ~tid:tid2 ~table ~key:"2" in
-  let _ = Printf.printf "read 2 result: %s\n" (Yojson.Basic.to_string result) in
-  let _ = Printf.printf "prev_tid: %i\n" prev_tid in
-  let _ = Printf.printf "prev_cid: %i\n" prev_cid in
-  let _ = raw_commit ~tid:tid2 in
-  let () = close () in
-  ()
+  maria_context db_name isolation (fun () ->
+      let tid1 = raw_begin ~thread_id:1 in
+      let _ = Printf.printf "tid1: %i\n" tid1 in
+      let () = raw_put ~tid:tid1 ~table ~key:"1" ~json:(`Int 1) in
+      let () = raw_put ~tid:tid1 ~table ~key:"2" ~json:(`Int 1) in
+      let _ = raw_commit ~tid:tid1 in
+      let tid2 = raw_begin ~thread_id:2 in
+      let prev_tid, prev_cid, result = raw_get ~tid:tid2 ~table ~key:"1" in
+      let _ =
+        Printf.printf "read 1 result: %s\n" (Yojson.Basic.to_string result)
+      in
+      let _ = Printf.printf "prev_tid: %i\n" prev_tid in
+      let _ = Printf.printf "prev_cid: %i\n" prev_cid in
+      let tid3 = raw_begin ~thread_id:3 in
+      let _ = raw_get ~tid:tid3 ~table ~key:"1" in
+      let () = raw_put ~tid:tid3 ~table ~key:"1" ~json:(`Int 2) in
+      let () = raw_put ~tid:tid3 ~table ~key:"2" ~json:(`Int 2) in
+      let _ = raw_commit ~tid:tid3 in
+      let prev_tid, prev_cid, result = raw_get ~tid:tid2 ~table ~key:"2" in
+      let _ =
+        Printf.printf "read 2 result: %s\n" (Yojson.Basic.to_string result)
+      in
+      let _ = Printf.printf "prev_tid: %i\n" prev_tid in
+      let _ = Printf.printf "prev_cid: %i\n" prev_cid in
+      let _ = raw_commit ~tid:tid2 in
+      ())
 
 let test_cart isolation () =
   let isolation = Language.isolation_of_string isolation in
   let db_name = "cart" in
   let table = "cart" in
-  let () = init db_name isolation in
-  let tid1 = raw_begin ~thread_id:1 in
-  let _ = Printf.printf "tid1: %i\n" tid1 in
-  let () = raw_put ~tid:tid1 ~table ~key:"3" ~json:(`List [ `Int 2 ]) in
-  let _ = raw_commit ~tid:tid1 in
-  let tid2 = raw_begin ~thread_id:2 in
-  let () = raw_put ~tid:tid2 ~table ~key:"3" ~json:(`List [ `Int 3; `Int 4 ]) in
-  let tid3 = raw_begin ~thread_id:3 in
-  let prev_tid, prev_cid, result = raw_get ~tid:tid3 ~table ~key:"3" in
-  let _ = raw_commit ~tid:tid2 in
-  let _ = raw_commit ~tid:tid3 in
-  let _ = Printf.printf "result: %s\n" (Yojson.Basic.to_string result) in
-  let _ = Printf.printf "prev_tid: %i\n" prev_tid in
-  let _ = Printf.printf "prev_cid: %i\n" prev_cid in
-  let () = close () in
-  ()
+  maria_context db_name isolation (fun () ->
+      let tid1 = raw_begin ~thread_id:1 in
+      let _ = Printf.printf "tid1: %i\n" tid1 in
+      let () = raw_put ~tid:tid1 ~table ~key:"3" ~json:(`List [ `Int 2 ]) in
+      let _ = raw_commit ~tid:tid1 in
+      let tid2 = raw_begin ~thread_id:2 in
+      let () =
+        raw_put ~tid:tid2 ~table ~key:"3" ~json:(`List [ `Int 3; `Int 4 ])
+      in
+      let tid3 = raw_begin ~thread_id:3 in
+      let prev_tid, prev_cid, result = raw_get ~tid:tid3 ~table ~key:"3" in
+      let _ = raw_commit ~tid:tid2 in
+      let _ = raw_commit ~tid:tid3 in
+      let _ = Printf.printf "result: %s\n" (Yojson.Basic.to_string result) in
+      let _ = Printf.printf "prev_tid: %i\n" prev_tid in
+      let _ = Printf.printf "prev_cid: %i\n" prev_cid in
+      ())

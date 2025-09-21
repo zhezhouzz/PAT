@@ -28,24 +28,24 @@ let load_progs name () =
   Sexplib.Std.list_of_sexp term_of_sexp sexp
 
 let synthesize (env : syn_env) name =
-  let _, reg =
+  let qvs, reg =
     match StrMap.find_opt env.goals name with
     | None -> _die_with [%here] "no goal"
     | Some { qvs; prop; _ } -> (qvs, prop)
   in
-  (* let qvs, reg =
-    match StrMap.find_opt env.goals name with
-    | None -> _die_with [%here] "no goal"
-    | Some { qvs; prop; _ } -> (qvs, prop)
-  in
-  let m = List.map (fun x -> (x.x, AVar (Rename.unique_var x.x)#:x.ty)) qvs in
-  let reg = msubst subst_rich_regex_instance m reg in *)
   let op_names = List.map _get_x (ctx_to_list env.event_tyctx) in
   let reg =
     rich_regex_desugar env.event_tyctx (CtxOp { op_names; body = reg })
   in
+  let m = List.map (fun x -> (x.x, AVar (Rename.unique_var x.x)#:x.ty)) qvs in
+  let () =
+    Pp.printf "@{<bold>m:@} %s\n"
+      (List.split_by_comma (fun (x, y) -> spf "%s -> %s" x (layout_lit y)) m)
+  in
+  let reg = msubst subst_rich_regex_instance m reg in
   let r = SFA.rich_regex_to_regex reg in
   let () = Pp.printf "\n@{<red>Original Reg:@} %s\n" (SFA.layout_regex r) in
+  (* let () = _die [%here] in *)
   let plans = Refine.deductive_synthesis env r in
   let () = Pp.printf "\n@{<yellow>Result plans:@}\n" in
   let () = save_plans plans in

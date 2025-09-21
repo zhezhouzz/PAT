@@ -59,8 +59,7 @@ module MyDB (C : Config) = struct
     in
     ()
 
-  let init db_name isolation_level = DB.init db_name isolation_level
-  let close () = DB.close ()
+  let clear () = DB.raw_clear_db ()
 
   let check_isolation_level isolation_level _ =
     match isolation_level with
@@ -213,7 +212,7 @@ module CartDB = struct
     register_handler "deleteItemResp" deleteItemRespHandler;
     register_handler "newUserReq" newUserReqHandler;
     register_handler "newUserResp" newUserRespHandler;
-    DB.clear ()
+    D.clear ()
 
   let testCtx =
     let open Nt in
