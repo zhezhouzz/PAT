@@ -360,10 +360,11 @@ let merge_line_with_acts if_reuse line ses =
     if String.equal act.aop "mkVar" then true else if_reuse act
   in
   let line = clear_tmp_in_line line in
+  let line_concat x { gprop; elems } = { gprop; elems = x @ elems } in
   let multi_concat x l =
-    List.map (fun { gprop; elems } -> { gprop; elems = x @ elems }) l
+    List.map (fun (ids, line) -> (ids, line_concat x line)) l
   in
-  let rec aux { gprop; elems } ses =
+  let rec aux (reusedIds, { gprop; elems }) ses =
     (* let () =
       Pp.printf "@{<bold>merge_line_with_acts@} elems: %s\n"
         (omit_layout_line_elems elems)
@@ -375,7 +376,7 @@ let merge_line_with_acts if_reuse line ses =
            ses)
     in *)
     match (elems, ses) with
-    | _, [] -> [ { gprop; elems } ]
+    | _, [] -> [ (reusedIds, { gprop; elems }) ]
     | [], _ -> []
     | LineAct act :: elems', (idx, se) :: ses' ->
         (* let () =
@@ -389,12 +390,17 @@ let merge_line_with_acts if_reuse line ses =
             | Some phi ->
                 let gprop = smart_and [ phi; gprop ] in
                 let act = { act with tmp = idx } in
-                multi_concat [ LineAct act ]
-                  (aux { gprop; elems = elems' } ses')
+                let actId = act_get_id act in
+                let res = aux (reusedIds, { gprop; elems = elems' }) ses' in
+                List.map
+                  (fun (reusedIds, line) ->
+                    (actId :: reusedIds, line_concat [ LineAct act ] line))
+                  res
           else []
         in
         let res1 =
-          multi_concat [ LineAct act ] (aux { gprop; elems = elems' } ses)
+          multi_concat [ LineAct act ]
+            (aux (reusedIds, { gprop; elems = elems' }) ses)
         in
         res1 @ res2
     | LineStarMultiChar c :: elems', (idx, se) :: ses' ->
@@ -413,16 +419,16 @@ let merge_line_with_acts if_reuse line ses =
               let gprop = smart_and [ phi; gprop ] in
               multi_concat
                 [ LineStarMultiChar c; LineAct act; LineStarMultiChar c ]
-                (aux { gprop; elems } ses')
+                (aux (reusedIds, { gprop; elems }) ses')
         in
         let res1 =
           multi_concat [ LineStarMultiChar c ]
-            (aux { gprop; elems = elems' } ses)
+            (aux (reusedIds, { gprop; elems = elems' }) ses)
         in
         res1 @ res2
   in
-  let res = aux line ses in
-  List.sort (fun x y -> Int.compare (line_size x) (line_size y)) res
+  let res = aux ([], line) ses in
+  List.sort (fun (_, x) (_, y) -> Int.compare (line_size x) (line_size y)) res
 
 let fill_line line lr =
   let opt_line_cons x l =
@@ -485,7 +491,7 @@ let merge_line_with_linear_regex if_reuse line lr =
   match lr with
   | [] ->
       if is_empty_line_elems line.elems then
-        [ { gprop = line.gprop; elems = [] } ]
+        [ ([], { gprop = line.gprop; elems = [] }) ]
       else []
   | _ ->
       let lr = List.mapi (fun idx se -> (idx, se)) lr in
@@ -497,11 +503,23 @@ let merge_line_with_linear_regex if_reuse line lr =
       in
       let lines = merge_line_with_acts if_reuse line ses in
       (* layout_tmp_results "merge" lines; *)
-      let lines = List.map simplify_line lines in
+      let lines =
+        List.map
+          (fun (reusedIds, line) -> (reusedIds, simplify_line line))
+          lines
+      in
       (* layout_tmp_results "simplify" lines; *)
-      let lines = List.filter_map (fun line -> fill_line line lr) lines in
+      let lines =
+        List.filter_map
+          (fun (reusedIds, line) ->
+            match fill_line line lr with
+            | None -> None
+            | Some line ->
+                let line = clear_tmp_in_line line in
+                Some (reusedIds, line))
+          lines
+      in
       (* layout_tmp_results "fill" lines; *)
-      let lines = List.map clear_tmp_in_line lines in
       lines
 
 (* let merge_line_with_lr line lr =
@@ -765,8 +783,10 @@ let inter_line_with_regex if_reuse line1 regex =
       let () = Pp.printf "@{<bold>res: %i\n" (List.length res) in
       let () =
         List.iteri
-          (fun i x ->
-            Pp.printf "@{<bold>res[%i]:@} %s\n%s\n" i (omit_layout_line x)
+          (fun i (reusedIds, x) ->
+            Pp.printf "@{<bold>res[%i][resued: %s]:@} %s\n%s\n" i
+              (String.concat ", " (List.map string_of_int reusedIds))
+              (omit_layout_line x)
               (layout_line_elems x.elems))
           res
       in

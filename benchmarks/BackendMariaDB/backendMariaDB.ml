@@ -328,7 +328,7 @@ module MyMariaDB = struct
   let gelara2_port = 3308
   let gelara3_port = 3309
 
-  let aync_init_db () =
+  let aync_clear_db () =
     let () = Hashtbl.clear so in
     let () = wr := [] in
     let () = co := [] in
@@ -354,6 +354,18 @@ module MyMariaDB = struct
            !_db_name feild_name)
     in
     let _ = M.close conn in
+    let* _ =
+      Hashtbl.fold
+        (fun _ conn _ -> no_param_no_ret conn "ROLLBACK")
+        connectionPool Lwt.return_unit
+    in
+    let () =
+      Hashtbl.filter_map_inplace (fun _ _ -> Some true) connectionStatus
+    in
+    Lwt.return_unit
+
+  let aync_init_db () =
+    let* () = aync_clear_db () in
     let mk_conn port =
       let* conn = connect port !_db_name >>= or_die "connect" in
       let () = Hashtbl.add connectionPool port conn in
@@ -389,6 +401,8 @@ module MyMariaDB = struct
     _db_name := db_name;
     _isolation := isolation;
     Lwt_main.run (aync_init_db ())
+
+  let clear () = Lwt_main.run (aync_clear_db ())
 
   let close () =
     let r =

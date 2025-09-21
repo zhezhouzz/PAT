@@ -202,7 +202,7 @@ module CartDB = struct
   let deleteItemRespHandler (_ : msg) = ()
   let newUserRespHandler (_ : msg) = ()
 
-  let init db_name isolation_level () =
+  let init () =
     register_async_has_ret "beginT" beginAsync;
     register_async_has_ret "commit" commitAsync;
     register_async_has_ret "get" getAsync;
@@ -213,7 +213,7 @@ module CartDB = struct
     register_handler "deleteItemResp" deleteItemRespHandler;
     register_handler "newUserReq" newUserReqHandler;
     register_handler "newUserResp" newUserRespHandler;
-    D.init db_name isolation_level
+    DB.clear ()
 
   let testCtx =
     let open Nt in

@@ -28,6 +28,8 @@ val get :
 [@@obs]
 
 val put : < tid : int ; key : int ; value : int list > [@@obs]
+val newUserReq : < user : int > [@@gen]
+val newUserResp : < > [@@obs]
 val addItemReq : < user : int ; item : int > [@@gen]
 val addItemResp : < > [@@obs]
 val deleteItemReq : < user : int ; item : int > [@@gen]
@@ -56,30 +58,6 @@ let put ?l:(i = (true : [%v: int])) ?l:(k = (true : [%v: int]))
 
 let get =
   [|
-    (* No previous committed transaction *)
-    (fun ?l:(i = (true : [%v: int]))
-      ?l:(pi = (true : [%v: int]))
-      ?l:(pj = (true : [%v: int]))
-      ?l:(k = (true : [%v: int]))
-      ?l:(z = (true : [%v: int list]))
-    ->
-      ( starA (anyA - Commit true),
-        Get (tid == i && key == k && emp value && prevTid == -1 && prevCid == -1),
-        allA ));
-    (* Read within the same transaction *)
-    (fun ?l:(i = (true : [%v: int]))
-      ?l:(pi = (true : [%v: int]))
-      ?l:(pj = (true : [%v: int]))
-      ?l:(k = (true : [%v: int]))
-      ?l:(z = (true : [%v: int list]))
-    ->
-      ( (allA;
-         Put (tid == i && key == k && value == z);
-         starA (anyA - Commit (tid == i))),
-        Get
-          (tid == i && key == k && prevTid == pi && prevCid == pj
-         && prevTid == tid),
-        allA ));
     (* Read most recent committed transaction *)
     (fun ?l:(i = (true : [%v: int]))
       ?l:(pi = (true : [%v: int]))
@@ -94,11 +72,24 @@ let get =
          starA (anyA - Commit true - Put (tid == i && key == k))),
         Get
           (tid == i && key == k && prevTid == pi && prevCid == pj
-          && not (tid == prevTid)),
+          && (not (tid == prevTid))
+          && value == z),
         allA ));
   |]
 
 (* Cart *)
+
+let newUserReq (i : int) ?l:(x = (true : [%v: int])) =
+  ( starA (anyA - NewUserReq true - Get (key == x) - Put (key == x)),
+    NewUserReq (user == x),
+    (BeginT (tid == i);
+     Put (tid == i && key == x && emp value);
+     Commit (tid == i);
+     NewUserResp true;
+     starA (anyA - NewUserReq true)) )
+
+let newUserResp = (allA, NewUserResp true, allA)
+
 let addItemReq (i : int) (l : int list) ?l:(x = (true : [%v: int]))
     ?l:(y = (true : [%v: int])) =
   ( allA,
@@ -107,7 +98,8 @@ let addItemReq (i : int) (l : int list) ?l:(x = (true : [%v: int]))
      Get (tid == i && key == x && value == l);
      allA;
      Put (tid == i && key == x && value == cons y l);
-     allA;
+     starA (anyA - Put (key == x));
+     (* no write - write conflict *)
      Commit (tid == i);
      AddItemResp true;
      allA) )
@@ -122,7 +114,7 @@ let deleteItemReq (i : int) (l : int list) ?l:(x = (true : [%v: int]))
      Get (tid == i && key == x && value == l);
      allA;
      Put (tid == i && key == x && value == remove y l);
-     allA;
+     starA (anyA - Put (key == x));
      Commit (tid == i);
      DeleteItemResp true;
      allA) )

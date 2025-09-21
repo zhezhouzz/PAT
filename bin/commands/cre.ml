@@ -388,12 +388,11 @@ let test_eval s () =
       let open MonkeyBD in
       let open Common in
       let open Cart in
+      let () = BackendMariaDB.MyMariaDB.init "cart" ReadCommitted in
       let main = Synthesis.load_progs s () in
       let test () =
         Interpreter.once
-          ( CartDB.init "cart" ReadCommitted,
-            main,
-            CartDB.check_isolation_level Serializable )
+          (CartDB.init, main, CartDB.check_isolation_level Serializable)
       in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
@@ -401,12 +400,11 @@ let test_eval s () =
       let open MonkeyBD in
       let open Common in
       let open Cart in
+      let () = BackendMariaDB.MyMariaDB.init "cart" Causal in
       let main = Synthesis.load_progs s () in
       let test () =
         Interpreter.once
-          ( CartDB.init "cart" Causal,
-            main,
-            CartDB.check_isolation_level Serializable )
+          (CartDB.init, main, CartDB.check_isolation_level Serializable)
       in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
@@ -458,11 +456,10 @@ let test_eval s () =
       let open MonkeyBD in
       let open Common in
       let open Cart in
+      let () = BackendMariaDB.MyMariaDB.init "cart" ReadCommitted in
       let test () =
         Interpreter.once
-          ( CartDB.init "cart" ReadCommitted,
-            [ main ],
-            CartDB.check_isolation_level Serializable )
+          (CartDB.init, [ main ], CartDB.check_isolation_level Serializable)
       in
       let _ = Interpreter.eval_until_detect_bug test in
       ()
@@ -653,9 +650,10 @@ let test_random s () =
       let open MonkeyBD in
       let open Common in
       let open Cart in
+      let () = BackendMariaDB.MyMariaDB.init "cart" Causal in
       let test () =
         Interpreter.random_test
-          ( CartDB.init "cart" Causal,
+          ( CartDB.init,
             (fun () -> random_user { numUser = 4; numItem = 4; numOp = 2 }),
             CartDB.check_isolation_level Serializable )
       in

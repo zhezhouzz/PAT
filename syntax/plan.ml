@@ -240,14 +240,14 @@ let forward_merge line id (history, cur, future) =
         inter_line_with_regex (fun _ -> true) { gprop; elems = pre } history
       in
       List.concat_map
-        (fun { gprop; elems = pre } ->
+        (fun (_, { gprop; elems = pre }) ->
           let res =
             inter_line_with_regex
               (fun act -> not (is_derived_act act))
               { gprop; elems = post } future
           in
           List.map
-            (fun { gprop; elems = post } ->
+            (fun (reusedIdsPost, { gprop; elems = post }) ->
               let knownIds, post, newIds =
                 register_elems_under_plan knownIds post
               in
@@ -264,7 +264,9 @@ let forward_merge line id (history, cur, future) =
                   (fun id elems -> elems_add_id_parent elems id act_aid)
                   newIds elems
               in
-              let elems = elems_add_id_children elems act_aid newIds in
+              let elems =
+                elems_add_id_children elems act_aid (reusedIdsPost @ newIds)
+              in
               { gprop; elems })
             res)
         res
@@ -368,7 +370,7 @@ let backward_merge plan curId (history1, prev, history2, cur, future) =
               { gprop; elems = pre1 } history1
           in
           List.concat_map
-            (fun { gprop; elems = pre1 } ->
+            (fun (_, { gprop; elems = pre1 }) ->
               let () =
                 Pp.printf "@{<bold>backward merge@} pre1: %s\n"
                   (omit_layout_line_elems pre1)
@@ -380,7 +382,7 @@ let backward_merge plan curId (history1, prev, history2, cur, future) =
                   { gprop; elems = pre2 } history2
               in
               List.concat_map
-                (fun { gprop; elems = pre2 } ->
+                (fun (reusedIdsPre2, { gprop; elems = pre2 }) ->
                   let () = Pp.printf "@{<bold>merge post@}\n" in
                   let res =
                     inter_line_with_regex
@@ -388,7 +390,7 @@ let backward_merge plan curId (history1, prev, history2, cur, future) =
                       { gprop; elems = post } future
                   in
                   List.map
-                    (fun { gprop; elems = post } ->
+                    (fun (reusedIdsPost, { gprop; elems = post }) ->
                       let () =
                         Pp.printf
                           "@{<bold>backward merge result@} %s ; <%s> ; %s ; \
@@ -405,7 +407,9 @@ let backward_merge plan curId (history1, prev, history2, cur, future) =
                       in
                       let _, pre, _ = register_elems_under_plan knownIds pre1 in
                       let elems = pre @ [ LineAct prevAct ] @ post in
-                      let achildren = curId :: newIds in
+                      let achildren =
+                        reusedIdsPre2 @ (curId :: (reusedIdsPost @ newIds))
+                      in
                       let elems =
                         List.fold_right
                           (fun id elems -> elems_add_id_parent elems id prev_id)

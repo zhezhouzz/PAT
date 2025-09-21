@@ -6,7 +6,7 @@ module Eval = Eval
 module Sample = Sample
 open Language
 
-let converge_bound = 0
+let converge_bound = 100
 
 let random_test (init, main, checker) =
   Pool.init ();
