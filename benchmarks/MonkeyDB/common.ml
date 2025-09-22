@@ -155,6 +155,32 @@ module CartDB = struct
   let values_to_int_list l =
     match l with [ VCIntList l ] -> l | _ -> _die [%here]
 
+  let async_add_item ~thread_id user item () =
+    let open Lwt.Syntax in
+    let* tid = DB.async_begin ~thread_id () in
+    try
+      let* _, _, oldCart =
+        DB.async_get ~tid ~table:"cart" ~key:(string_of_int user) ()
+      in
+      let oldCart =
+        match Config.json_to_values oldCart with
+        | [ VCIntList l ] -> l
+        | _ -> _die [%here]
+      in
+      let newCart =
+        if List.mem item oldCart then oldCart else item :: oldCart
+      in
+      let* () =
+        DB.async_put ~tid ~table:"cart" ~key:(string_of_int user)
+          ~json:(Config.values_to_json [ VCIntList newCart ])
+          ()
+      in
+      let* _ = DB.async_commit ~tid () in
+      Lwt.return_unit
+    with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = DB.async_release_connection ~tid () in
+      Lwt.return_unit
+
   let addItemReqHandler (msg : msg) =
     let aux (user : int) (item : int) =
       do_trans (fun tid ->
@@ -171,6 +197,30 @@ module CartDB = struct
         send ("addItemResp", [])
     | _ -> _die [%here]
 
+  let async_delete_item ~thread_id user item () =
+    let open Lwt.Syntax in
+    let* tid = DB.async_begin ~thread_id () in
+    try
+      let* _, _, oldCart =
+        DB.async_get ~tid ~table:"cart" ~key:(string_of_int user) ()
+      in
+      let oldCart =
+        match Config.json_to_values oldCart with
+        | [ VCIntList l ] -> l
+        | _ -> _die [%here]
+      in
+      let newCart = List.filter (fun x -> x <> item) oldCart in
+      let* () =
+        DB.async_put ~tid ~table:"cart" ~key:(string_of_int user)
+          ~json:(Config.values_to_json [ VCIntList newCart ])
+          ()
+      in
+      let* _ = DB.async_commit ~tid () in
+      Lwt.return_unit
+    with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = DB.async_release_connection ~tid () in
+      Lwt.return_unit
+
   let deleteItemReqHandler (msg : msg) =
     let aux (user : int) (item : int) =
       do_trans (fun tid ->
@@ -184,6 +234,21 @@ module CartDB = struct
         let _ = aux user item in
         send ("deleteItemResp", [])
     | _ -> _die [%here]
+
+  let async_new_user ~thread_id user () =
+    let open Lwt.Syntax in
+    let* tid = DB.async_begin ~thread_id () in
+    try
+      let* () =
+        DB.async_put ~tid ~table:"cart" ~key:(string_of_int user)
+          ~json:(Config.values_to_json [ VCIntList [] ])
+          ()
+      in
+      let* _ = DB.async_commit ~tid () in
+      Lwt.return_unit
+    with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = DB.async_release_connection ~tid () in
+      Lwt.return_unit
 
   let newUserReqHandler (msg : msg) =
     let aux (user : int) =

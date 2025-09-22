@@ -6,8 +6,6 @@ module Eval = Eval
 module Sample = Sample
 open Language
 
-let converge_bound = 100
-
 let random_test (init, main, checker) =
   Pool.init ();
   init ();
@@ -46,25 +44,26 @@ let once (init, main, checker) =
   in *)
   his
 
-let eval_until_detect_bug test =
+let eval_until_detect_bug converge_bound test =
   let rec aux (i : int) =
     let () = Pp.printf "@{<red>Repeat for %i times@}\n" i in
-    if i > converge_bound then
+    if i >= converge_bound then
       _die_with [%here] "too many time until consistent"
     else
+      let i = i + 1 in
       try
         let his = test () in
         (i, his)
       with
       | RuntimeInconsistent msg ->
           Pp.printf "@{<red>Error:@} %s\n" msg;
-          aux (i + 1)
+          aux i
       | IsolationViolation _ ->
           Pp.printf "@{<red>Error:@} %s\n" "isolation violation";
-          aux (i + 1)
+          aux i
       | NoBugDetected _ ->
           Pp.printf "@{<red>Error:@} %s\n" "no bug detected";
-          aux (i + 1)
+          aux i
       | e -> raise e
   in
   let i, his = aux 0 in

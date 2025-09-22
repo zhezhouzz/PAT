@@ -2,6 +2,8 @@ open Lwt.Infix
 open Printf
 module S = Mariadb.Nonblocking.Status
 
+exception DBKeyNotFound of string
+
 module M = Mariadb.Nonblocking.Make (struct
   module IO = struct
     type 'a future = 'a Lwt.t
@@ -95,6 +97,7 @@ module type MyDB = sig
   val async_clear_db : unit -> unit Lwt.t
   val async_begin : thread_id:int -> unit -> int Lwt.t
   val async_commit : tid:int -> unit -> int Lwt.t
+  val async_release_connection : tid:int -> unit -> unit Lwt.t
 
   val async_get :
     tid:int ->
@@ -495,6 +498,22 @@ module MyMariaDB : MyDB = struct
 
   let raw_commit ~tid = Lwt_main.run (async_commit ~tid ())
 
+  let async_release_connection ~tid () =
+    (* let () = check_validate thread_id tid in *)
+    match Hashtbl.find_opt commit_tid tid with
+    | Some _ -> Lwt.return_unit
+    | None ->
+        let connId =
+          match Hashtbl.find_opt connMap tid with
+          | Some connId -> connId
+          | None -> Zutils.(_die_with [%here] "tid not found")
+        in
+        let conn = get_conn tid in
+        let* _ = no_param_no_ret conn "ROLLBACK" in
+        let () = Hashtbl.replace connectionStatus connId true in
+        let () = Hashtbl.remove connMap tid in
+        Lwt.return_unit
+
   let async_get_current_isolation ~tid () =
     let conn = get_conn tid in
     let* stmt =
@@ -572,9 +591,11 @@ module MyMariaDB : MyDB = struct
     in
     let* res = M.Stmt.execute stmt [| `String raw_key |] >>= or_die "exec" in
     let* s = res_to_list res in
-    let json =
+    let* json =
       match s with
-      | [] -> Zutils.(_die_with [%here] (spf "key %s not found" raw_key))
+      | [] ->
+          let* _ = M.Stmt.close stmt >>= or_die "stmt close" in
+          Zutils.(raise (DBKeyNotFound (spf "key %s not found" raw_key)))
       | [ row ] ->
           let json = M.Row.StringMap.find feild_name row in
           let json =
@@ -590,7 +611,7 @@ module MyMariaDB : MyDB = struct
             Printf.printf "[DB] get {tid: %i, key: %s, value: %s}\n" tid raw_key
               (Yojson.Basic.to_string json)
           in
-          json
+          Lwt.return json
       | _ ->
           Zutils.(
             _die_with [%here] (spf "key %s store invalid valures" raw_key))

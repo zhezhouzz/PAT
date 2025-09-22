@@ -269,6 +269,18 @@ let one_param_string message f =
       let () = Myconfig.meta_config_path := config_file in
       f source_file)
 
+let param_string_int message f =
+  Command.basic ~summary:message
+    Command.Let_syntax.(
+      let%map_open config_file =
+        flag "config"
+          (optional_with_default Myconfig.default_meta_config_path regular_file)
+          ~doc:"config file path"
+      and str_option = anon ("string" %: string)
+      and int_option = anon ("int" %: int) in
+      let () = Myconfig.meta_config_path := config_file in
+      f str_option int_option)
+
 let two_param_string message f =
   Command.basic ~summary:message
     Command.Let_syntax.(
@@ -308,69 +320,70 @@ let four_param_string message f =
       let () = Myconfig.meta_config_path := config_file in
       f file1 file2 file3 file4)
 
-let test_eval s () =
+let test_eval s converge_bound () =
+  let eval = Interpreter.eval_until_detect_bug converge_bound in
   match s with
   | "queue" ->
       let open Adt.Queue in
       let test () = Interpreter.once (init, [ main ], check_membership_queue) in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "stack" ->
       let open Adt.Stack in
       let main = Synthesis.load_progs s () in
       let test () = Interpreter.once (init, main, check_membership_stack) in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "set" ->
       let open Adt.Set in
       let test () = Interpreter.once (init, [ main ], check_membership_set) in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "filesystem" ->
       let open Adt.Filesystem in
       let main = Synthesis.load_progs s () in
       let test () = Interpreter.once (init, main, filesystem_last_delete) in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "graph" ->
       let open Adt.Graph in
       let main = Synthesis.load_progs s () in
       let test () = Interpreter.once (init, main, trace_is_not_connected) in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "nfa" ->
       let open Adt.Nfa in
       let main = Synthesis.load_progs s () in
       let test () = Interpreter.once (init, main, trace_is_not_nfa) in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "stlc" ->
       let open Adt.Stlc in
       let main = Synthesis.load_progs s () in
       (* let main = [ default_main ] in *)
       let test () = Interpreter.once (init, main, trace_eval_correct) in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "ifc_store" ->
       let open Adt.Ifc in
       let () = set_ruleset_store () in
       let main = Synthesis.load_progs s () in
       let test () = Interpreter.once (init, main, trace_enni) in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "ifc_add" ->
       let open Adt.Ifc in
       let () = set_ruleset_add () in
       let main = Synthesis.load_progs s () in
       let test () = Interpreter.once (init, main, trace_enni) in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "ifc_load" ->
       let open Adt.Ifc in
       let () = set_ruleset_load () in
       let main = Synthesis.load_progs s () in
       let test () = Interpreter.once (init, main, trace_enni) in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "ifcStore" ->
       let open Adt.Ifc in
@@ -394,7 +407,7 @@ let test_eval s () =
             Interpreter.once
               (CartDB.init, main, CartDB.check_isolation_level Serializable)
           in
-          let _ = Interpreter.eval_until_detect_bug test in
+          let _ = eval test in
           ())
   | "cart_cc" ->
       let open MonkeyBD in
@@ -406,7 +419,7 @@ let test_eval s () =
             Interpreter.once
               (CartDB.init, main, CartDB.check_isolation_level Serializable)
           in
-          let _ = Interpreter.eval_until_detect_bug test in
+          let _ = eval test in
           ())
   (* | "twitter_rc" ->
       let open MonkeyBD in
@@ -417,7 +430,7 @@ let test_eval s () =
         Interpreter.once
           (init ReadCommitted, main, TwitterDB.serializable_trace_checker)
       in
-      let _ = Interpreter.eval_until_detect_bug test in
+            let _ = eval test in
       ()
   | "twitter_cc" ->
       let open MonkeyBD in
@@ -428,7 +441,7 @@ let test_eval s () =
         Interpreter.once
           (init Causal, main, TwitterDB.serializable_trace_checker)
       in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "courseware_rc" ->
       let open MonkeyBD in
@@ -439,7 +452,7 @@ let test_eval s () =
         Interpreter.once
           (init ReadCommitted, main, CoursewareDB.serializable_trace_checker)
       in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "courseware_cc" ->
       let open MonkeyBD in
@@ -450,7 +463,7 @@ let test_eval s () =
         Interpreter.once
           (init Causal, main, CoursewareDB.serializable_trace_checker)
       in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       () *)
   | "cart" ->
       let open MonkeyBD in
@@ -461,7 +474,7 @@ let test_eval s () =
             Interpreter.once
               (CartDB.init, [ main ], CartDB.check_isolation_level Serializable)
           in
-          let _ = Interpreter.eval_until_detect_bug test in
+          let _ = eval test in
           ())
   (* | "smallbank" ->
       let open MonkeyBD in
@@ -471,7 +484,7 @@ let test_eval s () =
         Interpreter.once
           (init Causal, [ main ], SmallbankDB.serializable_trace_checker)
       in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       () *)
   (* | "twitter" ->
       let open MonkeyBD in
@@ -481,7 +494,7 @@ let test_eval s () =
         Interpreter.once
           (init Causal, [ main ], TwitterDB.serializable_trace_checker)
       in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "courseware" ->
       let open MonkeyBD in
@@ -491,7 +504,7 @@ let test_eval s () =
         Interpreter.once
           (init Causal, [ main ], CoursewareDB.serializable_trace_checker)
       in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "treiber-stack" ->
       let open MonkeyBD in
@@ -501,11 +514,12 @@ let test_eval s () =
         Interpreter.once
           (init Causal, [ main ], StackDB.serializable_trace_checker)
       in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       () *)
   | _ -> _die_with [%here] "unknown benchmark"
 
-let test_random s () =
+let test_random s converge_bound () =
+  let eval = Interpreter.eval_until_detect_bug converge_bound in
   match s with
   | "filesystem" ->
       let open Adt.Filesystem in
@@ -513,7 +527,7 @@ let test_random s () =
         Interpreter.seq_random_test
           (init, (fun () -> randomTest { numOp = 15 }), filesystem_last_delete)
       in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "graph" ->
       let open Adt.Graph in
@@ -521,7 +535,7 @@ let test_random s () =
         Interpreter.seq_random_test
           (init, (fun () -> randomTest { numOp = 15 }), trace_is_not_connected)
       in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "nfa" ->
       let open Adt.Nfa in
@@ -529,7 +543,7 @@ let test_random s () =
         Interpreter.seq_random_test
           (init, (fun () -> randomTest { numOp = 15 }), trace_is_not_nfa)
       in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "stlc" ->
       let open Adt.Stlc in
@@ -539,7 +553,7 @@ let test_random s () =
             (fun () -> randomTest { depthBound = 2; constRange = 4 }),
             trace_eval_correct )
       in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "ifc_store" ->
       let open Adt.Ifc in
@@ -548,7 +562,7 @@ let test_random s () =
         Interpreter.seq_random_test
           (init, (fun () -> randomTest { numOp = 15 }), trace_enni)
       in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "ifc_add" ->
       let open Adt.Ifc in
@@ -557,7 +571,7 @@ let test_random s () =
         Interpreter.seq_random_test
           (init, (fun () -> randomTest { numOp = 15 }), trace_enni)
       in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "ifc_load" ->
       let open Adt.Ifc in
@@ -566,7 +580,7 @@ let test_random s () =
         Interpreter.seq_random_test
           (init, (fun () -> randomTest { numOp = 15 }), trace_enni)
       in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "stack" ->
       let open Adt.Stack in
@@ -576,7 +590,7 @@ let test_random s () =
             (fun () -> randomTest { numElem = 5; numOp = 15 }),
             check_membership_stack )
       in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "queue" ->
       let open Adt.Queue in
@@ -586,7 +600,7 @@ let test_random s () =
             (fun () -> randomTest { numElem = 5; numOp = 15 }),
             check_membership_queue )
       in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "set" ->
       let open Adt.Set in
@@ -596,7 +610,7 @@ let test_random s () =
             (fun () -> randomTest { numElem = 5; numOp = 15 }),
             check_membership_set )
       in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   (* | "smallbank" ->
       let open MonkeyBD in
@@ -608,7 +622,7 @@ let test_random s () =
             (fun () -> random_user { numUser = 4; numOp = 2 }),
             SmallbankDB.serializable_trace_checker )
       in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "treiber-stack" ->
       let open MonkeyBD in
@@ -620,7 +634,7 @@ let test_random s () =
             (fun () -> qc_stack { numElems = 4; numOp = 2 }),
             StackDB.serializable_trace_checker )
       in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "twitter" ->
       let open MonkeyBD in
@@ -632,7 +646,7 @@ let test_random s () =
             (fun () -> random_user { numUser = 4; numOp = 2 }),
             TwitterDB.serializable_trace_checker )
       in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       ()
   | "courseware" ->
       let open MonkeyBD in
@@ -644,7 +658,7 @@ let test_random s () =
             (fun () -> random_user { numCourse = 4; numUser = 4; numOp = 2 }),
             CoursewareDB.serializable_trace_checker )
       in
-      let _ = Interpreter.eval_until_detect_bug test in
+      let _ = eval test in
       () *)
   | "cart" ->
       let open MonkeyBD in
@@ -654,18 +668,18 @@ let test_random s () =
           let test () =
             Interpreter.random_test
               ( CartDB.init,
-                (fun () -> random_user { numUser = 4; numItem = 4; numOp = 2 }),
+                (fun () -> random_user { numUser = 4; numItem = 4; numOp = 3 }),
                 CartDB.check_isolation_level Serializable )
           in
-          let _ = Interpreter.eval_until_detect_bug test in
+          let _ = eval test in
           ())
   | "todoMVC" -> _die_with [%here] "unimp"
   | _ -> _die_with [%here] "unknown benchmark"
 
 let cmds =
   [
-    ("test-eval", one_param_string "test eval" test_eval);
-    ("test-random", one_param_string "test random" test_random);
+    ("test-eval", param_string_int "test eval" test_eval);
+    ("test-random", param_string_int "test random" test_random);
     ("read-syn", one_param "read syn" read_syn);
     ("do-syn", tag_and_file "read syn" do_syn);
     ("syn-one", two_param_string "syn one" syn_term);

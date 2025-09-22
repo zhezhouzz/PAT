@@ -57,6 +57,14 @@
         [
             "show_sevent_fds",
             false
+        ],
+        [
+            "pause_during_synthesis",
+            false
+        ],
+        [
+            "add_kstar_during_synthesis",
+            false
         ]
     ],
     "prover_timeout_bound": 999,

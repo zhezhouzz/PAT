@@ -1,6 +1,5 @@
 open Common
 open Language
-open Interpreter
 module CartDB = CartDB
 open CartDB
 open Nt
@@ -86,26 +85,52 @@ let main =
 
 type cart_bench_config = { numUser : int; numItem : int; numOp : int }
 
+let num_connection = 3
+
 let random_user { numUser; numItem; numOp } =
+  let open Lwt.Syntax in
   let users = List.init numUser (fun i -> i + 1) in
   let items = List.init numItem (fun i -> i + 1) in
-  let random_add () =
+  let random_add ~thread_id () =
     let user = List.nth users (Random.int numUser) in
     let item = List.nth items (Random.int numItem) in
-    send ("addItemReq", [ mk_value_int user; mk_value_int item ])
+    async_add_item ~thread_id user item ()
   in
-  let random_delete () =
+  let random_delete ~thread_id () =
     let user = List.nth users (Random.int numUser) in
     let item = List.nth items (Random.int numItem) in
-    send ("deleteItemReq", [ mk_value_int user; mk_value_int item ])
+    async_delete_item ~thread_id user item ()
   in
-  let rec genOp restNum =
-    if restNum <= 0 then ()
+  let random_new_user ~thread_id () =
+    let user = List.nth users (Random.int numUser) in
+    async_new_user ~thread_id user ()
+  in
+  let random_option ~thread_id () =
+    match Random.int 3 with
+    | 0 -> random_add ~thread_id ()
+    | 1 -> random_delete ~thread_id ()
+    | _ -> random_new_user ~thread_id ()
+  in
+  let rec genOp ~thread_id restNum =
+    if restNum <= 0 then
+      let () =
+        Pp.printf "@{<red>[thread: %i] End with numOp@}\n%i\n" thread_id numOp
+      in
+      Lwt.return_unit
     else
-      let () = Pp.printf "@{<yellow>restNum@}: %i\n" restNum in
-      if Random.bool () then random_add () else random_delete ();
-      genOp (restNum - 1)
+      let () =
+        Pp.printf "@{<yellow>[thread: %i] restNum@}: %i\n" thread_id restNum
+      in
+      let* _ = random_option ~thread_id () in
+      genOp ~thread_id (restNum - 1)
   in
-  let () = genOp numOp in
-  let () = Pp.printf "@{<red>End with numOp@}\n%i\n" numOp in
-  Effect.perform End
+  let () =
+    Lwt_main.run
+    @@ Lwt.join
+         [
+           genOp ~thread_id:0 numOp;
+           genOp ~thread_id:1 numOp;
+           genOp ~thread_id:2 numOp;
+         ]
+  in
+  ()
