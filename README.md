@@ -13,7 +13,7 @@ The easiest way to install the dependencies is via [OPAM](https://opam.ocaml.org
   opam install dune core core_unix yojson conf-c++ conf-python qcheck ocolor dolog ocamlbuild z3 ppx_deriving_yojson menhirLib menhir spectrum
 ```
 
-The download the dependent library: https://github.com/OCamlRefinementType/zutils, and https://github.com/OCamlRefinementType/AutomataLibrary/tree/main  then install it.
+Then download the dependent libraries `zutils` and `AutomataLibrary`, and install them:
 
 ```
     cd zutils
@@ -31,6 +31,11 @@ Then compile this repo:
 # Run Synthesizer
 
 ```
+dune exec -- bin/main.exe do-syn [GOAL_NAME] [SPEC_FILE]
+```
+
+For example,
+```
     mkdir output
     dune exec -- bin/main.exe do-syn stack benchmarks/ADT/stack_spec.ml
 ```
@@ -39,20 +44,20 @@ This command will store the synthesized programs as output/stack.scm
 
 # Run Synthesized Programs
 
-run synthesized programs for `100` times.
+Run synthesized programs `N` times (e.g., 100):
 
 ```
     dune exec -- bin/main.exe test-eval stack 100
 ```
 # Run QuickCheck Programs
 
-run random test programs for `100` times.
+Run random test programs `N` times (e.g., 100):
 
 ```
     dune exec -- bin/main.exe test-random stack 100
 ```
 
-Now the benchmark names are hardcoded in the file `bin/commands/cre.ml`.
+Note: benchmark names are hardcoded in `bin/commands/cre.ml`.
 
 # Run Benchmarks
 
@@ -60,10 +65,10 @@ Now the benchmark names are hardcoded in the file `bin/commands/cre.ml`.
     python3 script/run2025.py [NAME] [NUM_TEST]
 ```
 
-Currently support:
+Currently supported:
 
 + ADT: `graph`, `nfa`, `stlc`, `stack`, `filesystem`, `ifc_store`, `ifc_add`, `ifc_load`.
 
-+ Database (Causal and Read Committed): `cart`, TODO: `courseware`, `tiwtter`, `treiber_stack`, `OTLP` benchmarks.
++ Database (Causal and Read Committed): `cart`. TODO: `courseware`, `twitter`, `treiber_stack`, `OTLP`.
 
-+ P Language (need to fix the legacy code to current version).
++ P Language (legacy code needs updates to work with the current version).
