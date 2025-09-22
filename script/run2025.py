@@ -21,18 +21,20 @@ def invoc_cmd(cmd, cwd=None):
 benchmarks = ["graph", "nfa", "stlc", "stack", "filesystem", "ifc_store", "ifc_add", "ifc_load"]
 
 spec_file = {
-    "graph": "graph_spec.ml",
-    "nfa": "nfa_spec.ml",
-    "stlc": "stlc_spec.ml",
-    "stack": "stack_spec.ml",
-    "filesystem": "filesystem_spec.ml",
-    "ifc_store": "ifc_spec.ml",
-    "ifc_add": "ifc_spec.ml",
-    "ifc_load": "ifc_spec.ml"
+    "graph": "ADT/graph_spec.ml",
+    "nfa": "ADT/nfa_spec.ml",
+    "stlc": "ADT/stlc_spec.ml",
+    "stack": "ADT/stack_spec.ml",
+    "filesystem": "ADT/filesystem_spec.ml",
+    "ifc_store": "ADT/ifc_spec.ml",
+    "ifc_add": "ADT/ifc_spec.ml",
+    "ifc_load": "ADT/ifc_spec.ml",
+    "cart_rc": "MonkeyDB/cart_rc_spec.ml",
+    "cart_cc": "MonkeyDB/cart_cc_spec.ml",
 }
 
 def run_syn(name):
-    cmd = cmd_prefix + ["do-syn", name, "benchmarks/ADT/" + spec_file[name]]
+    cmd = cmd_prefix + ["do-syn", name, "benchmarks/" + spec_file[name]]
     invoc_cmd(cmd)
 
 def run_eval(name, testNum):

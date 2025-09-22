@@ -660,7 +660,20 @@ let test_random s converge_bound () =
       in
       let _ = eval test in
       () *)
-  | "cart" ->
+  | "cart_rc" ->
+      let open MonkeyBD in
+      let open Common in
+      let open Cart in
+      BackendMariaDB.MyMariaDB.maria_context "cart" ReadCommitted (fun () ->
+          let test () =
+            Interpreter.random_test
+              ( CartDB.init,
+                (fun () -> random_user { numUser = 4; numItem = 4; numOp = 3 }),
+                CartDB.check_isolation_level Serializable )
+          in
+          let _ = eval test in
+          ())
+  | "cart_cc" ->
       let open MonkeyBD in
       let open Common in
       let open Cart in

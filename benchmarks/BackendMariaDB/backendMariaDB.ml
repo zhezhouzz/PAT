@@ -715,16 +715,16 @@ let test_stuck isolation () =
       let tid1 = raw_begin ~thread_id:1 in
       let tid2 = raw_begin ~thread_id:2 in
       let () = raw_put ~tid:tid1 ~table ~key:"3" ~json:(`List [ `Int 1 ]) in
-      let _ = raw_commit ~tid:tid1 in
       let () = raw_put ~tid:tid2 ~table ~key:"3" ~json:(`List [ `Int 2 ]) in
+      let _ = raw_commit ~tid:tid1 in
       let _ = raw_commit ~tid:tid2 in
       ())
 
 let test_dirty_read isolation () =
   let isolation = Language.isolation_of_string isolation in
-  let db_name = "non_repeatable_read" in
+  let db_name = "dirty_read" in
   maria_context db_name isolation (fun () ->
-      let table = "non_repeatable_read" in
+      let table = "dirty_read" in
       let tid1 = raw_begin ~thread_id:1 in
       let _ = Printf.printf "tid1: %i\n" tid1 in
       let () = raw_put ~tid:tid1 ~table ~key:"3" ~json:(`List [ `Int 2 ]) in
