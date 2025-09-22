@@ -86,43 +86,43 @@ We use Docker to run three MariaDB instances on different ports.
 - Download the image from `https://hub.docker.com/r/bitnami/mariadb-galera`.
 
 - Use Docker Compose (`https://github.com/docker/compose`) to start the cluster (e.g., under the `docker` directory that contains a `docker/compose.yaml`).
-    + Start the first node named `galera1` (`-d` runs in the background):
-    
-```
-    docker compose up galera1 -d 
-```
-
-    + Wait until the node is ready to accept connections. Check logs of the detached container:
+  + Start the first node named `galera1` (`-d` runs in the background):
 
 ```
-    docker logs -f galera1
+  docker compose up galera1 -d 
 ```
 
-    Proceed once you see a line like `WSREP: Synchronized with group, ready for connections`.
-
-    + Then start the other nodes (`galera2` and `galera3`):
+  + Wait until the node is ready to accept connections. Check logs of the detached container:
 
 ```
-    docker compose up galera2 galera3 -d 
+  docker logs -f galera1
 ```
 
-    + Connect to MariaDB from the command line (requires the MariaDB client):
+  Proceed once you see a line like `WSREP: Synchronized with group, ready for connections`.
+
+  + Then start the other nodes (`galera2` and `galera3`):
 
 ```
-    mysql -h 127.0.0.1 -P 3308 -uroot -prootpass
+  docker compose up galera2 galera3 -d 
 ```
 
-    The nodes listen on ports `3307`, `3308`, and `3309`; the user is `root`, password `rootpass` (see `docker/compose.yaml` for details).
-
-    + (Optional) Use a web UI via Adminer. First start `adminer`:
+  + Connect to MariaDB from the command line (requires the MariaDB client):
 
 ```
-    docker compose up adminer -d 
+  mysql -h 127.0.0.1 -P 3308 -uroot -prootpass
+```
+
+  The nodes listen on ports `3307`, `3308`, and `3309`; the user is `root`, password `rootpass` (see `docker/compose.yaml` for details).
+
+  + (Optional) Use a web UI via Adminer. First start `adminer`:
+
+```
+  docker compose up adminer -d 
 ``` 
 
-    Then open `http://localhost:8080/` in your browser to access the database. Server `host.docker.internal:[PORT]`, Database can be empty (or `mysql`).
+Then open `http://localhost:8080/` in your browser to access the database. Server `host.docker.internal:[PORT]`, Database can be empty (or `mysql`).
 
-    + If something fails, clear everything except `docker/compose.yaml` under the `docker` directory, then run `docker compose down -v` to shut down and clean volumes, and try again.
++ If something fails, clear everything except `docker/compose.yaml` under the `docker` directory, then run `docker compose down -v` to shut down and clean volumes, and try again.
 
 ## MariaDB options and tests
 
@@ -141,7 +141,7 @@ We provide several simple test programs in `benchmarks/BackendMariaDB/backendMar
 Try them, for example:
 
 ```
-dune exec -- bin/main.exe test-non-repeatable-read ReadUncommitted
+  dune exec -- bin/main.exe test-non-repeatable-read ReadUncommitted
 ```
 
 These commands are also defined in `bin/commands/cre.ml`.
@@ -151,13 +151,13 @@ These commands are also defined in `bin/commands/cre.ml`.
 To extend and evaluate the system, follow these steps:
 
 1. **Set up MariaDB and run the `cart_rc` benchmark.**
-   - Ensure your MariaDB cluster is running as described above.
-   - Use the provided scripts and commands to execute the `cart_rc` benchmark and verify correct operation.
+  - Ensure your MariaDB cluster is running as described above.
+  - Use the provided scripts and commands to execute the `cart_rc` benchmark and verify correct operation.
 
 2. **Add and evaluate additional benchmarks: `courseware`, `twitter`, `treiber_stack`, and `smallbank`.**
-   - For each benchmark:
-     - **Design the database schema:** Define tables and relationships to represent the application's data model.
-     - **Implement handlers:** Write the code to process transactions and operations for the benchmark.
-     - **Write the specification:** Formalize the application APIs and isolation requirements for the benchmark (isolation requirements are similar with `cart`).
-     - **Develop a random test generator:** Create a generator to produce randomized sequences of operations in asynchronize style.
-     - **Run experiments:** Execute the benchmark under different isolation levels and collect results.
+  - For each benchmark:
+    - **Design the database schema:** Define tables and relationships to represent the application's data model.
+    - **Implement handlers:** Write the code to process transactions and operations for the benchmark.
+    - **Write the specification:** Formalize the application APIs and isolation requirements for the benchmark (isolation requirements are similar with `cart`).
+    - **Develop a random test generator:** Create a generator to produce randomized sequences of operations in asynchronize style.
+    - **Run experiments:** Execute the benchmark under different isolation levels and collect results.
