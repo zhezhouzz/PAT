@@ -35,22 +35,23 @@ def run_syn(name):
     cmd = cmd_prefix + ["do-syn", name, "benchmarks/ADT/" + spec_file[name]]
     invoc_cmd(cmd)
 
-def run_eval(name):
-    cmd = cmd_prefix + ["test-eval", name]
+def run_eval(name, testNum):
+    cmd = cmd_prefix + ["test-eval", name, str(testNum)]
     invoc_cmd(cmd)
 
-def run_random(name):
-    cmd = cmd_prefix + ["test-random", name]
+def run_random(name, testNum):
+    cmd = cmd_prefix + ["test-random", name, str(testNum)]
     invoc_cmd(cmd)
 
 if __name__ == "__main__":
     name = sys.argv[1]
+    testNum = int(sys.argv[2])
     print("Running synthesis for", name)
     run_syn(name)
     input()
-    print("Running evaluation for", name)
-    run_eval(name)
+    print("Running evaluation for", name, testNum)
+    run_eval(name, testNum)
     input()
-    print("Running random for", name)
+    print("Running random for", name, testNum)
     input()
-    run_random(name)
+    run_random(name, testNum)

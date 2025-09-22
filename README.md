@@ -39,13 +39,17 @@ This command will store the synthesized programs as output/stack.scm
 
 # Run Synthesized Programs
 
+run synthesized programs for `100` times.
+
 ```
-    dune exec -- bin/main.exe test-eval stack
+    dune exec -- bin/main.exe test-eval stack 100
 ```
 # Run QuickCheck Programs
 
+run random test programs for `100` times.
+
 ```
-    dune exec -- bin/main.exe test-random stack
+    dune exec -- bin/main.exe test-random stack 100
 ```
 
 Now the benchmark names are hardcoded in the file `bin/commands/cre.ml`.
@@ -53,13 +57,13 @@ Now the benchmark names are hardcoded in the file `bin/commands/cre.ml`.
 # Run Benchmarks
 
 ```
-    python3 script/run2025.py [NAME]
+    python3 script/run2025.py [NAME] [NUM_TEST]
 ```
 
 Currently support:
 
 + ADT: `graph`, `nfa`, `stlc`, `stack`, `filesystem`, `ifc_store`, `ifc_add`, `ifc_load`.
 
-+ Database (Causal and Read Committed): `cart`, `courseware`, `tiwtter`. Timeout: `triber_stack`. TODO: `OTLP` benchmarks.
++ Database (Causal and Read Committed): `cart`, TODO: `courseware`, `tiwtter`, `treiber_stack`, `OTLP` benchmarks.
 
 + P Language (need to fix the legacy code to current version).
