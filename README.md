@@ -87,6 +87,7 @@ We use Docker to run three MariaDB instances on different ports.
 
 - Use Docker Compose (`https://github.com/docker/compose`) to start the cluster (e.g., under the `docker` directory that contains a `docker/compose.yaml`).
     + Start the first node named `galera1` (`-d` runs in the background):
+    
 ```
     docker compose up galera1 -d 
 ```
@@ -119,7 +120,7 @@ We use Docker to run three MariaDB instances on different ports.
     docker compose up adminer -d 
 ``` 
 
-    Then open `http://localhost:8080/` in your browser to access the database.
+    Then open `http://localhost:8080/` in your browser to access the database. Server `host.docker.internal:[PORT]`, Database can be empty (or `mysql`).
 
     + If something fails, clear everything except `docker/compose.yaml` under the `docker` directory, then run `docker compose down -v` to shut down and clean volumes, and try again.
 
