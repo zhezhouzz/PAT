@@ -90,11 +90,13 @@ We use Docker to run three MariaDB instances on different ports.
 ```
     docker compose up galera1 -d 
 ```
+
     + Wait until the node is ready to accept connections. Check logs of the detached container:
 
 ```
     docker logs -f galera1
 ```
+
     Proceed once you see a line like `WSREP: Synchronized with group, ready for connections`.
 
     + Then start the other nodes (`galera2` and `galera3`):
