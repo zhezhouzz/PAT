@@ -125,6 +125,11 @@ module TreiberStack = struct
   let writeAsync (ev : ev) = _putAsync "cell" ev
 end
 
+
+
+
+
+
 module CartDB = struct
   module D = MyDB (Config)
   include D
@@ -150,11 +155,14 @@ module CartDB = struct
     let _ = async ("commit", [ mk_value_int tid ]) in
     res
 
+
+
   let int_list_to_values l = [ VCIntList l ]
 
   let values_to_int_list l =
     match l with [ VCIntList l ] -> l | _ -> _die [%here]
 
+  (* add item *)
   let async_add_item ~thread_id user item () =
     let open Lwt.Syntax in
     let* tid = DB.async_begin ~thread_id () in
@@ -197,6 +205,7 @@ module CartDB = struct
         send ("addItemResp", [])
     | _ -> _die [%here]
 
+  (* delete item *)
   let async_delete_item ~thread_id user item () =
     let open Lwt.Syntax in
     let* tid = DB.async_begin ~thread_id () in
@@ -235,6 +244,7 @@ module CartDB = struct
         send ("deleteItemResp", [])
     | _ -> _die [%here]
 
+  (* new user *)
   let async_new_user ~thread_id user () =
     let open Lwt.Syntax in
     let* tid = DB.async_begin ~thread_id () in
@@ -277,6 +287,242 @@ module CartDB = struct
     register_handler "deleteItemResp" deleteItemRespHandler;
     register_handler "newUserReq" newUserReqHandler;
     register_handler "newUserResp" newUserRespHandler;
+    D.clear ()
+
+  let testCtx =
+    let open Nt in
+    let record l = Ty_record { alias = None; fds = l } in
+    Typectx.add_to_rights Typectx.emp
+      [
+        "beginT"#:(record [ "tid"#:int_ty ]);
+        "commit"#:(record [ "tid"#:int_ty; "cid"#:int_ty ]);
+        "put"#:(record
+                  [ "tid"#:int_ty; "key"#:int_ty; "value"#:(mk_list_ty int_ty) ]);
+        "get"#:(record
+                  [
+                    "tid"#:int_ty;
+                    "key"#:int_ty;
+                    "prev_tid"#:int_ty;
+                    "prev_cid"#:int_ty;
+                    "value"#:(mk_list_ty int_ty);
+                  ]);
+        "newUserReq"#:(record [ "user"#:int_ty ]);
+        "newUserResp"#:(record []);
+        "addItemReq"#:(record [ "user"#:int_ty; "item"#:int_ty ]);
+        "addItemResp"#:(record []);
+        "deleteItemReq"#:(record [ "user"#:int_ty; "item"#:int_ty ]);
+        "deleteItemResp"#:(record []);
+      ]
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+module TwitterDB = struct
+  (* twitter db operations: get the follow list
+                            update the follow list (this pair suffices for follow and unfollow)
+                            tweet
+                            get tweets for a user (timeline, newsfeed) *)
+
+  module D = MyDB (Config)
+  include d
+
+  let getAsync (ev : ev) = _getAsync "twitter" ev
+  let putAsync (ev : ev) = _putAsync "twitter" ev
+
+  let do_selectFollows tid user =
+    let msg = async ("selectFollows", [ mk_value_int tid; mk_value_int user ]) in
+    match msg.ev.args with
+    | _ :: _ :: _ :: _ :: args -> args
+    | _ -> _die [%here]
+
+  let do_selectTweets tid user =
+    let msg = async ("selectTweets", [ mk_value_int tid; mk_value_int user ]) in
+    match msg.ev.args with
+    | _ :: _ :: _ :: _ :: args -> args
+    | _ -> _die [%here]
+
+  let do_updateFollows tid user v =
+    async ("updateFollows", [ mk_value_int tid; mk_value_int user ] @ v)
+
+  let do_updateTweets tid user v = 
+    async ("updateTweets", [ mk_value_int tid; mk_value_int user ] @ v)
+
+  let do_trans f =
+    let msg = async ("beginT", []) in
+    let tid =
+      match msg.ev.args with [ VConst (I tid) ] -> tid | _ -> _die [%here]
+    in
+    let res = f tid in
+    let _ = async ("commit", [ mk_value_int tid ]) in
+    res
+
+  let int_list_to_values l = [ VCIntList l ]
+
+  let values_to_int_list l =
+    match l with [ VCIntList l ] -> l | _ -> _die [%here]
+
+  (* new user / login *)
+
+  (* following a user *)
+  let async_follow ~thread_id user follow_o () =
+    let open Lwt.syntax in
+    let* tid = DB.async_begin ~thread_id () in
+    try
+      let* _, _, oldFollows = 
+        DB.async_get ~tid ~table:"follows" ~key:(string_of_int user) ()
+      in
+      let oldFollows = 
+        match Config.json_to_values with
+        | [ VCIntList l ] -> language
+        | _ -> _die [%here]
+      in
+      let newFollows = 
+        if List.mem follow_o oldFollows then Lwt.return_unit else follow_o oldFollows (*TODO: is it bad to stop the transaction?*)
+      in
+      let* () = 
+        DB.async_put ~tid ~table:"follows" ~key:(string_of_int user)
+          ~json:(Config.values_to_json [ VCIntList newFollows ])
+          ()
+      in
+      let* _ = DB.async_commit ~tid () in
+      Lwt.return_unit
+    with BackendMariaDb.DBKeyNotFound _ ->
+      let* DB.async_release_connection ~tid () in
+      Lwt.return_unit
+
+  let followReqHandler (msg : msg) = 
+    let aux (user : int) (follow_o : int) =
+      do_trans (fun tid ->
+          let oldFollows = values_to_int list (do_selectFollows tid user) in
+          let newFollows = if List.mem follow_o oldFollows then () else follow_o :: oldFollows
+          in
+          let _ = do_updateFollows tid user (int_list_to_values newFollows) in
+          ())
+      in
+      match msg.ev.args with
+      | [ VConst (I user); VConst (I follow_o) ] ->
+          let _ = aux user item in
+          send ("followResp", [])
+      | _ -> _die [%here]
+
+
+  (* unfollowing a user *)
+  let async_unfollow ~thread_id user unfollow_o () =
+    let open Lwt.syntax in
+    let* tid = DB.async_begin ~thread_id () in
+    try
+      let* _, _, oldFollows = 
+        DB.async_get ~tid ~table:"follows" ~key:(string_of_int user) ()
+      in
+      let oldFollows = 
+        match Config.json_to_values with
+        | [ VCIntList l ] -> language
+        | _ -> _die [%here]
+      in
+      let newFollows = 
+        List.filter (fun x -> x <> unfollow_o) oldFollows
+      in
+      let* () = 
+        DB.async_put ~tid ~table:"follows" ~key:(string_of_int user)
+          ~json:(Config.values_to_json [ VCIntList newFollows ])
+          ()
+      in
+      let* _ = DB.async_commit ~tid () in
+      Lwt.return_unit
+    with BackendMariaDb.DBKeyNotFound _ ->
+      let* DB.async_release_connection ~tid () in
+      Lwt.return_unit
+
+  let unfollowReqHandler (msg : msg) = 
+    let aux (user : int) (unfollow_o : int) =
+      do_trans (fun tid ->
+          let oldFollows = values_to_int list (do_selectFollows tid user) in
+          let newFollows = List.filter (fun x -> x <> unfollow_o) oldFollows
+          in
+          let _ = do_updateFollows tid user (int_list_to_values newFollows) in
+          ())
+      in
+      match msg.ev.args with
+      | [ VConst (I user); VConst (I follow_o) ] ->
+          let _ = aux user item in
+          send ("unfollowResp", [])
+      | _ -> _die [%here]
+
+
+  (* posting new tweets *)
+  let async_post_tweet ~thread_id user tweet () =
+    let open Lwt.syntax in 
+    let* tid = DB.async_begin ~thread_id () in
+    try
+      let* _, _, oldTweets = 
+        DB.async_get ~tid ~table:"tweets" ~key:(string_of_int user) ()
+      in
+      let oldTweets = 
+        match Config.json_to_values with
+        | [ VCIntList l ] -> l
+        | _ -> _die [%here]
+      in
+      let newTweets =
+        item :: oldTweets
+      in
+      let* () = 
+        DB.async_put ~tid ~table:"tweets" ~key:(string_of_int user)
+          ~json:(Config.values_to_json [ VCIntList newTweets ])
+          ()
+      in
+      let* _ = DB.async_commit ~tid () in 
+      Lwt.return_unit
+    with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = DB.async_release_connection ~tid () in
+      Lwt.return_unit
+
+  let postTweetReqHandler (msg : msg) =
+    let aux (user : int) (tweet : int) =
+      do_trans (fun tid ->
+          let oldTweets = values_to_int_list (do_selectTweets tid user) in
+          let newTweets = tweet :: oldTweets
+          in 
+          let _ = do_updateTweets tid user (int_list_to_values newTweets) in
+          ())
+    in
+    match msg.ev.args with
+    | [ VConst (I user); VConst (I item) ] ->
+        let _ = aux user item in
+        send ("postTweetResp", [])
+    | _ -> _die [%here]
+
+
+  (* fetch tweets *)
+
+
+  
+  let followRespHandler (_ : msg) = ()
+  let unfollowRespHandler (_ : msg) = ()
+  let postTweetRespHandler (_ : msg) = ()
+
+  let init () =
+    register_async_has_ret "beginT" beginAsync;
+    register_async_has_ret "commit" commitAsync;
+    register_async_has_ret "get" getAsync;
+    register_async_no_ret "put" putAsync;
+    (* TODO: get and put still questionable here *)
+    register_handler "followReq" followReqHandler;
+    register_handler "unfollowReq" unfollowReqHandler;
+    register_handler "postTweetReq" postTweetReqhandler;
+    register_handler "followResp" deleteItemRespHandler;
+    register_handler "unfollowResp" unfollowRespHandler;
+    register_handler "postTweetResp" postTweetRespHandler;
     D.clear ()
 
   let testCtx =
