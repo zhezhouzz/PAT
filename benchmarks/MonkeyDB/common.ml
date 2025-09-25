@@ -100,6 +100,36 @@ module IntDB = struct
   include MyDB (Config)
 end
 
+module TreiberStack = struct
+  include MyDB (Config)
+
+  let do_get tid key =
+    let msg = async ("get", [ mk_value_int tid; VConst key ]) in
+    match msg.ev.args with
+    | _ :: _ :: _ :: _ :: args -> args
+    | _ -> _die [%here]
+
+  let do_put tid key v = async ("put", [ mk_value_int tid; VConst key ] @ v)
+
+  let do_trans f =
+    let msg = async ("beginT", []) in
+    let tid =
+      match msg.ev.args with [ VConst (I tid) ] -> tid | _ -> _die [%here]
+    in
+    let res = f tid in
+    let _ = async ("commit", [ mk_value_int tid ]) in
+    res
+
+  let getAsync (ev : ev) = _getAsync "stack" ev
+  let putAsync (ev : ev) = _putAsync "stack" ev
+  let readAsync (ev : ev) = _getAsync "cell" ev
+  let writeAsync (ev : ev) = _putAsync "cell" ev
+end
+
+
+
+
+
 
 module CartDB = struct
   module D = MyDB (Config)
