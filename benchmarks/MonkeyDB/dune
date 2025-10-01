@@ -6,6 +6,7 @@
  (modules
   common
   cart
+  courseware_db
   ; twitter 
   ; courseware 
   ; treiberStack 
