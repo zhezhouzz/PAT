@@ -154,6 +154,12 @@ let layout_candidate_plans plans =
     Pp.printf "@{<bold>@{<red>total (%i); rest is omitted@}@}\n" len;
   Pp.printf "\n"
 
+let layout_candidate_res_and_plans res plans =
+  layout_candidate_plans plans;
+  Pp.printf "\n@{<bold>@{<red>res(%i) plans pool(%i):@}@}\n" (List.length res)
+    (List.length plans);
+  Pp.printf "\n"
+
 let rec deductive_synthesis env r : synMidResult list =
   let plans = regex_to_lines r in
   let plans =
@@ -174,11 +180,14 @@ let rec deductive_synthesis env r : synMidResult list =
     else if List.length plans == 0 then []
     else
       let plans = search_on_strategy (refine_one_step env) plans in
+      (* let () = layout_candidate_res_and_plans res plans in *)
+      (* let _ = try_pause () in *)
+      let plans = List.map SimpEq.simp_plan plans in
+      (* let () = layout_candidate_res_and_plans res plans in *)
+      (* let _ = try_pause () in *)
       (* let plans = List.map LineOpt.optimize_line plans in *)
       (* let plans = unify_lines plans in *)
-      let () = layout_candidate_plans plans in
-      Pp.printf "\n@{<bold>@{<red>res(%i) plans pool(%i):@}@}\n"
-        (List.length res) (List.length plans);
+      let () = layout_candidate_res_and_plans res plans in
       let _ = try_pause () in
       let wf_plans, plans = List.partition finished_plan plans in
       (* let wf_plans = unify_lines wf_plans in *)
