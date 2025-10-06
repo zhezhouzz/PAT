@@ -7,7 +7,9 @@ open Zdatatype
 let parse = Oparse.parse_imp_from_file
 
 let read_ocaml_file source_file () =
+let _ = Pp.printf "@{<yellow>cre.ml:@}  10\n" in
   let code = Oparse.parse_imp_from_file ~sourcefile:source_file in
+let _ = Pp.printf "@{<yellow>cre.ml:@}  12\n" in
   let code = ocaml_structure_to_items code in
   code
 
@@ -40,9 +42,12 @@ let read_syn source_file () =
   ()
 
 let do_syn name source_file () =
+let _ = Pp.printf "@{<yellow>cre.ml:@}  43 (%s)\n" source_file in
   let code = read_source_file source_file () in
+let _ = Pp.printf "@{<yellow>cre.ml:@}  45\n" in
   (* let () = Printf.printf "%s\n" (layout_structure code) in *)
   let env = Ntypecheck.(struct_check init_env code) in
+let _ = Pp.printf "@{<yellow>cre.ml:@}  48\n" in
   let () = Printf.printf "%s\n" (layout_syn_env env) in
   let () = Stat.init_algo_complexity () in
   let progs = Synthesis.synthesize env name in
@@ -429,29 +434,31 @@ let test_eval s converge_bound () =
           in
           let _ = eval test in
           ())
-  (* | "twitter_rc" ->
+  | "twitter_rc" ->
       let open MonkeyBD in
       let open Common in
       let open Twitter in
-      let main = Synthesis.load_progs s () in
-      let test () =
-        Interpreter.once
-          (init ReadCommitted, main, TwitterDB.serializable_trace_checker)
-      in
-            let _ = eval test in
-      ()
+      BackendMariaDB.MyMariaDB.maria_context "twitter" ReadCommitted (fun () ->
+          let main = Synthesis.load_progs s () in
+          let test () =
+            Interpreter.once
+              (TwitterDB.init, main, TwitterDB.check_isolation_level Serializable)
+          in
+          let _ = eval test in
+          ())
   | "twitter_cc" ->
       let open MonkeyBD in
       let open Common in
       let open Twitter in
-      let main = Synthesis.load_progs s () in
-      let test () =
-        Interpreter.once
-          (init Causal, main, TwitterDB.serializable_trace_checker)
-      in
-      let _ = eval test in
-      () *)
-  | "courseware_rc" ->
+      BackendMariaDB.MyMariaDB.maria_context "twitter" Causal (fun () ->
+          let main = Synthesis.load_progs s () in
+          let test () =
+            Interpreter.once
+              (TwitterDB.init, main, TwitterDB.check_isolation_level Serializable)
+          in
+          let _ = eval test in
+          ())
+  (* | "courseware_rc" ->
       let open MonkeyBD in
       let open Common in
       let open CoursewareDB in
@@ -589,20 +596,34 @@ let test_random s converge_bound () =
             StackDB.serializable_trace_checker )
       in
       let _ = eval test in
-      ()
-  | "twitter" ->
+      () *)
+  | "twitter_rc" ->
       let open MonkeyBD in
       let open Common in
       let open Twitter in
-      let test () =
-        Interpreter.random_test
-          ( init Causal,
-            (fun () -> random_user { numUser = 4; numOp = 2 }),
-            TwitterDB.serializable_trace_checker )
-      in
-      let _ = eval test in
-      () *)
-  (* | "courseware" ->
+      BackendMariaDB.MyMariaDB.maria_context "twitter" ReadCommitted (fun () ->
+          let test () =
+            Interpreter.random_test
+              ( TwitterDB.init,
+                (fun () -> random_user { numUser = 4; numTweet = 4; numOp = 3 }),
+                TwitterDB.check_isolation_level Serializable )
+          in
+          let _ = eval test in
+          ())
+  | "twitter_cc" ->
+      let open MonkeyBD in
+      let open Common in
+      let open Twitter in
+      BackendMariaDB.MyMariaDB.maria_context "twitter" Causal (fun () ->
+          let test () =
+            Interpreter.random_test
+              ( TwitterDB.init,
+                (fun () -> random_user { numUser = 4; numTweet = 4; numOp = 3 }),
+                TwitterDB.check_isolation_level Serializable )
+          in
+          let _ = eval test in
+          ())
+  (*| "courseware" ->
       let open MonkeyBD in
       let open Common in
       let open Courseware in
