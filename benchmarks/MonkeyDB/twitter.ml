@@ -1,91 +1,23 @@
-open Language
-open Interpreter
 open Common
-module TwitterDB = ListDB
+open Language
+module TwitterDB = TwitterDB
 open TwitterDB
-
-let followReqHandler (msg : msg) =
-  let aux (user : int) =
-    do_trans (fun tid ->
-        let followings = do_read tid in
-        let newFollowings = user :: followings in
-        let _ = do_write tid newFollowings in
-        ())
-  in
-  match msg.ev.args with
-  | [ VConst (I user) ] ->
-      let () = aux user in
-      send ("followResp", [])
-  | _ -> _die [%here]
-
-let unfollowReqHandler (msg : msg) =
-  let aux (user : int) =
-    do_trans (fun tid ->
-        let followings = do_read tid in
-        let newFollowings = List.filter (fun x -> x != user) followings in
-        let _ = do_write tid newFollowings in
-        ())
-  in
-  match msg.ev.args with
-  | [ VConst (I user) ] ->
-      let () = aux user in
-      send ("unfollowResp", [])
-  | _ -> _die [%here]
-
-let timelineReqHandler (msg : msg) =
-  let aux (user : int) =
-    do_trans (fun tid ->
-        let followings = do_read tid in
-        if List.mem user followings then do_get tid user else [])
-  in
-  match msg.ev.args with
-  | [ VConst (I user) ] ->
-      let content = aux user in
-      send ("timelineResp", [ mk_value_intList content ])
-  | _ -> _die [%here]
-
-let followRespHandler (_ : msg) = ()
-let unfollowRespHandler (_ : msg) = ()
-let timelineRespHandler (_ : msg) = ()
-
-let init isolation_level () =
-  register_async_has_ret "beginT" beginAsync;
-  register_async_has_ret "commit" commitAsync;
-  register_async_has_ret "get" getAsync;
-  register_async_no_ret "put" putAsync;
-  register_async_has_ret "read" readAsync;
-  register_async_no_ret "write" writeAsync;
-  register_handler "followReq" followReqHandler;
-  register_handler "unfollowReq" unfollowReqHandler;
-  register_handler "timelineReq" timelineReqHandler;
-  register_handler "followResp" followRespHandler;
-  register_handler "unfollowResp" unfollowRespHandler;
-  register_handler "timelineResp" timelineRespHandler;
-  TwitterDB.init isolation_level
-
-open Nt
-
-let record l = Ty_record { alias = None; fds = l }
-
-let testCtx =
-  Typectx.add_to_rights Typectx.emp
-    ([
-       "followReq"#:(record [ "x"#:int_ty ]);
-       "followResp"#:(record []);
-       "timelineReq"#:(record [ "x"#:int_ty ]);
-       "timelineResp"#:(record []);
-       "unfollowReq"#:(record [ "x"#:int_ty ]);
-       "unfollowResp"#:(record []);
-     ]
-    @ event_typectx)
+(*open Nt*)
 
 let gen name args body =
   mk_term_gen testCtx name (List.map (fun x -> VVar x) args) body
 
 let obs name k = mk_term_obs_fresh testCtx name (fun _ -> k)
+
+let obsNewUserResp e = mk_term_obs_fresh testCtx "newUserResp" (fun _ -> e)
+
 let obsFollowResp e = mk_term_obs_fresh testCtx "followResp" (fun _ -> e)
-let obsTimelineResp e = mk_term_obs_fresh testCtx "timelineResp" (fun _ -> e)
+
 let obsUnfollowResp e = mk_term_obs_fresh testCtx "unfollowResp" (fun _ -> e)
+
+let obsPostTweetResp e = mk_term_obs_fresh testCtx "postTweetResp" (fun _ -> e)
+
+let obsTimelineResp e = mk_term_obs_fresh testCtx "timelineResp" (fun _ -> e)
 
 let obsBegin k =
   mk_term_obs_fresh testCtx "beginT" (function
@@ -99,67 +31,105 @@ let obsCommit tid k =
         (prop, k)
     | _ -> _die [%here])
 
-let obsGet tid k =
-  mk_term_obs_prop_fresh testCtx "get" (function
+let obsSelectFollows tid k =
+  mk_term_obs_prop_fresh testCtx "selectFollows" (function
+    | tid' :: _ ->
+          let prop = lit_to_prop (mk_var_eq_var [%here] tid tid') in
+          (prop, k)
+    | _ -> _die [%here])
+
+let obsSelectFollowsPrev tid prev_tid k = 
+  mk_term_obs_prop_fresh testCtx "selectFollows" (function
+    | tid' :: _ :: prev_tid' :: _ ->
+        let prop1 = lit_to_prop (mk_var_eq_var [%here] tid tid') in
+        let prop2 = lit_to_prop (mk_var_eq_var [%here] prev_tid prev_tid') in
+        (And [ prop1 ; prop2 ], k)
+    | _ -> _die [%here])
+
+let obsUpdateFollows tid k =
+  mk_term_obs_prop_fresh testCtx "updateFollows" (function
     | tid' :: _ ->
         let prop = lit_to_prop (mk_var_eq_var [%here] tid tid') in
         (prop, k)
     | _ -> _die [%here])
 
-let obsPut tid k =
-  mk_term_obs_prop_fresh testCtx "put" (function
+let obsSelectTweets tid k =
+  mk_term_obs_prop_fresh testCtx "selectTweets" (function
     | tid' :: _ ->
         let prop = lit_to_prop (mk_var_eq_var [%here] tid tid') in
         (prop, k)
     | _ -> _die [%here])
 
-let obsRead tid k =
-  mk_term_obs_prop_fresh testCtx "read" (function
+let obsSelectTweetsPrev tid prev_tid k =
+  mk_term_obs_prop_fresh testCtx "selectTweets" (function
+    | tid' :: _ :: prev_tid' :: _ ->
+        let prop1 = lit_to_prop (mk_var_eq_var [%here] tid tid') in
+        let prop2 = lit_to_prop (mk_var_eq_var [%here] prev_tid prev_tid') in
+        (And [ prop1; prop2 ], k)
+    | _ -> _die [%here])
+
+let obsUpdateTweets tid k =
+  mk_term_obs_prop_fresh testCtx "updateTweets" (function
     | tid' :: _ ->
         let prop = lit_to_prop (mk_var_eq_var [%here] tid tid') in
         (prop, k)
     | _ -> _die [%here])
 
-let obsWrite tid k =
-  mk_term_obs_prop_fresh testCtx "write" (function
-    | tid' :: _ ->
-        let prop = lit_to_prop (mk_var_eq_var [%here] tid tid') in
-        (prop, k)
-    | _ -> _die [%here])
 
-let main =
-  mk_term_assume_fresh_true int_ty (fun user ->
-      gen "followReq" [ user ]
-      @@ obsBegin (fun tid1 ->
-             gen "unfollowReq" [ user ]
-             @@ obsBegin (fun tid2 ->
-                    obsRead tid2 @@ obsRead tid1 @@ obsWrite tid1
-                    @@ obsWrite tid2 @@ obsCommit tid2 @@ obsCommit tid1
-                    @@ obsFollowResp @@ obsUnfollowResp
-                    @@ gen "followReq" [ user ]
-                    @@ obsBegin (fun tid3 ->
-                           obsRead tid3 @@ obsWrite tid3 @@ obsCommit tid3
-                           @@ obsFollowResp mk_term_tt))))
+type twitter_bench_config = { numUser : int; numTweet : int; numOp : int }
 
-type twitter_bench_config = { numUser : int; numOp : int }
+let num_connection = 3
 
-let random_user { numUser; numOp } =
+let random_user { numUser; numTweet; numOp } =
+  let open Lwt.Syntax in
   let users = List.init numUser (fun i -> i + 1) in
-  let random_follow () =
+  let tweets = List.init numTweet (fun i -> i + 1) in
+  let random_new_user ~thread_id () =
     let user = List.nth users (Random.int numUser) in
-    send ("followReq", [ mk_value_int user ])
+    async_new_user ~thread_id user ()
   in
-  let random_unfollow () =
+  let random_follow ~thread_id () =
     let user = List.nth users (Random.int numUser) in
-    send ("unfollowReq", [ mk_value_int user ])
+    let follow_o = List.nth users (Random.int numUser) in
+    async_follow ~thread_id user follow_o ()
   in
-  let rec genOp restNum =
-    if restNum <= 0 then ()
+  let random_unfollow ~thread_id () =
+    let user = List.nth users (Random.int numUser) in
+    let unfollow_o = List.nth users (Random.int numUser) in
+    async_unfollow ~thread_id user unfollow_o ()
+  in
+  let random_tweet ~thread_id () =
+    let user = List.nth users (Random.int numUser) in
+    let tweet = List.nth tweets (Random.int numTweet) in
+    async_post_tweet ~thread_id user tweet ()
+  in
+  let random_option ~thread_id () =
+    match Random.int 4 with
+    | 0 -> random_new_user ~thread_id ()
+    | 1 -> random_follow ~thread_id ()
+    | 2 -> random_unfollow ~thread_id ()
+    | _-> random_tweet ~thread_id ()
+  in
+  let rec genOp ~thread_id restNum =
+    if restNum <= 0 then
+      let () =
+        Pp.printf "@{<red>[thread: %i] End with numOp@}\n%i\n" thread_id numOp
+      in
+      Lwt.return_unit
     else
-      let () = Pp.printf "@{<yellow>restNum@}: %i\n" restNum in
-      if Random.bool () then random_follow () else random_unfollow ();
-      genOp (restNum - 1)
+      let () =
+        Pp.printf "@{<yellow>[thread: %i] restNum@}: %i\n" thread_id restNum
+      in
+      let* _ = random_option ~thread_id () in
+      genOp ~thread_id (restNum - 1)
   in
-  let () = genOp numOp in
-  let () = Pp.printf "@{<red>End with numOp@}\n%i\n" numOp in
-  Effect.perform End
+  let () =
+    Lwt_main.run
+    @@ Lwt.join
+         [
+           genOp ~thread_id:0 numOp;
+           genOp ~thread_id:1 numOp;
+           genOp ~thread_id:2 numOp;
+         ]
+  in
+  ()
