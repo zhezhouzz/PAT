@@ -1079,7 +1079,12 @@ module TwitterDB = struct
 
   module D = MyDB (Config)
   include D
+  include D
 
+  let selectFollowsAsync (ev : ev) = _getAsync "follows" ev
+  let selectTweetsAsync (ev : ev) = _getAsync "tweets" ev
+  let updateFollowsAsync (ev : ev) = _putAsync "follows" ev
+  let updateTweetsAsync (ev : ev) = _putAsync "tweets" ev
   let selectFollowsAsync (ev : ev) = _getAsync "follows" ev
   let selectTweetsAsync (ev : ev) = _getAsync "tweets" ev
   let updateFollowsAsync (ev : ev) = _putAsync "follows" ev
@@ -1150,9 +1155,42 @@ module TwitterDB = struct
         let _ = aux user in
         send ("newUserResp", [])
     | _ -> _die [%here]
+  let async_new_user ~thread_id user () =
+    let open Lwt.Syntax in
+    let* tid = DB.async_begin ~thread_id () in
+    try
+      let* () =
+        DB.async_put ~tid ~table:"follows" ~key:(string_of_int user)
+          ~json:(Config.values_to_json [ VCIntList [] ])
+          ()
+      in
+      let* () =
+        DB.async_put ~tid ~table:"tweets" ~key:(string_of_int user)
+          ~json:(Config.values_to_json [ VCIntList [] ])
+          ()
+      in
+      let* _ = DB.async_commit ~tid () in
+      Lwt.return_unit
+    with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = DB.async_release_connection ~tid () in
+      Lwt.return_unit
+
+  let newUserReqHandler (msg : msg) =
+    let aux (user : int) =
+      do_trans (fun tid ->
+          let _ = do_updateFollows tid user (int_list_to_values []) in
+          let _ = do_updateTweets tid user (int_list_to_values []) in
+          ())
+    in
+    match msg.ev.args with
+    | [ VConst (I user) ] ->
+        let _ = aux user in
+        send ("newUserResp", [])
+    | _ -> _die [%here]
 
   (* following a user *)
   let async_follow ~thread_id user follow_o () =
+    let open Lwt.Syntax in
     let open Lwt.Syntax in
     let* tid = DB.async_begin ~thread_id () in
     try
@@ -1162,9 +1200,12 @@ module TwitterDB = struct
       let oldFollows = 
         match Config.json_to_values oldFollows with
         | [ VCIntList l ] -> l
+        match Config.json_to_values oldFollows with
+        | [ VCIntList l ] -> l
         | _ -> _die [%here]
       in
       let newFollows = 
+        if List.mem follow_o oldFollows then oldFollows else follow_o :: oldFollows (*TODO: is it bad to stop the transaction?*)
         if List.mem follow_o oldFollows then oldFollows else follow_o :: oldFollows (*TODO: is it bad to stop the transaction?*)
       in
       let* () = 
@@ -1176,11 +1217,15 @@ module TwitterDB = struct
       Lwt.return_unit
     with BackendMariaDB.DBKeyNotFound _ ->
       let* _ = DB.async_release_connection ~tid () in
+    with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = DB.async_release_connection ~tid () in
       Lwt.return_unit
 
   let followReqHandler (msg : msg) = 
     let aux (user : int) (follow_o : int) =
       do_trans (fun tid ->
+          let oldFollows = values_to_int_list (do_selectFollows tid user) in
+          let newFollows = if List.mem follow_o oldFollows then oldFollows else follow_o :: oldFollows
           let oldFollows = values_to_int_list (do_selectFollows tid user) in
           let newFollows = if List.mem follow_o oldFollows then oldFollows else follow_o :: oldFollows
           in
@@ -1190,7 +1235,6 @@ module TwitterDB = struct
       match msg.ev.args with
       | [ VConst (I user); VConst (I follow_o) ] ->
           let _ = aux user follow_o in
-          let _ = Pp.printf ("sending follow resp\n") in
           send ("followResp", [])
       | _ -> _die [%here]
 
@@ -1198,12 +1242,15 @@ module TwitterDB = struct
   (* unfollowing a user *)
   let async_unfollow ~thread_id user unfollow_o () =
     let open Lwt.Syntax in
+    let open Lwt.Syntax in
     let* tid = DB.async_begin ~thread_id () in
     try
       let* _, _, oldFollows = 
         DB.async_get ~tid ~table:"follows" ~key:(string_of_int user) ()
       in
       let oldFollows = 
+        match Config.json_to_values oldFollows with
+        | [ VCIntList l ] -> l
         match Config.json_to_values oldFollows with
         | [ VCIntList l ] -> l
         | _ -> _die [%here]
@@ -1220,11 +1267,14 @@ module TwitterDB = struct
       Lwt.return_unit
     with BackendMariaDB.DBKeyNotFound _ ->
       let* _ = DB.async_release_connection ~tid () in
+    with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = DB.async_release_connection ~tid () in
       Lwt.return_unit
 
   let unfollowReqHandler (msg : msg) = 
     let aux (user : int) (unfollow_o : int) =
       do_trans (fun tid ->
+          let oldFollows = values_to_int_list (do_selectFollows tid user) in
           let oldFollows = values_to_int_list (do_selectFollows tid user) in
           let newFollows = List.filter (fun x -> x <> unfollow_o) oldFollows
           in
@@ -1234,6 +1284,8 @@ module TwitterDB = struct
       match msg.ev.args with
       | [ VConst (I user); VConst (I unfollow_o) ] ->
           let _ = aux user unfollow_o in
+      | [ VConst (I user); VConst (I unfollow_o) ] ->
+          let _ = aux user unfollow_o in
           send ("unfollowResp", [])
       | _ -> _die [%here]
 
@@ -1241,9 +1293,7 @@ module TwitterDB = struct
   (* posting new tweets *)
   let async_post_tweet ~thread_id user tweet () =
     let open Lwt.Syntax in 
-    let* _ = Lwt_io.printlf "510 %d" thread_id in
     let* tid = DB.async_begin ~thread_id () in
-    let* _ = Lwt_io.printlf "512 %d" thread_id in
     try
       let* _, _, oldTweets = 
         DB.async_get ~tid ~table:"tweets" ~key:(string_of_int user) ()
@@ -1251,10 +1301,12 @@ module TwitterDB = struct
       let* _ = Lwt_io.printlf "517 %d" thread_id in
       let oldTweets = 
         match Config.json_to_values oldTweets with
+        match Config.json_to_values oldTweets with
         | [ VCIntList l ] -> l
         | _ -> _die [%here]
       in
       let newTweets =
+        tweet :: oldTweets
         tweet :: oldTweets
       in
       let* _ = Lwt_io.printlf "526 %d" thread_id in
@@ -1316,14 +1368,48 @@ module TwitterDB = struct
 
 
   let newUserRespHandler (_ : msg) = ()
+  let timelineReqHandler (msg : msg) = 
+    let aux (user : int) =
+      do_trans (fun tid ->
+          let tweets = values_to_int_list (do_selectTweets tid user) in
+          tweets)
+    in
+    match msg.ev.args with
+    | [ VConst (I user) ] ->
+        let tweets = aux user in
+        send ("timelineResp", [ mk_value_intList tweets ])
+    | _ -> _die [%here]
+
+
+  (* get timeline *)
+  let async_timeline ~thread_id user () = 
+    let open Lwt.Syntax in
+    let* tid = DB.async_begin ~thread_id () in
+    try
+      let* _, _, tweets = 
+        DB.async_get ~tid ~table:"tweets" ~key:(string_of_int user) ()
+      in
+      Lwt.return tweets
+    with BackendMariaDB.DBKeyNotFound s ->
+      let* _ = DB.async_release_connection ~tid () in
+      Lwt.fail (BackendMariaDB.DBKeyNotFound s)
+
+
+  let newUserRespHandler (_ : msg) = ()
   let followRespHandler (_ : msg) = ()
   let unfollowRespHandler (_ : msg) = ()
   let postTweetRespHandler (_ : msg) = ()
+  let timelineRespHandler (_ : msg) = ()
   let timelineRespHandler (_ : msg) = ()
 
   let init () =
     register_async_has_ret "beginT" beginAsync;
     register_async_has_ret "commit" commitAsync;
+    register_async_has_ret "selectFollows" selectFollowsAsync;
+    register_async_no_ret "updateFollows" updateFollowsAsync;
+    register_async_has_ret "selectTweets" selectTweetsAsync;
+    register_async_no_ret "updateTweets" updateTweetsAsync;
+    register_handler "newUserReq" newUserReqHandler;
     register_async_has_ret "selectFollows" selectFollowsAsync;
     register_async_no_ret "updateFollows" updateFollowsAsync;
     register_async_has_ret "selectTweets" selectTweetsAsync;
@@ -1335,8 +1421,13 @@ module TwitterDB = struct
     register_handler "timelineReq" timelineReqHandler;
     register_handler "newUserResp" newUserRespHandler;
     register_handler "followResp" followRespHandler;
+    register_handler "postTweetReq" postTweetReqHandler;
+    register_handler "timelineReq" timelineReqHandler;
+    register_handler "newUserResp" newUserRespHandler;
+    register_handler "followResp" followRespHandler;
     register_handler "unfollowResp" unfollowRespHandler;
     register_handler "postTweetResp" postTweetRespHandler;
+    register_handler "timelineResp" timelineRespHandler;
     register_handler "timelineResp" timelineRespHandler;
     D.clear ()
 
@@ -1367,8 +1458,36 @@ module TwitterDB = struct
                             ]);
         "updateTweets"#:(record
                             [ "tid"#:int_ty; "key"#:int_ty; "value"#:(mk_list_ty int_ty) ]);
+        "selectFollows"#:(record
+                            [
+                              "tid"#:int_ty;
+                              "key"#:int_ty;
+                              "prev_tid"#:int_ty;
+                              "prev_cid"#:int_ty;
+                              "value"#:(mk_list_ty int_ty);
+                            ]);
+        "updateFollows"#:(record
+                            [ "tid"#:int_ty; "key"#:int_ty; "value"#:(mk_list_ty int_ty) ]);
+        "selectTweets"#:(record
+                            [
+                              "tid"#:int_ty;
+                              "key"#:int_ty;
+                              "prev_tid"#:int_ty;
+                              "prev_cid"#:int_ty;
+                              "value"#:(mk_list_ty int_ty);
+                            ]);
+        "updateTweets"#:(record
+                            [ "tid"#:int_ty; "key"#:int_ty; "value"#:(mk_list_ty int_ty) ]);
         "newUserReq"#:(record [ "user"#:int_ty ]);
         "newUserResp"#:(record []);
+        "followReq"#:(record [ "user"#:int_ty; "follow_o"#:int_ty ]);
+        "followResp"#:(record []);
+        "unfollowReq"#:(record [ "user"#:int_ty; "unfollow_o"#:int_ty ]);
+        "unfollowResp"#:(record []);
+        "postTweetReq"#:(record [ "user"#:int_ty; "tweet"#:int_ty ]);
+        "postTweetResp"#:(record []);
+        "timelineReq"#:(record [ "user"#:int_ty ]);
+        "timelineResp"#:(record [ "tweets"#:(mk_list_ty int_ty) ]);
         "followReq"#:(record [ "user"#:int_ty; "follow_o"#:int_ty ]);
         "followResp"#:(record []);
         "unfollowReq"#:(record [ "user"#:int_ty; "unfollow_o"#:int_ty ]);

@@ -7,9 +7,7 @@ open Zdatatype
 let parse = Oparse.parse_imp_from_file
 
 let read_ocaml_file source_file () =
-let _ = Pp.printf "@{<yellow>cre.ml:@}  10\n" in
   let code = Oparse.parse_imp_from_file ~sourcefile:source_file in
-let _ = Pp.printf "@{<yellow>cre.ml:@}  12\n" in
   let code = ocaml_structure_to_items code in
   code
 

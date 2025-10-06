@@ -23,8 +23,11 @@ let save_progs name terms =
   Sexplib.Sexp.save output_file sexp
 
 let load_progs name () =
+let _ = Pp.printf "@{<yellow>synthesis.ml:@}  26\n" in
   let output_file = spf "%s/%s.scm" output_prefix name in
+let _ = Pp.printf "@{<yellow>synthesis.ml:@}  28\n" in
   let sexp = Sexplib.Sexp.load_sexp output_file in
+let _ = Pp.printf "@{<yellow>synthesis.ml:@}  30\n" in
   Sexplib.Std.list_of_sexp term_of_sexp sexp
 
 let synthesize (env : syn_env) name =
