@@ -547,10 +547,13 @@ let test_random s converge_bound () =
       ()
   | "stlc" ->
       let open Adt.Stlc in
+      (* let () = testAst () in
+      let () = _die_with [%here] "done" in *)
       let test () =
         Interpreter.seq_random_test
           ( init,
-            (fun () -> randomTest { depthBound = 2; constRange = 4 }),
+            (fun () ->
+              randomTest { numApp = 4; tyDepthBound = 4; constRange = 4 }),
             trace_eval_correct )
       in
       let _ = eval test in

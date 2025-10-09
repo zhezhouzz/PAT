@@ -76,8 +76,8 @@ let rec subst_stlcTerm (n, e) = function
         }
 
 let rec wrong_subst (n, e) = function
-  | StlcVar x -> StlcConst x (* if x == n then e else StlcVar x *)
-  | StlcConst x -> if x == n then e else StlcVar x (* StlcConst c *)
+  | StlcVar x -> if x == n then e else StlcVar x
+  | StlcConst x -> StlcConst x
   | StlcAbs { absTy; absBody } ->
       StlcAbs { absTy; absBody = wrong_subst (n, e) absBody }
   | StlcApp { appFun; appArg } ->
@@ -91,6 +91,11 @@ type eval_result =
   | EvalSuccess of stlcTerm
   | EvalError of stlcTerm
   | EvalNormalFrom of stlcTerm
+
+let layout_eval_result = function
+  | EvalSuccess e -> spf "EvalSuccess %s" (layout_stlcTerm e)
+  | EvalError e -> spf "EvalError %s" (layout_stlcTerm e)
+  | EvalNormalFrom e -> spf "EvalNormalFrom %s" (layout_stlcTerm e)
 
 let rec step_stlcTerm term =
   match term with
@@ -307,30 +312,15 @@ let obsCurTy k =
     | [ x ] -> k x
     | _ -> _die [%here])
 
+let _mkApp e1 e2 = StlcApp { appFun = e1; appArg = e2 }
+let _mkAbs ty e = StlcAbs { absTy = ty; absBody = e }
+
 let testAst () =
-  let e =
-    StlcApp
-      {
-        appFun =
-          StlcApp
-            {
-              appFun =
-                StlcAbs
-                  {
-                    absTy = StlcArrow (StlcInt, StlcInt);
-                    absBody =
-                      StlcAbs
-                        {
-                          absTy = StlcInt;
-                          absBody =
-                            StlcApp { appFun = StlcVar 1; appArg = StlcVar 0 };
-                        };
-                  };
-              appArg = StlcAbs { absTy = StlcInt; absBody = StlcVar 0 };
-            };
-        appArg = StlcConst 3;
-      }
+  let f1 =
+    _mkAbs (StlcArrow (StlcInt, StlcInt)) (_mkApp (StlcVar 0) (StlcVar 1))
   in
+  let f2 = _mkAbs StlcInt (_mkApp f1 (_mkAbs StlcInt (StlcVar 0))) in
+  let e = _mkApp f2 (StlcConst 3) in
   let () = Printf.printf "testAst: %s\n" (layout_stlcTerm e) in
   let () =
     Printf.printf "typeinfer_stlcTerm: %s\n"
@@ -338,9 +328,9 @@ let testAst () =
       | Some ty -> layout_stlcTy ty
       | None -> "None")
   in
-  let _ = mstep_stlcTerm e in
-  (* let () = Printf.printf "res: %s\n" (layout_stlcTerm res) in *)
-  ()
+  let res = mstep_stlcTerm e in
+  let () = Printf.printf "res: %s\n" (layout_eval_result res) in
+  e
 
 let default_main =
   (* testAst ();
@@ -368,7 +358,7 @@ let default_main =
   in
   term_concat e (genEvalReq (obsEvalResp mk_term_tt))
 
-type stlc_bench_config = { depthBound : int; constRange : int }
+type stlc_bench_config = { numApp : int; tyDepthBound : int; constRange : int }
 
 let ty_gen depth =
   let open QCheck.Gen in
@@ -387,7 +377,7 @@ let ty_gen depth =
           ])
     depth
 
-let stlc_gen { depthBound; constRange } =
+let stlc_gen { numApp; tyDepthBound; constRange } =
   let open QCheck.Gen in
   let genvar ctx ty =
     let is =
@@ -429,13 +419,13 @@ let stlc_gen { depthBound; constRange } =
           | None -> frequency [ (1, app); (1, abs) ]
           | Some g -> frequency [ (1, g); (1, app); (1, abs) ])
   and aux_app ctx numApp ty =
-    ty_gen 3 >>= fun t2 ->
+    ty_gen tyDepthBound >>= fun t2 ->
     let t1 = StlcArrow (t2, ty) in
     aux ctx (numApp - 1) t1 >>= fun e1 ->
     aux ctx (numApp - 1) t2 >>= fun e2 ->
     pure (StlcApp { appFun = e1; appArg = e2 })
   in
-  ty_gen 3 >>= fun ty -> aux [] depthBound ty
+  ty_gen tyDepthBound >>= fun ty -> aux [] numApp ty
 
 let exec_stlc e =
   let rec aux e =
@@ -457,23 +447,18 @@ let exec_stlc e =
   send ("evalReq", []);
   Effect.perform End
 
-let random_wt_stlc_term { depthBound; constRange } num =
+(* let random_wt_stlc_term { depthBound; constRange } num =
   let res = QCheck.Gen.generate ~n:num (stlc_gen { depthBound; constRange }) in
-  (* let () =
-    List.iter
-      (fun e ->
-        let _ = typeinfer_stlcTerm [] e in
-        ())
-      res
-  in *)
   res
 
+let dummy_random_wt_stlc_term _ num = List.init num (fun _ -> testAst ()) *)
 let _store = ref []
 
 let _next conf =
   match !_store with
   | [] -> (
       let res = QCheck.Gen.generate ~n:10000 (stlc_gen conf) in
+      (* let res = List.init 10000 (fun _ -> testAst ()) in *)
       match res with
       | [] -> _die_with [%here] "never"
       | e :: es ->
