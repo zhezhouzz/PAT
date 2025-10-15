@@ -87,10 +87,55 @@ let bool_to_values b = [ VConst (B b) ]
 let values_to_bool l =
   match l with [ VConst (B b) ] -> b | _ -> _die [%here]
 
+(* Helper functions *)
+let async_is_student_registered ~tid ~student_id =
+  let open Lwt.Syntax in 
+  Lwt.catch
+    (fun () ->
+      let* _, _, student_json = 
+        DB.async_get ~tid ~table:"students" ~key:(string_of_int student_id) ()
+      in
+      Lwt.return (values_to_bool (Config.json_to_values student_json)))
+    (function
+      | BackendMariaDB.DBKeyNotFound _ -> Lwt.return false
+      | exn -> Lwt.fail exn)
+
+let is_student_registered ~tid ~student_id = 
+  try
+    values_to_bool (do_getStudents tid student_id)
+  with
+  | _ -> false
+
+let async_is_course_created ~tid ~course_id =
+  let open Lwt.Syntax in 
+  Lwt.catch
+    (fun () ->
+      let* _, _, course_json = 
+        DB.async_get ~tid ~table:"courses" ~key:(string_of_int course_id) ()
+      in
+      Lwt.return (values_to_bool (Config.json_to_values course_json)))
+    (function
+      | BackendMariaDB.DBKeyNotFound _ -> Lwt.return false
+      | exn -> Lwt.fail exn)
+
+let is_course_created ~tid ~course_id = 
+  try
+    values_to_bool (do_getCourses tid course_id)
+  with
+  | _ -> false
+
+(* Courseware operations *)
+
 (* Register a student *)
 let async_register_student ~thread_id student_id () =
   let open Lwt.Syntax in
   let* tid = DB.async_begin ~thread_id () in
+  (* Check if student already registered *)
+  let* registered = async_is_student_registered ~tid ~student_id in
+  if registered then (
+    let* _ = DB.async_release_connection ~tid () in
+    Lwt.return_false
+  ) else
   (* Register student *)
   let* () = 
     DB.async_put ~tid ~table:"students" ~key:(string_of_int student_id)
@@ -109,9 +154,12 @@ let async_register_student ~thread_id student_id () =
 let registerStudentReqHandler (msg : msg) =
   let aux (student_id : int) =
     do_trans (fun tid ->
-        let _ = do_putStudents tid student_id (bool_to_values true) in
-        let _ = do_putStudentEnrollments tid student_id (int_list_to_values []) in
-        true)
+      if is_student_registered ~tid ~student_id then
+        false
+      else
+      let _ = do_putStudents tid student_id (bool_to_values true) in
+      let _ = do_putStudentEnrollments tid student_id (int_list_to_values []) in
+      true)
   in
   match msg.ev.args with
   | [ VConst (I student_id) ] ->
@@ -122,70 +170,66 @@ let registerStudentReqHandler (msg : msg) =
 let async_deregister_student ~thread_id student_id () =
   let open Lwt.Syntax in
   let* tid = DB.async_begin ~thread_id () in
-  try
-    (* Check that student exists before deregistering*)
-    let* _, _, _ = 
-      DB.async_get ~tid ~table:"students" ~key:(string_of_int student_id) ()
+  let* is_student_registered = async_is_student_registered ~tid ~student_id in
+  if not is_student_registered then (
+    let* _ = DB.async_release_connection ~tid () in
+    Lwt.return_false
+  ) else
+  (* Deregister student *)
+  let* () = 
+    DB.async_put ~tid ~table:"students" ~key:(string_of_int student_id)
+    ~json:(Config.values_to_json [ VConst (B false) ])
+    ()
+  in
+  (* Remove student from their enrolled courses *)
+  let* _, _, enrollments_json =
+    DB.async_get ~tid ~table:"student_enrollments" ~key:(string_of_int student_id) ()
+  in
+  let courses =
+    match Config.json_to_values enrollments_json with
+    | [ VCIntList l ] -> l
+    | _ -> []
+  in
+  let remove_from_course course_id =
+    let course_id_str = string_of_int course_id in
+    let* _, _, course_enrollment_json =
+    DB.async_get ~tid ~table:"course_enrollments" ~key:course_id_str ()
     in
-    (* Deregister student *)
-    let* () = 
-      DB.async_put ~tid ~table:"students" ~key:(string_of_int student_id)
-      ~json:(Config.values_to_json [ VConst (B false) ])
-      ()
-    in
-    (* Remove student from their enrolled courses *)
-    let* _, _, enrollments_json =
-      DB.async_get ~tid ~table:"student_enrollments" ~key:(string_of_int student_id) ()
-    in
-    let courses =
-      match Config.json_to_values enrollments_json with
-      | [ VCIntList l ] -> l
-      | _ -> []
-    in
-    let remove_from_course course_id =
-      let course_id_str = string_of_int course_id in
-      let* _, _, course_enrollment_json =
-      DB.async_get ~tid ~table:"course_enrollments" ~key:course_id_str ()
-      in
-      match Config.json_to_values course_enrollment_json with
-      | [ VCIntList student_ids ] ->
-        let student_ids' = List.filter ((<>) student_id) student_ids in
-        DB.async_put ~tid ~table:"course_enrollments" ~key:course_id_str
-        ~json:(Config.values_to_json [ VCIntList student_ids' ]) ()
-      | _ -> Lwt.return_unit
-    in
-    let* () = Lwt_list.iter_p remove_from_course courses in
-    (* Clear student's enrollment list *)
-    let* () = 
-      DB.async_put ~tid ~table:"student_enrollments" ~key:(string_of_int student_id)
-      ~json:(Config.values_to_json [ VCIntList [] ])
-      ()
+    match Config.json_to_values course_enrollment_json with
+    | [ VCIntList student_ids ] ->
+      let student_ids' = List.filter ((<>) student_id) student_ids in
+      DB.async_put ~tid ~table:"course_enrollments" ~key:course_id_str
+      ~json:(Config.values_to_json [ VCIntList student_ids' ]) ()
+    | _ -> Lwt.return_unit
+  in
+  let* () = Lwt_list.iter_p remove_from_course courses in
+  (* Clear student's enrollment list *)
+  let* () = 
+    DB.async_put ~tid ~table:"student_enrollments" ~key:(string_of_int student_id)
+    ~json:(Config.values_to_json [ VCIntList [] ])
+    ()
     
     in
     let* _ = DB.async_commit ~tid () in
     Lwt.return_true
-  with BackendMariaDB.DBKeyNotFound _ ->
-    let* _ = DB.async_release_connection ~tid () in
-    Lwt.return_false
 
 let deregisterStudentReqHandler (msg : msg) =
   let aux (student_id : int) =
     do_trans (fun tid ->
-        try
-          let _ = do_getStudents tid student_id in
-          let _ = do_putStudents tid student_id (bool_to_values false) in
-          let courses = values_to_int_list (do_getStudentEnrollments tid student_id) in
-          let remove_from_course course_id =
-            let student_ids = values_to_int_list (do_getCourseEnrollments tid course_id) in
-            let student_ids' = List.filter ((<>) student_id) student_ids in
-            let _ = do_putCourseEnrollments tid course_id (int_list_to_values student_ids') in
-            ()
-          in
-          List.iter remove_from_course courses;
-          let _ = do_putStudentEnrollments tid student_id (int_list_to_values []) in
-          true
-        with _ ->
-          false)
+      if not (is_student_registered ~tid ~student_id) then
+        false
+      else
+      let _ = do_putStudents tid student_id (bool_to_values false) in
+      let courses = values_to_int_list (do_getStudentEnrollments tid student_id) in
+      let remove_from_course course_id =
+        let student_ids = values_to_int_list (do_getCourseEnrollments tid course_id) in
+        let student_ids' = List.filter ((<>) student_id) student_ids in
+        let _ = do_putCourseEnrollments tid course_id (int_list_to_values student_ids') in
+        ()
+      in
+      List.iter remove_from_course courses;
+      let _ = do_putStudentEnrollments tid student_id (int_list_to_values []) in
+      true)
   in
   match msg.ev.args with
   | [ VConst (I student_id) ] ->
@@ -196,6 +240,12 @@ let deregisterStudentReqHandler (msg : msg) =
 let async_create_course ~thread_id course_id () =
   let open Lwt.Syntax in
   let* tid = DB.async_begin ~thread_id () in
+  let* created = async_is_course_created ~tid ~course_id in
+  if created then (
+    let* _ = DB.async_release_connection ~tid () in
+    Lwt.return_false
+  ) else
+  (* Course does not exist, create course *)
   let* () = 
     DB.async_put ~tid ~table:"courses" ~key:(string_of_int course_id)
       ~json:(Config.values_to_json [ VConst (B true) ])
@@ -212,6 +262,9 @@ let async_create_course ~thread_id course_id () =
 let createCourseReqHandler (msg : msg) =
   let aux (course_id : int) =
     do_trans (fun tid ->
+      if is_course_created ~tid ~course_id then
+        false
+      else
       let _ = do_putCourses tid course_id (bool_to_values true) in
       let _ = do_putCourseEnrollments tid course_id (int_list_to_values []) in
       true)
@@ -225,64 +278,62 @@ let createCourseReqHandler (msg : msg) =
 let async_delete_course ~thread_id course_id () =
   let open Lwt.Syntax in
   let* tid = DB.async_begin ~thread_id () in
-  try
-    let* _, _, _ = 
-      DB.async_get ~tid ~table:"courses" ~key:(string_of_int course_id) ()
-    in
-    let* () = 
-      DB.async_put ~tid ~table:"courses" ~key:(string_of_int course_id)
-        ~json:(Config.values_to_json [ VConst (B false) ])
-        ()
-    in
-    let* _, _, enrollments_json =
-      DB.async_get ~tid ~table:"course_enrollments" ~key:(string_of_int course_id) ()
-    in
-    let students =
-      match Config.json_to_values enrollments_json with
-      | [ VCIntList l ] -> l
-      | _ -> []
-    in
-    let remove_student student_id =
-      let* _, _, student_enrollment_json =
-        DB.async_get ~tid ~table:"student_enrollments" ~key:(string_of_int student_id) ()
-      in
-      match Config.json_to_values student_enrollment_json with
-      | [ VCIntList course_ids ] ->
-        let course_ids' = List.filter ((<>) course_id) course_ids in
-        DB.async_put ~tid ~table:"student_enrollments" ~key:(string_of_int student_id)
-        ~json:(Config.values_to_json [ VCIntList course_ids' ]) ()
-      | _ -> Lwt.return_unit
-    in
-    let* () = Lwt_list.iter_p remove_student students in
-    let* () = 
-      DB.async_put ~tid ~table:"course_enrollments" ~key:(string_of_int course_id)
-      ~json:(Config.values_to_json [ VCIntList [] ])
-      ()
-    in
-    let* _ = DB.async_commit ~tid () in
-    Lwt.return_true
-  with BackendMariaDB.DBKeyNotFound _ ->
+  let* course_exists = async_is_course_created ~tid ~course_id in
+  if not course_exists then (
     let* _ = DB.async_release_connection ~tid () in
     Lwt.return_false
+  ) else
+  (* Course exists, delete course *)
+  let* () = 
+    DB.async_put ~tid ~table:"courses" ~key:(string_of_int course_id)
+      ~json:(Config.values_to_json [ VConst (B false) ])
+      ()
+  in
+  let* _, _, enrollments_json =
+    DB.async_get ~tid ~table:"course_enrollments" ~key:(string_of_int course_id) ()
+  in
+  let students =
+    match Config.json_to_values enrollments_json with
+    | [ VCIntList l ] -> l
+    | _ -> []
+  in
+  let remove_student student_id =
+    let* _, _, student_enrollment_json =
+      DB.async_get ~tid ~table:"student_enrollments" ~key:(string_of_int student_id) ()
+    in
+    match Config.json_to_values student_enrollment_json with
+    | [ VCIntList course_ids ] ->
+      let course_ids' = List.filter ((<>) course_id) course_ids in
+      DB.async_put ~tid ~table:"student_enrollments" ~key:(string_of_int student_id)
+      ~json:(Config.values_to_json [ VCIntList course_ids' ]) ()
+    | _ -> Lwt.return_unit
+  in
+  let* () = Lwt_list.iter_p remove_student students in
+  let* () = 
+    DB.async_put ~tid ~table:"course_enrollments" ~key:(string_of_int course_id)
+    ~json:(Config.values_to_json [ VCIntList [] ])
+    ()
+  in
+  let* _ = DB.async_commit ~tid () in
+  Lwt.return_true
 
 let deleteCourseReqHandler (msg : msg) =
   let aux (course_id : int) =
     do_trans (fun tid ->
-        try
-          let _ = do_getCourses tid course_id in
-          let _ = do_putCourses tid course_id (bool_to_values false) in
-          let students = values_to_int_list (do_getCourseEnrollments tid course_id) in
-          let remove_student student_id =
-            let enrollments = values_to_int_list (do_getStudentEnrollments tid student_id) in
-            let enrollments' = List.filter ((<>) course_id) enrollments in
-            let _ = do_putStudentEnrollments tid student_id (int_list_to_values enrollments') in
-            ()
-          in
-          List.iter remove_student students;
-          let _ = do_putCourseEnrollments tid course_id (int_list_to_values []) in
-          true
-        with _ ->
-          false)
+      if not (is_course_created ~tid ~course_id) then
+        false
+      else
+      let _ = do_putCourses tid course_id (bool_to_values false) in
+      let students = values_to_int_list (do_getCourseEnrollments tid course_id) in
+      let remove_student student_id =
+        let enrollments = values_to_int_list (do_getStudentEnrollments tid student_id) in
+        let enrollments' = List.filter ((<>) course_id) enrollments in
+        let _ = do_putStudentEnrollments tid student_id (int_list_to_values enrollments') in
+        ()
+      in
+      List.iter remove_student students;
+      let _ = do_putCourseEnrollments tid course_id (int_list_to_values []) in
+      true)
   in
   match msg.ev.args with
   | [ VConst (I course_id) ] ->
@@ -293,90 +344,73 @@ let deleteCourseReqHandler (msg : msg) =
 let async_enroll_student ~thread_id student_id course_id () =
   let open Lwt.Syntax in
   let* tid = DB.async_begin ~thread_id () in
-  try
-    (* Make sure student and course both exist *)
-    let* _, _, student_value = 
-      DB.async_get ~tid ~table:"students" ~key:(string_of_int student_id) ()
-    in
-    let* _, _, course_value = 
-      DB.async_get ~tid ~table:"courses" ~key:(string_of_int course_id) ()
-    in
-    let student_is_registered = 
-      values_to_bool (Config.json_to_values student_value) in
-    let course_exists = 
-      values_to_bool (Config.json_to_values course_value) in
-    if not student_is_registered || not course_exists then (
-      let* _ = DB.async_release_connection ~tid () in
-      Lwt.return_false
-    ) else
-    (* Student and course both exist *)
-    (* Update student's enrollments *)
-    let* _, _, enrollments = 
-      DB.async_get ~tid ~table:"student_enrollments" ~key:(string_of_int student_id) ()
-    in
-    let oldEnrollments = 
-      match Config.json_to_values enrollments with
-      | [ VCIntList l ] -> l
-      | _ -> _die [%here]
-    in
-    let newEnrollments = 
-      if List.mem course_id oldEnrollments then oldEnrollments 
-      else course_id :: oldEnrollments
-    in
-    let* () = 
-      DB.async_put ~tid ~table:"student_enrollments" ~key:(string_of_int student_id)
-        ~json:(Config.values_to_json [ VCIntList newEnrollments ])
-        ()
-    in
-    (* Update course's enrollments *)
-    let* _, _, students_json = 
-      DB.async_get ~tid ~table:"course_enrollments" ~key:(string_of_int course_id) ()
-    in
-    let students = 
-      match Config.json_to_values students_json with
-      | [ VCIntList l ] -> l
-      | _ -> _die [%here]
-    in
-    let newStudents = 
-      if List.mem student_id students then students 
-      else student_id :: students
-    in
-    let* () = 
-      DB.async_put ~tid ~table:"course_enrollments" ~key:(string_of_int course_id)
-        ~json:(Config.values_to_json [ VCIntList newStudents ])
-        ()
-    in
-    let* _ = DB.async_commit ~tid () in
-    Lwt.return_true
-  with BackendMariaDB.DBKeyNotFound _ ->
+  (* Make sure student and course both exist *)
+  let* student_registered = async_is_student_registered ~tid ~student_id in
+  let* course_exists = async_is_course_created ~tid ~course_id in
+  if not student_registered || not course_exists then (
     let* _ = DB.async_release_connection ~tid () in
     Lwt.return_false
+  ) else
+  (* Student and course both exist *)
+  (* Update student's enrollments *)
+  let* _, _, enrollments = 
+    DB.async_get ~tid ~table:"student_enrollments" ~key:(string_of_int student_id) ()
+  in
+  let oldEnrollments = 
+    match Config.json_to_values enrollments with
+    | [ VCIntList l ] -> l
+    | _ -> _die [%here]
+  in
+  let newEnrollments = 
+    if List.mem course_id oldEnrollments then oldEnrollments 
+    else course_id :: oldEnrollments
+  in
+  let* () = 
+    DB.async_put ~tid ~table:"student_enrollments" ~key:(string_of_int student_id)
+      ~json:(Config.values_to_json [ VCIntList newEnrollments ])
+      ()
+  in
+  (* Update course's enrollments *)
+  let* _, _, students_json = 
+    DB.async_get ~tid ~table:"course_enrollments" ~key:(string_of_int course_id) ()
+  in
+  let students = 
+    match Config.json_to_values students_json with
+    | [ VCIntList l ] -> l
+    | _ -> _die [%here]
+  in
+  let newStudents = 
+    if List.mem student_id students then students 
+    else student_id :: students
+  in
+  let* () = 
+    DB.async_put ~tid ~table:"course_enrollments" ~key:(string_of_int course_id)
+      ~json:(Config.values_to_json [ VCIntList newStudents ])
+      ()
+  in
+  let* _ = DB.async_commit ~tid () in
+  Lwt.return_true
 
 let enrollStudentReqHandler (msg : msg) =
   let aux (student_id : int) (course_id : int) =
     do_trans (fun tid ->
-        try
-          let student_is_registered = values_to_bool (do_getStudents tid student_id) in
-          let course_exists = values_to_bool (do_getCourses tid course_id) in
-          if not student_is_registered || not course_exists then
-            false
-          else
-
-          let oldEnrollments = values_to_int_list (do_getStudentEnrollments tid student_id) in
-          let newEnrollments = 
-            if List.mem course_id oldEnrollments then oldEnrollments 
-            else course_id :: oldEnrollments
-          in
-          let _ = do_putStudentEnrollments tid student_id (int_list_to_values newEnrollments) in
-          let students = values_to_int_list (do_getCourseEnrollments tid course_id) in
-          let newStudents = 
-            if List.mem student_id students then students 
-            else student_id :: students
-          in
-          let _ = do_putCourseEnrollments tid course_id (int_list_to_values newStudents) in
-          true
-        with _ ->
-          false)
+      if not (is_student_registered ~tid ~student_id) || 
+        not (is_course_created ~tid ~course_id) then
+        false
+      else
+      let oldEnrollments = values_to_int_list (do_getStudentEnrollments tid student_id) in
+      let newEnrollments = 
+        if List.mem course_id oldEnrollments then oldEnrollments 
+        else course_id :: oldEnrollments
+      in
+      let _ = do_putStudentEnrollments tid student_id (int_list_to_values newEnrollments) in
+      let students = values_to_int_list (do_getCourseEnrollments tid course_id) in
+      let newStudents = 
+        if List.mem student_id students then students 
+        else student_id :: students
+      in
+      let _ = do_putCourseEnrollments tid course_id (int_list_to_values newStudents) in
+      true)
   in
   match msg.ev.args with
   | [ VConst (I student_id); VConst (I course_id) ] ->
@@ -387,38 +421,30 @@ let enrollStudentReqHandler (msg : msg) =
 let async_get_student_enrollments ~thread_id student_id () =
   let open Lwt.Syntax in
   let* tid = DB.async_begin ~thread_id () in
-  try
-    let* _, _, student_value = 
-      DB.async_get ~tid ~table:"students" ~key:(string_of_int student_id) ()
-    in
-    let student_is_registered = 
-      values_to_bool (Config.json_to_values student_value) in
-    if not student_is_registered then (
-      let* _ = DB.async_release_connection ~tid () in
-      Lwt.return_none
-    ) else
-    let* _, _, enrollments = 
-      DB.async_get ~tid ~table:"student_enrollments" ~key:(string_of_int student_id) ()
-    in
-    let courses = 
-      match Config.json_to_values enrollments with
-      | [ VCIntList l ] -> l
-      | _ -> _die [%here]
-    in
-    let* _ = DB.async_commit ~tid () in
-    Lwt.return (Some courses)
-  with BackendMariaDB.DBKeyNotFound _ ->
+  let* student_is_registered = async_is_student_registered ~tid ~student_id in
+  if not student_is_registered then (
     let* _ = DB.async_release_connection ~tid () in
     Lwt.return_none
+  ) else
+  let* _, _, courses_json = 
+    DB.async_get ~tid ~table:"student_enrollments" ~key:(string_of_int student_id) ()
+  in
+  let courses = 
+    match Config.json_to_values courses_json with
+    | [ VCIntList l ] -> l
+    | _ -> _die [%here]
+  in
+  let* _ = DB.async_commit ~tid () in
+  Lwt.return (Some courses)
 
 let getStudentEnrollmentsReqHandler (msg : msg) =
   let aux (student_id : int) =
     do_trans (fun tid ->
-        try
-          let enrollments = values_to_int_list (do_getStudentEnrollments tid student_id) in
-          Some enrollments
-        with _ ->
-          None)
+      if not (is_student_registered ~tid ~student_id) then
+        None
+      else
+      let enrollments = values_to_int_list (do_getStudentEnrollments tid student_id) in
+      Some enrollments)
   in
   match msg.ev.args with
   | [ VConst (I student_id) ] ->
@@ -432,39 +458,30 @@ let getStudentEnrollmentsReqHandler (msg : msg) =
 let async_get_course_enrollments ~thread_id course_id () =
   let open Lwt.Syntax in
   let* tid = DB.async_begin ~thread_id () in
-  try
-    let* _, _, course_value = 
-      DB.async_get ~tid ~table:"courses" ~key:(string_of_int course_id) ()
-    in
-    let course_exists = 
-      values_to_bool (Config.json_to_values course_value) in
-    if not course_exists then (
-      let* _ = DB.async_release_connection ~tid () in
-      Lwt.return_none
-    ) else
-    let* _, _, enrollments = 
-      DB.async_get ~tid ~table:"course_enrollments" ~key:(string_of_int course_id) ()
-    in
-    let students = 
-      match Config.json_to_values enrollments with
-      | [ VCIntList l ] -> l
-      | _ -> _die [%here]
-    in
-    let* _ = DB.async_commit ~tid () in
-    Lwt.return (Some students)
-  with BackendMariaDB.DBKeyNotFound _ ->
+  let* course_exists = async_is_course_created ~tid ~course_id in
+  if not course_exists then (
     let* _ = DB.async_release_connection ~tid () in
     Lwt.return_none
+  ) else
+  let* _, _, enrollments = 
+    DB.async_get ~tid ~table:"course_enrollments" ~key:(string_of_int course_id) ()
+  in
+  let students = 
+    match Config.json_to_values enrollments with
+    | [ VCIntList l ] -> l
+    | _ -> _die [%here]
+  in
+  let* _ = DB.async_commit ~tid () in
+  Lwt.return (Some students)
 
-(* TODO: getCourseEnrollmentsReqHandler *)
 let getCourseEnrollmentsReqHandler (msg : msg) =
   let aux (course_id : int) =
     do_trans (fun tid ->
-        try
-          let enrollments = values_to_int_list (do_getCourseEnrollments tid course_id) in
-          Some enrollments
-        with _ ->
-          None)
+      if not (is_course_created ~tid ~course_id) then
+        None
+      else
+      let enrollments = values_to_int_list (do_getCourseEnrollments tid course_id) in
+      Some enrollments)
   in
   match msg.ev.args with
   | [ VConst (I course_id) ] ->
