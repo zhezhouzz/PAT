@@ -31,12 +31,28 @@ and subst_term (string_x : string) f (term_e : term) =
   | CUnion es -> CUnion (List.map (typed_subst_term string_x f) es)
   | CAssertP phi -> CAssertP (subst_prop string_x f phi)
   | CAssume (args, prop) -> CAssume (args, subst_prop string_x f prop)
-  | KStar { body } -> KStar { body = typed_subst_term string_x f body }
+  (* | KStar { body } -> KStar { body = typed_subst_term string_x f body }
   | CWhile { body; cond } ->
       CWhile
         {
           body = typed_subst_term string_x f body;
           cond = subst_prop string_x f cond;
+        } *)
+  | CFix { retBranch; recBranch } ->
+      CFix
+        {
+          retBranch = typed_subst_term string_x f retBranch;
+          recBranch = typed_subst_term string_x f recBranch;
+        }
+  | CFixApp { cfix; iterV; boundV } ->
+      CFixApp
+        {
+          cfix =
+            (match cfix with
+            | Some cfix -> Some (typed_subst_term string_x f cfix)
+            | None -> None);
+          iterV = typed_subst_term string_x f iterV;
+          boundV = typed_subst_value string_x f boundV;
         }
 
 and typed_subst_term (string_x : string) f (term_e : (Nt.nt, term) typed) =

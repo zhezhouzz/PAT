@@ -15,6 +15,12 @@ let eval_app_op_const op cs =
     | "parent", [ S a ] -> (
         match get_parent_path a with None -> S "/" | Some p -> S p)
     | "is_root", [ S a ] -> if String.equal a "/" then B true else B false
+    | ">=", [ I a; I b ] -> B (a >= b)
+    | "+", [ I a; I b ] -> I (a + b)
+    | "-", [ I a; I b ] -> I (a - b)
+    | "*", [ I a; I b ] -> I (a * b)
+    | "/", [ I a; I b ] -> I (a / b)
+    | "!=", [ a; b ] -> B (not (equal_constant a b))
     | _ -> _die_with [%here] "unimp"
   in
   (* let () =

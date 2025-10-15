@@ -50,9 +50,25 @@ let rec map_term f = function
   | CUnion es -> CUnion (List.map (typed_map_term f) es)
   | CAssertP phi -> CAssertP (map_prop f phi)
   | CAssume (args, prop) -> CAssume (List.map f args, map_prop f prop)
-  | CWhile { body; cond } ->
+  (* | CWhile { body; cond } ->
       CWhile { body = typed_map_term f body; cond = map_prop f cond }
-  | KStar { body } -> KStar { body = typed_map_term f body }
+  | KStar { body } -> KStar { body = typed_map_term f body } *)
+  | CFix { retBranch; recBranch } ->
+      CFix
+        {
+          retBranch = typed_map_term f retBranch;
+          recBranch = typed_map_term f recBranch;
+        }
+  | CFixApp { cfix; iterV; boundV } ->
+      CFixApp
+        {
+          cfix =
+            (match cfix with
+            | Some cfix -> Some (typed_map_term f cfix)
+            | None -> None);
+          iterV = typed_map_term f iterV;
+          boundV = typed_map_value f boundV;
+        }
 
 and typed_map_term f { x; ty } = { x = map_term f x; ty = f ty }
 

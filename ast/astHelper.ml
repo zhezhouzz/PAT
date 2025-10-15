@@ -35,8 +35,12 @@ let term_to_nt = function
   | CLetE { body; _ } -> body.ty
   | CAppOp { op; _ } -> snd @@ Nt.destruct_arr_tp op.ty
   | CObs { op; _ } -> snd @@ Nt.destruct_arr_tp op.ty
-  | CGen _ | CUnion _ | CAssertP _ | CWhile _ | KStar _ -> Nt.unit_ty
+  | CGen _ | CUnion _ | CAssertP _ -> Nt.unit_ty
+  (* | CWhile _ | KStar _ -> Nt.unit_ty *)
+  | CFix _ | CFixApp _ -> Nt.unit_ty
   | CAssume (nts, _) -> Nt.Ty_tuple nts
+
+let term_to_tterm t = t#:(term_to_nt t)
 
 let mk_let lhs rhs body =
   let ty =
@@ -46,6 +50,9 @@ let mk_let lhs rhs body =
     | _ -> Nt.Ty_tuple (List.map _get_ty lhs)
   in
   CLetE { lhs; rhs = rhs#:ty; body = body#:(term_to_nt body) }
+
+let mk_let_ rhs body =
+  mk_let [ (Rename.unique_var "dummy")#:Nt.unit_ty ] rhs body
 
 let rec term_concat term body =
   match term with
@@ -62,6 +69,8 @@ let mk_term_gen env op args e =
 
 let mk_term_assertP prop e =
   if is_true prop then e else term_concat (CAssertP prop) e
+
+let mk_term_union e1 e2 = CUnion [ e1#:Nt.unit_ty; e2#:Nt.unit_ty ]
 
 let mk_term_assume args prop e =
   match args with
@@ -102,13 +111,104 @@ let mk_term_assume_fresh_neq ctx args k =
       in
       mk_term_assume_fresh ctx prop k
 
-let mk_while_term body cond = CWhile { body = body#:(term_to_nt body); cond }
+let mk_term_assume_fresh_geq_zero ctx k =
+  let prop y =
+    lit_to_prop
+      (AAppOp
+         ( ">="#:Nt.(construct_arr_tp ([ int_ty; int_ty ], bool_ty)),
+           [ lit_to_tlit (AVar y); lit_to_tlit (AC (I 0)) ] ))
+  in
+  mk_term_assume_fresh ctx prop k
+
+let mk_term_assume_fresh_geq_zero_lt_x ctx x k =
+  let prop1 y =
+    lit_to_prop
+      (AAppOp
+         ( ">="#:Nt.(construct_arr_tp ([ int_ty; int_ty ], bool_ty)),
+           [ lit_to_tlit (AVar y); lit_to_tlit (AC (I 0)) ] ))
+  in
+  let prop2 y =
+    lit_to_prop
+      (AAppOp
+         ( ">"#:Nt.(construct_arr_tp ([ int_ty; int_ty ], bool_ty)),
+           [ lit_to_tlit (AVar x); lit_to_tlit (AVar y) ] ))
+  in
+  mk_term_assume_fresh ctx (fun y -> And [ prop1 y; prop2 y ]) k
+
+let mk_term_assume_fresh_eq_one ctx k =
+  let prop y =
+    lit_to_prop
+      (AAppOp
+         ( "=="#:Nt.(construct_arr_tp ([ int_ty; int_ty ], bool_ty)),
+           [ lit_to_tlit (AVar y); lit_to_tlit (AC (I 0)) ] ))
+  in
+  mk_term_assume_fresh ctx prop k
+
+(* let mk_while_term body cond = CWhile { body = body#:(term_to_nt body); cond }
 
 let mk_kleene_while body =
   let x = (Rename.unique_var "cond")#:Nt.bool_ty in
   let boolgen = mk_term_assume [ x ] mk_true mk_term_tt in
   let body = term_concat body boolgen in
-  mk_while_term body (lit_to_prop (mk_var_eq_c [%here] x (B true)))
+  mk_while_term body (lit_to_prop (mk_var_eq_c [%here] x (B true))) *)
+
+let mk_rec retBranch recBranch e =
+  let f =
+    CFix
+      {
+        retBranch = retBranch#:(term_to_nt retBranch);
+        recBranch = recBranch#:(term_to_nt recBranch);
+      }
+  in
+  CLetE
+    {
+      lhs = [ (Rename.unique_var "dummy")#:Nt.unit_ty ];
+      rhs = f#:Nt.unit_ty;
+      body = e#:Nt.unit_ty;
+    }
+
+let mk_rec_app iterV boundV =
+  CFixApp
+    {
+      cfix = None;
+      iterV = term_to_tterm iterV;
+      boundV = value_to_tvalue boundV;
+    }
+
+let mk_rec_app_0 e =
+  let open Nt in
+  mk_term_assume_fresh_geq_zero int_ty (fun x ->
+      mk_let_ (mk_rec_app (CVal (mk_value_const (I 0))#:Nt.int_ty) (VVar x)) e)
+
+let mk_iter = value_to_tvalue (VVar default_iter_var)
+let plus_op = "+"#:Nt.(mk_arr Nt.int_ty @@ mk_arr Nt.int_ty Nt.int_ty)
+let minus_op = "-"#:Nt.(mk_arr Nt.int_ty @@ mk_arr Nt.int_ty Nt.int_ty)
+
+let mk_incr_raw v =
+  CAppOp
+    {
+      op = plus_op;
+      args = [ v#:Nt.int_ty; value_to_tvalue (mk_value_const (I 1)) ];
+    }
+
+let mk_minus_raw v =
+  CAppOp
+    {
+      op = minus_op;
+      args = [ v#:Nt.int_ty; value_to_tvalue (mk_value_const (I 1)) ];
+    }
+
+let mk_incr v k =
+  let arg = (Rename.unique_var "x")#:Nt.int_ty in
+  mk_let [ arg ] (mk_incr_raw v) (k arg)
+
+let mk_minus v k =
+  let arg = (Rename.unique_var "x")#:Nt.int_ty in
+  mk_let [ arg ] (mk_minus_raw v) (k arg)
+
+let mk_rec_app_incr e =
+  let iterV_plus1 = mk_incr_raw (VVar default_iter_var) in
+  mk_let_ (mk_rec_app iterV_plus1 (VVar default_bound_var)) e
 
 (** Trace Language *)
 

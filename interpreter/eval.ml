@@ -3,7 +3,34 @@ open Common
 open Store
 open Pool
 
+let rec subst_rec fix (e : term) =
+  match e with
+  | CLetE { lhs; rhs; body } ->
+      CLetE
+        { lhs; rhs = typed_subst_rec fix rhs; body = typed_subst_rec fix body }
+  | CAppOp _ | CObs _ | CGen _ | CAssertP _ | CAssume _ | CVal _ -> e
+  | CUnion es -> CUnion (List.map (typed_subst_rec fix) es)
+  | CFix { retBranch; recBranch } ->
+      CFix
+        {
+          retBranch = typed_subst_rec fix retBranch;
+          recBranch = typed_subst_rec fix recBranch;
+        }
+  | CFixApp { cfix; iterV; boundV } ->
+      let cfix =
+        match cfix with Some _ -> _die_with [%here] "never" | None -> Some fix
+      in
+      (* let () = Pp.printf "@{<bold>new cfix:@} %s\n" (layout_term fix.x) in *)
+      CFixApp { cfix; iterV; boundV }
+
+and typed_subst_rec fix e = e#->(subst_rec fix)
+
+(* let counter = ref 0 *)
+
 let rec eval code =
+  (* let () =
+    if !counter > 15 then _die_with [%here] "stop" else counter := !counter + 1
+  in *)
   let tid = 0 in
   let () = Runtime.step_counter := !Runtime.step_counter + 1 in
   let () =
@@ -34,14 +61,22 @@ let rec eval code =
       match msg with
       | None -> raise (RuntimeInconsistent "no msg is available for given prop")
       | Some msg ->
-          let () = Pp.printf "@{<bold>Perform:@} %s\n" (layout_msg msg) in
+          (* let () = Pp.printf "@{<bold>Perform:@} %s\n" (layout_msg msg) in *)
           let () = Store.add (lhs, msg.ev.args) in
           if eval_prop (Store.get ()) prop then eval body.x
           else raise (RuntimeInconsistent "prop is not satisfied (need retry)"))
-  | CLetE { lhs; rhs; body } ->
-      let () = Store.add (lhs, eval rhs.x) in
+  | CLetE { lhs = _; rhs = { x = CFix _; _ } as fix; body } ->
+      let body = typed_subst_rec fix body in
       eval body.x
-  | CAppOp { op; args } -> eval (CAppOp { op; args })
+  | CLetE { lhs; rhs; body } ->
+      let res = eval rhs.x in
+      let () = Store.add (lhs, res) in
+      eval body.x
+  | CAppOp { op; args } ->
+      let cs = meval_value (Store.get ()) args in
+      let cs = List.map (value_to_const [%here]) cs in
+      let c = eval_app_op_const op cs in
+      [ VConst c ]
   | CObs _ -> _die_with [%here] "never"
   | CGen { op; args } ->
       let args = meval_value (Store.get ()) args in
@@ -56,7 +91,45 @@ let rec eval code =
       if eval_prop (Store.get ()) phi then []
       else raise (RuntimeInconsistent "assertion is not satisfied (need retry)")
   | CAssume _ -> _die_with [%here] "never"
-  | KStar { body } ->
+  | CFix _ -> _die_with [%here] "never"
+  | CFixApp
+      {
+        cfix = Some ({ x = CFix { retBranch; recBranch }; _ } as fix);
+        iterV;
+        boundV;
+      } ->
+      let iterI =
+        match eval iterV.x with
+        | [ VConst (I i) ] -> i
+        | _ -> _die_with [%here] "never"
+      in
+      let boundI =
+        match eval_value (Store.get ()) boundV.x with
+        | VConst (I i) -> i
+        | _ -> _die_with [%here] "never"
+      in
+      let retBranch =
+        term_to_tterm
+          (subst_term_instance default_iter_var.x (AC (I iterI))
+          @@ subst_term_instance default_bound_var.x (AC (I boundI)) retBranch.x
+          )
+      in
+      let recBranch =
+        term_to_tterm
+          (subst_term_instance default_iter_var.x (AC (I iterI))
+          @@ subst_term_instance default_bound_var.x (AC (I boundI)) recBranch.x
+          )
+      in
+      let recBranch = typed_subst_rec fix recBranch in
+      (* let () =
+        Pp.printf "@{<bold>retBranch:@} %s\n" (layout_term retBranch.x)
+      in
+      let () =
+        Pp.printf "@{<bold>recBranch:@} %s\n" (layout_term recBranch.x)
+      in *)
+      if iterI >= boundI then eval retBranch.x else eval recBranch.x
+  | CFixApp _ -> _die_with [%here] "never"
+(* | KStar { body } ->
       if Random.bool () then [] else eval (term_concat body.x code)
   | CWhile { body; cond } ->
       let () =
@@ -64,7 +137,7 @@ let rec eval code =
         | [] | [ VConst U ] -> ()
         | _ -> _die_with [%here] "never"
       in
-      if eval_prop (Store.get ()) cond then eval (CWhile { body; cond }) else []
+      if eval_prop (Store.get ()) cond then eval (CWhile { body; cond }) else [] *)
 
 let eval_to_unit code =
   let _ = eval code in

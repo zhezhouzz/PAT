@@ -32,106 +32,87 @@ let[@axiom] fst_snd_same_implies_same (a : stlcTy) (b : stlcTy) (c : stlcTy)
 val mkCon : < > [@@gen]
 val mkVar : < bid : int > [@@gen]
 val mkAbs : < ty : stlcTy > [@@gen]
-val closeAbs : < sid : int ; ty : stlcTy > [@@gen]
+val endAbs : < sid : int ; ty : stlcTy > [@@gen]
 val mkApp : < > [@@gen]
-val closeAppL : < sid : int ; ty : stlcTy > [@@gen]
-val closeAppR : < sid : int ; ty : stlcTy > [@@gen]
-val evalReq : < > [@@gen]
-val evalResp : < res : bool > [@@obs]
-val curTy : < ty : stlcTy > [@@obs]
+val endAppL : < sid : int ; ty : stlcTy > [@@gen]
+val endAppR : < sid : int ; ty : stlcTy > [@@gen]
+val ascribe : < ty : stlcTy > [@@obs]
 val closureId : < sid : int > [@@obs]
+val depth : < d : int > [@@obs]
 
 (* PATs *)
+
+let mkCon =
+  ( allA,
+    MkCon true,
+    (Ascribe (is_int_ty ty);
+     allA) )
+
+let mkApp =
+        (fun (tp : stlcTy) (i : int) ->
+          ( starA (anyA - ClosureId (sid >= i)),
+            MkApp true,
+            (ClosureId (sid == i);
+             starA
+               (anyA - EndAppL (sid <= i) - EndAppR (sid <= i) - EndAbs (sid <= i));
+             EndAppL (sid == i && ty == tp);
+             starA
+               (anyA - EndAppL (sid <= i) - EndAppR (sid <= i) - EndAbs (sid <= i));
+             EndAppR (sid == i && fstTy (tp, ty));
+             Ascribe (sndTy (tp, ty));
+             allA) ));
 
 let mkVar =
   [|
     (fun (tp : stlcTy) ?l:(i = (true : [%v: int])) ->
       ( (allA;
          MkAbs (ty == tp);
-         starA (anyA - CloseAbs true)),
+         starA (anyA - EndAbs true)),
         MkVar (bid == i && bid == 0),
-        (CurTy (ty == tp);
+        (Ascribe (ty == tp);
          allA) ));
     (fun (tp : stlcTy) ?l:(i = (true : [%v: int])) ->
       ( (allA;
          MkAbs (ty == tp);
-         starA (anyA - CloseAbs true);
+         starA (anyA - EndAbs true);
          MkAbs true;
-         starA (anyA - CloseAbs true);
+         starA (anyA - EndAbs true);
          MkVar (bid == i && bid == 1)),
-        CurTy (ty == tp),
+        Ascribe (ty == tp),
         allA ));
   |]
-
-let mkCon =
-  ( allA,
-    MkCon true,
-    (CurTy (is_int_ty ty);
-     allA) )
 
 let mkAbs (tp : stlcTy) (i : int) ?l:(x = (true : [%v: stlcTy])) =
   ( starA (anyA - ClosureId (sid >= i)),
     MkAbs (ty == x && fstTy (tp, ty)),
     (ClosureId (sid == i);
-     starA
-       (anyA - CloseAppL (sid <= i) - CloseAppR (sid <= i) - CloseAbs (sid <= i));
+     starA (anyA - EndAppL (sid <= i) - EndAppR (sid <= i) - EndAbs (sid <= i));
      MkVar true;
-     starA
-       (anyA - CloseAppL (sid <= i) - CloseAppR (sid <= i) - CloseAbs (sid <= i));
-     CloseAbs (sid == i && sndTy (tp, ty));
-     CurTy (ty == tp);
+     starA (anyA - EndAppL (sid <= i) - EndAppR (sid <= i) - EndAbs (sid <= i));
+     EndAbs (sid == i && sndTy (tp, ty));
+     Ascribe (ty == tp);
      allA) )
 
-let closeAbs ?l:(i = (true : [%v: int])) ?l:(x = (true : [%v: stlcTy])) =
+let endAbs ?l:(i = (true : [%v: int])) ?l:(x = (true : [%v: stlcTy])) =
   ( (allA;
-     CurTy (ty == x)),
-    CloseAbs (sid == i && ty == x),
+     Ascribe (ty == x)),
+    EndAbs (sid == i && ty == x),
     allA )
 
-let mkApp =
-  [|
-    (fun (tp : stlcTy) (i : int) ->
-      ( starA (anyA - ClosureId (sid >= i)),
-        MkApp true,
-        (ClosureId (sid == i);
-         starA
-           (anyA
-           - CloseAppL (sid <= i)
-           - CloseAppR (sid <= i)
-           - CloseAbs (sid <= i));
-         CloseAppL (sid == i && ty == tp);
-         starA
-           (anyA
-           - CloseAppL (sid <= i)
-           - CloseAppR (sid <= i)
-           - CloseAbs (sid <= i));
-         CloseAppR (sid == i && fstTy (tp, ty));
-         CurTy (sndTy (tp, ty));
-         allA) ));
-  |]
-
-let closeAppL ?l:(i = (true : [%v: int])) ?l:(tp = (true : [%v: stlcTy])) =
+let endAppL ?l:(i = (true : [%v: int])) ?l:(tp = (true : [%v: stlcTy])) =
   ( (allA;
-     CurTy (ty == tp)),
-    CloseAppL (sid == i && ty == tp),
+     Ascribe (ty == tp)),
+    EndAppL (sid == i && ty == tp),
     allA )
 
-let closeAppR ?l:(i = (true : [%v: int])) ?l:(tp = (true : [%v: stlcTy])) =
+let endAppR ?l:(i = (true : [%v: int])) ?l:(tp = (true : [%v: stlcTy])) =
   ( (allA;
-     CurTy (ty == tp)),
-    CloseAppR (sid == i && ty == tp),
+     Ascribe (ty == tp)),
+    EndAppR (sid == i && ty == tp),
     allA )
 
-let evalReq =
-  ( allA,
-    EvalReq true,
-    (EvalResp true;
-     allA) )
-
-let evalResp ?l:(x = (true : [%v: bool])) = (allA, EvalResp (res == x), allA)
-
-let curTy =
-  [| (fun ?l:(x = (true : [%v: stlcTy])) -> (allA, CurTy (ty == x), allA)) |]
+let ascribe =
+  [| (fun ?l:(x = (true : [%v: stlcTy])) -> (allA, Ascribe (ty == x), allA)) |]
 
 let closureId =
   [| (fun ?l:(i = (true : [%v: int])) -> (allA, ClosureId (sid == i), allA)) |]

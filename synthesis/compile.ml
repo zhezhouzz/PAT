@@ -131,7 +131,9 @@ let compile_term_from_line env e =
   let () = Pp.printf "@{<bold>post:@}\n%s\n" (layout_prop post) in
   prog
 
-let add_kstar (pre_len, length) e =
+let add_kstar _ _ = _die_with [%here] "unimp"
+
+(* let add_kstar (pre_len, length) e =
   let () = Pp.printf "@{<bold>add_kstar@}\n" in
   let () = Pp.printf "@{<bold>pre_len:@}\n%i\n" pre_len in
   let () = Pp.printf "@{<bold>length:@}\n%i\n" length in
@@ -169,7 +171,7 @@ let add_kstar (pre_len, length) e =
           let () = Pp.printf "@{<bold>term:@}\n%s\n" (layout_term term.x) in
           _die [%here]
   in
-  aux pre_len e
+  aux pre_len e *)
 
 let compile_term env e =
   match e with

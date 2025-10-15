@@ -48,6 +48,10 @@ type trace_elem = { op : string; args : constant list }
 
 type trace = trace_elem list [@@deriving show, eq, ord]
 
+let default_self_name = "recfun"
+let default_iter_var = "iter"#:Nt.int_ty
+let default_bound_var = "bound"#:Nt.int_ty
+
 type term =
   | CVal of (Nt.nt, value) typed
   | CLetE of {
@@ -60,8 +64,14 @@ type term =
   | CGen of { op : (Nt.nt, string) typed; args : (Nt.nt, value) typed list }
   | CUnion of (Nt.nt, term) typed list
   | CAssume of (Nt.nt list * Nt.nt prop)
-  | CWhile of { body : (Nt.nt, term) typed; cond : Nt.nt prop }
-  | KStar of { body : (Nt.nt, term) typed }
+  (* | CWhile of { body : (Nt.nt, term) typed; cond : Nt.nt prop } *)
+  (* | KStar of { body : (Nt.nt, term) typed } *)
+  | CFix of { retBranch : (Nt.nt, term) typed; recBranch : (Nt.nt, term) typed }
+  | CFixApp of {
+      cfix : (Nt.nt, term) typed option;
+      iterV : (Nt.nt, term) typed;
+      boundV : (Nt.nt, value) typed;
+    }
   | CAssertP of Nt.nt prop
 [@@deriving sexp, show, eq, ord]
 

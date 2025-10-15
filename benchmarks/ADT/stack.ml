@@ -63,30 +63,6 @@ let init () =
   register_handler "isEmptyResp" isEmptyRespHandler;
   init _stack
 
-(* open Nt
-
-let record l = Ty_record { alias = None; fds = l } *)
-
-(* let testCtx =
-  Typectx.add_to_rights Typectx.emp
-    [
-      "initStackReq"#:(record []);
-      "pushReq"#:(record [ "x"#:int_ty ]);
-      "popReq"#:(record []);
-      "isEmptyReq"#:(record []);
-      "initStackResp"#:(record []);
-      "popResp"#:(record [ "x"#:int_ty ]);
-    ] *)
-
-(* let gen name args body =
-  mk_term_gen testCtx name (List.map (fun x -> VVar x) args) body
-
-let obs name k = mk_term_obs_fresh testCtx name (fun _ -> k)
-let obsInitStackResp e = mk_term_obs_fresh testCtx "initStackResp" (fun _ -> e)
-let obsPushResp e = mk_term_obs_fresh testCtx "pushResp" (fun _ -> e)
-let obsPopResp e = mk_term_obs_fresh testCtx "popResp" (fun _ -> e)
-let obsIsEmptyResp e = mk_term_obs_fresh testCtx "isEmptyResp" (fun _ -> e) *)
-
 (* let trace_checker trace =
   let update_first_pushed firstPushed x =
     match firstPushed with None -> Some x | Some _ -> firstPushed
@@ -191,3 +167,53 @@ let randomTest { numElem; numOp } =
   let () = genOp numOp in
   let () = Pp.printf "@{<red>End with numOp@}\n%i\n" numOp in
   Effect.perform End
+
+open Nt
+
+let record l = Ty_record { alias = None; fds = l }
+
+let testCtx =
+  Typectx.add_to_rights Typectx.emp
+    [
+      "initStackReq"#:(record []);
+      "pushReq"#:(record [ "x"#:int_ty ]);
+      "popReq"#:(record []);
+      "isEmptyReq"#:(record []);
+      "isEmptyResp"#:(record [ "isEmpty"#:bool_ty ]);
+      "initStackResp"#:(record []);
+      "popResp"#:(record [ "x"#:int_ty ]);
+    ]
+
+let gen name args body =
+  mk_term_gen testCtx name (List.map (fun x -> VVar x) args) body
+
+let obs name k = mk_term_obs_fresh testCtx name (fun _ -> k)
+let obsInitStackResp e = mk_term_obs_fresh testCtx "initStackResp" (fun _ -> e)
+let obsPushResp e = mk_term_obs_fresh testCtx "pushResp" (fun _ -> e)
+let obsPopResp e = mk_term_obs_fresh testCtx "popResp" (fun _ -> e)
+let obsIsEmptyResp e = mk_term_obs_fresh testCtx "isEmptyResp" (fun _ -> e)
+
+let rec_main =
+  let open Nt in
+  let recfunc =
+    mk_rec mk_term_tt
+      (mk_term_assume_fresh_true int_ty (fun y ->
+           gen "pushReq" [ y ]
+           @@ mk_let_ (mk_rec_app_incr mk_term_tt)
+           @@ gen "popReq" [] @@ obsPopResp mk_term_tt))
+  in
+  recfunc (mk_rec_app_0 (gen "isEmptyReq" [] @@ obsIsEmptyResp mk_term_tt))
+
+(* let rec_main =
+  let open Nt in
+  mk_term_assume_fresh_geq_zero int_ty (fun x ->
+      let recfunc =
+        mk_rec mk_term_tt
+          (mk_term_assume_fresh_true int_ty (fun y ->
+               gen "pushReq" [ y ]
+               @@ term_concat (mk_rec_app_incr ())
+               @@ gen "popReq" [] @@ obsPopResp mk_term_tt))
+      in
+      term_concat recfunc
+      @@ term_concat (mk_rec_app_0 (VVar x))
+      @@ gen "isEmptyReq" [] @@ obsIsEmptyResp mk_term_tt) *)

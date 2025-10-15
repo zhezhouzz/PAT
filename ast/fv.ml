@@ -23,8 +23,12 @@ and fv_term (term_e : term) =
   | CUnion es -> List.concat_map typed_fv_term es
   | CAssertP phi -> fv_prop phi
   | CAssume (args, prop) -> fv_prop prop
-  | CWhile { body; cond } -> fv_prop cond @ typed_fv_term body
-  | KStar { body } -> typed_fv_term body
+  (* | CWhile { body; cond } -> fv_prop cond @ typed_fv_term body
+  | KStar { body } -> typed_fv_term body *)
+  | CFix { retBranch; recBranch } ->
+      typed_fv_term retBranch @ typed_fv_term recBranch
+  | CFixApp { cfix; iterV; boundV } ->
+      typed_fv_term iterV @ typed_fv_value boundV
 
 and typed_fv_term (term_e : (Nt.nt, term) typed) = fv_term term_e.x
 

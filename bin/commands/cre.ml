@@ -330,7 +330,8 @@ let test_eval s converge_bound () =
       ()
   | "stack" ->
       let open Adt.Stack in
-      let main = Synthesis.load_progs s () in
+      (* let main = Synthesis.load_progs s () in *)
+      let main = [ rec_main ] in
       let test () = Interpreter.once (init, main, check_membership_stack) in
       let _ = eval test in
       ()
@@ -358,9 +359,9 @@ let test_eval s converge_bound () =
       let _ = eval test in
       ()
   | "stlc" ->
-      let open Adt.Stlc in
-      let main = Synthesis.load_progs s () in
-      (* let main = [ default_main ] in *)
+      let open Adt.Stlc_moti in
+      (* let main = Synthesis.load_progs s () in *)
+      let main = [ main_rec ] in
       let test () = Interpreter.once (init, main, trace_eval_correct) in
       let _ = eval test in
       ()

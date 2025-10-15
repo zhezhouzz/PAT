@@ -35,7 +35,7 @@ let get_absty nt =
   List.slow_rm_dup String.equal (aux nt)
 
 let rec layout_stlcTy = function
-  | StlcInt -> "int"
+  | StlcInt -> "Int"
   | StlcArrow (ty1, ty2) ->
       let s1 =
         match ty1 with
