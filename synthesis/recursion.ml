@@ -230,16 +230,7 @@ let generalize_goal elems =
       ]
   | _ -> _die [%here]
 
-let fill_core_2 init_r goal =
-  let plans = regex_to_lines init_r in
-  let plans =
-    List.map
-      (fun plan ->
-        let _, plan, _ = register_line_under_plan [] plan in
-        plan)
-      plans
-  in
-  let new_goal = match plans with [] -> _die [%here] | plan :: _ -> plan in
+let fill_core_2 new_goal goal =
   let matched = match_template template_1 goal.elems in
   match matched with
   | Some (prefix, matched, postfix, match_back, v) ->
@@ -262,8 +253,57 @@ let select_template init_r goal =
     Pp.printf "@{<bold>@{<red>select_template@} on line@}\n%s\n"
       (layout_line goal)
   in
-  let core = fill_core_2 init_r goal in
-  core
+  let plans = regex_to_lines init_r in
+  let plans =
+    List.map
+      (fun plan ->
+        let _, plan, _ = register_line_under_plan [] plan in
+        plan)
+      plans
+  in
+  let new_goal = match plans with [] -> _die [%here] | plan :: _ -> plan in
+  let core = fill_core_2 new_goal goal in
+  match core with
+  | Some core -> Some core
+  | None -> (
+      let match_func goal =
+        match
+          get_core_subtrace (List.mapi (fun i elem -> (i, elem)) goal.elems)
+        with
+        | None -> None
+        | Some elems' ->
+            let () =
+              Pp.printf "@{<bold>@{<red>select_core@} on line@}\n%s\n"
+                (layout_line
+                   { gprop = goal.gprop; elems = List.map snd elems' })
+            in
+            let prefix, postfix = get_mid goal.elems elems' in
+            let prefix, core, postfix =
+              (prefix, List.map snd elems', postfix)
+            in
+            let () =
+              Pp.printf "@{<bold>@{<red>select_prefix@} on line@}\n%s\n"
+                (omit_layout_line { gprop = goal.gprop; elems = prefix });
+              Pp.printf "@{<bold>@{<red>select_core@} on line@}\n%s\n"
+                (omit_layout_line { gprop = goal.gprop; elems = core });
+              Pp.printf "@{<bold>@{<red>select_postfix@} on line@}\n%s\n"
+                (omit_layout_line { gprop = goal.gprop; elems = postfix })
+            in
+            let goal = { gprop = goal.gprop; elems = prefix @ postfix } in
+            Some (goal, core, List.length prefix)
+      in
+      match match_func goal with
+      | None -> None
+      | Some (goal, core, pre_len) ->
+          let line_b1 =
+            { gprop = mk_true; elems = line_elems_drop_stars core }
+          in
+          let match_back line =
+            match match_func line with
+            | None -> None
+            | Some (goal, _, pre_len) -> Some (goal, pre_len)
+          in
+          Some ((goal, pre_len), line_b1, new_goal, match_back, VConst (I 0)))
 
 let fill_core_1 env line =
   let all_cs = mk_all_cs env in
@@ -297,54 +337,5 @@ let fill_core_1 env line =
       let _, line, _ =
         register_line_under_plan (get_aids_is_exists line) line
       in
-      (* let () =
-        set_unreusable_core_acts
-          [ act_get_id act1; act_get_id act2; act_get_id act3 ]
-      in *)
       line
   | elems -> { gprop = line.gprop; elems }
-
-(* let select_template_1 env goal =
-  let () =
-    Pp.printf "@{<bold>@{<red>select_template@} on line@}\n%s\n"
-      (omit_layout_line goal)
-  in
-  let () =
-    Pp.printf "@{<bold>@{<red>select_template@} on line@}\n%s\n"
-      (layout_line goal)
-  in
-  let matched = match_template template_1 goal.elems in
-  match matched with
-  | Some (prefix, matched, postfix) ->
-      let core = fill_core_1 env { gprop = goal.gprop; elems = matched } in
-      (false, goal.gprop, prefix, matched, core, postfix)
-  | None ->
-      let prefix, core, postfix =
-        match
-          get_core_subtrace (List.mapi (fun i elem -> (i, elem)) goal.elems)
-        with
-        | None -> _die [%here]
-        | Some elems' ->
-            let () =
-              Pp.printf "@{<bold>@{<red>select_core@} on line@}\n%s\n"
-                (layout_line
-                   { gprop = goal.gprop; elems = List.map snd elems' })
-            in
-            let prefix, postfix = get_mid goal.elems elems' in
-            (prefix, List.map snd elems', postfix)
-      in
-      let core' = fill_core env core in
-      let () =
-        Pp.printf "@{<bold>@{<red>select_prefix@} on line@}\n%s\n"
-          (omit_layout_line { gprop = goal.gprop; elems = prefix });
-        Pp.printf "@{<bold>@{<red>select_core@} on line@}\n%s\n"
-          (omit_layout_line { gprop = goal.gprop; elems = core' });
-        Pp.printf "@{<bold>@{<red>select_postfix@} on line@}\n%s\n"
-          (omit_layout_line { gprop = goal.gprop; elems = postfix })
-      in
-      ( true,
-        goal.gprop,
-        prefix,
-        core,
-        { gprop = goal.gprop; elems = core' },
-        postfix ) *)

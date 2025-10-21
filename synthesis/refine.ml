@@ -256,31 +256,31 @@ and syn_loop env init_r (goal : line) : synMidResult list =
     | Some ((old_goal, pre_len), line_b1, line_b2, match_back, v) ->
         (* let () = _strategy := { !_strategy with pause = true } in *)
         let () = _strategy := { !_strategy with result_expection = 3 } in
-        let () =
+        (* let () =
           Pp.printf "@{<bold>@{<red>line_b2@}@}\n%s\n" (layout_line line_b2)
-        in
+        in *)
         let r = refinement_loop env ([], [ line_b2 ]) in
-        let () = Pp.printf "@{<bold>@{<red>result @}@}\n%i\n" (List.length r) in
-        let () = layout_res r in
+        (* let () = Pp.printf "@{<bold>@{<red>result @}@}\n%i\n" (List.length r) in *)
+        (* let () = layout_res r in *)
         let r =
           List.concat_map
             (fun x ->
               match match_back x with
               | None -> []
-              | Some (line_b2', line_b2_pre_len') ->
-                  let () = layout_res [ old_goal; line_b1; line_b2' ] in
-                  let () =
+              | Some (line_b2, line_b2_pre_len) ->
+                  (* let () = layout_res [ old_goal; line_b1; line_b2' ] in *)
+                  (* let () =
                     Pp.printf "pre_len: %i, line_b2_pre_len': %i\n" pre_len
                       line_b2_pre_len'
-                  in
+                  in *)
                   [
                     SynMidKStar
                       {
                         old_goal;
                         pre_len;
                         line_b1;
-                        line_b2 = line_b2';
-                        line_b2_pre_len = line_b2_pre_len';
+                        line_b2;
+                        line_b2_pre_len;
                         v;
                       };
                   ])
