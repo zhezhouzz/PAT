@@ -55,6 +55,9 @@ let eval_until_detect_bug converge_bound test =
         let his = test () in
         (i, his)
       with
+      | Sample.SampleTooManyTimes ->
+          Pp.printf "@{<red>Error:@} %s\n" "sample too many times";
+          aux i
       | RuntimeInconsistent msg ->
           Pp.printf "@{<red>Error:@} %s\n" msg;
           aux i

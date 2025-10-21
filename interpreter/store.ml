@@ -4,24 +4,47 @@ open Zdatatype
 type t = value StrMap.t
 
 let const_to_bool loc = function B b -> b | _ -> _die_with loc "never"
-let value_to_const loc = function VConst c -> c | _ -> _die_with loc "never"
+
+let value_to_const loc = function
+  | VConst c -> c
+  | _ -> _die_with loc "never: var_to_const"
+
 let value_to_bool loc v = value_to_const loc v |> const_to_bool loc
 
-let eval_app_op_const op cs =
+let eval_app_op op cs =
+  let cs = match cs with [ VTu vs ] -> vs | _ -> cs in
   let res =
     match (op.x, cs) with
-    | "==", [ a; b ] -> B (equal_constant a b)
-    | ">", [ I a; I b ] -> B (a > b)
-    | "parent", [ S a ] -> (
+    | "==", [ a; b ] -> B (equal_value a b)
+    | "!=", [ a; b ] -> B (not (equal_value a b))
+    | ">", [ VConst (I a); VConst (I b) ] -> B (a > b)
+    | "parent", [ VConst (S a) ] -> (
         match get_parent_path a with None -> S "/" | Some p -> S p)
-    | "is_root", [ S a ] -> if String.equal a "/" then B true else B false
-    | ">=", [ I a; I b ] -> B (a >= b)
-    | "+", [ I a; I b ] -> I (a + b)
-    | "-", [ I a; I b ] -> I (a - b)
-    | "*", [ I a; I b ] -> I (a * b)
-    | "/", [ I a; I b ] -> I (a / b)
-    | "!=", [ a; b ] -> B (not (equal_constant a b))
-    | _ -> _die_with [%here] "unimp"
+    | "is_root", [ VConst (S a) ] ->
+        if String.equal a "/" then B true else B false
+    | "<", [ VConst (I a); VConst (I b) ] -> B (a < b)
+    | ">=", [ VConst (I a); VConst (I b) ] -> B (a >= b)
+    | "<=", [ VConst (I a); VConst (I b) ] -> B (a <= b)
+    | "+", [ VConst (I a); VConst (I b) ] -> I (a + b)
+    | "-", [ VConst (I a); VConst (I b) ] -> I (a - b)
+    | "*", [ VConst (I a); VConst (I b) ] -> I (a * b)
+    | "/", [ VConst (I a); VConst (I b) ] -> I (a / b)
+    | "is_int_ty", [ VCStlcTy ty ] -> (
+        match ty with StlcInt -> B true | _ -> B false)
+    | "fstTy", [ VCStlcTy ty1; VCStlcTy ty2 ] -> (
+        match ty1 with
+        | StlcArrow (ty11, _) -> B (equal_stlcTy ty11 ty2)
+        | _ -> B false)
+    | "sndTy", [ VCStlcTy ty1; VCStlcTy ty2 ] -> (
+        match ty1 with
+        | StlcArrow (_, ty12) -> B (equal_stlcTy ty12 ty2)
+        | _ -> B false)
+    | _ ->
+        let () =
+          Pp.printf "@{<red>%s(%s)@} --> ?\n" op.x
+            (List.split_by_comma layout_value cs)
+        in
+        _die_with [%here] "unimp"
   in
   (* let () =
     Pp.printf "@{<red>%s(%s)@} --> %s\n" op.x
@@ -29,51 +52,64 @@ let eval_app_op_const op cs =
       (layout_constant res)
   in *)
   (* let () = if String.equal op.x "parent" then _die_with [%here] "unimp" in *)
-  res
+  VConst res
 
-let eval_app_op loc op vs =
-  let cs = List.map (value_to_const loc) vs in
-  eval_app_op_const op cs
+let eval_app_op op vs = eval_app_op op vs
 
 let eval_qv store x =
   match StrMap.find_opt store x.x with Some c -> c | None -> _die [%here]
 
-let eval_value store = function
+let rec eval_value store = function
   | VVar x -> eval_qv store x
   | VConst c -> VConst c
   | VCStlcTy ty -> VCStlcTy ty
   | VCIntList xs -> VCIntList xs
+  | VTu vs -> VTu (List.map (eval_value store) vs)
+  | VProj (v, i) -> (
+      match eval_value store v with
+      | VTu vs -> List.nth vs i
+      | _ -> _die_with [%here] "never")
+  | VField (v, s) -> (
+      match eval_value store v with
+      | VRecord fds -> (
+          match List.find_opt (fun (x, _) -> String.equal x s) fds with
+          | Some (_, v) -> v
+          | None -> _die_with [%here] "never")
+      | _ -> _die_with [%here] "never")
+  | VRecord fds ->
+      VRecord (List.map (fun (s, v) -> (s, eval_value store v)) fds)
 
 let meval_value store values = List.map (fun v -> eval_value store v.x) values
 
-let eval_lit store lit =
-  let rec aux lit =
+let eval_lit store lit : constant =
+  let rec aux lit : value =
     match lit with
-    | AC c -> AC c
-    | AAppOp (op, args) ->
-        AC (eval_app_op_const op @@ List.map typed_aux_to_const args)
-    | ATu l -> ATu (List.map typed_aux l)
+    | AC c -> VConst c
+    | AAppOp (op, args) -> eval_app_op op (List.map (fun x -> aux x.x) args)
+    | ATu l -> VTu (List.map (fun x -> aux x.x) l)
     | AProj (r, i) -> (
         match aux r.x with
-        | ATu l -> (List.nth l i).x
+        | VTu vs -> List.nth vs i
         | _ -> _die_with [%here] "never")
-    | ARecord fds -> ARecord (List.map (fun (x, lit) -> (x, typed_aux lit)) fds)
+    | ARecord fds -> VRecord (List.map (fun (x, lit) -> (x, aux lit.x)) fds)
     | AField (r, i) -> (
         match aux r.x with
-        | ARecord fds -> (
+        | VRecord fds -> (
             match List.find_opt (fun (x, _) -> String.equal x i) fds with
-            | Some (_, lit) -> lit.x
+            | Some (_, v) -> v
             | None -> _die_with [%here] "never")
         | _ -> _die_with [%here] "never")
-    | AVar x -> AC (value_to_const [%here] @@ eval_qv store x)
-  and typed_aux_to_const lit =
-    match (typed_aux lit).x with AC c -> c | _ -> _die_with [%here] "never"
-  and typed_aux lit = (aux lit.x)#:lit.ty in
-  typed_aux_to_const lit
+    | AVar x ->
+        (* let () = Pp.printf "@{<bold>eval_qv:@} %s\n" (layout_qv x) in *)
+        let c = eval_qv store x in
+        (* let () = Pp.printf "@{<bold>eval_qv result:@} %s\n" (layout_value c) in *)
+        c
+  in
+  match aux lit with VConst c -> c | _ -> _die_with [%here] "never"
 
 let eval_prop store prop =
   let rec aux = function
-    | Lit lit -> const_to_bool [%here] @@ eval_lit store lit
+    | Lit lit -> const_to_bool [%here] @@ eval_lit store lit.x
     | Implies (p1, p2) -> if aux p1 then aux p2 else true
     | And ps -> List.fold_left (fun res p -> res && aux p) true ps
     | Or ps -> List.fold_left (fun res p -> res || aux p) false ps

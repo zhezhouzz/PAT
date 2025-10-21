@@ -6,19 +6,32 @@ open Zdatatype
 let layout_typed_var { x; ty } = spf "%s:%s" x (Nt.layout_nt ty)
 let layout_typed_var_list l = List.split_by_comma layout_typed_var l
 
-let value_to_nt = function
+let rec value_to_nt = function
   | VVar x -> x.ty
   | VConst c -> constant_to_nt c
   | VCStlcTy _ -> mk_p_abstract_ty "stlcTy"
   | VCIntList _ -> Ty_constructor ("list", [ Nt.int_ty ])
+  | VTu vs -> Ty_tuple (List.map value_to_nt vs)
+  | VProj (v, i) -> Ty_tuple [ value_to_nt v; Nt.int_ty ]
+  | VField (v, s) -> Ty_tuple [ value_to_nt v; Nt.string_ty ]
+  | VRecord fds ->
+      Nt.Ty_record
+        { alias = None; fds = List.map (fun (s, v) -> s#:(value_to_nt v)) fds }
 
 let value_to_tvalue v = v#:(value_to_nt v)
 
-let value_to_lit = function
+let rec value_to_lit = function
   | VVar x -> AVar x
   | VConst c -> AC c
   | VCStlcTy _ | VCIntList _ ->
       _die_with [%here] "stlc constant cannot be converted into literal"
+  | VTu vs -> ATu (List.map value_to_typed_lit vs)
+  | VProj (v, i) -> AProj (value_to_typed_lit v, i)
+  | VField (v, s) -> AField (value_to_typed_lit v, s)
+  | VRecord fds ->
+      ARecord (List.map (fun (s, v) -> (s, value_to_typed_lit v)) fds)
+
+and value_to_typed_lit v = lit_to_tlit (value_to_lit v)
 
 let mk_value_tt = (VConst U)#:Nt.unit_ty
 let mk_term_tt = CVal mk_value_tt
@@ -175,10 +188,14 @@ let mk_rec_app iterV boundV =
       boundV = value_to_tvalue boundV;
     }
 
-let mk_rec_app_0 e =
+let mk_rec_app_v v e =
   let open Nt in
   mk_term_assume_fresh_geq_zero int_ty (fun x ->
-      mk_let_ (mk_rec_app (CVal (mk_value_const (I 0))#:Nt.int_ty) (VVar x)) e)
+      mk_let_ (mk_rec_app (CVal v#:Nt.int_ty) (VVar x)) e)
+
+let mk_rec_app_0 e =
+  let open Nt in
+  mk_rec_app_v (mk_value_const (I 0)) e
 
 let mk_iter = value_to_tvalue (VVar default_iter_var)
 let plus_op = "+"#:Nt.(mk_arr Nt.int_ty @@ mk_arr Nt.int_ty Nt.int_ty)
@@ -339,11 +356,17 @@ let _get_checkedActs line =
 
 let msubst_lit m = msubst subst_lit_instance m
 
-let subst_value_with_value x value = function
+let rec subst_value_with_value x value = function
   | VVar y -> if String.equal x y.x then value else VVar y
   | VConst c -> VConst c
   | VCStlcTy ty -> VCStlcTy ty
   | VCIntList xs -> VCIntList xs
+  | VTu vs -> VTu (List.map (subst_value_with_value x value) vs)
+  | VProj (v, i) -> VProj (subst_value_with_value x value v, i)
+  | VField (v, s) -> VField (subst_value_with_value x value v, s)
+  | VRecord fds ->
+      VRecord
+        (List.map (fun (s, v) -> (s, subst_value_with_value x value v)) fds)
 
 let lit_to_value loc = function
   | AVar x -> VVar x

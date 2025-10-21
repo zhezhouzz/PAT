@@ -5,6 +5,8 @@ open Ast
 open SFA
 include Line
 
+let _log_fw_related = _log "fw_related"
+
 let layout_assigns m =
   StrMap.fold (fun x y acc -> spf "%s; %s -> %s" acc x y) m ""
 
@@ -22,19 +24,18 @@ let print_plan line =
   (* Pp.printf "@{<bold>elems:@} %s\n" (layout_line_elems line.elems); *)
   Pp.printf "@{<bold>checkedActs:@} %s\n" (layout_plan_checkedActs line)
 
-let print_plan_kstar (pre_len, line, post_len) =
-  Pp.printf "@{<bold>freeVars:@} %s\n"
-    (layout_typed_var_list (_get_freeVars line));
-  Pp.printf "@{<bold>line:@} %s\n" (omit_layout_line line);
-  (* Pp.printf "@{<bold>elems:@} %s\n" (layout_line_elems line.elems); *)
-  Pp.printf "@{<bold>checkedActs:@} %s\n" (layout_plan_checkedActs line);
+let print_plan_kstar (old_goal, pre_len, line_b1, line_b2, line_b2_pre_len, v) =
+  Pp.printf "@{<bold>old_goal:@} %s\n" (omit_layout_line old_goal);
   Pp.printf "@{<bold>pre_len:@} %i\n" pre_len;
-  Pp.printf "@{<bold>post_len:@} %i\n" post_len
+  Pp.printf "@{<bold>line_b1:@} %s\n" (omit_layout_line line_b1);
+  Pp.printf "@{<bold>line_b2:@} %s\n" (omit_layout_line line_b2);
+  Pp.printf "@{<bold>line_b2_pre_len:@} %i\n" line_b2_pre_len;
+  Pp.printf "@{<bold>v:@} %s\n" (layout_value v)
 
 let print_mid_result = function
   | SynMidPlan line -> print_plan line
-  | SynMidKStar (pre_len, line, post_len) ->
-      print_plan_kstar (pre_len, line, post_len)
+  | SynMidKStar { old_goal; pre_len; line_b1; line_b2; line_b2_pre_len; v } ->
+      print_plan_kstar (old_goal, pre_len, line_b1, line_b2, line_b2_pre_len, v)
 
 let register_act_under_plan ids act =
   match act.aid with

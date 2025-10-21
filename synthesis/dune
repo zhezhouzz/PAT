@@ -13,7 +13,8 @@
   refine
   simpEq
   compile
-  synthesis)
+  synthesis
+  recursion)
  (inline_tests)
  (preprocess
   (pps ppx_here ppx_inline_test)))

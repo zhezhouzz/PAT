@@ -9,6 +9,10 @@ let rec fv_value (value_e : value) =
   | VVar v -> [ v ]
   | VCStlcTy _ -> []
   | VCIntList xs -> []
+  | VTu vs -> List.concat_map fv_value vs
+  | VProj (v, i) -> fv_value v
+  | VField (v, s) -> fv_value v
+  | VRecord fds -> List.concat_map (fun (s, v) -> fv_value v) fds
 
 and typed_fv_value (value_e : (Nt.nt, value) typed) = fv_value value_e.x
 

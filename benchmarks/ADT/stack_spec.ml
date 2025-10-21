@@ -10,7 +10,7 @@ val isEmptyResp : < isEmpty : bool > [@@obs]
 
 (* PATs *)
 let pushReq ?l:(x = (true : [%v: int])) =
-  ( starA (anyA - PushReq (elem == x)),
+  ( allA,
     PushReq (elem == x),
     (allA;
      PopReq true;

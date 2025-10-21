@@ -74,9 +74,8 @@ let rec eval code =
       eval body.x
   | CAppOp { op; args } ->
       let cs = meval_value (Store.get ()) args in
-      let cs = List.map (value_to_const [%here]) cs in
-      let c = eval_app_op_const op cs in
-      [ VConst c ]
+      let c = eval_app_op op cs in
+      [ c ]
   | CObs _ -> _die_with [%here] "never"
   | CGen { op; args } ->
       let args = meval_value (Store.get ()) args in

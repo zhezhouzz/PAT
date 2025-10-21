@@ -11,6 +11,11 @@ let rec subst_value (string_x : string) f (value_e : value) =
       if String.equal v.x string_x then
         match f v with AC c -> VConst c | AVar y -> VVar y | _ -> _die [%here]
       else VVar v
+  | VTu vs -> VTu (List.map (subst_value string_x f) vs)
+  | VProj (v, i) -> VProj (subst_value string_x f v, i)
+  | VField (v, s) -> VField (subst_value string_x f v, s)
+  | VRecord fds ->
+      VRecord (List.map (fun (s, v) -> (s, subst_value string_x f v)) fds)
 
 and typed_subst_value (string_x : string) f (value_e : (Nt.nt, value) typed) =
   value_e#->(subst_value string_x f)

@@ -4,7 +4,7 @@ open Zdatatype
 
 (** Core Implementation *)
 module Stack = struct
-  let _max_size = 4
+  let _max_size = 5
   let init s = s := []
 
   let push s (x : int) =

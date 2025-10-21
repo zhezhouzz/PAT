@@ -45,15 +45,16 @@ let synthesize (env : syn_env) name =
   let reg = msubst subst_rich_regex_instance m reg in
   let r = SFA.rich_regex_to_regex reg in
   let () = Pp.printf "\n@{<red>Original Reg:@} %s\n" (SFA.layout_regex r) in
-  (* let () = _die [%here] in *)
   let plans = Refine.deductive_synthesis env r in
   let () = Pp.printf "\n@{<yellow>Result plans:@}\n" in
   let () = save_plans plans in
-  let () = Pp.printf "@{<bold>load plans:@}%s\n" name in
+  (* let () = _die [%here] in *)
   let plans = load_plans () in
+  let () = Pp.printf "@{<bold>load plans:@}%s\n" name in
   List.iter (fun p -> Plan.print_mid_result p) plans;
   (* let term = instantiation env (g.gamma, g.plan) in *)
   let progs = List.map (fun p -> Compile.compile_term env p) plans in
+  (* let progs = [ List.nth progs 2 ] in *)
   let () = Pp.printf "@{<bold>num of progs:@}%i\n" (List.length progs) in
   let () =
     List.iteri

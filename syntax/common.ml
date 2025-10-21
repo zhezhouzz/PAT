@@ -57,12 +57,18 @@ let rec layout_stlcTerm = function
   | StlcApp { appFun; appArg } ->
       spf "(%s %s)" (layout_stlcTerm appFun) (layout_stlcTerm appArg)
 
-let layout_value = function
+let rec layout_value = function
   | VVar qv -> layout_qv qv
   | VConst c -> layout_constant c
   | VCStlcTy ty -> layout_stlcTy ty
   | VCIntList xs ->
       spf "[%s]" (List.split_by "; " (fun x -> string_of_int x) xs)
+  | VTu vs -> spf "(%s)" (List.split_by ", " layout_value vs)
+  | VProj (v, i) -> spf "(%s, %i)" (layout_value v) i
+  | VField (v, s) -> spf "(%s, %s)" (layout_value v) s
+  | VRecord fds ->
+      spf "{ %s }"
+        (List.split_by ", " (fun (s, v) -> spf "%s: %s" s (layout_value v)) fds)
 
 let is_gen env op = is_generative @@ _get_force [%here] env.msgkind_ctx op
 let is_obs env op = is_observable @@ _get_force [%here] env.msgkind_ctx op

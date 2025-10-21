@@ -18,12 +18,10 @@ let layout_stlcCtx ctx =
   List.split_by_comma (fun x -> x)
   @@ List.mapi (fun i ty -> spf "x%d : %s" i (layout_stlcTy ty)) ctx
 
-let find_stlcTy ctx x =
-  (* let () = Printf.printf "find_stlcTy %d\n" x in *)
-  (* let () = Printf.printf "ctx: %s\n" (layout_stlcCtx ctx) in *)
-  let ty = List.nth ctx x in
-  (* let () = Printf.printf "ty: %s\n" (layout_stlcTy ty) in *)
-  ty
+let find_stlcTy_opt ctx x = List.nth_opt ctx x
+(* let () = Printf.printf "find_stlcTy %d\n" x in *)
+(* let () = Printf.printf "ctx: %s\n" (layout_stlcCtx ctx) in *)
+(* let () = Printf.printf "ty: %s\n" (layout_stlcTy ty) in *)
 
 let rec typeinfer_stlcTerm ctx e =
   let type_error () =
@@ -35,8 +33,12 @@ let rec typeinfer_stlcTerm ctx e =
   in
   let res =
     match e with
-    | StlcVar x ->
-        if x >= List.length ctx then type_error () else Some (find_stlcTy ctx x)
+    | StlcVar x -> (
+        if x >= List.length ctx then type_error ()
+        else
+          match find_stlcTy_opt ctx x with
+          | None -> type_error ()
+          | Some ty -> Some ty)
     | StlcConst _ -> Some StlcInt
     | StlcAbs { absTy; absBody } -> (
         let ty = typeinfer_stlcTerm (absTy :: ctx) absBody in
@@ -210,7 +212,7 @@ module EvaluationCtx = struct
 
   let absHandler (msg : msg) =
     let ty =
-      match msg.ev.args with [ VCStlcTy ty ] -> ty | _ -> _die [%here]
+      match msg.ev.args with VCStlcTy ty :: _ -> ty | _ -> _die [%here]
     in
     eCtx := MkAbs ty :: !eCtx;
     send ("closureId", [ mk_value_int (next_sid ()) ])

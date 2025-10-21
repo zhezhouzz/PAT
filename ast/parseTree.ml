@@ -41,6 +41,10 @@ type value =
   | VConst of constant
   | VCStlcTy of stlcTy
   | VCIntList of int list
+  | VTu of value list
+  | VProj of value * int
+  | VField of value * string
+  | VRecord of (string * value) list
 [@@deriving sexp, show, eq, ord, yojson]
 
 type trace_elem = { op : string; args : constant list }
@@ -127,7 +131,16 @@ end)
 
 type line = { gprop : Nt.nt prop; elems : line_elem list } [@@deriving sexp]
 
-type synMidResult = SynMidPlan of line | SynMidKStar of (int * line * int)
+type synMidResult =
+  | SynMidPlan of line
+  | SynMidKStar of {
+      old_goal : line;
+      pre_len : int;
+      line_b1 : line;
+      line_b2 : line;
+      line_b2_pre_len : int;
+      v : value;
+    }
 [@@deriving sexp]
 
 type syn_env = {
@@ -153,3 +166,4 @@ let isolation_of_string = function
   | _ -> Zutils.(_die_with [%here] "invalid isolation")
 
 let __counter = ref 0
+let ghost_event_names = [ "tyOpen"; "tyClose"; "depth" ]

@@ -31,6 +31,10 @@ let rec map_value f = function
   | VConst c -> VConst c
   | VCStlcTy ty -> VCStlcTy ty
   | VCIntList xs -> VCIntList xs
+  | VTu vs -> VTu (List.map (map_value f) vs)
+  | VProj (v, i) -> VProj (map_value f v, i)
+  | VField (v, s) -> VField (map_value f v, s)
+  | VRecord fds -> VRecord (List.map (fun (s, v) -> (s, map_value f v)) fds)
 
 and typed_map_value f { x; ty } = { x = map_value f x; ty = f ty }
 

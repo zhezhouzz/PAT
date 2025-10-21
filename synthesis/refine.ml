@@ -35,7 +35,7 @@ let _strategy =
   ref
     {
       search = DFS;
-      layout_bound = 5;
+      layout_bound = 10;
       result_expection = 5;
       pause = Myconfig.get_bool_option "pause_during_synthesis";
       search_new_goals = false;
@@ -59,10 +59,17 @@ let init_strategy env =
         search = UnSortedDFS 1;
         search_new_goals = false;
         result_expection = 1;
+        addKstar = true;
       }
   else if num_gen <= 4 && StrMap.cardinal env.axioms == 0 then
     _strategy :=
-      { !_strategy with search = UnSortedDFS 1; search_new_goals = true }
+      {
+        !_strategy with
+        search = UnSortedDFS 1;
+        search_new_goals = false;
+        result_expection = 1;
+        addKstar = true;
+      }
   else
     _strategy :=
       { !_strategy with search = BoundBFS 10; search_new_goals = false }
@@ -102,8 +109,14 @@ let merge_new_goals old_goals new_goals =
     aux old_goals new_goals
   else old_goals @ new_goals
 
+let pause_counter = ref 0
+
 let try_pause () =
   if !_strategy.pause then
+    let () = pause_counter := !pause_counter + 1 in
+    let () =
+      Pp.printf "@{<bold>@{<red>pause_counter@}: %i@}\n" !pause_counter
+    in
     let _ = input_line stdin in
     ()
   else ()
@@ -160,7 +173,38 @@ let layout_candidate_res_and_plans res plans =
     (List.length plans);
   Pp.printf "\n"
 
+let layout_res res =
+  let remove_ghost { gprop; elems } =
+    let elems =
+      List.filter
+        (function
+          | LineAct act
+            when List.exists (String.equal act.aop) ghost_event_names ->
+              false
+          | _ -> true)
+        elems
+    in
+    { gprop; elems }
+  in
+  layout_candidate_plans (List.map remove_ghost res);
+  layout_candidate_plans res;
+  Pp.printf "\n@{<bold>@{<red>res(%i)@}@}\n" (List.length res);
+  Pp.printf "\n"
+
+let output_prefix = "output"
+
+let save_line name line =
+  let output_file = spf "%s/%s.scm" output_prefix name in
+  let sexp = sexp_of_line line in
+  Sexplib.Sexp.save output_file sexp
+
+let load_line name () =
+  let output_file = spf "%s/%s.scm" output_prefix name in
+  let sexp = Sexplib.Sexp.load_sexp output_file in
+  line_of_sexp sexp
+
 let rec deductive_synthesis env r : synMidResult list =
+  let () = init_unreusable_core_acts () in
   let plans = regex_to_lines r in
   let plans =
     List.map
@@ -173,84 +217,124 @@ let rec deductive_synthesis env r : synMidResult list =
   let () =
     Pp.printf "@{<bold>@{<red>strategy:@}@}\n%s\n" (layout_strategy !_strategy)
   in
+  (* let () = _die_with [%here] "zz" in *)
   let () = try_pause () in
-  (* let () = _die [%here] in *)
-  let rec refinement_loop (res, plans) =
-    if List.length res >= !_strategy.result_expection then res
-    else if List.length plans == 0 then []
-    else
-      let plans = search_on_strategy (refine_one_step env) plans in
-      (* let () = layout_candidate_res_and_plans res plans in *)
-      (* let _ = try_pause () in *)
-      let plans = List.map SimpEq.simp_plan plans in
-      (* let () = layout_candidate_res_and_plans res plans in *)
-      (* let _ = try_pause () in *)
-      (* let plans = List.map LineOpt.optimize_line plans in *)
-      (* let plans = unify_lines plans in *)
-      let () = layout_candidate_res_and_plans res plans in
-      let _ = try_pause () in
-      let wf_plans, plans = List.partition finished_plan plans in
-      (* let wf_plans = unify_lines wf_plans in *)
-      let new_goals = List.concat_map (gen_new_act env) wf_plans in
-      refinement_loop (res @ wf_plans, merge_new_goals plans new_goals)
-  in
-  let res = refinement_loop ([], plans) in
+  let () = Pp.printf "@{<bold>@{<red>plans@}@}\n%i\n" (List.length plans) in
+  let res = refinement_loop env ([], plans) in
+  (* let () = _die_with [%here] "zz" in *)
+  (* let () = save_line "goal" goal in *)
+  (* let goal = load_line "goal" () in *)
+  (* let res = [ goal ] in *)
   if List.length res == 0 then _die_with [%here] "no more plans"
-  else if !_strategy.addKstar then
-    let res' = List.concat_map (gen_new_kstar env) res in
-    (* let () =
-      Pp.printf "@{<bold>@{<red>gen new kstar result@}@}\n";
-      List.iter (fun (x, y, z) -> print_mid_result (SynMidKStar (x, y, z))) res';
-      Pp.printf "\n";
-      _die [%here]
-    in *)
-    let () =
-      _strategy :=
-        {
-          !_strategy with
-          search = UnSortedDFS 1;
-          search_new_goals = false;
-          result_expection = 1;
-        }
-    in
-    let res' =
-      List.fold_left
-        (fun final_res (pre_len, line, post_len) ->
-          if List.length final_res >= 1 then final_res
-          else
-            let r = refinement_loop ([], [ line ]) in
-            let r = List.map (fun x -> SynMidKStar (pre_len, x, post_len)) r in
-            (* let () =
-              if List.length r > 0 then (
-                Pp.printf "@{<bold>@{<red>gen new kstar@} on line@}\n%s\n"
-                  (omit_layout_line line);
-                Pp.printf "@{<bold>@{<red>gen new kstar result@} on line@}\n";
-                print_mid_result (List.nth r 0);
-                _die [%here])
-              else ()
-            in *)
-            let final_res = final_res @ r in
-            final_res)
-        [] res'
-    in
-    res' (* List.map (fun x -> SynMidPlan x) res @ res' *)
-  else List.map (fun x -> SynMidPlan x) res
+  else
+    let () = layout_res res in
+    List.concat_map (syn_loop env r) res
+
+and refinement_loop env (res, plans) =
+  if List.length res >= !_strategy.result_expection then res
+  else if List.length plans == 0 then []
+  else
+    let plans = search_on_strategy (refine_one_step env) plans in
+    (* let () = layout_candidate_res_and_plans res plans in *)
+    (* let _ = try_pause () in *)
+    let plans = List.map SimpEq.simp_plan plans in
+    (* let () = layout_candidate_res_and_plans res plans in *)
+    (* let _ = try_pause () in *)
+    (* let plans = List.map LineOpt.optimize_line plans in *)
+    (* let plans = unify_lines plans in *)
+    let () = layout_candidate_res_and_plans res plans in
+    let _ = try_pause () in
+    let wf_plans, plans = List.partition finished_plan plans in
+    (* let wf_plans = unify_lines wf_plans in *)
+    let new_goals = List.concat_map (gen_new_act env) wf_plans in
+    refinement_loop env (res @ wf_plans, merge_new_goals plans new_goals)
+
+and syn_loop env init_r (goal : line) : synMidResult list =
+  if !_strategy.addKstar then
+    match Recursion.select_template init_r goal with
+    | None -> [ SynMidPlan goal ]
+    | Some ((old_goal, pre_len), line_b1, line_b2, match_back, v) ->
+        (* let () = _strategy := { !_strategy with pause = true } in *)
+        let () = _strategy := { !_strategy with result_expection = 3 } in
+        let () =
+          Pp.printf "@{<bold>@{<red>line_b2@}@}\n%s\n" (layout_line line_b2)
+        in
+        let r = refinement_loop env ([], [ line_b2 ]) in
+        let () = Pp.printf "@{<bold>@{<red>result @}@}\n%i\n" (List.length r) in
+        let () = layout_res r in
+        let r =
+          List.concat_map
+            (fun x ->
+              match match_back x with
+              | None -> []
+              | Some (line_b2', line_b2_pre_len') ->
+                  let () = layout_res [ old_goal; line_b1; line_b2' ] in
+                  let () =
+                    Pp.printf "pre_len: %i, line_b2_pre_len': %i\n" pre_len
+                      line_b2_pre_len'
+                  in
+                  [
+                    SynMidKStar
+                      {
+                        old_goal;
+                        pre_len;
+                        line_b1;
+                        line_b2 = line_b2';
+                        line_b2_pre_len = line_b2_pre_len';
+                        v;
+                      };
+                  ])
+            r
+        in
+        r
+  else [ SynMidPlan goal ]
+
+and backward_on_all_gen env (goal : line) =
+  let ids = underived_act_ids goal in
+  List.fold_left
+    (fun goal id ->
+      let _, (_, midAct, _) = line_divide_by_task_id goal id in
+      let op = midAct.aop in
+      if is_gen env op then line_label_as_gen_act goal id else goal)
+    goal ids
 
 and refine_one_step env (goal : line) : line list =
+  let goal = backward_on_all_gen env goal in
   let () = simp_print_syn_judgement goal in
   let ids = underived_act_ids goal in
+  let ids = List.sort (fun x y -> Int.compare x y) ids in
+  let () =
+    Pp.printf "@{<bold>@{<red>ids@}@}\n%s\n"
+      (List.split_by_comma string_of_int ids)
+  in
+  (* let () = try_pause () in *)
   match ids with
   | id :: _ ->
-      let () = Pp.printf "@{<bold>@{<red>backward@} on %i@}\n" id in
-      let _ = try_pause () in
-      backward env goal id
+      let _, (_, midAct, _) = line_divide_by_task_id goal id in
+      let op = midAct.aop in
+      if is_gen env op then _die_with [%here] "never"
+      else
+        let () = Pp.printf "@{<bold>@{<red>backward@} on %i@}\n" id in
+        (* let _ = try_pause () in *)
+        backward env goal id
   | [] -> (
-      match unchecked_act_ids goal with
+      let ids = unchecked_act_ids goal in
+      (* let ids = List.sort (fun x y -> Int.compare x y) ids in *)
+      match ids with
+      | [] -> [ goal ]
       | id :: _ ->
+          let recId =
+            List.find_opt
+              (fun id ->
+                let _, (_, midAct, _) = line_divide_by_task_id goal id in
+                let op = midAct.aop in
+                String.equal op "recE")
+              ids
+          in
+          let id = match recId with Some id -> id | None -> id in
           let () = Pp.printf "@{<bold>@{<red>forward@} on %i@}\n" id in
-          let _ = try_pause () in
-          forward env goal id
-      | [] -> [ goal ])
+          (* let _ = try_pause () in *)
+          forward env goal id)
 
 and gen_new_act env (goal : line) : line list =
   let () =
@@ -266,7 +350,7 @@ and gen_new_act env (goal : line) : line list =
 
 and gen_new_kstar env (goal : line) : (int * line * int) list =
   let () =
-    Pp.printf "@{<bold>@{<red>gen new act@} on line@}\n%s\n"
+    Pp.printf "@{<bold>@{<red>gen_new_kstar@} on line@}\n%s\n"
       (omit_layout_line goal)
   in
   let lines = mk_singleton_star goal in
@@ -286,45 +370,40 @@ and gen_new_kstar env (goal : line) : (int * line * int) list =
 and backward env (goal : line) mid : line list =
   let _, (_, midAct, _) = line_divide_by_task_id goal mid in
   let op = midAct.aop in
-  if is_gen env op then
-    let goal = line_label_as_gen_act goal mid in
-    [ goal ]
-  else
-    let rules = select_rule_by_future env op in
+  let rules = select_rule_by_future env op in
+  let () =
+    List.iteri
+      (fun i ((_, se, _), pat) ->
+        let () =
+          Pp.printf "@{<bold>rty[%i]:@}\n@{<red>se@}: %s\n@{<red>pat@}: %s\n" i
+            (layout_sevent se)
+            (layout_pat layout_regex pat)
+        in
+        ())
+      rules
+  in
+  let handle ((future1, se, future2), pat) =
     let () =
-      List.iteri
-        (fun i ((_, se, _), pat) ->
-          let () =
-            Pp.printf "@{<bold>rty[%i]:@}\n@{<red>se@}: %s\n@{<red>pat@}: %s\n"
-              i (layout_sevent se)
-              (layout_pat layout_regex pat)
-          in
-          ())
-        rules
+      Pp.printf "@{<bold>use rty@}\n@{<red>se@}: %s\n@{<red>pat@}: %s\n"
+        (layout_sevent se)
+        (layout_pat layout_regex pat)
     in
-    let handle ((future1, se, future2), pat) =
-      let () =
-        Pp.printf "@{<bold>use rty@}\n@{<red>se@}: %s\n@{<red>pat@}: %s\n"
-          (layout_sevent se)
-          (layout_pat layout_regex pat)
-      in
-      let _, (args, retrty) = destruct_pat [%here] pat in
-      let goal = plan_add_cargs goal args in
-      let history, dep_se, _ = destruct_hap [%here] retrty in
-      let dep_se =
-        match dep_se with
-        | MultiChar s ->
-            if CharSet.cardinal s == 1 then CharSet.choose s else _die [%here]
-        | _ -> _die [%here]
-      in
-      backward_merge goal mid (history, dep_se, future1, se, future2)
+    let _, (args, retrty) = destruct_pat [%here] pat in
+    let goal = plan_add_cargs goal args in
+    let history, dep_se, _ = destruct_hap [%here] retrty in
+    let dep_se =
+      match dep_se with
+      | MultiChar s ->
+          if CharSet.cardinal s == 1 then CharSet.choose s else _die [%here]
+      | _ -> _die [%here]
     in
-    let goals = List.concat_map handle rules in
-    let goals =
-      List.sort (fun x y -> Int.compare (line_size x) (line_size y)) goals
-    in
-    layout_candidate_plans goals;
-    goals
+    backward_merge goal mid (history, dep_se, future1, se, future2)
+  in
+  let goals = List.concat_map handle rules in
+  let goals =
+    List.sort (fun x y -> Int.compare (line_size x) (line_size y)) goals
+  in
+  goals
 
 and forward env (goal : line) mid : line list =
   let _, (_, midAct, _) = line_divide_by_task_id goal mid in

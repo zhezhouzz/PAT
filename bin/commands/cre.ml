@@ -360,8 +360,8 @@ let test_eval s converge_bound () =
       ()
   | "stlc" ->
       let open Adt.Stlc_moti in
-      (* let main = Synthesis.load_progs s () in *)
-      let main = [ main_rec ] in
+      let main = Synthesis.load_progs s () in
+      (* let main = [ main_rec ] in *)
       let test () = Interpreter.once (init, main, trace_eval_correct) in
       let _ = eval test in
       ()
@@ -591,7 +591,7 @@ let test_random s converge_bound () =
       let test () =
         Interpreter.seq_random_test
           ( init,
-            (fun () -> randomTest { numElem = 5; numOp = 15 }),
+            (fun () -> randomTest { numElem = 10; numOp = 15 }),
             check_membership_stack )
       in
       let _ = eval test in
@@ -601,7 +601,7 @@ let test_random s converge_bound () =
       let test () =
         Interpreter.seq_random_test
           ( init,
-            (fun () -> randomTest { numElem = 5; numOp = 15 }),
+            (fun () -> randomTest { numElem = 10; numOp = 15 }),
             check_membership_queue )
       in
       let _ = eval test in

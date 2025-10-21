@@ -84,13 +84,15 @@ let sample qv =
           _die [%here]
       | Some cs -> (qv.x, choose_from_list cs))
 
+exception SampleTooManyTimes
+
 let direct_sample_phi store (vs, prop) =
   let rec aux (n : int) =
     if n <= 0 then
       let () =
         Printf.printf "vs: %s; prop: %s\n" (layout_qvs vs) (layout_prop prop)
       in
-      _die_with [%here] "sample too many times"
+      raise SampleTooManyTimes
     else
       let s = List.map sample vs in
       let store' = StrMap.add_seq (List.to_seq s) store in
@@ -134,11 +136,9 @@ let sample_phi store (vs, prop) =
       let res = direct_sample_phi store (vs, gprop) in
       let store' = StrMap.add_seq (List.to_seq res) store in
       let res' =
-        List.map
-          (fun (x, lit) ->
-            (x, VConst (Store.eval_lit store' (lit_to_tlit lit))))
-          alias
+        List.map (fun (x, lit) -> (x, Store.eval_lit store' lit)) alias
       in
+      let res' = List.map (fun (x, c) -> (x, VConst c)) res' in
       res @ res'
 
 (* let mk_assume store (vs, prop) =

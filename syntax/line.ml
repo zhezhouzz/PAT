@@ -4,8 +4,13 @@ open Common
 open Ast
 open SFA
 
+let can_be_reused = [ "var"; "recE" ] @ ghost_event_names
+let unreusable_core_acts = ref []
+let init_unreusable_core_acts () = unreusable_core_acts := []
+let set_unreusable_core_acts (acts : int list) = unreusable_core_acts := acts
 let _log_line_sat_related = _log "line_sat_related"
 let _log_line_merge_related = _log "line_merge_related"
+let _log_line_merge_results = _log "line_merge_results"
 
 let _check_sat prop =
   let res = Prover.check_sat_bool (None, prop) in
@@ -22,8 +27,21 @@ let layout_act { aop; aargs; aid; _ } =
   in
   tpEvent (spf "%s(%s)" op (layout_qvs aargs))
 
+let omit_layout_act { aop; aargs; aid; _ } =
+  let op =
+    spf "%s~%s"
+      (match aid with Some aid -> string_of_int aid | None -> "?")
+      aop
+  in
+  tpEvent (spf "%s %s" op (List.split_by " " _get_x aargs))
+
 let layout_line_elem_aux omit = function
-  | LineAct act -> layout_act act
+  | LineAct act -> if omit then omit_layout_act act else layout_act act
+  | LineStarMultiChar r ->
+      if omit then "□*" else SFA.layout_regex (Star (MultiChar r))
+
+let omit_layout_line_elem_aux omit = function
+  | LineAct act -> omit_layout_act act
   | LineStarMultiChar r ->
       if omit then "□*" else SFA.layout_regex (Star (MultiChar r))
 
@@ -31,7 +49,7 @@ let layout_line_elems elems =
   List.split_by ";" (layout_line_elem_aux false) elems
 
 let omit_layout_line_elems elems =
-  List.split_by ";" (layout_line_elem_aux true) elems
+  List.split_by ";" (omit_layout_line_elem_aux true) elems
 
 let layout_linear_elem_aux omit = function
   | LinearChar se -> layout_sevent se
@@ -51,14 +69,25 @@ let omit_layout_line { gprop; elems } =
   let line = List.split_by ";" (layout_line_elem_aux true) elems in
   spf "prop: %s\nline: %s" (layout_prop gprop) line
 
+let line_elems_drop_stars elems =
+  List.filter (function LineStarMultiChar _ -> false | _ -> true) elems
+
 let line_get_acts line =
   List.filter_map (function LineAct act -> Some act | _ -> None) line.elems
 
 let act_get_id act = match act.aid with Some aid -> aid | None -> _die [%here]
 
+let act_get_children act =
+  match act.achildren with Some children -> children | None -> _die [%here]
+
 let get_aids line =
   (* only can be applied with registered line *)
   List.map act_get_id (line_get_acts line)
+
+let get_aids_is_exists line =
+  List.concat_map
+    (fun act -> match act.aid with Some aid -> [ aid ] | None -> [])
+    (line_get_acts line)
 
 let fresh_aid ids =
   List.fold_left (fun max id -> if max > id then max else id + 1) 0 ids
@@ -110,7 +139,11 @@ let regex_to_linear_regex r =
         in
         res
     | Alt (x, y) -> aux x @ aux y
-    | Inters _ | Comple _ -> _die_with [%here] "never"
+    | (Inters _ | Comple _) as r ->
+        let () =
+          Printf.printf "invalid regex form: %s\n" (SFA.layout_regex r)
+        in
+        _die_with [%here] "never"
   in
   aux r
 
@@ -247,7 +280,7 @@ let merge_charset prop cs1 cs2 =
   | Some cs -> check_sat_se prop cs
 
 let merge_act_with_phi (prop, act) (vs, phi) =
-  if not (_check_sat prop) then _die_with [%here] "never"
+  if not (_check_sat prop) then None (* _die_with [%here] "never" *)
   else
     let s =
       List.map
@@ -315,11 +348,24 @@ let clear_tmp_in_elem = function
 let clear_tmp_in_line line =
   { line with elems = List.map clear_tmp_in_elem line.elems }
 
+let line_elems_size elems =
+  List.length
+    (List.filter_map (function LineAct act -> Some act | _ -> None) elems)
+
 let line_size plan = List.length (line_get_acts plan)
 
 let merge_line_with_acts if_reuse line ses =
   let if_reuse act =
-    if String.equal act.aop "mkVar" then true else if_reuse act
+    if
+      List.exists
+        (fun x ->
+          let actId = act_get_id act in
+          x == actId)
+        !unreusable_core_acts
+    then false
+    else if List.exists (fun x -> String.equal act.aop x) can_be_reused then
+      true
+    else if_reuse act
   in
   let line = clear_tmp_in_line line in
   let line_concat x { gprop; elems } = { gprop; elems = x @ elems } in
@@ -327,63 +373,73 @@ let merge_line_with_acts if_reuse line ses =
     List.map (fun (ids, line) -> (ids, line_concat x line)) l
   in
   let rec aux (reusedIds, { gprop; elems }) ses =
-    let () =
-      _log_line_merge_related (fun () ->
-          Pp.printf "@{<bold>merge_line_with_acts@} elems: %s\n"
-            (omit_layout_line_elems elems);
-          Pp.printf "@{<bold>merge_line_with_acts@} ses: %s\n"
-            (List.split_by_comma
-               (fun (idx, se) -> spf "%i, %s" idx (layout_sevent se))
-               ses))
-    in
-    match (elems, ses) with
-    | _, [] -> [ (reusedIds, { gprop; elems }) ]
-    | [], _ -> []
-    | LineAct act :: elems', (idx, se) :: ses' ->
-        let () =
-          _log_line_merge_related (fun () ->
-              Pp.printf
-                "@{<bold>merge_line_with_acts@} LineAct act: %s reuse: %b\n"
-                (layout_act act) (if_reuse act))
-        in
-        let res2 =
-          if if_reuse act then
-            match merge_act_with_se (gprop, act) se with
+    let res =
+      match (elems, ses) with
+      | _, [] -> [ (reusedIds, { gprop; elems }) ]
+      | [], _ -> []
+      | LineAct act :: elems', (idx, se) :: ses' ->
+          let () =
+            _log_line_merge_related (fun () ->
+                Pp.printf
+                  "@{<bold>merge_line_with_acts@} LineAct act: %s reuse: %b\n"
+                  (layout_act act) (if_reuse act))
+          in
+          let res2 =
+            if if_reuse act then
+              match merge_act_with_se (gprop, act) se with
+              | None -> []
+              | Some phi ->
+                  let gprop = smart_and [ phi; gprop ] in
+                  let act = { act with tmp = idx } in
+                  let actId = act_get_id act in
+                  let res = aux (reusedIds, { gprop; elems = elems' }) ses' in
+                  List.map
+                    (fun (reusedIds, line) ->
+                      (actId :: reusedIds, line_concat [ LineAct act ] line))
+                    res
+            else []
+          in
+          let res1 =
+            multi_concat [ LineAct act ]
+              (aux (reusedIds, { gprop; elems = elems' }) ses)
+          in
+          res1 @ res2
+      | LineStarMultiChar c :: elems', (idx, se) :: ses' ->
+          let res2 =
+            let phi, act = se_to_dummy_act se in
+            let gprop = smart_and [ phi; gprop ] in
+            let act = { act with tmp = idx } in
+            match merge_act_with_charset (gprop, act) c with
             | None -> []
             | Some phi ->
                 let gprop = smart_and [ phi; gprop ] in
-                let act = { act with tmp = idx } in
-                let actId = act_get_id act in
-                let res = aux (reusedIds, { gprop; elems = elems' }) ses' in
-                List.map
-                  (fun (reusedIds, line) ->
-                    (actId :: reusedIds, line_concat [ LineAct act ] line))
-                  res
-          else []
-        in
-        let res1 =
-          multi_concat [ LineAct act ]
-            (aux (reusedIds, { gprop; elems = elems' }) ses)
-        in
-        res1 @ res2
-    | LineStarMultiChar c :: elems', (idx, se) :: ses' ->
-        let res2 =
-          let phi, act = se_to_dummy_act se in
-          let gprop = smart_and [ phi; gprop ] in
-          let act = { act with tmp = idx } in
-          match merge_act_with_charset (gprop, act) c with
-          | None -> []
-          | Some phi ->
-              let gprop = smart_and [ phi; gprop ] in
-              multi_concat
-                [ LineStarMultiChar c; LineAct act; LineStarMultiChar c ]
-                (aux (reusedIds, { gprop; elems }) ses')
-        in
-        let res1 =
-          multi_concat [ LineStarMultiChar c ]
-            (aux (reusedIds, { gprop; elems = elems' }) ses)
-        in
-        res1 @ res2
+                multi_concat
+                  [ LineStarMultiChar c; LineAct act; LineStarMultiChar c ]
+                  (aux (reusedIds, { gprop; elems }) ses')
+          in
+          let res1 =
+            multi_concat [ LineStarMultiChar c ]
+              (aux (reusedIds, { gprop; elems = elems' }) ses)
+          in
+          res1 @ res2
+    in
+    let () =
+      _log_line_merge_related (fun () ->
+          Pp.printf "@{<bold>merge_line_with_acts elems:@} %s\n"
+            (omit_layout_line_elems elems);
+          Pp.printf "@{<bold>ses:@} %s\n"
+            (List.split_by_comma
+               (fun (idx, se) -> spf "%i, %s" idx (layout_sevent se))
+               ses);
+          Pp.printf "@{<bold>res:@}\n%s\n"
+            (List.split_by "\n"
+               (fun (reusedIds, line) ->
+                 spf "reused[%s], %s"
+                   (List.split_by ", " string_of_int reusedIds)
+                   (omit_layout_line line))
+               res))
+    in
+    res
   in
   let res = aux ([], line) ses in
   List.sort (fun (_, x) (_, y) -> Int.compare (line_size x) (line_size y)) res
@@ -537,9 +593,10 @@ let inter_line_with_regex if_reuse line1 regex =
     (fun lr ->
       let res = merge_line_with_linear_regex if_reuse line1 lr in
       let () =
-        _log_line_merge_related (fun () ->
+        _log_line_merge_results (fun () ->
             Pp.printf "@{<bold>inter_line_with_regex@}\n";
             Pp.printf "@{<bold>line:@} %s\n" (omit_layout_line line1);
+            Pp.printf "@{<bold>line:@} %s\n" (layout_line line1);
             Pp.printf "@{<bold>lr:@} %s\n" (layout_regex regex);
             Pp.printf "@{<bold>res: %i\n" (List.length res);
             List.iteri
