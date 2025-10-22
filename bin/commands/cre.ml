@@ -335,7 +335,13 @@ let test_eval s converge_bound () =
       let test () = Interpreter.once (init, main, check_membership_stack) in
       let _ = eval test in
       ()
-  (* | "set" ->
+  | "hashtable" ->
+      let open Adt.Hashtable in
+      let main = Synthesis.load_progs s () in
+      let test () = Interpreter.once (init, main, check_membership_hashtable) in
+      let _ = eval test in
+      ()
+  | "set" ->
       let open Adt.Set in
       let test () = Interpreter.once (init, [ main ], check_membership_set) in
       let _ = eval test in
