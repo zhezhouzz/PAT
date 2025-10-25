@@ -442,19 +442,19 @@ let test_eval s converge_bound () =
           (init Causal, main, TwitterDB.serializable_trace_checker)
       in
       let _ = eval test in
-      ()
+      () *)
   | "courseware_rc" ->
       let open MonkeyBD in
       let open Common in
-      let open Courseware in
+      let open CoursewareDB in
       let main = Synthesis.load_progs s () in
       let test () =
         Interpreter.once
-          (init ReadCommitted, main, CoursewareDB.serializable_trace_checker)
+          (CoursewareDB.init, main, CartDB.check_isolation_level Serializable)
       in
       let _ = eval test in
       ()
-  | "courseware_cc" ->
+  (* | "courseware_cc" ->
       let open MonkeyBD in
       let open Common in
       let open Courseware in
@@ -464,7 +464,7 @@ let test_eval s converge_bound () =
           (init Causal, main, CoursewareDB.serializable_trace_checker)
       in
       let _ = eval test in
-      () *)
+      ()  *)
   | "cart" ->
       let open MonkeyBD in
       let open Common in
