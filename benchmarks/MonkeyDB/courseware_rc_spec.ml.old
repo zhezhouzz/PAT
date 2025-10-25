@@ -23,28 +23,12 @@ val commit : < tid : int ; cid : int > [@@obs]
 val get :
   < tid : int ; prevTid : int ; prevCid : int ; key : int ; value : int list >
 [@@obs]
+
 val put : < tid : int ; key : int ; value : int list > [@@obs]
-
-val registerStudentReq : < student_id : int > [@@gen]
-val registerStudentResp : < success : bool > [@@obs]
-
-val deregisterStudentReq : < student_id : int > [@@gen]
-val deregisterStudentResp : < success : bool > [@@obs]
-
-val createCourseReq : < course_id : int > [@@gen]
-val createCourseResp : < success : bool > [@@obs]
-
-val deleteCourseReq : < course_id : int > [@@gen]
-val deleteCourseResp : < success : bool > [@@obs]
-
-val enrollStudentReq : < student_id : int ; course_id : int > [@@gen]
-val enrollStudentResp : < success : bool > [@@obs]
-
-val getStudentEnrollmentsReq : < student_id : int > [@@gen]
-val getStudentEnrollmentsResp : < courses : int list > [@@obs]
-
-getCourseEnrollmentsReq : < course_id : int > [@@gen]
-val getCourseEnrollmentsResp : < students : int list > [@@obs]
+val enrollReq : < user : int ; course : int > [@@gen]
+val enrollResp : < > [@@obs]
+val unenrollReq : < user : int ; course : int > [@@gen]
+val unenrollResp : < > [@@obs]
 
 (* Read Committed *)
 (* Invariant: For any transaction with tid = i, there does not exist a previous transaction with tid > i. *)
@@ -69,6 +53,30 @@ let put ?l:(i = (true : [%v: int])) ?l:(k = (true : [%v: int]))
 
 let get =
   [|
+    (* No previous committed transaction *)
+    (fun ?l:(i = (true : [%v: int]))
+      ?l:(pi = (true : [%v: int]))
+      ?l:(pj = (true : [%v: int]))
+      ?l:(k = (true : [%v: int]))
+      ?l:(z = (true : [%v: int list]))
+    ->
+      ( starA (anyA - Commit true),
+        Get (tid == i && key == k && emp value && prevTid == -1 && prevCid == -1),
+        allA ));
+    (* Read within the same transaction *)
+    (fun ?l:(i = (true : [%v: int]))
+      ?l:(pi = (true : [%v: int]))
+      ?l:(pj = (true : [%v: int]))
+      ?l:(k = (true : [%v: int]))
+      ?l:(z = (true : [%v: int list]))
+    ->
+      ( (allA;
+         Put (tid == i && key == k && value == z);
+         starA (anyA - Commit (tid == i))),
+        Get
+          (tid == i && key == k && prevTid == pi && prevCid == pj
+         && prevTid == tid),
+        allA ));
     (* Read most recent committed transaction *)
     (fun ?l:(i = (true : [%v: int]))
       ?l:(pi = (true : [%v: int]))
@@ -77,42 +85,51 @@ let get =
       ?l:(z = (true : [%v: int list]))
     ->
       ( (starA (anyA - Put (tid == i && key == k));
-         Put (tid == i && key == k && value == z);
+         Put (tid == pi && key == k && value == z);
          starA (anyA - Put (tid == i && key == k));
          Commit (tid == pi && cid == pj);
          starA (anyA - Commit true - Put (tid == i && key == k))),
         Get
           (tid == i && key == k && prevTid == pi && prevCid == pj
-          && (not (tid == prevTid))
-          && value == z),
+          && not (tid == prevTid)),
         allA ));
   |]
 
-(* Courseware operations *)
+(* Cart *)
+let enrollReq (i : int) (l : int list) ?l:(x = (true : [%v: int]))
+    ?l:(y = (true : [%v: int])) =
+  ( allA,
+    EnrollReq (user == x && course == y),
+    (BeginT (tid == i);
+     Get (tid == i && key == x && value == l);
+     allA;
+     Put (tid == i && key == x && value == insert y l);
+     allA;
+     Commit (tid == i);
+     EnrollResp true;
+     allA) )
 
-let registerStudentReq (i : int) ?l:(x = (true : [%v: int])) = 
-  (
-    allA,
-    RegisterStudentReq (student_id == x),
-    (
-      BeginT (tid == i);
-      Get (tid == i && key == x)
-      Put (tid == i && key == x && value == true);
-      Put (tid == i && key == x && emp value);
-      Commit (tid == i);
-      RegisterStudentResp true;
-      allA
-    )
-  )
+let enrollResp = (allA, EnrollResp true, allA)
 
-let registerStudentResp = (allA, RegisterStudentResp true, allA)
+let unenrollReq (i : int) (l : int list) ?l:(x = (true : [%v: int]))
+    ?l:(y = (true : [%v: int])) =
+  ( allA,
+    UnenrollReq (user == x && course == y),
+    (BeginT (tid == i);
+     Get (tid == i && key == x && value == l);
+     allA;
+     Put (tid == i && key == x && value == remove y l);
+     allA;
+     Commit (tid == i);
+     UnenrollResp true;
+     allA) )
 
-(* TODO: add rest of the operations *)
+let unenrollResp = (allA, UnenrollResp true, allA)
 
-(* Register a student, no conflicting deregistrations, check if they are registered, they are not *)
-let[@goal] courseware_rc (tid : int) (sid : int) =
+(* Global Properties *)
+let[@goal] courseware_rc (x : int) (y : int list) =
   allA;
-  RegisterStudentReq (student_id == sid);
-  starA (anyA - DeregisterStudentReq (student_id == sid));
-  Get (key == sid && not (value == true));
+  Put (key == x && value == y);
+  starA (anyA - Put (key == x));
+  Get (key == x && not (value == y));
   allA
