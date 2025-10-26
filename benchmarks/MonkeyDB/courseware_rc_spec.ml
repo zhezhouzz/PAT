@@ -43,7 +43,7 @@ val enrollStudentResp : < success : bool > [@@obs]
 val getStudentEnrollmentsReq : < student_id : int > [@@gen]
 val getStudentEnrollmentsResp : < courses : int list > [@@obs]
 
-getCourseEnrollmentsReq : < course_id : int > [@@gen]
+val getCourseEnrollmentsReq : < course_id : int > [@@gen]
 val getCourseEnrollmentsResp : < students : int list > [@@obs]
 
 (* Read Committed *)
@@ -96,18 +96,170 @@ let registerStudentReq (i : int) ?l:(x = (true : [%v: int])) =
     RegisterStudentReq (student_id == x),
     (
       BeginT (tid == i);
-      Get (tid == i && key == x)
-      Put (tid == i && key == x && value == true);
-      Put (tid == i && key == x && emp value);
+      GetStudents (tid == i && key == x);
+      PutStudents (tid == i && key == x && value == true);
+      PutStudentEnrollments (tid == i && key == x && emp value);
       Commit (tid == i);
-      RegisterStudentResp true;
+      RegisterStudentResp (success == true);
       allA
     )
   )
 
-let registerStudentResp = (allA, RegisterStudentResp true, allA)
+let registerStudentResp ?l:(x = (true : [%v: bool])) = 
+  (
+    allA, 
+    RegisterStudentResp (success == x), 
+    allA
+  )
 
-(* TODO: add rest of the operations *)
+let deregisterStudentReq (i : int) (l : int list)
+  ?l:(x = (true : [%v: int])) = 
+  (
+    allA,
+    DeregisterStudentReq (student_id == x),
+    (
+      BeginT (tid == i);
+      GetStudents (tid == i && key == x);
+      PutStudents (tid == i && key == x && value == false);
+      GetStudentEnrollments (tid == i && key == x && value == l);
+      (* TODO: figure out how to encode the loop *)
+      star A (
+
+      );
+      PutStudentEnrollments (tid == i && key == x && emp value);
+      Commit (tid == i);
+      DeregisterStudentReq (success == true);
+      allA
+    )
+  )
+
+let deregisterStudentResp ?l:(x = (true : [%v: bool])) = 
+  (
+    allA, 
+    DeregisterStudentResp (success == x), 
+    allA
+  )
+
+let createCourseReq (i : int) ?l:(x = (true : [%v: int])) = 
+  (
+    allA,
+    CreateCourseReq (course_id == x),
+    (
+      BeginT (tid == i);
+      GetCourses (tid == i && key == x);
+      PutCourses (tid == i && key == x && value == true);
+      PutCourseEnrollments (tid == i && key == x && emp value);
+      Commit (tid == i);
+      CreateCourseResp (success == true);
+      allA
+    )
+  )
+
+let createCourseResp ?l:(x = (true : [%v: bool])) = 
+  (
+    allA,
+    CreateCourseResp (success == x),
+    allA
+  )
+
+let deleteCourseReq (i : int) (l : int list)
+  ?l:(x = (true : [%v: int])) =
+  (
+    allA,
+    DeleteCourseReq (course_id == x),
+    (
+      BeginT (tid == i);
+      GetCourses (tid == i && key == x);
+      PutCourses (tid == i && key == x && value == false);
+      GetCourseEnrollments (tid == i && key == x && value == l);
+      (* TODO: loop *)
+      starA (
+
+      );
+      PutCourseEnrollments (tid == i && key == x && emp value);
+      Commit (tid == i);
+      DeleteCourseResp (success == true);
+      allA
+    )
+  )
+
+let deleteCourseResp ?l:(x = (true : [%v: bool])) = 
+  (
+    allA,
+    DeleteCourseResp (success == x),
+    allA
+  )
+
+let enrollStudentReq (i : int) (l_1 : int list) (l_2 : int list)
+  ?l:(x = (true : [%v: int]))
+  ?l:(y = (true : [%v: int])) =
+  (
+    allA,
+    EnrollStudentReq (student_id == x && course_id == y),
+    (
+      BeginT (tid == i);
+      GetStudents (tid == i && value == x);
+      GetCourses (tid == i && value == y);
+      GetStudentEnrollments (tid == i && key == x && value == l_1);
+      PutStudentEnrollments (tid == i && key == x && value == insert y l_1);
+      GetCourseEnrollments (tid == i && key == y && value == l_2);
+      PutCourseEnrollments (tid == i && key == y && value == insert x l_2);
+      Commit (tid == i);
+      EnrollStudentResp (success == true);
+      allA
+    )
+  )
+
+let enrollStudentResp ?l:(x = (true : [%v: bool])) = 
+  (
+    allA,
+    EnrollStudentResp (success == x),
+    allA
+  )
+
+let getStudentEnrollmentsReq (i : int) (l: int list)
+  ?l:(x = (true : [%v: int])) =
+  (
+    allA,
+    GetStudentEnrollmentsReq (student_id == x),
+    (
+      BeginT (tid == i);
+      GetStudents (tid == i && key == x);
+      GetStudentEnrollments (tid == i && key == x && value == l);
+      Commit (tid == i);
+      GetStudentEnrollmentsResp (courses == l);
+      allA
+    )
+  )
+
+let GetStudentEnrollmentsResp ?l:(x = (true : [%v: int list])) =
+  (
+    allA,
+    GetStudentEnrollmentsResp (courses == l),
+    allA
+  )
+
+let getCourseEnrollmentsReq (i : int) (l : int list)
+  ?l:(x = (true : [%v: int])) = 
+  (
+    allA,
+    GetCourseEnrollmentsReq (course_id : x),
+    (
+      BeginT (tid == i);
+      GetCourses (tid == i && key == x);
+      GetCourseEnrollments (tid == i && key == x && value == l);
+      Commit (tid == i);
+      GetCourseEnrollmentsResp (students == l);
+      allA
+    )
+  )
+
+let getCourseEnrollmentsResp ?l:(x = (true : [%v: int list])) =
+  (
+    allA, 
+    GetCourseEnrollmentsResp (students == l),
+    allA
+  )
 
 (* Register a student, no conflicting deregistrations, check if they are registered, they are not *)
 let[@goal] courseware_rc (tid : int) (sid : int) =
