@@ -25,3 +25,20 @@ let layout_msg { src; dest; ev } =
     (match dest with None -> "*" | Some dest -> string_of_int dest)
 
 let layout_msg_concise { ev; _ } = Printf.sprintf "[%s] " (layout_ev ev)
+
+type config = (string * int) list
+
+let get_config_value_opt config key =
+  List.find_opt (fun (k, _) -> String.equal k key) config |> Option.map snd
+
+let get_config_value config key =
+  match get_config_value_opt config key with
+  | Some value -> value
+  | None -> _die_with [%here] (Printf.sprintf "config key %s not found" key)
+
+type ocaml_test_env = {
+  init_test_env : unit -> unit;
+  default_test_prog : term list;
+  property : msg list -> bool;
+  random_test_gen : config -> unit;
+}

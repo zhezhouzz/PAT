@@ -208,7 +208,12 @@ let trace_is_not_nfa trace =
 
 type nfa_bench_config = { numOp : int }
 
-let randomTest { numOp } =
+let parse_config config =
+  let numOp = get_config_value config "numOp" in
+  { numOp }
+
+let randomTest config =
+  let { numOp } = parse_config config in
   let random_node () = send ("newNodeReq", []) in
   let random_new_edge () =
     let n1 = Sample.sample_by_ty (mk_p_abstract_ty "int") in
@@ -249,3 +254,11 @@ let randomTest { numOp } =
   let () = genOp numOp in
   let () = Pp.printf "@{<red>End with numOp@}\n%i\n" numOp in
   Effect.perform End
+
+let test_env =
+  {
+    init_test_env = init;
+    default_test_prog = [];
+    property = trace_is_not_nfa;
+    random_test_gen = randomTest;
+  }

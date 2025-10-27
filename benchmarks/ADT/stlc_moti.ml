@@ -425,7 +425,14 @@ let ty_gen depth =
           ])
     depth
 
-let stlc_gen { numApp; tyDepthBound; constRange } =
+let parse_config config =
+  let numApp = get_config_value config "numApp" in
+  let tyDepthBound = get_config_value config "tyDepthBound" in
+  let constRange = get_config_value config "constRange" in
+  { numApp; tyDepthBound; constRange }
+
+let stlc_gen config =
+  let { numApp; tyDepthBound; constRange } = parse_config config in
   let open QCheck.Gen in
   let genvar ctx ty =
     let is =
@@ -520,3 +527,11 @@ let randomTest conf =
   let e = _next conf in
   let () = Pp.printf "@{<yellow>randomTest@}: %s\n" (layout_stlcTerm e) in
   exec_stlc e
+
+let test_env =
+  {
+    init_test_env = init;
+    default_test_prog = [ main1; main2 ];
+    property = trace_eval_correct;
+    random_test_gen = randomTest;
+  }

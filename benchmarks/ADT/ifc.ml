@@ -384,7 +384,12 @@ let trace_enni trace =
 
 type ifc_bench_config = { numOp : int }
 
-let instrGen { numOp } =
+let parse_config config =
+  let numOp = get_config_value config "numOp" in
+  { numOp }
+
+let instrGen config =
+  let { numOp } = parse_config config in
   let open QCheck.Gen in
   let valueGen = small_int in
   let random_push =
@@ -455,7 +460,15 @@ let exec_instrs e =
   send ("enniReq", []);
   Effect.perform End
 
-let randomTest { numOp } =
-  let e = _next { numOp } in
+let randomTest config =
+  let e = _next config in
   let () = Pp.printf "@{<green>instrs@} %s\n" (layout_instrs e) in
   exec_instrs e
+
+let test_env =
+  {
+    init_test_env = init;
+    default_test_prog = [];
+    property = trace_enni;
+    random_test_gen = randomTest;
+  }

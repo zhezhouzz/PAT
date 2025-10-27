@@ -392,7 +392,12 @@ let main =
 
 type filesystem_bench_config = { numOp : int }
 
-let randomTest { numOp } =
+let parse_config config =
+  let numOp = get_config_value config "numOp" in
+  { numOp }
+
+let randomTest config =
+  let { numOp } = parse_config config in
   let random_create_file () =
     let path = Sample.sample_by_ty (mk_p_abstract_ty "Path.t") in
     send ("createFileReq", [ path ])
@@ -416,3 +421,11 @@ let randomTest { numOp } =
   let () = genOp numOp in
   let () = Pp.printf "@{<red>End with numOp@}\n%i\n" numOp in
   Effect.perform End
+
+let test_env =
+  {
+    init_test_env = init;
+    default_test_prog = [ main ];
+    property = filesystem_last_delete;
+    random_test_gen = randomTest;
+  }

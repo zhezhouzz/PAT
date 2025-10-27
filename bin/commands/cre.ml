@@ -323,23 +323,23 @@ let four_param_string message f =
 let test_eval s converge_bound () =
   let eval = Interpreter.eval_until_detect_bug converge_bound in
   match s with
-  | "queue" ->
+  (* | "queue" ->
       let open Adt.Queue in
       let test () = Interpreter.once (init, [ main ], check_membership_queue) in
       let _ = eval test in
-      ()
+      () *)
   | "stack" ->
       let open Adt.Stack in
-      (* let main = Synthesis.load_progs s () in *)
-      let main = [ rec_main ] in
+      let main = Synthesis.load_progs s () in
+      (* let main = [ rec_main ] in *)
       let test () = Interpreter.once (init, main, check_membership_stack) in
       let _ = eval test in
       ()
-  | "set" ->
+  (* | "set" ->
       let open Adt.Set in
       let test () = Interpreter.once (init, [ main ], check_membership_set) in
       let _ = eval test in
-      ()
+      () *)
   | "filesystem" ->
       let open Adt.Filesystem in
       let main = Synthesis.load_progs s () in
@@ -519,84 +519,34 @@ let test_eval s converge_bound () =
       () *)
   | _ -> _die_with [%here] "unknown benchmark"
 
+let test_envs =
+  [
+    ("stack", Adt.Stack.test_env);
+    ("filesystem", Adt.Filesystem.test_env);
+    ("graph", Adt.Graph.test_env);
+    ("nfa", Adt.Nfa.test_env);
+    ("stlc", Adt.Stlc_moti.test_env);
+    ("ifc_store", Adt.Ifc.test_env);
+    ("ifc_add", Adt.Ifc.test_env);
+    ("ifc_load", Adt.Ifc.test_env);
+  ]
+
+let default_random_test_config =
+  [
+    ("numOp", 15);
+    ("numElem", 10);
+    ("numApp", 5);
+    ("tyDepthBound", 5);
+    ("constRange", 10);
+    ("numUserDB", 5);
+    ("numItemDB", 5);
+    ("numOpDB", 3);
+  ]
+
 let test_random s converge_bound () =
   let eval = Interpreter.eval_until_detect_bug converge_bound in
   match s with
-  | "filesystem" ->
-      let open Adt.Filesystem in
-      let test () =
-        Interpreter.seq_random_test
-          (init, (fun () -> randomTest { numOp = 15 }), filesystem_last_delete)
-      in
-      let _ = eval test in
-      ()
-  | "graph" ->
-      let open Adt.Graph in
-      let test () =
-        Interpreter.seq_random_test
-          (init, (fun () -> randomTest { numOp = 15 }), trace_is_not_connected)
-      in
-      let _ = eval test in
-      ()
-  | "nfa" ->
-      let open Adt.Nfa in
-      let test () =
-        Interpreter.seq_random_test
-          (init, (fun () -> randomTest { numOp = 15 }), trace_is_not_nfa)
-      in
-      let _ = eval test in
-      ()
-  | "stlc" ->
-      let open Adt.Stlc in
-      (* let () = testAst () in
-      let () = _die_with [%here] "done" in *)
-      let test () =
-        Interpreter.seq_random_test
-          ( init,
-            (fun () ->
-              randomTest { numApp = 4; tyDepthBound = 4; constRange = 4 }),
-            trace_eval_correct )
-      in
-      let _ = eval test in
-      ()
-  | "ifc_store" ->
-      let open Adt.Ifc in
-      let () = set_ruleset_store () in
-      let test () =
-        Interpreter.seq_random_test
-          (init, (fun () -> randomTest { numOp = 15 }), trace_enni)
-      in
-      let _ = eval test in
-      ()
-  | "ifc_add" ->
-      let open Adt.Ifc in
-      let () = set_ruleset_add () in
-      let test () =
-        Interpreter.seq_random_test
-          (init, (fun () -> randomTest { numOp = 15 }), trace_enni)
-      in
-      let _ = eval test in
-      ()
-  | "ifc_load" ->
-      let open Adt.Ifc in
-      let () = set_ruleset_load () in
-      let test () =
-        Interpreter.seq_random_test
-          (init, (fun () -> randomTest { numOp = 15 }), trace_enni)
-      in
-      let _ = eval test in
-      ()
-  | "stack" ->
-      let open Adt.Stack in
-      let test () =
-        Interpreter.seq_random_test
-          ( init,
-            (fun () -> randomTest { numElem = 10; numOp = 15 }),
-            check_membership_stack )
-      in
-      let _ = eval test in
-      ()
-  | "queue" ->
+  (* | "queue" ->
       let open Adt.Queue in
       let test () =
         Interpreter.seq_random_test
@@ -615,7 +565,7 @@ let test_random s converge_bound () =
             check_membership_set )
       in
       let _ = eval test in
-      ()
+      () *)
   (* | "smallbank" ->
       let open MonkeyBD in
       let open Common in
@@ -690,8 +640,94 @@ let test_random s converge_bound () =
           in
           let _ = eval test in
           ())
-  | "todoMVC" -> _die_with [%here] "unimp"
-  | _ -> _die_with [%here] "unknown benchmark"
+  | _ -> (
+      let env = List.assoc_opt s test_envs in
+      match env with
+      | None -> _die_with [%here] "unknown benchmark"
+      | Some env ->
+          let test () =
+            Interpreter.seq_random_test
+              ( env.init_test_env,
+                (fun () -> env.random_test_gen default_random_test_config),
+                env.property )
+          in
+          let _ = eval test in
+          ())
+
+(* | "filesystem" ->
+            let open Adt.Filesystem in
+            let test () =
+              Interpreter.seq_random_test
+                (init, (fun () -> randomTest { numOp = 15 }), filesystem_last_delete)
+            in
+            let _ = eval test in
+            ()
+        | "graph" ->
+            let open Adt.Graph in
+            let test () =
+              Interpreter.seq_random_test
+                (init, (fun () -> randomTest { numOp = 15 }), trace_is_not_connected)
+            in
+            let _ = eval test in
+            ()
+        | "nfa" ->
+            let open Adt.Nfa in
+            let test () =
+              Interpreter.seq_random_test
+                (init, (fun () -> randomTest { numOp = 15 }), trace_is_not_nfa)
+            in
+            let _ = eval test in
+            ()
+        | "stlc" ->
+            let open Adt.Stlc in
+            (* let () = testAst () in
+            let () = _die_with [%here] "done" in *)
+            let test () =
+              Interpreter.seq_random_test
+                ( init,
+                  (fun () ->
+                    randomTest { numApp = 4; tyDepthBound = 4; constRange = 4 }),
+                  trace_eval_correct )
+            in
+            let _ = eval test in
+            ()
+        | "ifc_store" ->
+            let open Adt.Ifc in
+            let () = set_ruleset_store () in
+            let test () =
+              Interpreter.seq_random_test
+                (init, (fun () -> randomTest { numOp = 15 }), trace_enni)
+            in
+            let _ = eval test in
+            ()
+        | "ifc_add" ->
+            let open Adt.Ifc in
+            let () = set_ruleset_add () in
+            let test () =
+              Interpreter.seq_random_test
+                (init, (fun () -> randomTest { numOp = 15 }), trace_enni)
+            in
+            let _ = eval test in
+            ()
+        | "ifc_load" ->
+            let open Adt.Ifc in
+            let () = set_ruleset_load () in
+            let test () =
+              Interpreter.seq_random_test
+                (init, (fun () -> randomTest { numOp = 15 }), trace_enni)
+            in
+            let _ = eval test in
+            ()
+        | "stack" ->
+            let open Adt.Stack in
+            let test () =
+              Interpreter.seq_random_test
+                ( init,
+                  (fun () -> randomTest { numElem = 10; numOp = 15 }),
+                  check_membership_stack )
+            in
+            let _ = eval test in
+            () *)
 
 let cmds =
   [

@@ -129,7 +129,13 @@ let check_membership_stack trace =
 
 type stack_bench_config = { numElem : int; numOp : int }
 
-let randomTest { numElem; numOp } =
+let parse_config config =
+  let numElem = get_config_value config "numElem" in
+  let numOp = get_config_value config "numOp" in
+  { numElem; numOp }
+
+let randomTest config =
+  let { numElem; numOp } = parse_config config in
   let elems = List.init numElem (fun i -> i + 1) in
   let currentSize = ref 0 in
   let random_push () =
@@ -204,16 +210,10 @@ let rec_main =
   in
   recfunc (mk_rec_app_0 (gen "isEmptyReq" [] @@ obsIsEmptyResp mk_term_tt))
 
-(* let rec_main =
-  let open Nt in
-  mk_term_assume_fresh_geq_zero int_ty (fun x ->
-      let recfunc =
-        mk_rec mk_term_tt
-          (mk_term_assume_fresh_true int_ty (fun y ->
-               gen "pushReq" [ y ]
-               @@ term_concat (mk_rec_app_incr ())
-               @@ gen "popReq" [] @@ obsPopResp mk_term_tt))
-      in
-      term_concat recfunc
-      @@ term_concat (mk_rec_app_0 (VVar x))
-      @@ gen "isEmptyReq" [] @@ obsIsEmptyResp mk_term_tt) *)
+let test_env =
+  {
+    init_test_env = init;
+    default_test_prog = [ rec_main ];
+    property = check_membership_stack;
+    random_test_gen = randomTest;
+  }
