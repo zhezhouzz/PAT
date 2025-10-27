@@ -552,7 +552,88 @@ let default_random_test_config =
 let test_random s converge_bound () =
   let eval = Interpreter.eval_until_detect_bug converge_bound in
   match s with
-  (* | "queue" ->
+  | "filesystem" ->
+      let open Adt.Filesystem in
+      let test () =
+        Interpreter.seq_random_test
+          (init, (fun () -> randomTest { numOp = 15 }), filesystem_last_delete)
+      in
+      let _ = eval test in
+      ()
+  | "graph" ->
+      let open Adt.Graph in
+      let test () =
+        Interpreter.seq_random_test
+          (init, (fun () -> randomTest { numOp = 15 }), trace_is_not_connected)
+      in
+      let _ = eval test in
+      ()
+  | "nfa" ->
+      let open Adt.Nfa in
+      let test () =
+        Interpreter.seq_random_test
+          (init, (fun () -> randomTest { numOp = 15 }), trace_is_not_nfa)
+      in
+      let _ = eval test in
+      ()
+  | "stlc" ->
+      let open Adt.Stlc in
+      let test () =
+        Interpreter.seq_random_test
+          ( init,
+            (fun () -> randomTest { depthBound = 2; constRange = 4 }),
+            trace_eval_correct )
+      in
+      let _ = eval test in
+      ()
+  | "ifc_store" ->
+      let open Adt.Ifc in
+      let () = set_ruleset_store () in
+      let test () =
+        Interpreter.seq_random_test
+          (init, (fun () -> randomTest { numOp = 15 }), trace_enni)
+      in
+      let _ = eval test in
+      ()
+  | "ifc_add" ->
+      let open Adt.Ifc in
+      let () = set_ruleset_add () in
+      let test () =
+        Interpreter.seq_random_test
+          (init, (fun () -> randomTest { numOp = 15 }), trace_enni)
+      in
+      let _ = eval test in
+      ()
+  | "ifc_load" ->
+      let open Adt.Ifc in
+      let () = set_ruleset_load () in
+      let test () =
+        Interpreter.seq_random_test
+          (init, (fun () -> randomTest { numOp = 15 }), trace_enni)
+      in
+      let _ = eval test in
+      ()
+  | "stack" ->
+      let open Adt.Stack in
+      let test () =
+        Interpreter.seq_random_test
+          ( init,
+            (fun () -> randomTest { numElem = 5; numOp = 15 }),
+            check_membership_stack )
+      in
+      let _ = eval test in
+      ()
+  | "hashtable" ->
+      let open Adt.Hashtable in
+      let test () =
+        Interpreter.seq_random_test
+          ( init,
+            (fun () -> randomTest { numKeys = 8; numVals = 10; numOp = 20 }),
+            check_membership_hashtable )
+      in
+      let _ = eval test in
+      ()
+  | "queue" ->
       let open Adt.Queue in
       let test () =
         Interpreter.seq_random_test

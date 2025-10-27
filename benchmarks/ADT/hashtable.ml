@@ -34,7 +34,7 @@ let findReqHandler (msg : msg) =
   let k = match msg.ev.args with [ VConst (I k) ] -> k | _ -> _die [%here] in
   let v = find _tbl k in
   match v with
-  | None -> send ("findResp", [ mk_value_int (-1) ])
+  | None -> send ("findResp", [ mk_value_int (-127) ])
   | Some v -> send ("findResp", [ mk_value_int v ])
 
 let removeReqHandler (msg : msg) =
@@ -108,7 +108,7 @@ let check_membership_hashtable trace =
       :: rest ->
         check (IntSet.add v added_values, found_values) rest
     | { ev = { op = "findResp"; args = [ VConst (I v) ] }; _ } :: rest ->
-        if v = -1 then check (added_values, found_values) rest
+        if v = -127 then check (added_values, found_values) rest
         else check (added_values, IntSet.add v found_values) rest
     | _ :: rest -> check (added_values, found_values) rest
   in
