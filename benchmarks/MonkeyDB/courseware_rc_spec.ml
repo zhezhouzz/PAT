@@ -12,11 +12,29 @@ let[@axiom] emp_same (l1 : int list) (l2 : int list) =
 
 let[@axiom] insert_not_emp (x : int) (l : int list) = not (emp (insert x l))
 
-let[@axiom] remove_insert (x : int) (l : int list) =
-  implies (emp l) (remove x (insert x l) == l)
+let[@axiom] insert_not_eq (x: int) (l : int list) = not (insert x l == l)
+
+let[@axiom] remove_insert (x : int) (l : int list) = 
+  (remove x (insert x l) == l)
+
+let[@axiom] remove_insert2 (x : int) (l : int list) = 
+  (remove x (insert x (insert x l)) == insert x l)
 
 let[@axiom] remove_emp (x : int) (l : int list) =
   implies (emp l) (remove x l == l)
+
+let[@axiom] insert_remove_emp (x : int) (l : int list) = 
+  implies (emp l) (emp (remove x (insert x l)))
+
+let[@axiom] contains_insert (x : int) (l : int list) = 
+  contains x (insert x l)
+
+(* This assumes no duplicates, which should hold for the courseware application *)
+let[@axiom] contains_insert_remove (x : int) (l : int list) = 
+  not (contains x (remove x l))
+
+let[@axiom] contains_emp (x : int) (l : int list) =
+  implies (emp l) (not (contains x l))
 
 (* Basic Typing *)
 
