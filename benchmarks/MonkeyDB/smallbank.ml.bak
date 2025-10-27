@@ -1,4 +1,4 @@
-(*open Language
+open Language
 open Interpreter
 open Common
 module SmallbankDB = IntDB
@@ -72,7 +72,6 @@ let transferSavingRespHandler (_ : msg) = ()
 let initAccountRespHandler (_ : msg) = ()
 let showCheckingRespHandler (_ : msg) = ()
 let showSavingRespHandler (_ : msg) = ()
-let balanceRespHandler (_ : msg) = ()
 
 let init isolation_level () =
   register_async_has_ret "beginT" beginAsync;
@@ -95,7 +94,6 @@ let init isolation_level () =
   register_handler "initAccountResp" initAccountRespHandler;
   register_handler "showCheckingResp" showCheckingRespHandler;
   register_handler "showSavingResp" showSavingRespHandler;
-  register_handler "balanceResp" balanceRespHandler;
   SmallbankDB.init isolation_level
 
 open Nt
@@ -283,4 +281,3 @@ let random_user { numUser; numOp } =
   let () = genOp numOp in
   let () = Pp.printf "@{<red>End with numOp@}\n%i\n" numOp in
   Effect.perform End
-*)

@@ -96,39 +96,10 @@ module Config = struct
 end
 
 
+
 module IntDB = struct
   include MyDB (Config)
 end
-
-module TreiberStack = struct
-  include MyDB (Config)
-
-  let do_get tid key =
-    let msg = async ("get", [ mk_value_int tid; VConst key ]) in
-    match msg.ev.args with
-    | _ :: _ :: _ :: _ :: args -> args
-    | _ -> _die [%here]
-
-  let do_put tid key v = async ("put", [ mk_value_int tid; VConst key ] @ v)
-
-  let do_trans f =
-    let msg = async ("beginT", []) in
-    let tid =
-      match msg.ev.args with [ VConst (I tid) ] -> tid | _ -> _die [%here]
-    in
-    let res = f tid in
-    let _ = async ("commit", [ mk_value_int tid ]) in
-    res
-
-  let getAsync (ev : ev) = _getAsync "stack" ev
-  let putAsync (ev : ev) = _putAsync "stack" ev
-  let readAsync (ev : ev) = _getAsync "cell" ev
-  let writeAsync (ev : ev) = _putAsync "cell" ev
-end
-
-
-
-
 
 
 module CartDB = struct
@@ -317,8 +288,8 @@ module CartDB = struct
 end
 
 
-(*
 
+(*
 module TreiberStackDB = struct
   (* Tstack transactions: Just CAS? No. Add cell, remove cell (bimyou), CAS *)
   (*
@@ -331,20 +302,18 @@ module TreiberStackDB = struct
   include D
 
   let topKey = 0
-  (*let _opCount = ref 0*)
 
   let readAsync (ev : ev) = _getAsync "stack" ev
   let writeAsync (ev : ev) = _putAsync "stack" ev
 
 
-  let do_read tid key = 
-    let msg = async ("read", [ mk_value_int tid; mk_value_int key ]) in
+  let do_read tid =
+    let msg = async ("read", [ mk_value_int tid ]) in
     match msg.ev.args with
-    | _ :: _ :: _ :: _ :: [ VConst (I value) ; VConst (I next) ] -> value, next
+    | _ :: _ :: _ :: _ :: args -> args
     | _ -> _die [%here]
 
-  let do_write tid key value next =
-    async ("updateAccounts", [ mk_value_int tid; mk_value_int key ; mk_value_int value; mk_value_int next])
+  let do_write tid x = async ("write", [ mk_value_int tid; mk_value_int x ])
 
 
   let do_trans f =
@@ -354,39 +323,18 @@ module TreiberStackDB = struct
     in
     let res = f tid in
     let _ = async ("commit", [ mk_value_int tid ]) in
-    (*let () = _opCount := !_opCount + 1 *)
     res
 
-  let async_cas old_head new_head tid =
-      let* _, _, key =
-        DB.async_get ~tid ~table:"stack" ~key:(string_of_int topKey)
-      in
-      let key =
-        match Config.json_to_values key with
-          | [ VConst (I _) ; VConst (I next) ] -> next
-          | _ -> _die [%here]
-      in
-      if key == old_head then
-        let () = DB.async_put ~tid ~table:"stack" ~key:(string_of_int topKey)
-                 ~json (Config.values_to_json [ VConst (I -1) ; VConst (I new_head)])
-        in true
-      else false
-
-
-  let do_cas old_head new_head tid =
-      let key = do_read topKey in
-      let key =
-        match Config.json_to_values topKey with
-        | [ VConst (I _) ; VConst (I key)] -> key
-        | _ -> _die [%here]
-      in
-      if key == old_head then
-        let _ = do_write tid new_head in
+  let do_cas old n =
+    do_trans (fun tid ->
+      let key = do_read tid in
+      if key == old then
+        let _ = do_write tid n in
         true
-      else false
+      else false)
+
 
   (* top *)
-  (*
   let async_top ~thread_id () =
     let open Lwt.Syntax in
     let* tid = DB.async_begin ~thread_id () in
@@ -407,33 +355,39 @@ module TreiberStackDB = struct
         let v = aux () in
         send ("topResp", [ mk_value_int v ])
     | _ -> _die [%here]
-  *)
-  (* push *) 
+
+  (* push *)
+
+    let async_new_user ~thread_id user () =
+    let open Lwt.Syntax in
+    let* tid = DB.async_begin ~thread_id () in
+    try
+      let* () =
+        DB.async_put ~tid ~table:"follows" ~key:(string_of_int user)
+          ~json:(Config.values_to_json [ VCIntList [] ])
+          ()
+      in
+      let* () =
+        DB.async_put ~tid ~table:"tweets" ~key:(string_of_int user)
+          ~json:(Config.values_to_json [ VCIntList [] ])
+          ()
+      in
+      let* _ = DB.async_commit ~tid () in
+      Lwt.return_unit
+    with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = DB.async_release_connection ~tid () in
+      Lwt.return_unit
 
   let async_push ~thread_id element () = 
     let open Lwt.Syntax in
     let* tid = DB.async_begin ~thread_id () in
     try
-      let* _, _, old_head =
-        DB.async_get ~tid ~table:"stack" ~key:(string_of_int topKey)
-      in
-      let old_head =
-        match Config.json_to_values old_head with
-          | [ VConst (I _) ; VConst (I next) ] -> next
-          | _ -> _die [%here]
-      in
-      let cas = ref false in
-      while !cas do
-        let () =
-          DB.async_put ~tid ~table:"stack" ~key:(string_of_int tid)
-          ~json (Config.values_to_json [ VConst (I element) ; VConst (I old_head)])
-        in
-        let () = cas := (async_cas old_head tid tid)
-        in
-        ()
-      done
-      let* _ = DB.async_commit ~tid () in
-      Lwt.return_unit
+      let* _, _, k =
+        DB.async_read ~tid ~table:"stack" ~key:(string_of_int topKey)
+      let* _, _, v
+        DB.async_read ~tid ~table:"stack" ~key:(string_of_int k)
+      
+      (* TODO the push operation stuff *)
     with BackendMariaDB.DBKeyNotFound _ ->
       let* _ = DB.async_release_connection ~tid () in
       Lwt.return_unit
@@ -464,33 +418,10 @@ module TreiberStackDB = struct
     let open Lwt.Syntax in
     let* tid = DB.async_begin ~thread_id () in
     try
-      let cas = ref false in
-      while not !cas do
-        let* _, _, old_head =
-          DB.async_get ~tid ~table:"stack" ~key:(string_of_int topKey)
-        in
-        let old_head =
-          match Config.json_to_values old_head with
-            | [ VConst (I _) ; VConst (I next) ] -> next
-            | _ -> _die [%here]
-        in
-        let* _, _, old_head_value =
-          DB.async_get ~tid ~table:"stack" ~key:(string_of_int old_head)
-        in
-        let top_value, new_head =
-          match Config.json_to_values old_head with
-            | [ VConst (I v) ; VConst (I next) ] -> v, next
-            | _ -> _die [%here]
-        in
-        let () = cas := (async_cas old_head new_head tid)
-        in
-        ()
-      done
-      let* _ = DB.async_commit ~tid () in
-      Lwt.return top_value
+      (* TODO the pop operation stuff *)
     with BackendMariaDB.DBKeyNotFound _ ->
       let* _ = DB.async_release_connection ~tid () in
-      Lwt.fail (BackendMariaDB.DBKeyNotFound s)
+      Lwt.return_unit
 
   let popReqHandler (msg : msg) =
     let aux () =
@@ -508,14 +439,14 @@ module TreiberStackDB = struct
   let init () =
     register_async_has_ret "beginT" beginAsync;
     register_async_has_ret "commit" commitAsync;
-    (*register_async_has_ret "selectTop" selectTopAsync;
-    register_async_no_ret "updateTop" updateTopAsync; *)
+    register_async_has_ret "selectTop" selectTopAsync;
+    register_async_no_ret "updateTop" updateTopAsync;
     register_async_has_ret "selectCell" selectCellAsync;
     register_async_no_ret "updateCell" updateCellAsync;
-    (*register_handler "topReq" topReqHandler;*)
+    register_handler "topReq" topReqHandler;
     register_handler "pushReq" pushReqHandler;
     register_handler "popReq" popReqHandler;
-    (*register_handler "topResp" topRespHandler;*)
+    register_handler "topResp" topRespHandler;
     register_handler "pushResp" pushRespHandler;
     register_handler "popResp" popRespHandler;
     D.clear()
@@ -555,6 +486,7 @@ module TreiberStackDB = struct
 end
 
 *)
+
 
 
 module SmallBankDB = struct
@@ -610,9 +542,7 @@ module SmallBankDB = struct
       match msg.ev.args with [ VConst (I tid) ] -> tid | _ -> _die [%here]
     in
     let res = f tid in
-    let _ = Pp.printf "calculated result\n" in
     let _ = async ("commit", [ mk_value_int tid ]) in
-    let _ = Pp.printf "return from commit\n" in
     res
 
   (* open accounts *)
@@ -631,7 +561,7 @@ module SmallBankDB = struct
       let* () =
         DB.async_put ~tid ~table:"checking" ~key:(string_of_int custid)
         ~json:(Config.values_to_json [ VConst (I 0)]) ()  
-      in
+    in
       let* _ = DB.async_commit ~tid () in
       Lwt.return_unit
     with BackendMariaDB.DBKeyNotFound _ ->
@@ -670,7 +600,7 @@ module SmallBankDB = struct
       in
       let cBal0 =
         match Config.json_to_values cBal0 with
-          | [ VConst (I v) ] -> v
+          | [ VConst (I v)] -> v
           | _ -> _die [%here]
       in
       let* _, _, cBal1 =
@@ -678,7 +608,7 @@ module SmallBankDB = struct
       in
       let cBal1 =
         match Config.json_to_values cBal1 with
-        | [ VConst (I v) ] -> v
+        | [ VConst (I v)] -> v
         | _ -> _die [%here]
       in
       let* () =
@@ -752,21 +682,16 @@ module SmallBankDB = struct
       Lwt.fail (BackendMariaDB.DBKeyNotFound s)
 
   let balanceReqHandler (msg : msg) =
-    let _ = Pp.printf ("running balance req handler\n") in
     let aux (name : int) =
       do_trans (fun tid ->
           let custid = do_selectAccounts tid name in
-          let _ = Pp.printf "custid: %d\n" custid in
           let sBal = do_selectSavings tid custid in
-          let _ = Pp.printf "sBal: %d\n" sBal in
           let cBal = do_selectChecking tid custid in
-          let _ = Pp.printf "cBal: %d\n" cBal in
           (sBal + cBal))
     in
     match msg.ev.args with
     | [ VConst (I name) ] ->
         let balance = aux name in
-        let _ = Pp.printf ("sending balance resp\n") in
         send ("balanceResp", [ mk_value_int balance ])
     | _ -> _die [%here]
 
@@ -976,12 +901,7 @@ module SmallBankDB = struct
 
   let openAccountsRespHandler (_ : msg) = ()
   let amalgamateRespHandler (_ : msg) = ()
-  (*let balanceRespHandler (_ : msg) = ()*)
-
-  let balanceRespHandler (msg : msg) =
-    let balance = match msg.ev.args with [ VConst (I v) ] -> v | _ -> _die [%here] in
-    send ("balanceResp", [ mk_value_int balance ])
-
+  let balanceRespHandler (_ : msg) = ()
   let depositCheckingRespHandler (_ : msg) = ()
   let sendPaymentRespHandler (_ : msg) = ()
   let transactSavingsRespHandler (_ : msg) = ()
@@ -1058,7 +978,7 @@ module SmallBankDB = struct
         "balanceResp"#:(record [ "balance"#:int_ty ]);
         "depositCheckingReq"#:(record [ "name"#:int_ty; "amount"#:int_ty ]);
         "depositCheckingResp"#:(record []);
-        "sendPaymentReq"#:(record [ "srcid"#:int_ty; "destid"#:int_ty; "amount"#:int_ty ]);
+        "sendPaymentReq"#:(record [ "sourceid"#:int_ty; "destid"#:int_ty; "amount"#:int_ty ]);
         "sendPaymentResp"#:(record []);
         "transactSavingsReq"#:(record [ "name"#:int_ty; "amount"#:int_ty ]);
         "transactSavingsResp"#:(record []);
@@ -1293,11 +1213,14 @@ module TwitterDB = struct
   (* posting new tweets *)
   let async_post_tweet ~thread_id user tweet () =
     let open Lwt.Syntax in 
+    let* _ = Lwt_io.printlf "510 %d" thread_id in
     let* tid = DB.async_begin ~thread_id () in
+    let* _ = Lwt_io.printlf "512 %d" thread_id in
     try
       let* _, _, oldTweets = 
         DB.async_get ~tid ~table:"tweets" ~key:(string_of_int user) ()
       in
+      let* _ = Lwt_io.printlf "517 %d" thread_id in
       let* _ = Lwt_io.printlf "517 %d" thread_id in
       let oldTweets = 
         match Config.json_to_values oldTweets with
@@ -1310,16 +1233,20 @@ module TwitterDB = struct
         tweet :: oldTweets
       in
       let* _ = Lwt_io.printlf "526 %d" thread_id in
+      let* _ = Lwt_io.printlf "526 %d" thread_id in
       let* () = 
         DB.async_put ~tid ~table:"tweets" ~key:(string_of_int user)
           ~json:(Config.values_to_json [ VCIntList newTweets ])
           ()
       in
       let* _ = Lwt_io.printlf "532 %d !%d" thread_id tid in
+      let* _ = Lwt_io.printlf "532 %d !%d" thread_id tid in
       let* _ = DB.async_commit ~tid () in 
+      let* _ = Lwt_io.printlf "534 %d !%d" thread_id tid in
       let* _ = Lwt_io.printlf "534 %d !%d" thread_id tid in
       Lwt.return_unit
     with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = Lwt_io.printlf "537 %d" thread_id in
       let* _ = Lwt_io.printlf "537 %d" thread_id in
       let* _ = DB.async_release_connection ~tid () in
       Lwt.return_unit
