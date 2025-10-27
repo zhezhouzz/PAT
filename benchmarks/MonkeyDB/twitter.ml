@@ -84,6 +84,11 @@ let random_user { numUser; numTweet; numOp } =
   let open Lwt.Syntax in
   let users = List.init numUser (fun i -> i + 1) in
   let tweets = List.init numTweet (fun i -> i + 1) in
+  let rec fill_users ~thread_id i () = 
+    match List.nth_opt users i with
+    | Some user -> let* () = fill_users ~thread_id (i+1) () in async_new_user ~thread_id user ()
+    | None -> Lwt.return_unit
+  in
   let random_new_user ~thread_id () =
     let user = List.nth users (Random.int numUser) in
     async_new_user ~thread_id user ()
@@ -104,10 +109,10 @@ let random_user { numUser; numTweet; numOp } =
     async_post_tweet ~thread_id user tweet ()
   in
   let random_option ~thread_id () =
-    match Random.int 4 with
+    match (Random.int 4) + 3 with
     | 0 -> random_new_user ~thread_id ()
-    | 1 -> random_follow ~thread_id ()
-    | 2 -> random_unfollow ~thread_id ()
+    | 2 -> random_follow ~thread_id ()
+    | 1 -> random_unfollow ~thread_id ()
     | _-> random_tweet ~thread_id ()
   in
   let rec genOp ~thread_id restNum =
@@ -125,11 +130,13 @@ let random_user { numUser; numTweet; numOp } =
   in
   let () =
     Lwt_main.run
-    @@ Lwt.join
-         [
-           genOp ~thread_id:0 numOp;
-           genOp ~thread_id:1 numOp;
-           genOp ~thread_id:2 numOp;
-         ]
+    @@ 
+    Lwt.bind (fill_users ~thread_id:0 0 ())
+             (fun() -> Lwt.join
+                    [
+                      genOp ~thread_id:0 numOp;
+                      genOp ~thread_id:1 numOp;
+                      genOp ~thread_id:2 numOp;
+                    ])
   in
   ()
