@@ -3,6 +3,9 @@ val ( >= ) : int -> int -> bool
 val insert : int -> int list -> int list
 val remove : int -> int list -> int list
 val emp : int list -> bool
+val contains : int -> int list -> bool
+
+(* Add axioms for contains *)
 
 let[@axiom] emp_same (l1 : int list) (l2 : int list) =
   implies (emp l1 && emp l2) (l1 == l2)
@@ -376,10 +379,29 @@ let getCourseEnrollmentsResp ?l:(x = (true : [%v: int list])) =
 
 (* Goals *)
 
-(* Register a student, no conflicting deregistrations, check if they are registered, they are not *)
+(* Register a student, check if they are registered *)
 let[@goal] courseware_rc (x : int) =
   allA;
   RegisterStudentReq (student_id == x);
   starA (anyA - DeregisterStudentReq (student_id == x));
   GetStudents (key == x && not (value == true));
+  allA
+
+(* Enroll student, check if they are enrolled *)
+let[@goal] courseware_rc_enroll (x : int) (y : int) =
+  allA;
+  RegisterStudentReq (student_id == x);
+  EnrollStudentReq (student_id == x && course_id == y);
+  starA (anyA - DeregisterStudentReq (student_id == x) - DeleteCourseReq (course_id == y));
+  GetStudentEnrollments (key == x && not (contains y value));
+  allA
+
+(* Enroll student, delete course, check if student is still enrolled *)
+let[@goal] courseware_rc_enroll_delete (x : int) (y : int) =
+  allA;
+  RegisterStudentReq (student_id == x);
+  EnrollStudentReq (student_id == x && course_id == y);
+  DeleteCourseReq (course_id == y);
+  starA (anyA - DeregisterStudentReq (student_id == x));
+  GetStudentEnrollments (key == x && contains y value);
   allA
