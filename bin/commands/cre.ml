@@ -458,6 +458,18 @@ let test_eval s converge_bound () =
           in
           let _ = eval test in
           ())
+    | "smallbank_cc" ->
+      let open MonkeyBD in
+      let open Common in
+      let open Smallbank in
+      BackendMariaDB.MyMariaDB.maria_context "smallbank" Causal (fun () ->
+          let main = Synthesis.load_progs s () in
+          let test () =
+            Interpreter.once
+              (SmallBankDB.init, main, SmallBankDB.check_isolation_level Serializable)
+          in
+          let _ = eval test in
+          ())
   (* | "courseware_rc" ->
       let open MonkeyBD in
       let open Common in
@@ -605,7 +617,7 @@ let test_random s converge_bound () =
           let test () =
             Interpreter.random_test
               ( TwitterDB.init,
-                (fun () -> random_user { numUser = 4; numTweet = 4; numOp = 3 }),
+                (fun () -> random_user { numUser = 4; numTweet = 4; numOp = 15 }),
                 TwitterDB.check_isolation_level Serializable )
           in
           let _ = eval test in
@@ -618,11 +630,37 @@ let test_random s converge_bound () =
           let test () =
             Interpreter.random_test
               ( TwitterDB.init,
-                (fun () -> random_user { numUser = 4; numTweet = 4; numOp = 3 }),
+                (fun () -> random_user { numUser = 4; numTweet = 4; numOp = 15 }),
                 TwitterDB.check_isolation_level Serializable )
           in
           let _ = eval test in
           ())
+    (*| "smallbank_rc" ->
+      let open MonkeyBD in
+      let open Common in
+      let open SmallBank in
+      BackendMariaDB.MyMariaDB.maria_context "smallbank" ReadCommitted (fun () ->
+          let test () =
+            Interpreter.random_test
+              ( TwitterDB.init,
+                (fun () -> random_user { numUser = 4; numTweet = 4; numOp = 15 }),
+                TwitterDB.check_isolation_level Serializable )
+          in
+          let _ = eval test in
+          ()) *)
+    (*| "smallbank_cc" ->
+      let open MonkeyBD in
+      let open Common in
+      let open SmallBank in
+      BackendMariaDB.MyMariaDB.maria_context "smallbank" Causal (fun () ->
+          let test () =
+            Interpreter.random_test
+              ( TwitterDB.init,
+                (fun () -> random_user { numUser = 4; numTweet = 4; numOp = 15 }),
+                TwitterDB.check_isolation_level Serializable )
+          in
+          let _ = eval test in
+          ()) *)
   (*| "courseware" ->
       let open MonkeyBD in
       let open Common in

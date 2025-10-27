@@ -40,14 +40,16 @@ val updateTweets :
   < tid : int ; user : int ; tweets : int list >
 [@@obs]
 
+val newUserReq : < user : int > [@@gen]
+val newUserResp : < > [@@obs]
 val followReq : < user : int ; follow_o : int > [@@gen]
 val followResp : < > [@@obs]
-val unfollowReq : < user : int ; follow_o : int > [@@gen]
+val unfollowReq : < user : int ; unfollow_o : int > [@@gen]
 val unfollowResp : < > [@@obs]
-val tweetReq : < user : int ; tweet : int > [@@gen]
-val tweetResp : < > [@@obs]
+val postTweetReq : < user : int ; tweet : int > [@@gen]
+val postTweetResp : < > [@@obs]
 val timelineReq : < user : int > [@@gen]
-val timelineResp : < timeline : int list > [@@obs]
+val timelineResp : < tweets : int list > [@@obs]
 
 
 (* Read Committed *)
@@ -61,7 +63,7 @@ let commit ?l:(i = (true : [%v: int])) ?l:(j = (true : [%v: int])) =
      BeginT (tid == i);
      starA (anyA - Commit (tid == i || cid >= j))),
     Commit (tid == i && cid == j),
-    starA (anyA - Put (tid == i) - Get (tid == i)) )
+    starA (anyA - UpdateFollows (tid == i) - SelectFollows (tid == i) - UpdateTweets (tid == i) - SelectTweets (tid == i)) )
 
 (* updates *)
 
@@ -78,7 +80,7 @@ let updateTweets ?l:(i = (true : [%v: int])) ?l:(u = (true : [%v: int]))
   ( (allA;
      BeginT (tid == i);
      starA (anyA - Commit (tid == i))),
-    UpdateFollows (tid == i && user == u && tweets == t),
+    UpdateTweets (tid == i && user == u && tweets == t),
     allA )
 
 
@@ -91,11 +93,11 @@ let selectFollows =
       ?l:(pi = (true : [%v: int]))
       ?l:(pj = (true : [%v: int]))
       ?l:(u = (true : [%v: int]))
-      ?l:(f = (true : [%v: int]))
+      ?l:(f = (true : [%v: int list]))
     ->
       ( (starA (anyA - UpdateFollows (tid == i && user == u));
          UpdateFollows (tid == pi && user == u && follows == f);
-         starA (anyA - Put (tid == i && user == u));
+         starA (anyA - UpdateFollows (tid == i && user == u));
          Commit (tid == pi && cid == pj);
          starA (anyA - UpdateFollows (tid == i && user == u))),
         SelectFollows
@@ -112,11 +114,11 @@ let selectTweets =
       ?l:(pi = (true : [%v: int]))
       ?l:(pj = (true : [%v: int]))
       ?l:(u = (true : [%v: int]))
-      ?l:(t = (true : [%v: int]))
+      ?l:(t = (true : [%v: int list]))
     ->
       ( (starA (anyA - UpdateTweets (tid == i && user == u));
          UpdateTweets (tid == pi && user == u && tweets == t);
-         starA (anyA - Put (tid == i && user == u));
+         starA (anyA - UpdateTweets (tid == i && user == u));
          Commit (tid == pi && cid == pj);
          starA (anyA - UpdateTweets (tid == i && user == u))),
         SelectTweets
@@ -127,14 +129,14 @@ let selectTweets =
   |]
 
 
-(* Cart *)
+(* Twitter *)
 
 let newUserReq (i : int) ?l:(u = (true : [%v: int])) =
   ( starA (anyA - NewUserReq true - SelectFollows (user == u) - SelectTweets (user == u) - UpdateFollows (user == u) - SelectFollows (user == u)),
     NewUserReq (user == u),
     (BeginT (tid == i);
-     UpdateFollows (tid == i && user == u && emp value);
-     UpdateTweets (tid == i && user == u && emp value);
+     UpdateFollows (tid == i && user == u && emp follows);
+     UpdateTweets (tid == i && user == u && emp tweets);
      Commit (tid == i);
      NewUserResp true;
      starA (anyA - NewUserReq true)) )
@@ -158,7 +160,7 @@ let followReq (i : int) (l : int list) ?l:(u = (true : [%v: int]))
 let followResp = (allA, FollowResp true, allA)
 
 let unfollowReq (i : int) (l : int list) ?l:(u = (true : [%v: int]))
-    ?l:(f = (true : [%v: int]))
+    ?l:(f = (true : [%v: int])) =
   ( allA,
     UnfollowReq (user == u && unfollow_o == f),
     (BeginT (tid == i);
@@ -166,13 +168,14 @@ let unfollowReq (i : int) (l : int list) ?l:(u = (true : [%v: int]))
      allA;
      UpdateFollows (tid == i && user == u && follows == remove f l);
      starA (anyA - UpdateFollows (user == u));
+     (* no write - write conflict *)
      Commit (tid == i);
      UnfollowResp true;
      allA) )
 
 let unfollowResp = (allA, UnfollowResp true, allA)
 
-let postTweetReq (i : int) (l : int list) ?l:(u = (true : [%v: int]))
+let postTweetReq (i : int) (l : int list) ?l:(u = (true : [%v: int])) 
     ?l:(t = (true : [%v: int])) =
   ( allA,
     PostTweetReq (user == u && tweet == t),
@@ -187,7 +190,7 @@ let postTweetReq (i : int) (l : int list) ?l:(u = (true : [%v: int]))
 
 let postTweetResp = (allA, PostTweetResp true, allA)
 
-let timelineReq (i : int) (l : int list) ?l:(u = (true : [%v: int]))
+let timelineReq (i : int) (l : int list) ?l:(u = (true : [%v: int])) =
   ( allA,
     TimelineReq (user == u),
     (BeginT (tid == i);
@@ -198,7 +201,7 @@ let timelineReq (i : int) (l : int list) ?l:(u = (true : [%v: int]))
 let timelineResp = (allA, TimelineResp true, allA)
 
 (* Global Properties *)
-let[@goal] twitter_cc (u : int) (l : int list) =
+let[@goal] twitter_rc (u : int) (l : int list) =
   allA;
   UpdateFollows (user == u && follows == l);
   starA (anyA - UpdateFollows (user == u));
