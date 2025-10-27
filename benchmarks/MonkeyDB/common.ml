@@ -95,39 +95,10 @@ module Config = struct
     match int_of_string_opt s with Some i -> I i | None -> S s
 end
 
+
 module IntDB = struct
   include MyDB (Config)
 end
-
-module TreiberStack = struct
-  include MyDB (Config)
-
-  let do_get tid key =
-    let msg = async ("get", [ mk_value_int tid; VConst key ]) in
-    match msg.ev.args with
-    | _ :: _ :: _ :: _ :: args -> args
-    | _ -> _die [%here]
-
-  let do_put tid key v = async ("put", [ mk_value_int tid; VConst key ] @ v)
-
-  let do_trans f =
-    let msg = async ("beginT", []) in
-    let tid =
-      match msg.ev.args with [ VConst (I tid) ] -> tid | _ -> _die [%here]
-    in
-    let res = f tid in
-    let _ = async ("commit", [ mk_value_int tid ]) in
-    res
-
-  let getAsync (ev : ev) = _getAsync "stack" ev
-  let putAsync (ev : ev) = _putAsync "stack" ev
-  let readAsync (ev : ev) = _getAsync "cell" ev
-  let writeAsync (ev : ev) = _putAsync "cell" ev
-end
-
-
-
-
 
 
 module CartDB = struct
@@ -317,13 +288,704 @@ end
 
 
 
+(*
+module TreiberStackDB = struct
+  (* Tstack transactions: Just CAS? No. Add cell, remove cell (bimyou), CAS *)
+  (*
+     Top
+     Push - uses compare and swap
+     Pop - uses compare and swap
+  *)
+
+  module D = MyDB (Config)
+  include D
+
+  let topKey = 0
+
+  let readAsync (ev : ev) = _getAsync "stack" ev
+  let writeAsync (ev : ev) = _putAsync "stack" ev
+
+
+  let do_read tid =
+    let msg = async ("read", [ mk_value_int tid ]) in
+    match msg.ev.args with
+    | _ :: _ :: _ :: _ :: args -> args
+    | _ -> _die [%here]
+
+  let do_write tid x = async ("write", [ mk_value_int tid; mk_value_int x ])
+
+
+  let do_trans f =
+    let msg = async ("beginT", []) in
+    let tid =
+      match msg.ev.args with [ VConst (I tid) ] -> tid | _ -> _die [%here]
+    in
+    let res = f tid in
+    let _ = async ("commit", [ mk_value_int tid ]) in
+    res
+
+  let do_cas old n =
+    do_trans (fun tid ->
+      let key = do_read tid in
+      if key == old then
+        let _ = do_write tid n in
+        true
+      else false)
+
+
+  (* top *)
+  let async_top ~thread_id () =
+    let open Lwt.Syntax in
+    let* tid = DB.async_begin ~thread_id () in
+    try
+      (* TODO the top operation stuff *)
+    with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = DB.async_release_connection ~tid () in
+      Lwt.return_unit
+
+  let topReqHandler (msg : msg) =
+    let aux () =
+      do_trans (fun tid ->
+        let _ = (* TODO some database interactions here *) in
+        ())
+    in
+    match msg.ev.args with
+    | [] ->
+        let v = aux () in
+        send ("topResp", [ mk_value_int v ])
+    | _ -> _die [%here]
+
+  (* push *)
+
+    let async_new_user ~thread_id user () =
+    let open Lwt.Syntax in
+    let* tid = DB.async_begin ~thread_id () in
+    try
+      let* () =
+        DB.async_put ~tid ~table:"follows" ~key:(string_of_int user)
+          ~json:(Config.values_to_json [ VCIntList [] ])
+          ()
+      in
+      let* () =
+        DB.async_put ~tid ~table:"tweets" ~key:(string_of_int user)
+          ~json:(Config.values_to_json [ VCIntList [] ])
+          ()
+      in
+      let* _ = DB.async_commit ~tid () in
+      Lwt.return_unit
+    with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = DB.async_release_connection ~tid () in
+      Lwt.return_unit
+
+  let async_push ~thread_id element () = 
+    let open Lwt.Syntax in
+    let* tid = DB.async_begin ~thread_id () in
+    try
+      let* _, _, k =
+        DB.async_read ~tid ~table:"stack" ~key:(string_of_int topKey)
+      let* _, _, v
+        DB.async_read ~tid ~table:"stack" ~key:(string_of_int k)
+      
+      (* TODO the push operation stuff *)
+    with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = DB.async_release_connection ~tid () in
+      Lwt.return_unit
+
+  let pushReqHandler (msg : msg) = 
+    let rec aux (v : int) =
+      let oldHeadKey = do_trans (fun tid -> do_read tid) in
+      let newHead = (v, oldHeadKey) in
+      let newHeadKey = fresh_key () in
+      let cas_res =
+        do_trans (fun tid ->
+            let key = do_read tid in
+            if key == oldHeadKey then
+              let _ = do_write tid newHeadKey in
+              let _ = do_put tid newHeadKey newHead in
+              true
+            else false)
+    in
+    if cas_res then () else aux v
+    match msg.ev.args with
+    | [ VConst (I v) ] ->
+        let _ = aux v in
+        send ("pushResp", [])
+    | _ -> _die [%here]
+
+  (* pop *)
+  let async_pop ~thread_id () =
+    let open Lwt.Syntax in
+    let* tid = DB.async_begin ~thread_id () in
+    try
+      (* TODO the pop operation stuff *)
+    with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = DB.async_release_connection ~tid () in
+      Lwt.return_unit
+
+  let popReqHandler (msg : msg) =
+    let aux () =
+      do_trans (fun tid ->
+        let _ = (* TODO some database interactions here *) in
+        ())
+    in
+    match msg.ev.args with
+    | [] ->
+        let v = aux () in
+        send ("popResp", [ mk_value_int v ])
+    | _ -> _die [%here]
+        
+  
+  let init () =
+    register_async_has_ret "beginT" beginAsync;
+    register_async_has_ret "commit" commitAsync;
+    register_async_has_ret "selectTop" selectTopAsync;
+    register_async_no_ret "updateTop" updateTopAsync;
+    register_async_has_ret "selectCell" selectCellAsync;
+    register_async_no_ret "updateCell" updateCellAsync;
+    register_handler "topReq" topReqHandler;
+    register_handler "pushReq" pushReqHandler;
+    register_handler "popReq" popReqHandler;
+    register_handler "topResp" topRespHandler;
+    register_handler "pushResp" pushRespHandler;
+    register_handler "popResp" popRespHandler;
+    D.clear()
+
+  let testCtx =
+    let open Nt in
+    let record l = Ty_record { alias = None; fds = l } in
+    Typectx.add_to_rights Typectx.emp
+      [
+        "beginT"#:(record [ "tid"#:int_ty ]);
+        "commit"#:(record [ "tid"#:int_ty; "cid"#:int_ty ]);
+        "selectTop"#:(record
+                        [
+                          "tid"#:int_ty;
+                          TODO
+                        ]);
+        "updateTop"#:(record
+                        [ "tid"#:int_ty; TODO ]);
+        "selectCell"#:(record
+                          [
+                            "tid"#:int_ty;
+                            TODO
+                          ]);
+        "updateCell"#:(record
+                          [ "tid"#:int_ty; TODO ]);
+
+        "topReq"#:(record [] TODO);
+        "topResp"#:(record [ "top"#:int_ty ]);
+        "pushReq"#:(record [ "element"#:int_ty ]);
+        "pushResp"#:(record []);
+        "popReq"#:(record []);
+        "popResp"#:(record [ "element"#int_ty ]);
+      ]
 
 
 
+end
+
+*)
 
 
 
+module SmallBankDB = struct
 
+  (* SmallBank todo:
+     * how to use strings instead of ints, so that we can use customer name instead of customer id? 
+          Should we just make sure every new customer has a different name and id, but make them both numbers?
+     * incorporate more checks; we did the one for write check, but we haven't done the ones for amalgamate and send payment
+     * write the spec, obviously
+     * create a new accounts function (to populate the database)
+  *)
+
+  module D = MyDB (Config)
+  include D
+
+  let selectAccountsAsync (ev : ev) = _getAsync "accounts" ev
+  let selectSavingsAsync (ev : ev) = _getAsync "savings" ev
+  let selectCheckingAsync (ev : ev) = _getAsync "checking" ev
+  let updateAccountsAsync (ev : ev) = _putAsync "accounts" ev
+  let updateSavingsAsync (ev : ev) = _putAsync "savings" ev
+  let updateCheckingAsync (ev : ev) = _putAsync "checking" ev
+
+  let do_selectAccounts tid name = 
+    let msg = async ("selectAccounts", [ mk_value_int tid; mk_value_int name ]) in
+    match msg.ev.args with
+    | _ :: _ :: _ :: _ :: [ VConst (I v) ] -> v
+    | _ -> _die [%here]
+
+  let do_selectSavings tid custid = 
+    let msg = async ("selectSavings", [ mk_value_int tid; mk_value_int custid ]) in
+    match msg.ev.args with
+    | _ :: _ :: _ :: _ :: [ VConst (I v) ] -> v
+    | _ -> _die [%here]
+
+  let do_selectChecking tid custid = 
+    let msg = async ("selectChecking", [ mk_value_int tid; mk_value_int custid ]) in
+    match msg.ev.args with
+    | _ :: _ :: _ :: _ :: [ VConst (I v) ] -> v
+    | _ -> _die [%here]
+
+  let do_updateAccounts tid name custid =
+    async ("updateAccounts", [ mk_value_int tid; mk_value_int name ; mk_value_int custid])
+
+  let do_updateSavings tid custid bal =
+    async ("updateSavings", [ mk_value_int tid; mk_value_int custid ; mk_value_int bal])
+
+  let do_updateChecking tid custid bal =
+    async ("updateChecking", [ mk_value_int tid; mk_value_int custid ; mk_value_int bal])
+
+  let do_trans f =
+    let msg = async ("beginT", []) in
+    let tid =
+      match msg.ev.args with [ VConst (I tid) ] -> tid | _ -> _die [%here]
+    in
+    let res = f tid in
+    let _ = async ("commit", [ mk_value_int tid ]) in
+    res
+
+  (* open accounts *)
+  let async_openAccounts ~thread_id name custid () =
+    let open Lwt.Syntax in
+    let* tid = DB.async_begin ~thread_id () in
+    try
+      let* () = 
+        DB.async_put ~tid ~table:"accounts" ~key:(string_of_int name)
+        ~json:(Config.values_to_json [ VConst (I (custid))]) ()
+      in
+      let* () =
+        DB.async_put ~tid ~table:"savings" ~key:(string_of_int custid)
+        ~json:(Config.values_to_json [ VConst (I 0)]) ()     
+      in
+      let* () =
+        DB.async_put ~tid ~table:"checking" ~key:(string_of_int custid)
+        ~json:(Config.values_to_json [ VConst (I 0)]) ()  
+    in
+      let* _ = DB.async_commit ~tid () in
+      Lwt.return_unit
+    with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = DB.async_release_connection ~tid () in
+      Lwt.return_unit
+
+  let openAccountsReqHandler (msg : msg) =
+    let aux (name : int) (custid : int) =
+      do_trans (fun tid ->
+          let _ = do_updateAccounts tid name custid in
+          let _ = do_updateSavings tid custid 0 in
+          let _ = do_updateChecking tid custid 0 in
+          ())
+    in
+    match msg.ev.args with
+    | [ VConst (I custid); VConst (I name) ] ->
+        let _ = aux custid name in
+        send ("openAccountsResp", [])
+    | _ -> _die [%here]
+
+  (* amalgamate *)
+  let async_amalgamate ~thread_id custid0 custid1 () =
+    let open Lwt.Syntax in
+    let* tid = DB.async_begin ~thread_id () in
+    try
+      let* _, _, sBal0 =
+        DB.async_get ~tid ~table:"savings" ~key:(string_of_int custid0) ()
+      in
+      let sBal0 =
+        match Config.json_to_values sBal0 with 
+          | [ VConst (I v) ] -> v
+          | _ -> _die [%here]
+      in
+      let* _, _, cBal0 =
+        DB.async_get ~tid ~table:"checking" ~key:(string_of_int custid0) ()
+      in
+      let cBal0 =
+        match Config.json_to_values cBal0 with
+          | [ VConst (I v)] -> v
+          | _ -> _die [%here]
+      in
+      let* _, _, cBal1 =
+        DB.async_get ~tid ~table:"checking" ~key:(string_of_int custid1) ()
+      in
+      let cBal1 =
+        match Config.json_to_values cBal1 with
+        | [ VConst (I v)] -> v
+        | _ -> _die [%here]
+      in
+      let* () =
+        DB.async_put ~tid ~table:"savings" ~key:(string_of_int custid0)
+        ~json:(Config.values_to_json [ VConst (I 0) ]) ()
+      in
+      let* () =
+        DB.async_put ~tid ~table:"checking" ~key:(string_of_int custid0)
+        ~json:(Config.values_to_json [ VConst (I 0) ]) ()
+      in
+      let* () =
+        DB.async_put ~tid ~table:"checking" ~key:(string_of_int custid1)
+        ~json:(Config.values_to_json [ VConst (I (sBal0 + cBal0 + cBal1))]) ()
+      in
+      let* _ = DB.async_commit ~tid () in
+      Lwt.return_unit
+    with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = DB.async_release_connection ~tid () in
+      Lwt.return_unit
+
+  let amalgamateReqHandler (msg : msg) =
+    let aux (custid0 : int) (custid1 : int) =
+      do_trans (fun tid ->
+          let sBal0 = do_selectSavings tid custid0 in
+          let cBal0 = do_selectChecking tid custid0 in
+          let cBal1 = do_selectChecking tid custid1 in
+          let _ = do_updateSavings tid custid0 0 in
+          let _ = do_updateChecking tid custid0 0 in
+          let total = (sBal0 + cBal0 + cBal1) in
+          let _ = do_updateChecking tid custid1 total in
+          ())
+    in
+    match msg.ev.args with
+    | [ VConst (I custid0); VConst (I custid1) ] ->
+        let _ = aux custid0 custid1 in
+        send ("amalgamateResp", [])
+    | _ -> _die [%here]
+
+  (* balance *)
+  let async_balance ~thread_id name () =
+    let open Lwt.Syntax in
+    let* tid = DB.async_begin ~thread_id () in
+    try
+      let* _, _, custid = 
+        DB.async_get ~tid ~table:"accounts" ~key:(string_of_int name) ()
+      in
+      let custid =
+        match Config.json_to_values custid with
+        | [ VConst (I v) ] -> v
+        | _ -> _die [%here]
+      in
+      let* _, _, sBal = 
+        DB.async_get ~tid ~table:"savings" ~key:(string_of_int custid) ()
+      in
+      let sBal =
+        match Config.json_to_values sBal with
+        | [ VConst (I v) ] -> v
+        | _ -> _die [%here]
+      in
+      let* _, _, cBal = 
+        DB.async_get ~tid ~table:"checking" ~key:(string_of_int custid) ()
+      in
+      let cBal =
+        match Config.json_to_values cBal with
+        | [ VConst (I v) ] -> v
+        | _ -> _die [%here]
+      in
+      Lwt.return (sBal + cBal)
+    with BackendMariaDB.DBKeyNotFound s ->
+      let* _ = DB.async_release_connection ~tid () in
+      Lwt.fail (BackendMariaDB.DBKeyNotFound s)
+
+  let balanceReqHandler (msg : msg) =
+    let aux (name : int) =
+      do_trans (fun tid ->
+          let custid = do_selectAccounts tid name in
+          let sBal = do_selectSavings tid custid in
+          let cBal = do_selectChecking tid custid in
+          (sBal + cBal))
+    in
+    match msg.ev.args with
+    | [ VConst (I name) ] ->
+        let balance = aux name in
+        send ("balanceResp", [ mk_value_int balance ])
+    | _ -> _die [%here]
+
+  (* deposit checking *)
+  let async_depositChecking ~thread_id name amount () =
+    let open Lwt.Syntax in
+    let* tid = DB.async_begin ~thread_id () in
+    try
+      let* _, _, custid =
+        DB.async_get ~tid ~table:"accounts" ~key:(string_of_int name) ()
+      in
+      let custid =
+        match Config.json_to_values custid with
+        | [ VConst (I v) ] -> v
+        | _ -> _die [%here]
+      in
+      let* _, _, cBal =
+        DB.async_get ~tid ~table:"checking" ~key:(string_of_int custid) ()
+      in
+      let cBal =
+        match Config.json_to_values cBal with
+        | [ VConst (I v) ] -> v
+        | _ -> _die [%here]
+      in
+      let* () =
+        DB.async_put ~tid ~table:"checking" ~key:(string_of_int custid)
+        ~json:(Config.values_to_json [ VConst (I (cBal + amount))]) ()
+      in
+      let* _ = DB.async_commit ~tid () in
+      Lwt.return_unit
+    with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = DB.async_release_connection ~tid () in
+      Lwt.return_unit
+
+  let depositCheckingReqHandler (msg : msg) =
+    let aux (name : int) (amount: int) =
+      do_trans (fun tid ->
+          let custid = do_selectAccounts tid name in
+          let cBal = do_selectChecking tid custid in
+          let _ = do_updateChecking tid custid (cBal + amount) in
+          ())
+    in
+    match msg.ev.args with
+    | [ VConst (I name); VConst (I amount) ] ->
+        let _ = aux name amount in
+        send ("depositCheckingResp", [])
+    | _ -> _die [%here]
+
+  (* send payment *)
+  let async_sendPayment ~thread_id srcid destid amount () =
+    let open Lwt.Syntax in
+    let* tid = DB.async_begin ~thread_id () in
+    try
+      let* _, _, cBalSrc =
+        DB.async_get ~tid ~table:"checking" ~key:(string_of_int srcid) ()
+      in
+      let cBalSrc =
+        match Config.json_to_values cBalSrc with
+        | [ VConst (I v) ] -> v
+        | _ -> _die [%here]
+      in
+      let* _, _, cBalDest =
+        DB.async_get ~tid ~table:"checking" ~key:(string_of_int destid) ()
+      in
+      let cBalDest = 
+        match Config.json_to_values cBalDest with
+        | [ VConst (I v) ] -> v
+        | _ -> _die [%here]
+      in
+      let* () =
+        DB.async_put ~tid ~table:"checking" ~key:(string_of_int srcid)
+        ~json:(Config.values_to_json [ VConst (I (cBalSrc - amount))]) ()
+      in
+      let* () =
+        DB.async_put ~tid ~table:"checking" ~key:(string_of_int destid)
+        ~json:(Config.values_to_json [ VConst (I (cBalDest + amount))]) ()
+      in
+      let* _ = DB.async_commit ~tid () in
+      Lwt.return_unit
+    with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = DB.async_release_connection ~tid () in
+      Lwt.return_unit
+  
+  let sendPaymentReqHandler (msg : msg) =
+    let aux (srcid : int) (destid : int) (amount : int) =
+      do_trans (fun tid ->
+          let cBalSrc = do_selectChecking tid srcid in
+          let cBalDest = do_selectChecking tid destid in
+          let _ = do_updateChecking tid srcid (cBalSrc - amount) in
+          let _ = do_updateChecking tid srcid (cBalDest + amount) in
+          ())
+      in
+      match msg.ev.args with
+      | [ VConst (I srcid); VConst (I destid); VConst (I amount) ] ->
+          let _ = aux srcid destid amount in
+          send ("sendPaymentsResp", [])
+      | _ -> _die [%here]
+
+  (* transact savings *)
+  let async_transactSavings ~thread_id name amount () =
+    let open Lwt.Syntax in
+    let* tid = DB.async_begin ~thread_id () in
+    try
+      let* _, _, custid =
+        DB.async_get ~tid ~table:"accounts" ~key:(string_of_int name) ()
+      in
+      let custid =
+        match Config.json_to_values custid with
+        | [ VConst (I v) ] -> v
+        | _ -> _die [%here]
+      in
+      let* _, _, sBal =
+        DB.async_get ~tid ~table:"savings" ~key:(string_of_int custid) ()
+      in
+      let sBal =
+        match Config.json_to_values sBal with
+        | [ VConst (I v) ] -> v
+        | _ -> _die [%here]
+      in
+      let* () = 
+        DB.async_put ~tid ~table:"savings" ~key:(string_of_int custid)
+        ~json:(Config.values_to_json [ VConst (I (sBal + amount))]) ()
+      in
+      let* _ = DB.async_commit ~tid () in
+      Lwt.return_unit
+    with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = DB.async_release_connection ~tid () in
+      Lwt.return_unit
+
+  let transactSavingsReqHandler (msg : msg) =
+    let aux (name : int) (amount: int) =
+      do_trans (fun tid ->
+          let custid = do_selectAccounts tid name in
+          let sBal = do_selectSavings tid custid in
+          let _ = do_updateSavings tid custid (sBal + amount) in
+          ())
+      in
+      match msg.ev.args with
+      | [ VConst (I name); VConst (I amount) ] ->
+          let _ = aux name amount in
+          send ("transactSavingsResp", [])
+      | _ -> _die [%here]
+
+  (* write check *)
+  let async_writeCheck ~thread_id name amount () =
+    let open Lwt.Syntax in
+    let* tid = DB.async_begin ~thread_id () in
+    try
+      let* _, _, custid = 
+        DB.async_get ~tid ~table:"accounts" ~key:(string_of_int name) ()
+      in
+      let custid = 
+        match Config.json_to_values custid with
+        | [ VConst (I v) ] -> v
+        | _ -> _die [%here]
+      in
+      let* _, _, sBal = 
+        DB.async_get ~tid ~table:"savings" ~key:(string_of_int custid) ()
+      in
+      let sBal =
+        match Config.json_to_values sBal with
+        | [ VConst (I v) ] -> v
+        | _ -> _die [%here]
+      in
+      let* _, _, cBal = 
+        DB.async_get ~tid ~table:"checking" ~key:(string_of_int custid) ()
+      in
+      let cBal =
+        match Config.json_to_values cBal with
+        | [ VConst (I v) ] -> v
+        | _ -> _die [%here]
+      in
+      let total = sBal + cBal in
+      let* () =
+        if (total < amount) then
+          DB.async_put ~tid ~table:"checking" ~key:(string_of_int custid)
+          ~json:(Config.values_to_json [ VConst (I (cBal - (amount + 1)))]) ()
+        else
+          DB.async_put ~tid ~table:"checking" ~key:(string_of_int custid)
+          ~json:(Config.values_to_json [ VConst (I (cBal - amount))]) ()
+      in
+      let* _ = DB.async_commit ~tid () in
+      Lwt.return_unit
+    with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = DB.async_release_connection ~tid () in
+      Lwt.return_unit
+  
+  let writeCheckReqHandler (msg : msg) =
+    let aux (name : int) (amount : int) =
+      do_trans (fun tid ->
+          let custid = do_selectAccounts tid name in
+          let sBal = do_selectSavings tid custid in
+          let cBal = do_selectChecking tid custid in
+          let total = sBal + cBal in
+          let _ = if (total < amount)
+                    then do_updateChecking tid custid (cBal - amount)
+                    else do_updateChecking tid custid (cBal - (amount + 1))
+                  in
+          ())
+    in
+    match msg.ev.args with
+      | [ VConst (I name); VConst (I amount) ] ->
+          let _ = aux name amount in
+          send ("writeCheckResp", [])
+      | _ -> _die [%here]
+
+
+  let openAccountsRespHandler (_ : msg) = ()
+  let amalgamateRespHandler (_ : msg) = ()
+  let balanceRespHandler (_ : msg) = ()
+  let depositCheckingRespHandler (_ : msg) = ()
+  let sendPaymentRespHandler (_ : msg) = ()
+  let transactSavingsRespHandler (_ : msg) = ()
+  let writeCheckRespHandler (_ : msg) = ()
+
+
+  let init () =
+    register_async_has_ret "beginT" beginAsync;
+    register_async_has_ret "commit" commitAsync;
+    register_async_has_ret "selectAccounts" selectAccountsAsync;
+    register_async_no_ret "updateAccounts" updateAccountsAsync;
+    register_async_has_ret "selectSavings" selectSavingsAsync;
+    register_async_no_ret "updateSavings" updateSavingsAsync;
+    register_async_has_ret "selectChecking" selectCheckingAsync;
+    register_async_no_ret "updateChecking" updateCheckingAsync;
+    register_handler "openAccountsReq" openAccountsReqHandler;
+    register_handler "amalgamateReq" amalgamateReqHandler;
+    register_handler "balanceReq" balanceReqHandler;
+    register_handler "depositCheckingReq" depositCheckingReqHandler;
+    register_handler "sendPaymentReq" sendPaymentReqHandler;
+    register_handler "transactSavingsReq" transactSavingsReqHandler;
+    register_handler "writeCheckReq" writeCheckReqHandler;
+    register_handler "openAccountsResp" openAccountsRespHandler;
+    register_handler "amalgamateResp" amalgamateRespHandler;
+    register_handler "balanceResp" balanceRespHandler;
+    register_handler "depositCheckingResp" depositCheckingRespHandler;
+    register_handler "sendPaymentResp" sendPaymentRespHandler;
+    register_handler "transactSavingsResp" transactSavingsRespHandler;
+    register_handler "writeCheckResp" writeCheckRespHandler;
+    D.clear ()
+
+  let testCtx =
+    let open Nt in
+    let record l = Ty_record { alias = None; fds = l } in
+    Typectx.add_to_rights Typectx.emp
+      [
+        "beginT"#:(record [ "tid"#:int_ty ]);
+        "commit"#:(record [ "tid"#:int_ty; "cid"#:int_ty ]);
+        "selectAccounts"#:(record
+                            [
+                              "tid"#:int_ty;
+                              "key"#:int_ty;
+                              "prev_tid"#:int_ty;
+                              "prev_cid"#:int_ty;
+                              "value"#:(int_ty);
+                            ]);
+        "updateAccounts"#:(record
+                            [ "tid"#:int_ty; "key"#:int_ty; "value"#:(int_ty) ]);
+        "selectSavings"#:(record
+                            [
+                              "tid"#:int_ty;
+                              "key"#:int_ty;
+                              "prev_tid"#:int_ty;
+                              "prev_cid"#:int_ty;
+                              "value"#:(int_ty);
+                            ]);
+        "updateSavings"#:(record
+                            [ "tid"#:int_ty; "key"#:int_ty; "value"#:(int_ty) ]);
+        "selectChecking"#:(record
+                            [
+                              "tid"#:int_ty;
+                              "key"#:int_ty;
+                              "prev_tid"#:int_ty;
+                              "prev_cid"#:int_ty;
+                              "value"#:(int_ty);
+                            ]);
+        "updateChecking"#:(record
+                            [ "tid"#:int_ty; "key"#:int_ty; "value"#:(int_ty) ]);   
+        "openAccountsReq"#:(record [ "name"#:int_ty; "custid"#:int_ty ]);
+        "openAccountsResp"#:(record []);                     
+        "amalgamateReq"#:(record [ "custid0"#:int_ty; "custid1"#:int_ty ]);
+        "amalgamateResp"#:(record []);
+        "balanceReq"#:(record [ "name"#:int_ty ]);
+        "balanceResp"#:(record [ "balance"#:int_ty ]);
+        "depositCheckingReq"#:(record [ "name"#:int_ty; "amount"#:int_ty ]);
+        "depositCheckingResp"#:(record []);
+        "sendPaymentReq"#:(record [ "sourceid"#:int_ty; "destid"#:int_ty; "amount"#:int_ty ]);
+        "sendPaymentResp"#:(record []);
+        "transactSavingsReq"#:(record [ "name"#:int_ty; "amount"#:int_ty ]);
+        "transactSavingsResp"#:(record []);
+        "writeCheckReq"#:(record [ "name"#:int_ty; "amount"#:int_ty ]);
+        "writeCheckResp"#:(record []);
+      ]
+
+end
 
 
 
@@ -497,11 +1159,14 @@ module TwitterDB = struct
   (* posting new tweets *)
   let async_post_tweet ~thread_id user tweet () =
     let open Lwt.Syntax in 
+    let* _ = Lwt_io.printlf "510 %d" thread_id in
     let* tid = DB.async_begin ~thread_id () in
+    let* _ = Lwt_io.printlf "512 %d" thread_id in
     try
       let* _, _, oldTweets = 
         DB.async_get ~tid ~table:"tweets" ~key:(string_of_int user) ()
       in
+      let* _ = Lwt_io.printlf "517 %d" thread_id in
       let oldTweets = 
         match Config.json_to_values oldTweets with
         | [ VCIntList l ] -> l
@@ -510,14 +1175,18 @@ module TwitterDB = struct
       let newTweets =
         tweet :: oldTweets
       in
+      let* _ = Lwt_io.printlf "526 %d" thread_id in
       let* () = 
         DB.async_put ~tid ~table:"tweets" ~key:(string_of_int user)
           ~json:(Config.values_to_json [ VCIntList newTweets ])
           ()
       in
+      let* _ = Lwt_io.printlf "532 %d !%d" thread_id tid in
       let* _ = DB.async_commit ~tid () in 
+      let* _ = Lwt_io.printlf "534 %d !%d" thread_id tid in
       Lwt.return_unit
     with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = Lwt_io.printlf "537 %d" thread_id in
       let* _ = DB.async_release_connection ~tid () in
       Lwt.return_unit
 

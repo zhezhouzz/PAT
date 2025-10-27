@@ -33,6 +33,7 @@ spec_file = {
     "cart_cc": "MonkeyDB/cart_cc_spec.ml",
     "twitter_rc": "MonkeyDB/twitter_rc_spec.ml",
     "twitter_cc": "MonkeyDB/twitter_cc_spec.ml",
+    "smallbank_cc": "MonkeyDB/smallbank_cc_spec.ml",
 }
 
 def run_syn(name):
@@ -50,12 +51,12 @@ def run_random(name, testNum):
 if __name__ == "__main__":
     name = sys.argv[1]
     testNum = int(sys.argv[2])
-    print("\n\n\n\nRunning synthesis for", name)
-    run_syn(name)
-    input()
-    print("Running evaluation for", name, testNum)
-    run_eval(name, testNum)
-    input()
+    #print("\n\n\n\nRunning synthesis for", name)
+    #run_syn(name)
+    #input()
+    #print("Running evaluation for", name, testNum)
+    #run_eval(name, testNum)
+    #input()
     print("Running random for", name, testNum)
-    input()
+    #input()
     run_random(name, testNum)

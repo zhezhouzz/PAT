@@ -129,7 +129,7 @@ let selectTweets =
   |]
 
 
-(* Cart *)
+(* Twitter *)
 
 let newUserReq (i : int) ?l:(u = (true : [%v: int])) =
   ( starA (anyA - NewUserReq true - SelectFollows (user == u) - SelectTweets (user == u) - UpdateFollows (user == u) - SelectFollows (user == u)),
