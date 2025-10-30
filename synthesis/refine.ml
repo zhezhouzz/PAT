@@ -72,7 +72,12 @@ let init_strategy env =
       }
   else
     _strategy :=
-      { !_strategy with search = BoundBFS 10; search_new_goals = false }
+      {
+        !_strategy with
+        search = UnSortedDFS 1;
+        (* result_expection = 1; *)
+        search_new_goals = false;
+      }
 
 let search_strategy_to_string = function
   | DFS -> "DFS"

@@ -364,31 +364,43 @@ let backward_merge plan curId (history1, prev, history2, cur, future) =
               (layout_act prevAct)
               (omit_layout_line_elems pre2)
           in
-          let () = Pp.printf "@{<bold>merge pre1@}\n" in
           let res =
             inter_line_with_regex
               (fun _ -> true)
               { gprop; elems = pre1 } history1
           in
+          let () =
+            Pp.printf "@{<bold>num of merge pre1@}: %i\n" (List.length res)
+          in
           List.concat_map
             (fun (_, { gprop; elems = pre1 }) ->
               let () =
-                Pp.printf "@{<bold>backward merge@} pre1: %s\n"
+                Pp.printf "@{<bold>on pre1@}: %s\n"
                   (omit_layout_line_elems pre1)
               in
-              let () = Pp.printf "@{<bold>merge pre2@}\n" in
               let res =
                 inter_line_with_regex
                   (fun _ -> true)
                   { gprop; elems = pre2 } history2
               in
+              let () =
+                Pp.printf "@{<bold>num of merge pre2@}: %i\n" (List.length res)
+              in
               List.concat_map
                 (fun (reusedIdsPre2, { gprop; elems = pre2 }) ->
+                  let () =
+                    Pp.printf "@{<bold>on pre2@}: %s\n"
+                      (omit_layout_line_elems pre2)
+                  in
                   let () = Pp.printf "@{<bold>merge post@}\n" in
                   let res =
                     inter_line_with_regex
                       (fun act -> not (is_derived_act act))
                       { gprop; elems = post } future
+                  in
+                  let () =
+                    Pp.printf "@{<bold>num of merge post@}: %i\n"
+                      (List.length res)
                   in
                   List.map
                     (fun (reusedIdsPost, { gprop; elems = post }) ->

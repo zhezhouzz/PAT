@@ -42,13 +42,13 @@ let createDirResp =
 let deletePathReq =
  fun ?l:(p = (not (is_root v) : [%v: Path.t])) ->
   ( (InitReq true;
-     allA;
+     starA (anyA - DeletePathReq (path == p));
      CreateDirReq (path == p);
      CreateDirResp (success == true);
      starA (anyA - DeletePathReq (path == p))),
     DeletePathReq (path == p),
     (DeletePathResp (success == true);
-     allA) )
+     starA (anyA - DeletePathReq (path == p))) )
 
 let deletePathResp =
  fun ?l:(s = (v == true : [%v: bool])) ->

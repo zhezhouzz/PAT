@@ -4,7 +4,7 @@ open Common
 open Ast
 open SFA
 
-let can_be_reused = [ "var"; "recE" ] @ ghost_event_names
+let can_be_reused = [ "var"; "recE"; "deletePathReq" ] @ ghost_event_names
 let unreusable_core_acts = ref []
 let init_unreusable_core_acts () = unreusable_core_acts := []
 let set_unreusable_core_acts (acts : int list) = unreusable_core_acts := acts
