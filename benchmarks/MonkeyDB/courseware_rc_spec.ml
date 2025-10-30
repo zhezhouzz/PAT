@@ -3,28 +3,6 @@ val ( >= ) : int -> int -> bool
 val insert : int -> int list -> int list
 val remove : int -> int list -> int list
 val emp : int list -> bool
-(* val contains : int -> int list -> bool *)
-
-(* Add axioms for contains *)
-
-(* let[@axiom] emp_same (l1 : int list) (l2 : int list) =
-  implies (emp l1 && emp l2) (l1 == l2)
-
-let[@axiom] insert_not_emp (x : int) (l : int list) = not (emp (insert x l))
-
-let[@axiom] insert_not_eq (x: int) (l : int list) = not (insert x l == l)
-
-let[@axiom] remove_insert (x : int) (l : int list) = 
-  (remove x (insert x l) == l)
-
-let[@axiom] remove_insert2 (x : int) (l : int list) = 
-  (remove x (insert x (insert x l)) == insert x l)
-
-let[@axiom] remove_emp (x : int) (l : int list) =
-  implies (emp l) (remove x l == l)
-
-let[@axiom] insert_remove_emp (x : int) (l : int list) = 
-  implies (emp l) (emp (remove x (insert x l))) *)
 
 let[@axiom] emp_same (l1 : int list) (l2 : int list) =
   implies (emp l1 && emp l2) (l1 == l2)
@@ -40,18 +18,6 @@ let[@axiom] remove_insert2 (x : int) (l : int list) =
 let[@axiom] remove_emp (x : int) (l : int list) =
   implies (emp l) (remove x l == l)
 
-
-
-(* let[@axiom] contains_insert (x : int) (l : int list) = 
-  contains x (insert x l)
-
-(* This assumes no duplicates, which should hold for the courseware application *)
-let[@axiom] contains_insert_remove (x : int) (l : int list) = 
-  not (contains x (remove x l))
-
-let[@axiom] contains_emp (x : int) (l : int list) =
-  implies (emp l) (not (contains x l)) *)
-
 (* Basic Typing *)
 
 val beginT : < tid : int > [@@obs]
@@ -59,12 +25,7 @@ val commit : < tid : int ; cid : int > [@@obs]
 
 (* Get/Put for each table *)
 
-(* val get :
-  < tid : int ; prevTid : int ; prevCid : int ; key : int ; value : int list >
-[@@obs]
-val put : < tid : int ; key : int ; value : int list > [@@obs] *)
-
-(* val getStudents : 
+val getStudents : 
   < tid : int ; prevTid : int ; prevCid : int ; key : int ; value : bool >
 [@@obs]
 val putStudents : < tid : int ; key : int ; value : bool > [@@obs]
@@ -72,7 +33,7 @@ val putStudents : < tid : int ; key : int ; value : bool > [@@obs]
 val getCourses : 
   < tid : int ; prevTid : int ; prevCid : int ; key : int ; value : bool >
 [@@obs]
-val putCourses : < tid : int ; key : int ; value : bool > [@@obs] *)
+val putCourses : < tid : int ; key : int ; value : bool > [@@obs]
 
 val getStudentEnrollments :
   < tid : int ; prevTid : int ; prevCid : int ; key : int ; value : int list >
@@ -80,10 +41,10 @@ val getStudentEnrollments :
 
 val putStudentEnrollments : < tid : int ; key : int ; value : int list > [@@obs]
 
-(* val getCourseEnrollments : 
+val getCourseEnrollments : 
   < tid : int ; prevTid : int ; prevCid : int ; key : int ; value : int list >
 [@@obs]
-val putCourseEnrollments : < tid : int ; key : int ; value : int list > [@@obs] *)
+val putCourseEnrollments : < tid : int ; key : int ; value : int list > [@@obs]
 
 (* Courseware operations *)
 
@@ -91,24 +52,18 @@ val registerStudentReq : < user : int > [@@gen]
 val registerStudentResp : < > [@@obs]
 
 (* val deregisterStudentReq : < student_id : int > [@@gen]
-val deregisterStudentResp : < success : bool > [@@obs]
+val deregisterStudentResp : < success : bool > [@@obs] *)
 
 val createCourseReq : < course_id : int > [@@gen]
 val createCourseResp : < success : bool > [@@obs]
 
-val deleteCourseReq : < course_id : int > [@@gen]
+(* val deleteCourseReq : < course_id : int > [@@gen]
 val deleteCourseResp : < success : bool > [@@obs] *)
 
 val enrollStudentReq : < user : int ; item : int > [@@gen]
 val enrollStudentResp : < > [@@obs]
 val unenrollStudentReq : < user : int ; item : int > [@@gen]
 val unenrollStudentResp : < > [@@obs]
-
-(* val getStudentEnrollmentsReq : < student_id : int > [@@gen]
-val getStudentEnrollmentsResp : < courses : int list > [@@obs]
-
-val getCourseEnrollmentsReq : < course_id : int > [@@gen]
-val getCourseEnrollmentsResp : < students : int list > [@@obs] *)
 
 (* Read Committed *)
 (* Invariant: For any transaction with tid = i, there does not exist a previous transaction with tid > i. *)
@@ -123,52 +78,8 @@ let commit ?l:(i = (true : [%v: int])) ?l:(j = (true : [%v: int])) =
     Commit (tid == i && cid == j),
     starA (anyA - PutStudentEnrollments (tid == i) - GetStudentEnrollments (tid == i)) )
 
-(* Invariant: For any transaction with tid = i, there does not exist a previous transaction with tid > i. *)
-(* let beginT ?l:(i = (true : [%v: int])) =
-  (starA (anyA - BeginT (tid >= i)), BeginT (tid == i), allA)
 
-(* Invariant: Each transaction is committed exactly once; there does not exist a previous commit with cid > j. *)
-let commit ?l:(i = (true : [%v: int])) ?l:(j = (true : [%v: int])) =
-  ( (starA (anyA - Commit (tid == i || cid >= j));
-     BeginT (tid == i);
-     starA (anyA - Commit (tid == i || cid >= j))),
-    Commit (tid == i && cid == j),
-    starA (anyA - Put (tid == i) - Get (tid == i)) ) *)
-
-(* let put ?l:(i = (true : [%v: int])) ?l:(k = (true : [%v: int]))
-    ?l:(z = (true : [%v: int list])) =
-  ( (allA;
-     BeginT (tid == i);
-     starA (anyA - Commit (tid == i))),
-    Put (tid == i && key == k && value == z),
-    allA )
-
-let get =
-  [|
-    (* Read most recent committed transaction *)
-    (fun ?l:(i = (true : [%v: int]))
-      ?l:(pi = (true : [%v: int]))
-      ?l:(pj = (true : [%v: int]))
-      ?l:(k = (true : [%v: int]))
-      ?l:(z = (true : [%v: int list]))
-    ->
-      ( (starA (anyA - Put (tid == i && key == k));
-         Put (tid == pi && key == k && value == z);
-         starA (anyA - Put (tid == i && key == k));
-         Commit (tid == pi && cid == pj);
-         starA (anyA - Commit true - Put (tid == i && key == k))),
-        Get
-          (tid == i && key == k && prevTid == pi && prevCid == pj
-          && (not (tid == prevTid))
-          && value == z),
-        allA ));
-  |] *)
-
-
-
-
-
-(* let getStudents =
+let getStudents =
   [|
     (* Read most recent committed transaction *)
     (fun ?l:(i = (true : [%v: int]))
@@ -224,7 +135,7 @@ let putCourses ?l:(i = (true : [%v: int])) ?l:(k = (true : [%v: int]))
      BeginT (tid == i);
      starA (anyA - Commit (tid == i))),
     PutCourses (tid == i && key == k && value == z),
-    allA ) *)
+    allA )
 
 let putStudentEnrollments ?l:(i = (true : [%v: int])) ?l:(k = (true : [%v: int]))
     ?l:(z = (true : [%v: int list])) =
@@ -255,7 +166,7 @@ let getStudentEnrollments =
         allA ));
   |]
 
-(* let getCourseEnrollments =
+let getCourseEnrollments =
   [|
     (* Read most recent committed transaction *)
     (fun ?l:(i = (true : [%v: int]))
@@ -282,17 +193,20 @@ let putCourseEnrollments ?l:(i = (true : [%v: int])) ?l:(k = (true : [%v: int]))
      BeginT (tid == i);
      starA (anyA - Commit (tid == i))),
     PutCourseEnrollments (tid == i && key == k && value == z),
-    allA ) *)
+    allA )
 
 (* Courseware operations *)
 
 let registerStudentReq (i : int) ?l:(x = (true : [%v: int])) =
   ( 
-    starA (anyA - RegisterStudentReq true - GetStudentEnrollments (key == x) - PutStudentEnrollments (key == x)),
+    starA (anyA - RegisterStudentReq true 
+      - GetStudentEnrollments (key == x) - PutStudentEnrollments (key == x)
+      - GetStudents (key == x) - PutStudents (key == x)),
     RegisterStudentReq (user == x),
     (
       BeginT (tid == i);
       PutStudentEnrollments (tid == i && key == x && emp value);
+      PutStudents (tid == i && key == x && value == true);
       Commit (tid == i);
       RegisterStudentResp true;
       starA (anyA - RegisterStudentReq true)
@@ -332,13 +246,12 @@ let deregisterStudentResp ?l:(x = (true : [%v: bool])) =
     allA
   ) *)
 
-(* let createCourseReq (i : int) ?l:(x = (true : [%v: int])) = 
+let createCourseReq (i : int) ?l:(x = (true : [%v: int])) = 
   (
     allA,
     CreateCourseReq (course_id == x),
     (
       BeginT (tid == i);
-      GetCourses (tid == i && key == x);
       PutCourses (tid == i && key == x && value == true);
       PutCourseEnrollments (tid == i && key == x && emp value);
       Commit (tid == i);
@@ -347,12 +260,7 @@ let deregisterStudentResp ?l:(x = (true : [%v: bool])) =
     )
   )
 
-let createCourseResp = 
-  (
-    allA,
-    CreateCourseResp true,
-    allA
-  ) *)
+let createCourseResp = (allA, CreateCourseResp true, allA)
 
 (* let deleteCourseReq (i : int) (l : int list)
   ?l:(x = (true : [%v: int])) =
@@ -381,8 +289,6 @@ let deleteCourseResp ?l:(x = (true : [%v: bool])) =
     DeleteCourseResp (success == x),
     allA
   ) *)
-
-
 
 let enrollStudentReq (i : int) (l : int list) ?l:(x = (true : [%v: int]))
     ?l:(y = (true : [%v: int])) =
@@ -425,50 +331,9 @@ let unenrollStudentResp = (allA, UnenrollStudentResp true, allA)
 
 (* Goals *)
 
-(* let[@goal] courseware_rc_get_put (x : int) (y : int list) =
-  allA;
-  Put (key == x && value == y);
-  starA (anyA - Put (key == x));
-  Get (key == x && not (value == y));
-  allA *)
-
-(* let[@goal] courseware_rc_get_put_students (x : int) (y : bool) =
-  allA;
-  PutStudents (key == x && value == y);
-  starA (anyA - PutStudents (key == x));
-  GetStudents (key == x && not (value == y));
-  allA *)
-
 let[@goal] courseware_rc (x : int) (y : int list) =
   allA;
   PutStudentEnrollments (key == x && value == y);
   starA (anyA - PutStudentEnrollments (key == x));
   GetStudentEnrollments (key == x && not (value == y));
   allA
-
-(* Register a student, check if they are registered *)
-(* let[@goal] courseware_rc_register (x : int) =
-  allA;
-  RegisterStudentReq (student_id == x);
-  starA (anyA - DeregisterStudentReq (student_id == x));
-  GetStudents (key == x && not (value == true));
-  allA
-
-(* Enroll student, check if they are enrolled *)
-let[@goal] courseware_rc_enroll (x : int) (y : int) =
-  allA;
-  RegisterStudentReq (student_id == x);
-  EnrollStudentReq (student_id == x && course_id == y);
-  starA (anyA - DeregisterStudentReq (student_id == x) - DeleteCourseReq (course_id == y));
-  GetStudentEnrollments (key == x && not (contains y value));
-  allA
-
-(* Enroll student, delete course, check if student is still enrolled *)
-let[@goal] courseware_rc_enroll_delete (x : int) (y : int) =
-  allA;
-  RegisterStudentReq (student_id == x);
-  EnrollStudentReq (student_id == x && course_id == y);
-  DeleteCourseReq (course_id == y);
-  starA (anyA - DeregisterStudentReq (student_id == x));
-  GetStudentEnrollments (key == x && contains y value);
-  allA *)
