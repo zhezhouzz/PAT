@@ -13,8 +13,9 @@ module SimpleRename = struct
   let preserved_vars = ref recursion_vars
   let add_preserved_var l = preserved_vars := !preserved_vars @ l
 
-  let new_gen_var x =
-    if List.exists (String.equal x.x) !preserved_vars then x
+  let new_gen_var used_vars x =
+    let used_vars = List.map (fun x -> x.x) used_vars in
+    if List.exists (String.equal x.x) (!preserved_vars @ used_vars) then x
     else
       let fresh_var = spf "%s%i" default_gen_var !_var_counter in
       _var_counter := !_var_counter + 1;
@@ -39,12 +40,42 @@ let rec acts_to_term env = function
   | [] -> mk_term_tt
   | act :: acts -> act_to_term env act @@ acts_to_term env acts
 
-let normalize_line env { gprop; elems } =
+let unique_name_line { gprop; elems } =
+  let rec aux used_names (gprop, acts) = function
+    | [] -> { gprop; elems = acts }
+    | LineAct act :: post ->
+        let f x =
+          if List.exists (String.equal x.x) used_names then x
+          else (Rename.unique_var "ttmp")#:x.ty
+        in
+        let aargs' = List.map f act.aargs in
+        let prop =
+          List.filter_map (fun (x, y) ->
+              if String.equal x.x y.x then None
+              else
+                let lit = mk_var_eq_var [%here] x y in
+                Some (lit_to_prop lit))
+          @@ _safe_combine [%here] act.aargs aargs'
+        in
+        let prop = smart_and prop in
+        let gprop = smart_and [ gprop; prop ] in
+        let act = { act with aargs = aargs' } in
+        let new_names = List.map (fun x -> x.x) aargs' in
+        aux (used_names @ new_names)
+          (gprop, acts @ [ LineAct { act with aargs = aargs' } ])
+          post
+    | (LineStarMultiChar _ as elem) :: post ->
+        aux used_names (gprop, acts @ [ elem ]) post
+  in
+  aux [] (gprop, []) elems
+
+let normalize_line env line =
+  let { gprop; elems } = unique_name_line line in
   let rec aux gen_vars obs_vars (gprop, acts) = function
     | [] -> (gen_vars, obs_vars, (gprop, acts))
     | LineAct act :: post ->
         if is_gen env act.aop then
-          let aargs' = List.map new_gen_var act.aargs in
+          let aargs' = List.map (new_gen_var []) act.aargs in
           let gprop = msubst_prop (act.aargs, aargs') gprop in
           let act = { act with aargs = aargs' } in
           aux (gen_vars @ aargs') obs_vars (gprop, acts @ [ act ]) post
@@ -136,6 +167,8 @@ let compile_term_from_line env e =
   in
   let _, gprop, prog = SimpEq.simp (List.map _get_x tmp_vars, gprop, prog) in
   let gprop, prog = SimpEq.mk_eq_from_prev (gprop, prog) in
+  let () = Pp.printf "@{<bold>prog1:@}\n%s\n" (layout_term prog) in
+  let () = Pp.printf "@{<bold>gprop1:@}\n%s\n" (layout_prop gprop) in
   let prog, post = distribute_assumption (gen_vars @ obs_vars, prog, gprop) in
   let () = Pp.printf "@{<bold>prog:@}\n%s\n" (layout_term prog) in
   let () = Pp.printf "@{<bold>post:@}\n%s\n" (layout_prop post) in

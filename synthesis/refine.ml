@@ -68,7 +68,7 @@ let init_strategy env =
         search = UnSortedDFS 1;
         search_new_goals = false;
         result_expection = 1;
-        addKstar = false;
+        addKstar = true;
       }
   else
     _strategy :=
