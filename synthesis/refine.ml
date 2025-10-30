@@ -75,7 +75,7 @@ let init_strategy env =
       {
         !_strategy with
         search = UnSortedDFS 1;
-        (* result_expection = 1; *)
+        result_expection = 2;
         search_new_goals = false;
       }
 

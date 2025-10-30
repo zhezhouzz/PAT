@@ -84,20 +84,6 @@ let addEdge =
       ( (allA;
          NewNodeResp (nid == x);
          allA;
-         AddEdge (ed == x);
-         allA;
-         NewNodeResp (nid == y);
-         allA),
-        AddEdge (st == x && ch == c && ed == y),
-        starA (anyA - NewNodeReq true - AddEdge (st == x && ch == c && ed == y))
-      ));
-    (fun ?l:(x = (true : [%v: int]))
-      ?l:(c = (true : [%v: char]))
-      ?l:(y = (not (v == x) : [%v: int]))
-    ->
-      ( (allA;
-         NewNodeResp (nid == x);
-         allA;
          NewNodeResp (nid == y);
          allA;
          AddEdge (ed == x);
