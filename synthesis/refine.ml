@@ -36,7 +36,7 @@ let _strategy =
     {
       search = DFS;
       layout_bound = 10;
-      result_expection = 5;
+      result_expection = 3;
       pause = Myconfig.get_bool_option "pause_during_synthesis";
       search_new_goals = false;
       addKstar = Myconfig.get_bool_option "add_kstar_during_synthesis";
@@ -68,7 +68,7 @@ let init_strategy env =
         search = UnSortedDFS 1;
         search_new_goals = false;
         result_expection = 1;
-        addKstar = true;
+        addKstar = false;
       }
   else
     _strategy :=

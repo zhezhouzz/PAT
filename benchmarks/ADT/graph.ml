@@ -37,6 +37,7 @@ module ConnectedGraph = struct
       }
 
   open Zdatatype
+  (* open Zutils *)
 
   let next x =
     let edges =
@@ -51,6 +52,10 @@ module ConnectedGraph = struct
       let reachable_all s =
         List.for_all (fun node -> IntSet.mem node s) nodes
       in
+      (* let () =
+        Printf.printf "nodes: %s\n"
+          (List.split_by ", " (fun x -> string_of_int x) nodes)
+      in *)
       if List.mem 0 nodes then
         let rec dijkstra reachable =
           if reachable_all reachable then true
@@ -60,7 +65,14 @@ module ConnectedGraph = struct
                 (fun node news -> IntSet.add_seq (List.to_seq (next node)) news)
                 reachable reachable
             in
-            dijkstra news
+            (* let () =
+              Printf.printf "news: %s\n"
+                (List.split_by ", "
+                   (fun x -> string_of_int x)
+                   (IntSet.elements news))
+            in *)
+            if IntSet.cardinal news == IntSet.cardinal reachable then false
+            else dijkstra news
         in
         dijkstra (IntSet.singleton 0)
       else false
