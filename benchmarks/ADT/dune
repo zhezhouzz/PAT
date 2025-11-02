@@ -3,7 +3,7 @@
  (name adt)
  (wrapped true)
  (libraries language interpreter qcheck)
- (modules queue stack set filesystem graph nfa stlc ifc stlc_moti)
+ (modules queue stack set filesystem graph nfa stlc ifc stlc_moti hashtable)
  (inline_tests)
  (preprocess
   (pps
