@@ -290,17 +290,20 @@ let deleteCourseResp ?l:(x = (true : [%v: bool])) =
     allA
   ) *)
 
-let enrollStudentReq (i : int) (l : int list) ?l:(x = (true : [%v: int]))
+let enrollStudentReq (i : int) (l_1 : int list) (l_2 : int list) (* changed *)
+    ?l:(x = (true : [%v: int]))
     ?l:(y = (true : [%v: int])) =
   ( 
     allA,
     EnrollStudentReq (user == x && item == y),
     (
       BeginT (tid == i);
-      GetStudentEnrollments (tid == i && key == x && value == l);
+      GetStudentEnrollments (tid == i && key == x && value == l_1);
+      GetCourseEnrollments (tid == i && key == y && value == l_2); (* added *)
       allA;
-      PutStudentEnrollments (tid == i && key == x && value == insert y l);
-      starA (anyA - PutStudentEnrollments (key == x));
+      PutStudentEnrollments (tid == i && key == x && value == insert y l_1);
+      PutCourseEnrollments (tid == i && key == y && value == insert x l_2); (* added *)
+      starA (anyA - PutStudentEnrollments (key == x) - PutCourseEnrollments (key == y)); (* changed *)
       (* no write - write conflict *)
       Commit (tid == i);
       EnrollStudentResp true;
