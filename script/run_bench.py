@@ -48,17 +48,30 @@ def syn_num_map(name):
 def default_num_map(name):
     return 2000
 
-dict = {"Database":10000,
-        "EspressoMachine":10000,
-        "Simplified2PC":10000,
-        "HeartBeat":10000,
-        "BankServer":10000,
-        "RingLeaderElection":10000,
+# dict = {"Database":10000,
+#         "EspressoMachine":10000,
+#         "Simplified2PC":10000,
+#         "HeartBeat":10000,
+#         "BankServer":10000,
+#         "RingLeaderElection":10000,
+#         "Firewall":50,
+#         "ChainReplication":10000,
+#         "Paxos":10000,
+#         "Raft":1000,
+#         "Kermit2PCModel": 1000}
+
+dict = {"Database":10,
+        "EspressoMachine":100,
+        "Simplified2PC":100,
+        "HeartBeat":100,
+        "BankServer":100,
+        "RingLeaderElection":100,
         "Firewall":50,
-        "ChainReplication":10000,
-        "Paxos":10000,
-        "Raft":1000,
-        "Kermit2PCModel": 1000}
+        "ChainReplication":100,
+        "Paxos":100,
+        "Raft":100,
+        "Kermit2PCModel": 100}
+
 
 def random_num_map(name):
     return dict[name]
@@ -164,7 +177,7 @@ def load_stat():
 def load_eval_stat(filename):
     if not os.path.exists(filename):
         with open(filename, 'w') as f:
-            f.write("")
+            f.write("{}")
     with open (filename, "r") as f:
         data = json.load(f)
     return data
@@ -223,10 +236,12 @@ def do_compile():
 
 def run_syn_p_one(postfix, num, mode, kw):
     cur_dir = os.getcwd()
-    # print(cur_dir)
     new_dir = cur_dir + "/" + postfix
+    # print(new_dir)
     os.chdir(new_dir)
+    print(os.getcwd())
     start_time = time.time()
+    compile_result = subprocess.run("../../script/compile_p.sh {}".format(new_dir), shell=True, stdout=subprocess.PIPE, text=True, check=True)
     result = subprocess.run("../../script/run_p.sh {} {} {}".format(mode, str(num), kw), shell=True, stdout=subprocess.PIPE, text=True, check=True)
     end_time = time.time()
     elapsed_time = end_time - start_time
@@ -294,13 +309,13 @@ def fix():
             j = json.dump(j, f)
 
 if __name__ == '__main__':
-    do_p_syn()
+    # do_p_syn()
     # do_eval()
     # do_compile()
-    exit()
-    # run_syn_p()
+    run_syn_p()
     # run_random_p()
     # run_default_p()
+    exit()
     j = load_stat()
     print_cols(benchmarks, j)
     # fix()

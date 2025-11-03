@@ -42,6 +42,7 @@ let read_syn source_file () =
 let handle_syn_result (env, term) name =
   let () = Stat.dump (env, term) (spf "stat/.%s.json" name) in
   let output_file = spf "output/%s.scm" name in
+  let () = Pp.printf "@{<bold>Output file:@}:\n%s\n" output_file in
   let oc = Out_channel.open_text output_file in
   try
     Sexplib.Sexp.output oc @@ sexp_of_term term;
@@ -54,7 +55,6 @@ let do_syn name source_file () =
   let code = read_source_file source_file () in
   (* let () = Printf.printf "%s\n" (layout_structure code) in *)
   let env = Ntypecheck.(struct_check init_env code) in
-  let () = Printf.printf "%s\n" (layout_syn_env env) in
   let () = Stat.init_algo_complexity () in
   let prog = Synthesis.synthesize env name in
   let () = handle_syn_result (env, prog) name in
@@ -152,8 +152,7 @@ let compile_to_p_aux source_file output_file p_output_file () =
   (*     (Oparse.parse_imp_from_file ~sourcefile:pheader_file) *)
   (* in *)
   let env, term = load_syn_result source_file output_file in
-  let content = _die_with [%here] "unimp" in
-  (* Pbackend.compile_syn_result env term in *)
+  let content = Pbackend.compile_syn_result env term in
   let oc = open_out p_output_file in
   let () =
     try

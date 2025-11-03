@@ -230,7 +230,7 @@ module Stat = struct
 
   let normalize_algo_complexity () =
     let stat = match !record with None -> _die [%here] | Some x -> x in
-    if stat.n_result = 0 then _die [%here]
+    if stat.n_result == 0 then _die [%here]
     else
       let n_forward = stat.n_forward / stat.n_result in
       let n_backward = stat.n_backward / stat.n_result in

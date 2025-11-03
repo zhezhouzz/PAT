@@ -11,8 +11,7 @@
   adt
   quickstorm
   BackendMariaDB
-  ; pbackend
-  )
+  pbackend)
  (modules caux ctest cre)
  (preprocess
   (pps

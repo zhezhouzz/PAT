@@ -1,51 +1,54 @@
 machine SynClient {
   start state Syn {
-    entry (input: (setting: setting, domain_int: set[int], domain_bool: set[bool])) {
+    entry (input: (setting: setting, domain_bool: set[bool], domain_int: set[int])) {
       var setting: setting;
-      var domain_int: set[int];
       var domain_bool: set[bool];
-      var x: int;
-      var y: int;
+      var domain_int: set[int];
+      var __x0: int;
       var input_writeRsp: (va: int);
-      var tmp_2: int;
-      var tmp_1: int;
+      var __y1: int;
+      var __x2: int;
       var input_readRsp: (va: int, st: bool);
-      var tmp_0: int;
-      var s_0: bool;
+      var __y3: int;
+      var __y4: bool;
+      var __y5: int;
       setting = input.setting;
-      domain_int = input.domain_int;
       domain_bool = input.domain_bool;
+      domain_int = input.domain_int;
       while(true){
-        x = choose(domain_int);
+        __x0 = choose(domain_int);
         if (true) {
           break;
         };
       };
-      send_writeReq(this, setting, (va = x,));
+      send_writeReq(this, setting, (va = __x0,));
+      receive { case syn_writeRsp: (input: tsyn_writeRsp) {
+        announce an_syn_writeRsp, input;
+        input_writeRsp = cast_syn_writeRsp(input);
+        __y1 = input_writeRsp.va;
+      }};
+      assert true;
       while(true){
-        y = choose(domain_int);
-        if (!((y == x))) {
+        __x2 = choose(domain_int);
+        if (!((__x0 == __x2))) {
           break;
         };
       };
-      send_writeReq(this, setting, (va = y,));
-      receive { case syn_writeRsp: (input: tsyn_writeRsp) {
-        input_writeRsp = cast_syn_writeRsp(input);
-        tmp_2 = input_writeRsp.va;
-      }};
-      assert (tmp_2 == y);
-      receive { case syn_writeRsp: (input: tsyn_writeRsp) {
-        input_writeRsp = cast_syn_writeRsp(input);
-        tmp_1 = input_writeRsp.va;
-      }};
-      assert (tmp_1 == x);
+      send_writeReq(this, setting, (va = __x2,));
       send_readReq(this, setting);
       receive { case syn_readRsp: (input: tsyn_readRsp) {
+        announce an_syn_readRsp, input;
         input_readRsp = cast_syn_readRsp(input);
-        tmp_0 = input_readRsp.va;
-        s_0 = input_readRsp.st;
+        __y3 = input_readRsp.va;
+        __y4 = input_readRsp.st;
       }};
-      assert ((tmp_0 == y) && s_0);
+      assert true;
+      receive { case syn_writeRsp: (input: tsyn_writeRsp) {
+        announce an_syn_writeRsp, input;
+        input_writeRsp = cast_syn_writeRsp(input);
+        __y5 = input_writeRsp.va;
+      }};
+      assert true;
     }
 
   }

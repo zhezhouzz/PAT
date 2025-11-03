@@ -176,6 +176,7 @@ let rec layout_p_expr ctx n = function
         @@ layout_typed_p_expr ctx (n + 1) body)
         last
   | PRecieve { event_name; input; body } ->
+      let an_event_name = "an_" ^ event_name in
       let first =
         if Nt.equal_nt Nt.unit_ty input.ty then
           spf "receive { case %s: {\n" event_name
@@ -196,6 +197,11 @@ let rec layout_p_expr ctx n = function
           | _ ->
               spf "receive { case %s: (%s) {\n" event_name
                 (layout_pnt_typed_var input)
+      in
+      (* Add announce event for monitor *)
+      let first =
+        spf "%s%s" first
+          (mk_indent (n + 1) (spf "announce %s, input;\n" an_event_name))
       in
       let last = mk_indent n "}}" in
       spf "%s%s%s" first

@@ -21,7 +21,7 @@ machine Database {
         on syn_writeReq do (input: tsyn_writeReq) {
             is_init = true;
             store = input.va;
-            cache += (sizeof(cache), (controller = input.controller, dst = input.controller, va = input.va));
+            do_send_writeRsp((controller = input.controller, dst = input.controller, va = input.va));
             goto Wait;
         }
         on syn_readReq do (input: tsyn_readReq) {

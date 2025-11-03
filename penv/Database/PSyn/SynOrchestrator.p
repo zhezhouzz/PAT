@@ -10,7 +10,7 @@ machine SynOrchestrator {
         domain_int += (2);
         domain_bool += (true);
         domain_bool += (false);
-        new SynClient((setting = db, domain_int = domain_int, domain_bool = domain_bool));
+        new SynClient((setting = db, domain_bool = domain_bool, domain_int = domain_int));
       }
     }
   }

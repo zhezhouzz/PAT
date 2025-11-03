@@ -61,6 +61,7 @@ let synthesize (env : syn_env) name =
       (fun i p -> Pp.printf "@{<bold>Prog[%i]:@}\n%s\n" i (layout_term p))
       progs
   in
+  let () = Language.Stat.set_num_result (List.length plans) in
   let first_result =
     match progs with p :: _ -> p | [] -> _die_with [%here] "no programs"
   in
