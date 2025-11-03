@@ -62,7 +62,7 @@
         ],
         [
             "pause_during_synthesis",
-            false
+            true
         ],
         [
             "add_kstar_during_synthesis",

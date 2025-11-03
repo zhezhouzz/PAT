@@ -1,8 +1,8 @@
-val ( == ) : 'a -> 'a -> bool
-val readReq : unit [@@gen]
-val readRsp : < va : int ; st : bool > [@@obsRecv]
+val ( == ) : 'a. 'a -> 'a -> bool
+val readReq : < > [@@gen]
+val readRsp : < va : int ; st : bool > [@@obs]
 val writeReq : < va : int > [@@gen]
-val writeRsp : < va : int > [@@obsRecv]
+val writeRsp : < va : int > [@@obs]
 
 let readReq =
   [|
@@ -23,10 +23,10 @@ let writeRsp ?l:(x = (true : [%v: int])) = (allA, WriteRsp (va == x), [||])
 let readRsp ?l:(x = (true : [%v: int])) ?l:(s = (true : [%v: bool])) =
   (allA, ReadRsp (va == x && st == s), [||])
 
-let[@goal] read_your_write (x : int) (y : int) =
-  not
-    (allA;
-     WriteRsp (va == x);
-     starA (anyA - WriteRsp true);
-     ReadRsp (va == y && (not (x == y)) && st);
-     allA)
+(* read your write *)
+let[@goal] task_Database (x : int) (y : int) =
+  allA;
+  WriteRsp (va == x);
+  starA (anyA - WriteRsp true);
+  ReadRsp (va == y && (not (x == y)) && st);
+  allA

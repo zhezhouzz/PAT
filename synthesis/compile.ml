@@ -40,37 +40,45 @@ let rec acts_to_term env = function
   | [] -> mk_term_tt
   | act :: acts -> act_to_term env act @@ acts_to_term env acts
 
-let unique_name_line { gprop; elems } =
+let unique_name_line env { gprop; elems } =
   let rec aux used_names (gprop, acts) = function
     | [] -> { gprop; elems = acts }
     | LineAct act :: post ->
-        let f x =
-          if List.exists (String.equal x.x) used_names then x
-          else (Rename.unique_var "ttmp")#:x.ty
-        in
-        let aargs' = List.map f act.aargs in
-        let prop =
-          List.filter_map (fun (x, y) ->
-              if String.equal x.x y.x then None
-              else
-                let lit = mk_var_eq_var [%here] x y in
-                Some (lit_to_prop lit))
-          @@ _safe_combine [%here] act.aargs aargs'
-        in
-        let prop = smart_and prop in
-        let gprop = smart_and [ gprop; prop ] in
-        let act = { act with aargs = aargs' } in
-        let new_names = List.map (fun x -> x.x) aargs' in
-        aux (used_names @ new_names)
-          (gprop, acts @ [ LineAct { act with aargs = aargs' } ])
-          post
+        if is_gen env act.aop then
+          let new_names = List.map (fun x -> x.x) act.aargs in
+          aux (used_names @ new_names) (gprop, acts @ [ LineAct act ]) post
+        else
+          let f x =
+            if List.exists (String.equal x.x) used_names then x
+            else (Rename.unique_var "ttmp")#:x.ty
+          in
+          let aargs' = List.map f act.aargs in
+          let prop =
+            List.filter_map (fun (x, y) ->
+                if String.equal x.x y.x then None
+                else
+                  let lit = mk_var_eq_var [%here] x y in
+                  Some (lit_to_prop lit))
+            @@ _safe_combine [%here] act.aargs aargs'
+          in
+          let prop = smart_and prop in
+          let gprop = smart_and [ gprop; prop ] in
+          let act = { act with aargs = aargs' } in
+          let new_names = List.map (fun x -> x.x) aargs' in
+          aux (used_names @ new_names)
+            (gprop, acts @ [ LineAct { act with aargs = aargs' } ])
+            post
     | (LineStarMultiChar _ as elem) :: post ->
         aux used_names (gprop, acts @ [ elem ]) post
   in
   aux [] (gprop, []) elems
 
 let normalize_line env line =
-  let { gprop; elems } = unique_name_line line in
+  let { gprop; elems } = unique_name_line env line in
+  let () =
+    Pp.printf "@{<bold>unique line:@}\n%s\n"
+      (Plan.omit_layout_line { gprop; elems })
+  in
   let rec aux gen_vars obs_vars (gprop, acts) = function
     | [] -> (gen_vars, obs_vars, (gprop, acts))
     | LineAct act :: post ->

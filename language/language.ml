@@ -23,6 +23,7 @@ module Stat = struct
     t_total : float;
     n_forward : int;
     n_backward : int;
+    n_result : int;
   }
   [@@deriving yojson]
 
@@ -153,7 +154,13 @@ module Stat = struct
           t_refine = 0.0;
           n_forward = 0;
           n_backward = 0;
+          n_result = 0;
         }
+
+  let set_num_result n =
+    match !record with
+    | None -> _die_with [%here] "stat not init"
+    | Some r -> record := Some { r with n_result = n }
 
   let incr_backtrack () =
     match !record with
@@ -221,6 +228,14 @@ module Stat = struct
     in
     res
 
+  let normalize_algo_complexity () =
+    let stat = match !record with None -> _die [%here] | Some x -> x in
+    if stat.n_result = 0 then _die [%here]
+    else
+      let n_forward = stat.n_forward / stat.n_result in
+      let n_backward = stat.n_backward / stat.n_result in
+      { stat with n_forward; n_backward; n_result = 1 }
+
   let dump (env, term) filename =
     let stat =
       {
@@ -228,8 +243,7 @@ module Stat = struct
         n_retry = 0.0;
         task_complexity = mk_task_complexity env;
         result_complexity = mk_result_complexity term;
-        algo_complexity =
-          (match !record with None -> _die [%here] | Some x -> x);
+        algo_complexity = normalize_algo_complexity ();
       }
     in
     let json = stat_to_yojson stat in

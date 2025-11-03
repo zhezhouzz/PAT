@@ -39,19 +39,9 @@ let read_syn source_file () =
   let term = Synthesis.synthesize env in
   ()
 
-let do_syn name source_file () =
-  let code = read_source_file source_file () in
-  (* let () = Printf.printf "%s\n" (layout_structure code) in *)
-  let env = Ntypecheck.(struct_check init_env code) in
-  let () = Printf.printf "%s\n" (layout_syn_env env) in
-  let () = Stat.init_algo_complexity () in
-  let progs = Synthesis.synthesize env name in
-  let () = Synthesis.save_progs name progs in
-  ()
-
-let handle_syn_result env (exec_time, output_file, term) =
-  let () = Stat.dump (env, term) ".stat.json" in
-  let output_file = spf "%s.scm" output_file in
+let handle_syn_result (env, term) name =
+  let () = Stat.dump (env, term) (spf "stat/.%s.json" name) in
+  let output_file = spf "output/%s.scm" name in
   let oc = Out_channel.open_text output_file in
   try
     Sexplib.Sexp.output oc @@ sexp_of_term term;
@@ -59,6 +49,17 @@ let handle_syn_result env (exec_time, output_file, term) =
   with e ->
     Out_channel.close oc;
     raise e
+
+let do_syn name source_file () =
+  let code = read_source_file source_file () in
+  (* let () = Printf.printf "%s\n" (layout_structure code) in *)
+  let env = Ntypecheck.(struct_check init_env code) in
+  let () = Printf.printf "%s\n" (layout_syn_env env) in
+  let () = Stat.init_algo_complexity () in
+  let prog = Synthesis.synthesize env name in
+  let () = handle_syn_result (env, prog) name in
+  (* let () = Synthesis.save_progs name progs in *)
+  ()
 
 let syn_term source_file output_file () =
   let code = read_source_file source_file () in
@@ -72,17 +73,17 @@ let syn_term source_file output_file () =
   let () = Pp.printf "@{<bold>synthesis time: %f@}\n" exec_time in
   ()
 
-let benchmark_convension benchname =
+let benchmark_convension task_name benchname =
   let source_file = spf "benchmarks/%s/task.ml" benchname in
-  let output_file = spf "output/%s" benchname in
-  let stat_file = spf "stat/.%s.json" benchname in
+  let output_file = spf "output/%s" task_name in
+  let stat_file = spf "stat/.%s.json" task_name in
   let pheader = spf "benchmarks/%s/pheader.ml" benchname in
   let poutput = spf "penv/%s/PSyn/SynClient.p" benchname in
   (source_file, output_file, stat_file, pheader, poutput)
 
-let syn_benchmark benchname () =
+let syn_benchmark task_name benchname () =
   let source_file, output_file, stat_file, _, _ =
-    benchmark_convension benchname
+    benchmark_convension task_name benchname
   in
   let code = read_source_file source_file () in
   (* let () = Printf.printf "%s\n" (layout_structure code) in *)
@@ -126,30 +127,22 @@ let load_syn_result source_file output_file =
   let term = term_of_sexp sexp in
   (env, term)
 
-(* let eval_aux source_file output_file () =
-  let output_file = spf "%s.scm" output_file in
-  let env, term = load_syn_result source_file output_file in
-  let () = Printf.printf "%s\n" (layout_term term) in
-  let () = Interpreter.interpret env term in
-  let rate = Interpreter.interpret_sample env term 1000 in
-  ((env, term), rate) *)
-
 let eval_aux source_file output_file () =
   let output_file = spf "%s.scm" output_file in
   let env, term = load_syn_result source_file output_file in
   let () = Printf.printf "%s\n" (layout_term term) in
-  (0, 0.0)
+  ((env, term), (0.0, 0.0))
 
 let eval source_file output_file () =
   let _, rate = eval_aux source_file output_file () in
   ()
 
-let eval_benchmark benchname () =
+let eval_benchmark task_name benchname () =
   let source_file, output_file, stat_file, _, _ =
-    benchmark_convension benchname
+    benchmark_convension task_name benchname
   in
-  (* let (env, term), (rate, n_retry) = eval_aux source_file output_file () in
-  let () = Stat.update_when_eval (env, term) rate n_retry stat_file in *)
+  let (env, term), (rate, n_retry) = eval_aux source_file output_file () in
+  let () = Stat.update_when_eval (env, term) rate n_retry stat_file in
   ()
 
 let compile_to_p_aux source_file output_file p_output_file () =
@@ -172,9 +165,9 @@ let compile_to_p_aux source_file output_file p_output_file () =
   in
   ()
 
-let compile_to_p benchname =
+let compile_to_p task_name benchname =
   let source_file, output_file, _, _, p_output_file =
-    benchmark_convension benchname
+    benchmark_convension task_name benchname
   in
   compile_to_p_aux source_file output_file p_output_file
 (* let output_file = spf "%s.scm" output_file in *)
@@ -281,7 +274,7 @@ let param_string_int message f =
       let () = Myconfig.meta_config_path := config_file in
       f str_option int_option)
 
-let two_param_string message f =
+let file_and_string message f =
   Command.basic ~summary:message
     Command.Let_syntax.(
       let%map_open config_file =
@@ -289,6 +282,18 @@ let two_param_string message f =
           (optional_with_default Myconfig.default_meta_config_path regular_file)
           ~doc:"config file path"
       and source_file = anon ("source_code_file" %: regular_file)
+      and file1 = anon ("file1" %: string) in
+      let () = Myconfig.meta_config_path := config_file in
+      f source_file file1)
+
+let string_and_string message f =
+  Command.basic ~summary:message
+    Command.Let_syntax.(
+      let%map_open config_file =
+        flag "config"
+          (optional_with_default Myconfig.default_meta_config_path regular_file)
+          ~doc:"config file path"
+      and source_file = anon ("source_code_file" %: string)
       and file1 = anon ("file1" %: string) in
       let () = Myconfig.meta_config_path := config_file in
       f source_file file1)
@@ -763,13 +768,13 @@ let cmds =
     ("test-random", param_string_int "test random" test_random);
     ("read-syn", one_param "read syn" read_syn);
     ("do-syn", tag_and_file "read syn" do_syn);
-    ("syn-one", two_param_string "syn one" syn_term);
-    ("syn-benchmark", one_param_string "run benchmark" syn_benchmark);
-    ("eval-benchmark", one_param_string "run benchmark" eval_benchmark);
+    ("syn-one", file_and_string "syn one" syn_term);
+    ("syn-benchmark", string_and_string "run benchmark" syn_benchmark);
+    ("eval-benchmark", string_and_string "run benchmark" eval_benchmark);
     (* ("syn-timeout", timeout_param "syn timeout" syn_term_timeout); *)
-    ("eval", two_param_string "eval" eval);
+    ("eval", file_and_string "eval" eval);
     (* ("compile-to-p", four_param_string "compile to p language" compile_to_p); *)
-    ("compile-to-p", one_param_string "compile to p language" compile_to_p);
+    ("compile-to-p", string_and_string "compile to p language" compile_to_p);
     ("show-term", one_param "show term" show_term);
     ("test-db", one_param_string "run cart" BackendMariaDB.test_cart);
     ( "test-non-repeatable-read",
@@ -787,6 +792,6 @@ let cmds =
     (* ("read-p", one_param "read_p" read_p); *)
     (* ("read-p-sfa", three_param "read_p" read_p_and_spec); *)
     (* ("random-p-sfa", three_param "read_p" random_read_p_and_spec); *)
-    (* ("read-p-wrapper", two_param_string "p-wrapper" p_wrapper); *)
+    (* ("read-p-wrapper", file_and_string "p-wrapper" p_wrapper); *)
     (* ("read-p-repo", one_param_string "p-wrapper" read_p_repo); *)
   ]

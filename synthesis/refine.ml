@@ -45,6 +45,13 @@ let _strategy =
 let database_related env =
   List.exists (fun x -> String.equal x.x "commit") (ctx_to_list env.event_tyctx)
 
+let p_related env =
+  StrMap.exists
+    (fun x _ ->
+      let ss = String.split_on_char '_' x in
+      List.exists (String.equal "task") ss)
+    env.goals
+
 let init_strategy env =
   let num_gen =
     List.length
@@ -62,6 +69,15 @@ let init_strategy env =
         search = UnSortedDFS 1;
         search_new_goals = false;
         result_expection = 1;
+        addKstar = false;
+      }
+  else if p_related env then
+    _strategy :=
+      {
+        !_strategy with
+        search = UnSortedDFS 1;
+        search_new_goals = false;
+        result_expection = 2;
         addKstar = false;
       }
   else if StrMap.cardinal env.axioms > 3 || num_obs > num_gen + 3 then
@@ -384,6 +400,7 @@ and gen_new_kstar env (goal : line) : (int * line * int) list =
       goals
 
 and backward env (goal : line) mid : line list =
+  let () = Language.Stat.incr_forward () in
   let _, (_, midAct, _) = line_divide_by_task_id goal mid in
   let op = midAct.aop in
   let rules = select_rule_by_future env op in
@@ -422,6 +439,7 @@ and backward env (goal : line) mid : line list =
   goals
 
 and forward env (goal : line) mid : line list =
+  let () = Language.Stat.incr_forward () in
   let _, (_, midAct, _) = line_divide_by_task_id goal mid in
   let op = midAct.aop in
   let rules = select_rule_by_op env op in

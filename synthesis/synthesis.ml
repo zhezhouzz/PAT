@@ -61,4 +61,7 @@ let synthesize (env : syn_env) name =
       (fun i p -> Pp.printf "@{<bold>Prog[%i]:@}\n%s\n" i (layout_term p))
       progs
   in
-  progs
+  let first_result =
+    match progs with p :: _ -> p | [] -> _die_with [%here] "no programs"
+  in
+  first_result

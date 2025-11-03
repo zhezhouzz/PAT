@@ -36,9 +36,11 @@ def invoc_cmd(cmd, cwd=None):
     except subprocess.CalledProcessError as e:
         print(e.output)
 
-benchmarks = ["Database", "Firewall", "RingLeaderElection", "EspressoMachine", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Raft", "Kermit2PCModel"]
+
+# benchmarks = ["Database", "Firewall", "RingLeaderElection", "EspressoMachine", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Raft", "Kermit2PCModel"]
 # benchmarks = ["ChainReplication", "Paxos", "Raft"]
 # benchmarks = ["Raft"]
+benchmarks = ["Database"]
 
 def syn_num_map(name):
     return 500
@@ -193,20 +195,29 @@ def print_cols(benchnames, stat):
     return
 
 def do_syn():
-    for name in benchmarks:
-        cmd = cmd_prefix + ["syn-benchmark", name]
+    for (bench_name, task_name) in benchmarks:
+        cmd = cmd_prefix + ["do-syn", task_name, "benchmarks/" + bench_name + "/task.ml"]
+        invoc_cmd(cmd)
+    return
+
+def do_p_syn():
+    for bench_name in benchmarks:
+        task_name = "task" + "_" + bench_name
+        cmd = cmd_prefix + ["do-syn", task_name, "benchmarks/" + bench_name + "/task.ml"]
         invoc_cmd(cmd)
     return
 
 def do_eval():
-    for name in benchmarks:
-        cmd = cmd_prefix + ["eval-benchmark", name]
+    for bench_name in benchmarks:
+        task_name = "task" + "_" + bench_name
+        cmd = cmd_prefix + ["eval-benchmark", task_name, bench_name]
         invoc_cmd(cmd)
     return
 
 def do_compile():
-    for name in benchmarks:
-        cmd = cmd_prefix + ["compile-to-p", name]
+    for bench_name in benchmarks:
+        task_name = "task" + "_" + bench_name
+        cmd = cmd_prefix + ["compile-to-p", task_name, bench_name]
         invoc_cmd(cmd)
     return
 
@@ -283,9 +294,10 @@ def fix():
             j = json.dump(j, f)
 
 if __name__ == '__main__':
-    # do_syn()
+    do_p_syn()
     # do_eval()
     # do_compile()
+    exit()
     # run_syn_p()
     # run_random_p()
     # run_default_p()
