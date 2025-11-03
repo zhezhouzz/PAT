@@ -170,7 +170,7 @@ let sendTo (dest, ev) =
   Effect.perform (Send msg)
 
 let send (op, args) = sendTo (None, { op; args })
-let recv op = Effect.perform (Recv op)
+let recv op : msg = Effect.perform (Recv op)
 
 let announce (op, args) =
   sendTo (Some !_curTid, { op; args });

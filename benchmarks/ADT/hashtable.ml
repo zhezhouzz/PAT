@@ -94,7 +94,7 @@ let init () =
 
 let check_membership_hashtable trace =
   let rec check (added_values, found_values) = function
-    | [] -> IntSet.subset added_values found_values 
+    | [] -> IntSet.subset added_values found_values
     | { ev = { op = "initTblReq" | "clearReq"; args = []; _ }; _ } :: rest ->
         check (IntSet.empty, IntSet.empty) rest
     | {
@@ -114,9 +114,79 @@ let check_membership_hashtable trace =
   in
   check (IntSet.empty, IntSet.empty) trace
 
-type tbl_bench_config = { numKeys : int; numVals : int; numOp : int }
+type tbl_bench_config = {
+  numKeys : int;
+  numVals : int;
+  numThreads : int;
+  numOpsPerThread : int;
+}
 
-let randomTest { numKeys; numVals; numOp } =
+let randomTest { numKeys; numVals; numThreads; numOpsPerThread } =
+  let keys = List.init numKeys (fun i -> i + 1) in
+  let vals = List.init numVals (fun i -> i + 100) in
+
+  let client_thread () =
+    let pick_a_key () = List.nth keys (Random.int numKeys) in
+    let pick_a_val () = List.nth vals (Random.int numVals) in
+
+    let random_add () =
+      let k = pick_a_key () in
+      let v = pick_a_val () in
+      Hashtable.add _tbl k v
+    in
+
+    let random_find () =
+      let k = pick_a_key () in
+      ignore (Hashtable.find _tbl k)
+    in
+
+    let random_remove () =
+      let k = pick_a_key () in
+      Hashtable.remove _tbl k
+    in
+
+    let random_clear () = Hashtable.clear _tbl in
+
+    let random_mem () =
+      let k = pick_a_key () in
+      ignore (Hashtable.mem _tbl k)
+    in
+
+    let random_length () = ignore (Hashtable.length _tbl) in
+
+    let rec genOp restNum =
+      if restNum <= 0 then ()
+      else
+        let () =
+          match Random.int 6 with
+          | 0 -> random_add ()
+          | 1 -> random_find ()
+          | 2 -> random_remove ()
+          | 3 -> random_clear ()
+          | 4 -> random_mem ()
+          | _ -> random_length ()
+        in
+        genOp (restNum - 1)
+    in
+    genOp numOpsPerThread
+  in
+
+  Random.self_init ();
+
+  Hashtable.clear _tbl;
+
+  Printf.printf "Spawning %d threads, each doing %d operations...\n" numThreads
+    numOpsPerThread;
+
+  let threads =
+    List.init numThreads (fun _ -> Thread.create client_thread ())
+  in
+
+  List.iter Thread.join threads;
+
+  Printf.printf "Concurrent test finished\n"
+
+(* let randomTest { numKeys; numVals; numOp } =
   let keys = List.init numKeys (fun i -> i + 1) in
   let vals = List.init numVals (fun i -> i + 100) in
   let keysInTbl = ref IntSet.empty in
@@ -178,4 +248,4 @@ let randomTest { numKeys; numVals; numOp } =
 
   let () = random_clear () in
   let () = genOp numOp in
-  Effect.perform End
+  Effect.perform End *)

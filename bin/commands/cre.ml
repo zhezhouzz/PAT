@@ -601,9 +601,16 @@ let test_random s converge_bound () =
   | "hashtable" ->
       let open Adt.Hashtable in
       let test () =
-        Interpreter.seq_random_test
+        Interpreter.random_test
           ( init,
-            (fun () -> randomTest { numKeys = 8; numVals = 10; numOp = 20 }),
+            (fun () ->
+              randomTest
+                {
+                  numKeys = 5;
+                  numVals = 10;
+                  numThreads = 10;
+                  numOpsPerThread = 20;
+                }),
             check_membership_hashtable )
       in
       let _ = eval test in
