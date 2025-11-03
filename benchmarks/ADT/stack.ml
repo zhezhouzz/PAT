@@ -212,6 +212,8 @@ let rec_main =
 
 let test_env =
   {
+    if_concurrent = false;
+    database_ctx = None;
     init_test_env = init;
     default_test_prog = [ rec_main ];
     property = check_membership_stack;

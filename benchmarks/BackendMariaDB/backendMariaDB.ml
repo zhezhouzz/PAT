@@ -114,6 +114,23 @@ module type MyDB = sig
     unit ->
     unit Lwt.t
 
+  val table_async_get :
+    tid:int ->
+    db:string ->
+    table:string ->
+    key:string ->
+    unit ->
+    (int * int * Yojson.Basic.t) Lwt.t
+
+  val table_async_put :
+    tid:int ->
+    db:string ->
+    table:string ->
+    key:string ->
+    json:Yojson.Basic.t ->
+    unit ->
+    unit Lwt.t
+
   val async_get_current_isolation : tid:int -> unit -> unit Lwt.t
   val raw_clear_db : unit -> unit
   val raw_begin : thread_id:int -> int
@@ -650,6 +667,12 @@ module MyMariaDB : MyDB = struct
     let () = k () in
     let () = close () in
     ()
+
+  let table_async_get ~tid ~db ~table ~key () =
+    async_get ~tid ~table:db ~key:(table ^ ":" ^ key) ()
+
+  let table_async_put ~tid ~db ~table ~key ~json () =
+    async_put ~tid ~table:db ~key:(table ^ ":" ^ key) ~json ()
 end
 
 open MyMariaDB

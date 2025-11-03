@@ -352,7 +352,10 @@ let line_elems_size elems =
   List.length
     (List.filter_map (function LineAct act -> Some act | _ -> None) elems)
 
-let line_size plan = List.length (line_get_acts plan)
+let weighted act = if String.equal act.aop "commit" then 4 else 1
+
+let line_size plan =
+  List.fold_left ( + ) 0 (List.map weighted (line_get_acts plan))
 
 let merge_line_with_acts if_reuse line ses =
   let if_reuse act =
