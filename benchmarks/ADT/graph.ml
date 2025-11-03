@@ -178,6 +178,8 @@ let randomTest config =
 
 let test_env =
   {
+    if_concurrent = false;
+    database_ctx = None;
     init_test_env = init;
     default_test_prog = [];
     property = trace_is_not_connected;

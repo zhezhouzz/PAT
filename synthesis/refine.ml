@@ -42,6 +42,9 @@ let _strategy =
       addKstar = Myconfig.get_bool_option "add_kstar_during_synthesis";
     }
 
+let database_related env =
+  List.exists (fun x -> String.equal x.x "commit") (ctx_to_list env.event_tyctx)
+
 let init_strategy env =
   let num_gen =
     List.length
@@ -52,7 +55,16 @@ let init_strategy env =
     @@ List.filter (fun x -> is_observable x.ty) (ctx_to_list env.msgkind_ctx)
   in
   let () = Pp.printf "num_gen: %i, num_obs: %i\n" num_gen num_obs in
-  if StrMap.cardinal env.axioms > 3 || num_obs > num_gen + 3 then
+  if database_related env then
+    _strategy :=
+      {
+        !_strategy with
+        search = UnSortedDFS 1;
+        search_new_goals = false;
+        result_expection = 1;
+        addKstar = false;
+      }
+  else if StrMap.cardinal env.axioms > 3 || num_obs > num_gen + 3 then
     _strategy :=
       {
         !_strategy with
@@ -99,7 +111,8 @@ let layout_strategy
      layout_bound: %i\n\
      result_expection: %i\n\
      search_new_goals: %b\n\
-     pause: %baddKstar: %b"
+     pause: %b\n\
+     addKstar: %b"
     (search_strategy_to_string search)
     layout_bound result_expection search_new_goals pause addKstar
 
@@ -117,11 +130,9 @@ let merge_new_goals old_goals new_goals =
 let pause_counter = ref 0
 
 let try_pause () =
+  let () = pause_counter := !pause_counter + 1 in
+  let () = Pp.printf "@{<bold>@{<red>pause_counter@}: %i@}\n" !pause_counter in
   if !_strategy.pause then
-    let () = pause_counter := !pause_counter + 1 in
-    let () =
-      Pp.printf "@{<bold>@{<red>pause_counter@}: %i@}\n" !pause_counter
-    in
     let _ = input_line stdin in
     ()
   else ()
@@ -424,4 +435,11 @@ and forward env (goal : line) mid : line list =
   let goals =
     List.sort (fun x y -> Int.compare (line_size x) (line_size y)) goals
   in
+  (* let () =
+    List.iteri
+      (fun i goal ->
+        Pp.printf "@{<bold>@{<red>idx %i size %i@}@}\n %s\n" i (line_size goal)
+          (omit_layout_line goal))
+      goals
+  in *)
   goals

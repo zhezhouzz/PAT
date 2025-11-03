@@ -83,26 +83,34 @@ let main =
                             @@ obsPut tid1 @@ obsCommit tid1
                             @@ obsAddItemResp mk_term_tt)))))
 
-type cart_bench_config = { numUser : int; numItem : int; numOp : int }
+type cart_bench_config = { numUserDB : int; numItemDB : int; numOpDB : int }
+
+let parse_config config =
+  let open Interpreter in
+  let numUserDB = get_config_value config "numUserDB" in
+  let numItemDB = get_config_value config "numItemDB" in
+  let numOpDB = get_config_value config "numOpDB" in
+  { numUserDB; numItemDB; numOpDB }
 
 let num_connection = 3
 
-let random_user { numUser; numItem; numOp } =
+let random_user config =
+  let { numUserDB; numItemDB; numOpDB } = parse_config config in
   let open Lwt.Syntax in
-  let users = List.init numUser (fun i -> i + 1) in
-  let items = List.init numItem (fun i -> i + 1) in
+  let users = List.init numUserDB (fun i -> i + 1) in
+  let items = List.init numItemDB (fun i -> i + 1) in
   let random_add ~thread_id () =
-    let user = List.nth users (Random.int numUser) in
-    let item = List.nth items (Random.int numItem) in
+    let user = List.nth users (Random.int numUserDB) in
+    let item = List.nth items (Random.int numItemDB) in
     async_add_item ~thread_id user item ()
   in
   let random_delete ~thread_id () =
-    let user = List.nth users (Random.int numUser) in
-    let item = List.nth items (Random.int numItem) in
+    let user = List.nth users (Random.int numUserDB) in
+    let item = List.nth items (Random.int numItemDB) in
     async_delete_item ~thread_id user item ()
   in
   let random_new_user ~thread_id () =
-    let user = List.nth users (Random.int numUser) in
+    let user = List.nth users (Random.int numUserDB) in
     async_new_user ~thread_id user ()
   in
   let random_option ~thread_id () =
@@ -114,7 +122,8 @@ let random_user { numUser; numItem; numOp } =
   let rec genOp ~thread_id restNum =
     if restNum <= 0 then
       let () =
-        Pp.printf "@{<red>[thread: %i] End with numOp@}\n%i\n" thread_id numOp
+        Pp.printf "@{<red>[thread: %i] End with numOpDB@}\n%i\n" thread_id
+          numOpDB
       in
       Lwt.return_unit
     else
@@ -128,9 +137,21 @@ let random_user { numUser; numItem; numOp } =
     Lwt_main.run
     @@ Lwt.join
          [
-           genOp ~thread_id:0 numOp;
-           genOp ~thread_id:1 numOp;
-           genOp ~thread_id:2 numOp;
+           genOp ~thread_id:0 numOpDB;
+           genOp ~thread_id:1 numOpDB;
+           genOp ~thread_id:2 numOpDB;
          ]
   in
   ()
+
+open Interpreter
+
+let test_env isolation =
+  {
+    if_concurrent = true;
+    database_ctx = Some { dbname = "cart"; isolation };
+    init_test_env = CartDB.init;
+    default_test_prog = [];
+    property = CartDB.check_isolation_level Serializable;
+    random_test_gen = random_user;
+  }

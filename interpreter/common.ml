@@ -36,7 +36,11 @@ let get_config_value config key =
   | Some value -> value
   | None -> _die_with [%here] (Printf.sprintf "config key %s not found" key)
 
+type database_ctx = { dbname : string; isolation : isolation }
+
 type ocaml_test_env = {
+  if_concurrent : bool;
+  database_ctx : database_ctx option;
   init_test_env : unit -> unit;
   default_test_prog : term list;
   property : msg list -> bool;

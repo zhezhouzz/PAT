@@ -454,24 +454,31 @@ let test_eval s converge_bound () =
       let open MonkeyBD in
       let open Common in
       let open CoursewareDB in
-      let main = Synthesis.load_progs s () in
-      let test () =
-        Interpreter.once
-          (CoursewareDB.init, main, CartDB.check_isolation_level Serializable)
-      in
-      let _ = eval test in
-      ()
-  (* | "courseware_cc" ->
+      BackendMariaDB.MyMariaDB.maria_context "courseware" ReadCommitted
+        (fun () ->
+          let main = Synthesis.load_progs s () in
+          let test () =
+            Interpreter.once
+              ( CoursewareDB.init,
+                main,
+                CoursewareDB.check_isolation_level Serializable )
+          in
+          let _ = eval test in
+          ())
+  | "courseware_cc" ->
       let open MonkeyBD in
       let open Common in
-      let open Courseware in
-      let main = Synthesis.load_progs s () in
-      let test () =
-        Interpreter.once
-          (init Causal, main, CoursewareDB.serializable_trace_checker)
-      in
-      let _ = eval test in
-      ()  *)
+      let open CoursewareDB in
+      BackendMariaDB.MyMariaDB.maria_context "courseware" Causal (fun () ->
+          let main = Synthesis.load_progs s () in
+          let test () =
+            Interpreter.once
+              ( CoursewareDB.init,
+                main,
+                CoursewareDB.check_isolation_level Serializable )
+          in
+          let _ = eval test in
+          ())
   | "cart" ->
       let open MonkeyBD in
       let open Common in
@@ -535,6 +542,10 @@ let test_envs =
     ("ifc_store", Adt.Ifc.test_env);
     ("ifc_add", Adt.Ifc.test_env);
     ("ifc_load", Adt.Ifc.test_env);
+    ("cart_rc", MonkeyBD.Cart.test_env ReadCommitted);
+    ("cart_cc", MonkeyBD.Cart.test_env Causal);
+    ("courseware_rc", MonkeyBD.Courseware.test_env ReadCommitted);
+    ("courseware_cc", MonkeyBD.Courseware.test_env Causal);
   ]
 
 let default_random_test_config =
@@ -547,6 +558,8 @@ let default_random_test_config =
     ("numUserDB", 5);
     ("numItemDB", 5);
     ("numOpDB", 3);
+    ("numStudentDB", 5);
+    ("numCourseDB", 5);
   ]
 
 let test_random s converge_bound () =
@@ -689,7 +702,7 @@ let test_random s converge_bound () =
       in
       let _ = eval test in
       () *)
-  | "courseware" ->
+  (* | "courseware" ->
       let open MonkeyBD in
       let open Common in
       let open Courseware in
@@ -701,8 +714,18 @@ let test_random s converge_bound () =
             check_isolation_level Serializable )
       in
       let _ = eval test in
+      () *)
+  | "hashtable" ->
+      let open Adt.Hashtable in
+      let test () =
+        Interpreter.seq_random_test
+          ( init,
+            (fun () -> randomTest { numKeys = 8; numVals = 10; numOp = 20 }),
+            check_membership_hashtable )
+      in
+      let _ = eval test in
       ()
-  | "cart_rc" ->
+  (* | "cart_rc" ->
       let open MonkeyBD in
       let open Common in
       let open Cart in
@@ -727,20 +750,36 @@ let test_random s converge_bound () =
                 CartDB.check_isolation_level Serializable )
           in
           let _ = eval test in
-          ())
+          ()) *)
   | _ -> (
       let env = List.assoc_opt s test_envs in
       match env with
       | None -> _die_with [%here] "unknown benchmark"
       | Some env ->
-          let test () =
-            Interpreter.seq_random_test
-              ( env.init_test_env,
-                (fun () -> env.random_test_gen default_random_test_config),
-                env.property )
-          in
-          let _ = eval test in
-          ())
+          if env.if_concurrent then
+            match env.database_ctx with
+            | None -> _die_with [%here] "isolation not set"
+            | Some { dbname; isolation } ->
+                BackendMariaDB.MyMariaDB.maria_context dbname isolation
+                  (fun () ->
+                    let test () =
+                      Interpreter.random_test
+                        ( env.init_test_env,
+                          (fun () ->
+                            env.random_test_gen default_random_test_config),
+                          env.property )
+                    in
+                    let _ = eval test in
+                    ())
+          else
+            let test () =
+              Interpreter.seq_random_test
+                ( env.init_test_env,
+                  (fun () -> env.random_test_gen default_random_test_config),
+                  env.property )
+            in
+            let _ = eval test in
+            ())
 
 (* | "filesystem" ->
             let open Adt.Filesystem in

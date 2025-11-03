@@ -530,6 +530,8 @@ let randomTest conf =
 
 let test_env =
   {
+    if_concurrent = false;
+    database_ctx = None;
     init_test_env = init;
     default_test_prog = [ main1; main2 ];
     property = trace_eval_correct;
