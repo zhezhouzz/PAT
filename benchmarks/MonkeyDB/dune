@@ -6,6 +6,9 @@
  (modules
   common
   cart
+  twitter 
+  smallbank
+  ; courseware 
   coursewareDB
   twitter 
   smallbank

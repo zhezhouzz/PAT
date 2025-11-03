@@ -96,6 +96,7 @@ module Config = struct
 end
 
 
+
 module IntDB = struct
   include MyDB (Config)
 end
@@ -128,11 +129,14 @@ module CartDB = struct
 
 
 
+
+
   let int_list_to_values l = [ VCIntList l ]
 
   let values_to_int_list l =
     match l with [ VCIntList l ] -> l | _ -> _die [%here]
 
+  (* add item *)
   (* add item *)
   let async_add_item ~thread_id user item () =
     let open Lwt.Syntax in
@@ -177,6 +181,7 @@ module CartDB = struct
     | _ -> _die [%here]
 
   (* delete item *)
+  (* delete item *)
   let async_delete_item ~thread_id user item () =
     let open Lwt.Syntax in
     let* tid = DB.async_begin ~thread_id () in
@@ -215,6 +220,7 @@ module CartDB = struct
         send ("deleteItemResp", [])
     | _ -> _die [%here]
 
+  (* new user *)
   (* new user *)
   let async_new_user ~thread_id user () =
     let open Lwt.Syntax in

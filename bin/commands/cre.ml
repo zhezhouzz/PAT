@@ -43,10 +43,13 @@ let read_syn source_file () =
 
 let do_syn name source_file () =
 let _ = Pp.printf "@{<yellow>cre.ml:@}  43 (%s)\n" source_file in
+let _ = Pp.printf "@{<yellow>cre.ml:@}  43 (%s)\n" source_file in
   let code = read_source_file source_file () in
+let _ = Pp.printf "@{<yellow>cre.ml:@}  45\n" in
 let _ = Pp.printf "@{<yellow>cre.ml:@}  45\n" in
   (* let () = Printf.printf "%s\n" (layout_structure code) in *)
   let env = Ntypecheck.(struct_check init_env code) in
+let _ = Pp.printf "@{<yellow>cre.ml:@}  48\n" in
 let _ = Pp.printf "@{<yellow>cre.ml:@}  48\n" in
   let () = Printf.printf "%s\n" (layout_syn_env env) in
   let () = Stat.init_algo_complexity () in
@@ -435,9 +438,18 @@ let test_eval s converge_bound () =
           let _ = eval test in
           ())
   | "twitter_rc" ->
+  | "twitter_rc" ->
       let open MonkeyBD in
       let open Common in
       let open Twitter in
+      BackendMariaDB.MyMariaDB.maria_context "twitter" ReadCommitted (fun () ->
+          let main = Synthesis.load_progs s () in
+          let test () =
+            Interpreter.once
+              (TwitterDB.init, main, TwitterDB.check_isolation_level Serializable)
+          in
+          let _ = eval test in
+          ())
       BackendMariaDB.MyMariaDB.maria_context "twitter" ReadCommitted (fun () ->
           let main = Synthesis.load_progs s () in
           let test () =
@@ -450,6 +462,39 @@ let test_eval s converge_bound () =
       let open MonkeyBD in
       let open Common in
       let open Twitter in
+      BackendMariaDB.MyMariaDB.maria_context "twitter" Causal (fun () ->
+          let main = Synthesis.load_progs s () in
+          let test () =
+            Interpreter.once
+              (TwitterDB.init, main, TwitterDB.check_isolation_level Serializable)
+          in
+          let _ = eval test in
+          ())
+    | "smallbank_rc" ->
+      let open MonkeyBD in
+      let open Common in
+      let open Smallbank in
+      BackendMariaDB.MyMariaDB.maria_context "smallbank" ReadCommitted (fun () ->
+          let main = Synthesis.load_progs s () in
+          let test () =
+            Interpreter.once
+              (SmallBankDB.init, main, SmallBankDB.check_isolation_level Serializable)
+          in
+          let _ = eval test in
+          ())
+    | "smallbank_cc" ->
+      let open MonkeyBD in
+      let open Common in
+      let open Smallbank in
+      BackendMariaDB.MyMariaDB.maria_context "smallbank" Causal (fun () ->
+          let main = Synthesis.load_progs s () in
+          let test () =
+            Interpreter.once
+              (SmallBankDB.init, main, SmallBankDB.check_isolation_level Serializable)
+          in
+          let _ = eval test in
+          ())
+  (* | "courseware_rc" ->
       BackendMariaDB.MyMariaDB.maria_context "twitter" Causal (fun () ->
           let main = Synthesis.load_progs s () in
           let test () =
