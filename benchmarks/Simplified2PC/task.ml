@@ -44,10 +44,10 @@ let abort = (allA, Abort true, [||])
 let writeRsp ?l:(x = (true : [%v: int])) ?l:(s = (v : [%v: bool])) =
   (allA, WriteRsp (va == x && stat == s), [||])
 
-let[@goal] readAfterWrite (x : int) (y : int) =
-  not
-    (allA;
-     WriteRsp (va == x && stat);
-     starA (anyA - WriteRsp stat);
-     ReadRsp (va == y && not (x == y));
-     starA (anyA - ReadRsp true - WriteRsp true))
+(* read after write *)
+let[@goal] task_Simplified2PC (x : int) (y : int) =
+  allA;
+  WriteRsp (va == x && stat);
+  starA (anyA - WriteRsp stat);
+  ReadRsp (va == y && not (x == y));
+  starA (anyA - ReadRsp true - WriteRsp true)

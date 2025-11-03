@@ -133,10 +133,10 @@ let readRsp ?l:(k = (true : [%v: tKey])) ?l:(x = (true : [%v: int]))
 (*      ReadRsp (key == k && va == y && (not (x == y)) && st); *)
 (*      allA) *)
 
-let[@goal] no_response_but_can_still_read (k : tKey) (x : int) (y : int) =
-  not
-    (starA (anyA - WriteRsp (key == k && va == y));
-     WriteRsp (key == k && va == x);
-     starA (anyA - WriteRsp (key == k && va == y));
-     ReadRsp (key == k && va == y && (not (x == y)) && st);
-     allA)
+(* no response but can still read *)
+let[@goal] task_ChainReplication (k : tKey) (x : int) (y : int) =
+  starA (anyA - WriteRsp (key == k && va == y));
+  WriteRsp (key == k && va == x);
+  starA (anyA - WriteRsp (key == k && va == y));
+  ReadRsp (key == k && va == y && (not (x == y)) && st);
+  allA

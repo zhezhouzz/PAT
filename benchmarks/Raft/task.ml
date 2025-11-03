@@ -121,16 +121,16 @@ let eVoteRsp ?l:(s = (true : [%v: (node1 * node2[@tNode])]))
 let eBecomeLeader ?l:(ld = (true : [%v: (node1 * node2[@tNode])])) =
   (allA, EBecomeLeader (leader == ld), [||])
 
-let[@goal] leaderLogSafety (n1 : (node1 * node2[@tNode]))
+(* leader log safety *)
+let[@goal] task_Raft (n1 : (node1 * node2[@tNode]))
     (n2 : (node1 * node2[@tNode])) (x : tVal) =
-  not
-    (starA (anyA - EAppendEntry (node == n2 && va == x) - EBecomeLeader true);
-     EAppendEntry (node == n1 && va == x);
-     starA (anyA - EAppendEntry (node == n2 && va == x) - EBecomeLeader true);
-     EBecomeLeader (leader == n1 && not (n1 == n2));
-     starA
-       (anyA
-       - EAppendEntry (node == n2 && va == x)
-       - EBecomeLeader true - EVoteReq true - EVoteRsp true);
-     EBecomeLeader (leader == n2);
-     starA (anyA - EBecomeLeader true - EVoteReq true - EVoteRsp true))
+  starA (anyA - EAppendEntry (node == n2 && va == x) - EBecomeLeader true);
+  EAppendEntry (node == n1 && va == x);
+  starA (anyA - EAppendEntry (node == n2 && va == x) - EBecomeLeader true);
+  EBecomeLeader (leader == n1 && not (n1 == n2));
+  starA
+    (anyA
+    - EAppendEntry (node == n2 && va == x)
+    - EBecomeLeader true - EVoteReq true - EVoteRsp true);
+  EBecomeLeader (leader == n2);
+  starA (anyA - EBecomeLeader true - EVoteReq true - EVoteRsp true)

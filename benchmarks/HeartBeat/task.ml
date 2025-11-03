@@ -69,8 +69,8 @@ let ePongLost =
       (allA, EPongLost (trial == tl), [| ENotifyNodesDown true |]));
   |]
 
-let[@goal] detectFalseNegative =
-  not
-    (starA (anyA - EShutDown true);
-     ENotifyNodesDown true;
-     starA (anyA - EShutDown true))
+(* detect false negative *)
+let[@goal] task_HeartBeat =
+  starA (anyA - EShutDown true);
+  ENotifyNodesDown true;
+  starA (anyA - EShutDown true)

@@ -244,10 +244,11 @@ let eAcceptRsp =
         [| ELearn (va == x) |] ));
   |]
 
-let[@goal] leanerConsistentView (x : tVal) (y : tVal) =
-  not
-    (allA;
-     ELearn (va == x);
-     starA (anyA - EAcceptRsp true - EPrepareRsp true);
-     ELearn (va == y && not (x == y));
-     allA)
+(* leaner consistent view *)
+
+let[@goal] task_Paxos (x : tVal) (y : tVal) =
+  allA;
+  ELearn (va == x);
+  starA (anyA - EAcceptRsp true - EPrepareRsp true);
+  ELearn (va == y && not (x == y));
+  allA

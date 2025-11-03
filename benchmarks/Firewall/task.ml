@@ -58,12 +58,13 @@ let eExternalRsp ?l:(n = (true : [%v: (node1 * node2[@tNode])]))
     ?l:(st = (true : [%v: bool])) =
   (allA, EExternalRsp (node == n && stat == st), [||])
 
-let[@goal] allow_all_session_from_internal_node (n : (node1 * node2[@tNode])) =
-  not
-    (starA (anyA - EExternalReq (node == n) - EForwardReq (node == n));
-     EInternalReq (node == n);
-     (* allA; *)
-     (* EExternalReq (node == n); *)
-     allA;
-     EExternalRsp (node == n && not stat);
-     allA)
+(* allow all session from internal node *)
+
+let[@goal] task_Firewall (n : (node1 * node2[@tNode])) =
+  starA (anyA - EExternalReq (node == n) - EForwardReq (node == n));
+  EInternalReq (node == n);
+  (* allA; *)
+  (* EExternalReq (node == n); *)
+  allA;
+  EExternalRsp (node == n && not stat);
+  allA

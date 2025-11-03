@@ -92,8 +92,8 @@ let eReadQueryResp =
         [| EWithDrawResp (rId == id && accountId == ac && not status) |] ));
   |]
 
-let[@goal] bankWithdrawSuccess (ac : aid) =
-  not
-    (allA;
-     EWithDrawResp (accountId == ac && not status);
-     allA)
+(* bank withdraw success *)
+let[@goal] task_BankServer (ac : aid) =
+  allA;
+  EWithDrawResp (accountId == ac && not status);
+  allA

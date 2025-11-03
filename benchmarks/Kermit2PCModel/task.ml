@@ -277,23 +277,24 @@ let eShardPrepareRsp =
         |] ));
   |]
 
-let[@goal] readVisibity (id : tGid) (k : tKey) (v1 : tVal) (v2 : tVal) =
-  not
-    (starA anyA;
-     EUpdateRsp
-       (gid == id && key == k && value == v1
-       && (not (value == v2))
-       && status == ("OK" : (uNKNOWN * oK * aBORT[@tCmdStatus])));
-     starA
-       (anyA
-       - EUpdateRsp
-           (gid == id && key == k
-           && status == ("OK" : (uNKNOWN * oK * aBORT[@tCmdStatus]))));
-     EReadRsp
-       (gid == id && key == k && value == v2
-       && (not (value == v1))
-       && status == ("OK" : (uNKNOWN * oK * aBORT[@tCmdStatus])));
-     starA anyA)
+(* read visibility *)
+
+let[@goal] task_Kermit2PCModel (id : tGid) (k : tKey) (v1 : tVal) (v2 : tVal) =
+  starA anyA;
+  EUpdateRsp
+    (gid == id && key == k && value == v1
+    && (not (value == v2))
+    && status == ("OK" : (uNKNOWN * oK * aBORT[@tCmdStatus])));
+  starA
+    (anyA
+    - EUpdateRsp
+        (gid == id && key == k
+        && status == ("OK" : (uNKNOWN * oK * aBORT[@tCmdStatus]))));
+  EReadRsp
+    (gid == id && key == k && value == v2
+    && (not (value == v1))
+    && status == ("OK" : (uNKNOWN * oK * aBORT[@tCmdStatus])));
+  starA anyA
 (* ; *)
 (* (starA (anyA - EUpdateRsp (gid == id && key == k && status == ("OK" : (uNKNOWN * oK * aBORT[@tCmdStatus]))))); *)
 (* (EReadRsp (gid == id && key == k && value == va && && status == ("OK" : (uNKNOWN * oK * aBORT[@tCmdStatus])))) *)

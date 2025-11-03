@@ -144,14 +144,14 @@ let eNoBeansError =
                [@tCoffeeMakerState])));
     |] )
 
-(** Goal *)
+(* no no water error *)
 
-let[@goal] no_no_water_error =
-  not
-    (allA;
-     ECoffeeMakerError
-       (st
-       == ("NoWaterError"
-            : (notWaredUp * ready * noBeansError * noWaterError
-              [@tCoffeeMakerState])));
-     allA)
+(** Goal *)
+let[@goal] task_EspressoMachine =
+  allA;
+  ECoffeeMakerError
+    (st
+    == ("NoWaterError"
+         : (notWaredUp * ready * noBeansError * noWaterError
+           [@tCoffeeMakerState])));
+  allA

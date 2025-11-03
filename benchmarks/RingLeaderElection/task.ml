@@ -59,10 +59,11 @@ let eNominate =
 let eWon ?l:(ld = (true : [%v: (node1 * node2[@tNode])])) =
   (allA, EWon (leader == ld), [||])
 
-let[@goal] uniqueLeader (ld : (node1 * node2[@tNode])) =
-  not
-    (allA;
-     EWon (leader == ld);
-     allA;
-     EWon (not (leader == ld));
-     allA)
+(* unique leader *)
+
+let[@goal] task_RingLeaderElection (ld : (node1 * node2[@tNode])) =
+  allA;
+  EWon (leader == ld);
+  allA;
+  EWon (not (leader == ld));
+  allA
