@@ -1,6 +1,6 @@
 (* type tNode = (node1 * node2[@tNode]) *)
 
-val ( == ) : 'a -> 'a -> bool
+val ( == ) : 'a. 'a -> 'a -> bool
 val eStart : unit [@@gen]
 val eBecomeLeader : < leader : (node1 * node2[@tNode]) > [@@obs]
 val eClientPut : < va : tVal > [@@gen]
@@ -63,7 +63,8 @@ let eTimeout =
   [|
     (fun ?l:(d =
              (v == ("Node2" : (node1 * node2[@tNode]))
-               : [%v: (node1 * node2[@tNode])])) ->
+               : [%v: (node1 * node2[@tNode])]))
+    ->
       ( starA (anyA - EBecomeLeader true),
         ETimeout (dest == d),
         [|
@@ -73,7 +74,8 @@ let eTimeout =
         |] ));
     (fun ?l:(d =
              (v == ("Node1" : (node1 * node2[@tNode]))
-               : [%v: (node1 * node2[@tNode])])) ->
+               : [%v: (node1 * node2[@tNode])]))
+    ->
       ( starA (anyA - EBecomeLeader true),
         ETimeout (dest == d),
         [|
@@ -86,22 +88,24 @@ let eTimeout =
 let eVoteReq =
   [|
     (fun ?l:(s = (true : [%v: (node1 * node2[@tNode])]))
-         ?l:(d =
-             (v == ("Node1" : (node1 * node2[@tNode]))
-               : [%v: (node1 * node2[@tNode])]))
-         ?l:(ld =
-             (v == ("Node2" : (node1 * node2[@tNode]))
-               : [%v: (node1 * node2[@tNode])])) ->
+      ?l:(d =
+          (v == ("Node1" : (node1 * node2[@tNode]))
+            : [%v: (node1 * node2[@tNode])]))
+      ?l:(ld =
+          (v == ("Node2" : (node1 * node2[@tNode]))
+            : [%v: (node1 * node2[@tNode])]))
+    ->
       ( starA (anyA - EBecomeLeader true),
         EVoteReq (src == s && dest == d && leader == ld),
         [| EVoteRsp (src == d && dest == s && stat) |] ));
     (fun ?l:(s = (true : [%v: (node1 * node2[@tNode])]))
-         ?l:(d =
-             (v == ("Node2" : (node1 * node2[@tNode]))
-               : [%v: (node1 * node2[@tNode])]))
-         ?l:(ld =
-             (v == ("Node1" : (node1 * node2[@tNode]))
-               : [%v: (node1 * node2[@tNode])])) ->
+      ?l:(d =
+          (v == ("Node2" : (node1 * node2[@tNode]))
+            : [%v: (node1 * node2[@tNode])]))
+      ?l:(ld =
+          (v == ("Node1" : (node1 * node2[@tNode]))
+            : [%v: (node1 * node2[@tNode])]))
+    ->
       ( starA (anyA - EBecomeLeader true),
         EVoteReq (src == s && dest == d && leader == ld),
         [| EVoteRsp (src == d && dest == s && not stat) |] ));

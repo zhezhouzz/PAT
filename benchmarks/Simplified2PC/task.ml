@@ -1,4 +1,4 @@
-val ( == ) : 'a -> 'a -> bool
+val ( == ) : 'a. 'a -> 'a -> bool
 val readReq : unit [@@gen]
 val getReq : unit [@@obs]
 val readRsp : < va : int > [@@obsRecv]

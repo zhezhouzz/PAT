@@ -1,4 +1,4 @@
-val ( == ) : 'a -> 'a -> bool
+val ( == ) : 'a. 'a -> 'a -> bool
 val ( > ) : int -> int -> bool
 
 (** message between env and router *)
@@ -132,7 +132,10 @@ let eShardReadKeyReq =
     (*         (gid == id && key == k && value == va *)
     (*         && status == ("OK" : (uNKNOWN * oK * aBORT[@tCmdStatus]))); *)
     (*     |] )); *)
-    (fun (va : tVal) ?l:(id = (true : [%v: tGid])) ?l:(k = (true : [%v: tKey])) ->
+    (fun (va : tVal)
+      ?l:(id = (true : [%v: tGid]))
+      ?l:(k = (true : [%v: tKey]))
+    ->
       ( (starA (anyA - EStartTxnRsp (gid == id));
          EStartTxnRsp (gid == id);
          starA (anyA - EShardAbortTxn (gid == id) - EStartTxnRsp (gid == id));
@@ -174,8 +177,10 @@ val eShardUpdateKeyReq : < gid : tGid ; key : tKey ; value : tVal > [@@obs]
 
 let eShardUpdateKeyReq =
   [|
-    (fun ?l:(id = (true : [%v: tGid])) ?l:(k = (true : [%v: tKey]))
-         ?l:(va = (true : [%v: tVal])) ->
+    (fun ?l:(id = (true : [%v: tGid]))
+      ?l:(k = (true : [%v: tKey]))
+      ?l:(va = (true : [%v: tVal]))
+    ->
       ( (starA (anyA - EStartTxnRsp (gid == id));
          EStartTxnRsp (gid == id);
          starA (anyA - EShardAbortTxn (gid == id) - EStartTxnRsp (gid == id))),

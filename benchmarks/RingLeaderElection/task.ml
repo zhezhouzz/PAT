@@ -1,6 +1,6 @@
 (* type tNode = (node1 * node2[@tNode]) *)
 
-val ( == ) : 'a -> 'a -> bool
+val ( == ) : 'a. 'a -> 'a -> bool
 val eWakeup : < node : (node1 * node2[@tNode]) > [@@gen]
 
 val eNominate :
@@ -19,16 +19,17 @@ let eNominate =
     (fun ?l:(n =
              (v == ("Node1" : (node1 * node2[@tNode]))
                : [%v: (node1 * node2[@tNode])]))
-         ?l:(ld =
-             (v == ("Node2" : (node1 * node2[@tNode]))
-               : [%v: (node1 * node2[@tNode])])) ->
-      (allA, ENominate (leader == ld && node == n), [| EWon (leader == ld) |]));
+      ?l:(ld =
+          (v == ("Node2" : (node1 * node2[@tNode]))
+            : [%v: (node1 * node2[@tNode])]))
+    -> (allA, ENominate (leader == ld && node == n), [| EWon (leader == ld) |]));
     (fun ?l:(n =
              (v == ("Node1" : (node1 * node2[@tNode]))
                : [%v: (node1 * node2[@tNode])]))
-         ?l:(ld =
-             (v == ("Node1" : (node1 * node2[@tNode]))
-               : [%v: (node1 * node2[@tNode])])) ->
+      ?l:(ld =
+          (v == ("Node1" : (node1 * node2[@tNode]))
+            : [%v: (node1 * node2[@tNode])]))
+    ->
       ( allA,
         ENominate (leader == ld && node == n),
         [|
@@ -37,16 +38,17 @@ let eNominate =
     (fun ?l:(n =
              (v == ("Node2" : (node1 * node2[@tNode]))
                : [%v: (node1 * node2[@tNode])]))
-         ?l:(ld =
-             (v == ("Node1" : (node1 * node2[@tNode]))
-               : [%v: (node1 * node2[@tNode])])) ->
-      (allA, ENominate (leader == ld && node == n), [| EWon (leader == ld) |]));
+      ?l:(ld =
+          (v == ("Node1" : (node1 * node2[@tNode]))
+            : [%v: (node1 * node2[@tNode])]))
+    -> (allA, ENominate (leader == ld && node == n), [| EWon (leader == ld) |]));
     (fun ?l:(n =
              (v == ("Node2" : (node1 * node2[@tNode]))
                : [%v: (node1 * node2[@tNode])]))
-         ?l:(ld =
-             (v == ("Node2" : (node1 * node2[@tNode]))
-               : [%v: (node1 * node2[@tNode])])) ->
+      ?l:(ld =
+          (v == ("Node2" : (node1 * node2[@tNode]))
+            : [%v: (node1 * node2[@tNode])]))
+    ->
       ( allA,
         ENominate (leader == ld && node == n),
         [|

@@ -1,7 +1,7 @@
 (* type tNode = (node1 * node2[@tNode]) *)
 (* type tTrial = int *)
 
-val ( == ) : 'a -> 'a -> bool
+val ( == ) : 'a. 'a -> 'a -> bool
 
 (** handled by env *)
 

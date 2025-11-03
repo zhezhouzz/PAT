@@ -1,4 +1,4 @@
-val ( == ) : 'a -> 'a -> bool
+val ( == ) : 'a. 'a -> 'a -> bool
 
 (** message from env to panel *)
 

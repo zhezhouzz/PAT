@@ -1,4 +1,4 @@
-val ( == ) : 'a -> 'a -> bool
+val ( == ) : 'a. 'a -> 'a -> bool
 val writeReq : < key : tKey ; va : int > [@@gen]
 
 val writeToMid : < key : tKey ; va : int ; node : (node1 * node2[@tNode]) >
@@ -20,20 +20,24 @@ let writeReq ?l:(k = (true : [%v: tKey])) ?l:(x = (true : [%v: int])) =
 
 let writeToMid =
   [|
-    (fun ?l:(k = (true : [%v: tKey])) ?l:(x = (true : [%v: int]))
-         ?l:(n =
-             (v == ("Node1" : (node1 * node2[@tNode]))
-               : [%v: (node1 * node2[@tNode])])) ->
+    (fun ?l:(k = (true : [%v: tKey]))
+      ?l:(x = (true : [%v: int]))
+      ?l:(n =
+          (v == ("Node1" : (node1 * node2[@tNode]))
+            : [%v: (node1 * node2[@tNode])]))
+    ->
       ( allA,
         WriteToMid (key == k && va == x && node == n),
         [|
           WriteToMid
             (key == k && va == x && node == ("Node2" : (node1 * node2[@tNode])));
         |] ));
-    (fun ?l:(k = (true : [%v: tKey])) ?l:(x = (true : [%v: int]))
-         ?l:(n =
-             (v == ("Node2" : (node1 * node2[@tNode]))
-               : [%v: (node1 * node2[@tNode])])) ->
+    (fun ?l:(k = (true : [%v: tKey]))
+      ?l:(x = (true : [%v: int]))
+      ?l:(n =
+          (v == ("Node2" : (node1 * node2[@tNode]))
+            : [%v: (node1 * node2[@tNode])]))
+    ->
       ( allA,
         WriteToMid (key == k && va == x && node == n),
         [| WriteToTail (key == k && va == x) |] ));

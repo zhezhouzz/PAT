@@ -1,6 +1,6 @@
 (* type tNode = (node1 * node2[@tNode]) *)
 
-val ( == ) : 'a -> 'a -> bool
+val ( == ) : 'a. 'a -> 'a -> bool
 val eStart : < node : (node1 * node2[@tNode]) > [@@gen]
 val eInternalReq : < node : (node1 * node2[@tNode]) > [@@obs]
 val eForwardReq : < node : (node1 * node2[@tNode]) > [@@obs]

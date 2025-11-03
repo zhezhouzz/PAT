@@ -1,4 +1,4 @@
-val ( == ) : 'a -> 'a -> bool
+val ( == ) : 'a. 'a -> 'a -> bool
 val readReq : < key : tKey > [@@gen]
 val getReq : < key : tKey > [@@obs]
 val readRsp : < key : tKey ; va : int > [@@obsRecv]
@@ -28,13 +28,17 @@ let putReq ?l:(k = (true : [%v: tKey])) ?l:(x = (true : [%v: int])) =
 
 let putRsp =
   [|
-    (fun ?l:(k = (true : [%v: tKey])) ?l:(x = (true : [%v: int]))
-         ?l:(s = (v : [%v: bool])) ->
+    (fun ?l:(k = (true : [%v: tKey]))
+      ?l:(x = (true : [%v: int]))
+      ?l:(s = (v : [%v: bool]))
+    ->
       ( allA,
         PutRsp (key == k && va == x && stat),
         [| WriteRsp (key == k && va == x && stat == s); Commit (key == k) |] ));
-    (fun ?l:(k = (true : [%v: tKey])) ?l:(x = (true : [%v: int]))
-         ?l:(s = (not v : [%v: bool])) ->
+    (fun ?l:(k = (true : [%v: tKey]))
+      ?l:(x = (true : [%v: int]))
+      ?l:(s = (not v : [%v: bool]))
+    ->
       ( allA,
         PutRsp (key == k && va == x && stat == s),
         [| WriteRsp (key == k && va == x && not stat); Abort (key == k) |] ));

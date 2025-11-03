@@ -1,7 +1,7 @@
 (* type tAcceptorNode = (acceptor1 * acceptor2[@tAcceptorNode]) *)
 (* type tProposerNode = (proposer1 * proposer2[@tProposerNode]) *)
 
-val ( == ) : 'a -> 'a -> bool
+val ( == ) : 'a. 'a -> 'a -> bool
 
 val eStart : < proposer : (proposer1 * proposer2[@tProposerNode]) ; va : tVal >
 [@@gen]
@@ -57,7 +57,8 @@ val eLearn : < va : tVal > [@@obs]
 let eStart =
   [|
     (fun ?l:(p = (true : [%v: (proposer1 * proposer2[@tProposerNode])]))
-         ?l:(x = (true : [%v: tVal])) ->
+      ?l:(x = (true : [%v: tVal]))
+    ->
       ( (allA;
          ELostPrepareReq
            (proposer == p
@@ -73,7 +74,8 @@ let eStart =
             && va == x);
         |] ));
     (fun ?l:(p = (true : [%v: (proposer1 * proposer2[@tProposerNode])]))
-         ?l:(x = (true : [%v: tVal])) ->
+      ?l:(x = (true : [%v: tVal]))
+    ->
       ( (allA;
          ELostPrepareReq
            (proposer == p
@@ -114,15 +116,17 @@ let ePrepareReq =
     (*     [| EPrepareRsp (acceptor == ac && promised == p && va == x) |] )); *)
     (* When there no previous prepare request, accept it. *)
     (fun ?l:(p = (true : [%v: (proposer1 * proposer2[@tProposerNode])]))
-         ?l:(ac = (true : [%v: (acceptor1 * acceptor2[@tAcceptorNode])]))
-         ?l:(x = (true : [%v: tVal])) ->
+      ?l:(ac = (true : [%v: (acceptor1 * acceptor2[@tAcceptorNode])]))
+      ?l:(x = (true : [%v: tVal]))
+    ->
       ( starA (anyA - EPrepareReq (acceptor == ac) - EAcceptReq true),
         EPrepareReq (proposer == p && acceptor == ac && va == x),
         [| EPrepareRsp (acceptor == ac && promised == p && va == x) |] ));
     (* We can always don't reply. *)
     (fun ?l:(p = (true : [%v: (proposer1 * proposer2[@tProposerNode])]))
-         ?l:(ac = (true : [%v: (acceptor1 * acceptor2[@tAcceptorNode])]))
-         ?l:(x = (true : [%v: tVal])) ->
+      ?l:(ac = (true : [%v: (acceptor1 * acceptor2[@tAcceptorNode])]))
+      ?l:(x = (true : [%v: tVal]))
+    ->
       ( (allA;
          ELostPrepareRsp (acceptor == ac && promised == p);
          allA),
@@ -154,18 +158,20 @@ let ePrepareRsp =
     (*         && proposer == p && va == x); *)
     (*     |] )); *)
     (fun ?l:(ac = (true : [%v: (acceptor1 * acceptor2[@tAcceptorNode])]))
-         ?l:(p = (true : [%v: (proposer1 * proposer2[@tProposerNode])]))
-         ?l:(x = (true : [%v: tVal]))
-         ?l:(ap = (true : [%v: (proposer1 * proposer2[@tProposerNode])])) ->
+      ?l:(p = (true : [%v: (proposer1 * proposer2[@tProposerNode])]))
+      ?l:(x = (true : [%v: tVal]))
+      ?l:(ap = (true : [%v: (proposer1 * proposer2[@tProposerNode])]))
+    ->
       ( starA (anyA - EPrepareRsp (promised == p)),
         EPrepareRsp
           (acceptor == ac && promised == p && va == x && n_accepted == ap),
         [| EAcceptReq (acceptor == ac && proposer == p && va == x) |] ));
     (* We can always don't reply. *)
     (fun ?l:(ac = (true : [%v: (acceptor1 * acceptor2[@tAcceptorNode])]))
-         ?l:(p = (true : [%v: (proposer1 * proposer2[@tProposerNode])]))
-         ?l:(x = (true : [%v: tVal]))
-         ?l:(ap = (true : [%v: (proposer1 * proposer2[@tProposerNode])])) ->
+      ?l:(p = (true : [%v: (proposer1 * proposer2[@tProposerNode])]))
+      ?l:(x = (true : [%v: tVal]))
+      ?l:(ap = (true : [%v: (proposer1 * proposer2[@tProposerNode])]))
+    ->
       ( (allA;
          ELostAcceptReq (acceptor == ac && proposer == p);
          allA),
@@ -199,8 +205,9 @@ let eAcceptReq =
     (*     |] )); *)
     (* When is the first accept request recieved, accept it. *)
     (fun ?l:(p = (true : [%v: (proposer1 * proposer2[@tProposerNode])]))
-         ?l:(ac = (true : [%v: (acceptor1 * acceptor2[@tAcceptorNode])]))
-         ?l:(x = (true : [%v: tVal])) ->
+      ?l:(ac = (true : [%v: (acceptor1 * acceptor2[@tAcceptorNode])]))
+      ?l:(x = (true : [%v: tVal]))
+    ->
       ( starA (anyA - EAcceptReq (acceptor == ac)),
         EAcceptReq (proposer == p && acceptor == ac && va == x),
         [|
@@ -209,8 +216,9 @@ let eAcceptReq =
         |] ));
     (* We can always don't reply. *)
     (fun ?l:(p = (true : [%v: (proposer1 * proposer2[@tProposerNode])]))
-         ?l:(ac = (true : [%v: (acceptor1 * acceptor2[@tAcceptorNode])]))
-         ?l:(x = (true : [%v: tVal])) ->
+      ?l:(ac = (true : [%v: (acceptor1 * acceptor2[@tAcceptorNode])]))
+      ?l:(x = (true : [%v: tVal]))
+    ->
       ( (allA;
          ELostAcceptRsp (proposer == p && acceptor == ac);
          allA),
@@ -227,9 +235,10 @@ let eAcceptRsp =
   [|
     (* When is the first response recieved, also equal it itself send to leaner. (omit the second one) *)
     (fun ?l:(p = (true : [%v: (proposer1 * proposer2[@tProposerNode])]))
-         ?l:(ac = (true : [%v: (acceptor1 * acceptor2[@tAcceptorNode])]))
-         ?l:(ap = (v == p : [%v: (proposer1 * proposer2[@tProposerNode])]))
-         ?l:(x = (true : [%v: tVal])) ->
+      ?l:(ac = (true : [%v: (acceptor1 * acceptor2[@tAcceptorNode])]))
+      ?l:(ap = (v == p : [%v: (proposer1 * proposer2[@tProposerNode])]))
+      ?l:(x = (true : [%v: tVal]))
+    ->
       ( starA (anyA - EAcceptRsp (proposer == p && accepted == ap)),
         EAcceptRsp (proposer == p && acceptor == ac && accepted == ap && va == x),
         [| ELearn (va == x) |] ));
