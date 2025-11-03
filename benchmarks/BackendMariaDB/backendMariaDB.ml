@@ -403,24 +403,6 @@ module MyMariaDB : MyDB = struct
             );"
            !_db_name feild_name)
     in
-    (* let* _ = 
-      no_param_no_ret conn
-        (Printf.sprintf
-           "CREATE TABLE tweets (\n\
-           \  id VARCHAR(255) PRIMARY KEY,\n\
-           \  %s JSON NOT NULL\n\
-            );"
-          feild_name)
-    in
-    let* _ = 
-      no_param_no_ret conn
-        (Printf.sprintf
-           "CREATE TABLE follows (\n\
-           \  id VARCHAR(255) PRIMARY KEY,\n\
-           \  %s JSON NOT NULL\n\
-            );"
-          feild_name)
-    in *)
     let _ = M.close conn in
     let* _ =
       Hashtbl.fold
