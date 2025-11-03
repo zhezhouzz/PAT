@@ -457,6 +457,18 @@ let test_eval s converge_bound () =
           in
           let _ = eval test in
           ())
+    | "smallbank_rc" ->
+      let open MonkeyBD in
+      let open Common in
+      let open Smallbank in
+      BackendMariaDB.MyMariaDB.maria_context "smallbank" ReadCommitted (fun () ->
+          let main = Synthesis.load_progs s () in
+          let test () =
+            Interpreter.once
+              (SmallBankDB.init, main, SmallBankDB.check_isolation_level Serializable)
+          in
+          let _ = eval test in
+          ())
     | "smallbank_cc" ->
       let open MonkeyBD in
       let open Common in
