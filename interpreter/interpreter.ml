@@ -48,7 +48,7 @@ let eval_until_detect_bug converge_bound test =
   let rec aux (i : int) =
     let () = Pp.printf "@{<red>Repeat for %i times@}\n" i in
     if i >= converge_bound then
-      _die_with [%here] "too many time until consistent"
+      _die_with [%here] "too many time until consistent(1)"
     else
       let i = i + 1 in
       try

@@ -6,12 +6,13 @@ type buffer = msg list
 
 let buffer = ref []
 let init () = buffer := []
-let add msg = buffer := msg :: !buffer
+let add msg = let _ = Pp.printf "adding %s\n" msg.ev.op in buffer := msg :: !buffer
 
 let find_by_op op =
   let rec aux = function
     | [] -> []
-    | msg :: msgs -> if msg.ev.op = op then msg :: aux msgs else aux msgs
+    | msg :: msgs -> let _ = Pp.printf "%s\n" msg.ev.op in
+                     if msg.ev.op = op then msg :: aux msgs else aux msgs
   in
   aux !buffer
 
