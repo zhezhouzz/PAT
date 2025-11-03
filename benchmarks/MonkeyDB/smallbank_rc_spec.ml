@@ -68,7 +68,7 @@ val writeCheckReq : < name : int ; amount : int > [@@gen]
 val writeCheckResp : < > [@@obs]
 
 
-(* Causal Consistency *)
+(* Read Committed *)
 (* Invariant: For any transaction with tid = i, there does not exist a previous transaction with tid > i. *)
 let beginT ?l:(i = (true : [%v: int])) =
   (starA (anyA - BeginT (tid >= i)), BeginT (tid == i), allA)
@@ -308,9 +308,10 @@ let writeCheckResp = (allA, WriteCheckResp true, allA)
 
 
 (* Global Properties *)
-let[@goal] smallbank_cc (c : int) (b : int) =
+let[@goal] smallbank_rc (c : int) (b : int) =
   allA;
-  SelectChecking (custid == c && balance == b);
-  starA (anyA - UpdateChecking (custid == c));
-  SelectChecking (custid == c && not (balance == b));
+  UpdateSavings (custid == c && balance == b);
+  starA (anyA - UpdateSavings (custid == c));
+  SelectSavings (custid == c && not (balance == b));
   allA
+

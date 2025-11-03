@@ -403,24 +403,6 @@ module MyMariaDB : MyDB = struct
             );"
            !_db_name feild_name)
     in
-    (* let* _ = 
-      no_param_no_ret conn
-        (Printf.sprintf
-           "CREATE TABLE tweets (\n\
-           \  id VARCHAR(255) PRIMARY KEY,\n\
-           \  %s JSON NOT NULL\n\
-            );"
-          feild_name)
-    in
-    let* _ = 
-      no_param_no_ret conn
-        (Printf.sprintf
-           "CREATE TABLE follows (\n\
-           \  id VARCHAR(255) PRIMARY KEY,\n\
-           \  %s JSON NOT NULL\n\
-            );"
-          feild_name)
-    in *)
     let _ = M.close conn in
     let* _ =
       Hashtbl.fold
@@ -602,7 +584,7 @@ module MyMariaDB : MyDB = struct
         [| `String raw_key; `String json_str; `String json_str |]
       >>= or_die "exec"
     in
-    let () = Language.(if !__counter == 10 then _die_with [%here] "die") in
+    (*let () = Language.(if !__counter == 37 then _die_with [%here] "die") in*) (* DEBUG *)
     let* _ = M.Stmt.close stmt >>= or_die "stmt close" in
     let () = _history := !_history @ [ Put { tid; key; value = json } ] in
     Lwt.return_unit
