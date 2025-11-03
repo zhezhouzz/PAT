@@ -99,8 +99,6 @@ let random_user config =
   let open Lwt.Syntax in
   let users = List.init numUserDB (fun i -> i + 1) in
   let items = List.init numItemDB (fun i -> i + 1) in
-  let users = List.init numUser (fun i -> i + 1) in
-  let items = List.init numItem (fun i -> i + 1) in
   (*let rec fill_users ~thread_id i () = 
     match List.nth_opt users i with
     | Some user -> let* () = fill_users ~thread_id (i+1) () in async_new_user ~thread_id user ()
@@ -145,9 +143,9 @@ let random_user config =
     @@
     Lwt.join
                   [
-                    genOp ~thread_id:0 numOp;
-                    genOp ~thread_id:1 numOp;
-                    genOp ~thread_id:2 numOp;
+                    genOp ~thread_id:0 numOpDB;
+                    genOp ~thread_id:1 numOpDB;
+                    genOp ~thread_id:2 numOpDB;
                   ]
   in
   ()

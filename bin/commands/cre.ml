@@ -510,7 +510,7 @@ let test_eval s converge_bound () =
                 CoursewareDB.check_isolation_level Serializable )
           in
           let _ = eval test in
-          ())
+          ()) *)
   | "cart" ->
       let open MonkeyBD in
       let open Common in

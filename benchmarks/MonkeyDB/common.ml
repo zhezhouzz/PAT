@@ -287,7 +287,7 @@ module CartDB = struct
 end
 
 
-
+(*
 
 module TreiberStackDB = struct
   (* Tstack transactions: Just CAS? No. Add cell, remove cell (bimyou), CAS *)
@@ -524,7 +524,7 @@ module TreiberStackDB = struct
 
 end
 
-
+*)
 
 
 module SmallBankDB = struct
