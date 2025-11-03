@@ -438,18 +438,9 @@ let test_eval s converge_bound () =
           let _ = eval test in
           ())
   | "twitter_rc" ->
-  | "twitter_rc" ->
       let open MonkeyBD in
       let open Common in
       let open Twitter in
-      BackendMariaDB.MyMariaDB.maria_context "twitter" ReadCommitted (fun () ->
-          let main = Synthesis.load_progs s () in
-          let test () =
-            Interpreter.once
-              (TwitterDB.init, main, TwitterDB.check_isolation_level Serializable)
-          in
-          let _ = eval test in
-          ())
       BackendMariaDB.MyMariaDB.maria_context "twitter" ReadCommitted (fun () ->
           let main = Synthesis.load_progs s () in
           let test () =
@@ -462,39 +453,6 @@ let test_eval s converge_bound () =
       let open MonkeyBD in
       let open Common in
       let open Twitter in
-      BackendMariaDB.MyMariaDB.maria_context "twitter" Causal (fun () ->
-          let main = Synthesis.load_progs s () in
-          let test () =
-            Interpreter.once
-              (TwitterDB.init, main, TwitterDB.check_isolation_level Serializable)
-          in
-          let _ = eval test in
-          ())
-    | "smallbank_rc" ->
-      let open MonkeyBD in
-      let open Common in
-      let open Smallbank in
-      BackendMariaDB.MyMariaDB.maria_context "smallbank" ReadCommitted (fun () ->
-          let main = Synthesis.load_progs s () in
-          let test () =
-            Interpreter.once
-              (SmallBankDB.init, main, SmallBankDB.check_isolation_level Serializable)
-          in
-          let _ = eval test in
-          ())
-    | "smallbank_cc" ->
-      let open MonkeyBD in
-      let open Common in
-      let open Smallbank in
-      BackendMariaDB.MyMariaDB.maria_context "smallbank" Causal (fun () ->
-          let main = Synthesis.load_progs s () in
-          let test () =
-            Interpreter.once
-              (SmallBankDB.init, main, SmallBankDB.check_isolation_level Serializable)
-          in
-          let _ = eval test in
-          ())
-  (* | "courseware_rc" ->
       BackendMariaDB.MyMariaDB.maria_context "twitter" Causal (fun () ->
           let main = Synthesis.load_progs s () in
           let test () =
