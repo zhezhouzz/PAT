@@ -142,6 +142,12 @@ module type MyDB = sig
   val raw_put :
     tid:int -> table:string -> key:string -> json:Yojson.Basic.t -> unit
 
+  val table_raw_get :
+    tid:int -> db:string -> table:string -> key:string -> int * int * Yojson.Basic.t
+
+  val table_raw_put :
+    tid:int -> db:string -> table:string -> key:string -> json:Yojson.Basic.t -> unit
+
   val raw_get_current_isolation : tid:int -> unit
   val check_causal : unit -> bool
   val check_serializable : unit -> bool
@@ -479,7 +485,6 @@ module MyMariaDB : MyDB = struct
     let connId = use_connection () in
     Hashtbl.add connMap tid connId;
     let conn = Hashtbl.find connectionPool connId in
-  let* _ = Lwt_io.printlf "483 %d " thread_id in
     let* _ = no_param_no_ret conn "BEGIN" in
     let () = Printf.printf "[DB] begin tid: %i with port %i\n" tid connId in
     let () = _history := !_history @ [ Begin { tid } ] in
@@ -488,21 +493,18 @@ module MyMariaDB : MyDB = struct
       | Some l -> Hashtbl.replace so thread_id (l @ [ tid ])
       | None -> Hashtbl.add so thread_id [ tid ]
     in
-  let* _ = Lwt_io.printlf "492 %d" thread_id in
     Lwt.return tid
 
   let raw_begin ~thread_id = Lwt_main.run (async_begin ~thread_id ())
 
   let async_commit ~tid () =
     (* let () = check_validate thread_id tid in *)
-  let* _ = Lwt_io.printlf "497 !%d" tid in
     match Hashtbl.find_opt commit_tid tid with
     | Some cid ->
         Zutils.(
           _die_with [%here]
             (spf "transaction %i already committed with cid %i" tid cid))
     | None ->
-      let* _ = Lwt_io.printlf "504 !%d" tid in
         let cid = next_cid () in
         let () = Printf.printf "[DB] commit {tid: %i, cid: %i}\n" tid cid in
         let () = Hashtbl.add commit_tid tid cid in
@@ -511,10 +513,8 @@ module MyMariaDB : MyDB = struct
           | Some connId -> Hashtbl.replace connectionStatus connId true
           | None -> Zutils.(_die_with [%here] "tid not found")
         in
-          let* _ = Lwt_io.printlf "513 !%d" tid in
         let conn = get_conn tid in
         let* _ = no_param_no_ret conn "COMMIT" in
-          let* _ = Lwt_io.printlf "516 !%d" tid in
         let () = co := !co @ [ tid ] in
         let () = _history := !_history @ [ Commit { tid; cid } ] in
         Lwt.return cid
@@ -522,7 +522,6 @@ module MyMariaDB : MyDB = struct
   let raw_commit ~tid = Lwt_main.run (async_commit ~tid ())
 
   let async_release_connection ~tid () =
-    let _ = Printf.printf "releasing connection\n" in
     (* let () = check_validate thread_id tid in *)
     match Hashtbl.find_opt commit_tid tid with
     | Some _ -> Lwt.return_unit
@@ -566,8 +565,8 @@ module MyMariaDB : MyDB = struct
     let json_str = Yojson.Basic.to_string json in
     let raw_key = Zutils.spf "%s:%s" table key in
     let () =
-      Printf.printf "[DB] put {tid: %i, key: %s, value: %s} (%s)\n" tid raw_key
-        json_str table
+      Printf.printf "[DB] put {tid: %i, key: %s, value: %s}\n" tid raw_key
+        json_str
     in
     (* let* () = async_get_current_isolation conn () in *)
     (* let () = Language.(if !__counter == 10 then _die_with [%here] "die") in *)
@@ -576,7 +575,7 @@ module MyMariaDB : MyDB = struct
         (Zutils.spf
            "INSERT INTO %s (id, %s) VALUES (?, ?) ON DUPLICATE KEY UPDATE %s = \
             ?"
-           !_db_name feild_name feild_name)
+           table feild_name feild_name)
       >>= or_die "prepare"
     in
     let* _ =
@@ -610,7 +609,7 @@ module MyMariaDB : MyDB = struct
     let raw_key = Zutils.spf "%s:%s" table key in
     let* stmt =
       M.prepare conn
-        (Zutils.spf "SELECT values_json FROM %s WHERE id = ?" !_db_name)
+        (Zutils.spf "SELECT values_json FROM %s WHERE id = ?" table)
       >>= or_die "prepare"
     in
     let* res = M.Stmt.execute stmt [| `String raw_key |] >>= or_die "exec" in
@@ -679,7 +678,13 @@ module MyMariaDB : MyDB = struct
     async_get ~tid ~table:db ~key:(table ^ ":" ^ key) ()
 
   let table_async_put ~tid ~db ~table ~key ~json () =
+    let* () = Lwt_io.printf "!!!db: %s\n" db in
     async_put ~tid ~table:db ~key:(table ^ ":" ^ key) ~json ()
+
+  let table_raw_get ~tid ~db ~table ~key = Lwt_main.run (table_async_get ~tid ~db ~table ~key ())
+
+  let table_raw_put ~tid ~db ~table ~key ~json =
+    Lwt_main.run (table_async_put ~tid ~db ~table ~key ~json ())
 end
 
 open MyMariaDB
