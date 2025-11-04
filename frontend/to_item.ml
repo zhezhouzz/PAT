@@ -77,7 +77,9 @@ let ocaml_structure_item_to_item structure =
                  _die_with [%here]
                    "syntax error: non known rty kind, not axiom | assert | \
                     library")
-         | _ -> _die [%here])
+         | _ ->
+             let () = Pp.printf "@{<bold>name@}: %s\n" name in
+             _die [%here])
   | Pstr_attribute _ -> None
   | _ ->
       let () =
