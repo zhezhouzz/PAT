@@ -20,7 +20,7 @@ machine SynOrchestrator {
         domain_int += (4);
         domain_bool += (true);
         domain_bool += (false);
-        new SynClient((setting = bank, domain_int = domain_int, domain_bool = domain_bool, domain_aid = domain_aid, domain_rid = domain_rid));
+        new SynClient((setting = bank, domain_aid = domain_aid, domain_bool = domain_bool, domain_int = domain_int, domain_rid = domain_rid));
       }
     }
   }

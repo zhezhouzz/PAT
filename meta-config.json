@@ -5,8 +5,8 @@
     "max_printing_size": 300,
     "log_tags": [
         "eval",
-        "unification",
-        "ntypecheck",
+        // "unification",
+        // "ntypecheck",
         // "line_merge_results",
         // "line_merge_related",
         // "plan",
@@ -62,7 +62,7 @@
         ],
         [
             "pause_during_synthesis",
-            false
+            true
         ],
         [
             "add_kstar_during_synthesis",

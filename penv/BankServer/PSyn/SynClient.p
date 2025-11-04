@@ -1,76 +1,79 @@
 machine SynClient {
   start state Syn {
-    entry (input: (setting: setting, domain_int: set[int], domain_bool: set[bool], domain_aid: set[int], domain_rid: set[int])) {
+    entry (input: (setting: setting, domain_aid: set[aid], domain_bool: set[bool], domain_int: set[int], domain_rid: set[rid])) {
       var setting: setting;
-      var domain_int: set[int];
+      var domain_aid: set[aid];
       var domain_bool: set[bool];
-      var domain_aid: set[int];
-      var domain_rid: set[int];
-      var ac: aid;
-      var ba_5: int;
-      var id_0: rid;
-      var am_2: int;
+      var domain_int: set[int];
+      var domain_rid: set[rid];
+      var __x0: aid;
+      var __x1: int;
+      var __x2: rid;
+      var __x3: int;
       var input_eReadQuery: (rId: rid, amount: int, accountId: aid);
-      var tmp_6: rid;
-      var tmp_7: int;
-      var tmp_8: aid;
+      var __y4: rid;
+      var __y5: int;
+      var __y6: aid;
       var input_eReadQueryResp: (rId: rid, amount: int, accountId: aid, balance: int);
-      var tmp_2: rid;
-      var tmp_3: int;
-      var tmp_4: aid;
-      var tmp_5: int;
+      var __y7: rid;
+      var __y8: int;
+      var __y9: aid;
+      var __y10: int;
       var input_eWithDrawResp: (rId: rid, accountId: aid, balance: int, status: bool);
-      var tmp_0: rid;
-      var tmp_1: aid;
-      var ba_0: int;
-      var st_0: bool;
+      var __y11: rid;
+      var __y12: aid;
+      var __y13: int;
+      var __y14: bool;
       setting = input.setting;
-      domain_int = input.domain_int;
-      domain_bool = input.domain_bool;
       domain_aid = input.domain_aid;
+      domain_bool = input.domain_bool;
+      domain_int = input.domain_int;
       domain_rid = input.domain_rid;
       while(true){
-        ac = choose(domain_aid);
-        ba_5 = choose(domain_int);
-        if ((!((ba_5 == 0)) && !((0 > ba_5)))) {
+        __x0 = choose(domain_aid);
+        __x1 = choose(domain_int);
+        if ((__x1 > 0)) {
           break;
         };
       };
-      send_eInitAccount(this, setting, (accountId = ac, balance = ba_5));
+      send_eInitAccount(this, setting, (accountId = __x0, balance = __x1));
       while(true){
-        id_0 = choose(domain_rid);
-        am_2 = choose(domain_int);
-        if ((((((ba_5 == am_2) && !((am_2 == 0))) && !((am_2 > ba_5))) && !((0 > am_2))) || (((!((ba_5 == am_2)) && !((am_2 == 0))) && (am_2 > ba_5)) && !((0 > am_2))))) {
+        __x2 = choose(domain_rid);
+        __x3 = choose(domain_int);
+        if ((!((__x1 > __x3)) && (__x3 > 0))) {
           break;
         };
       };
-      send_eWithDrawReq(this, setting, (rId = id_0, accountId = ac, amount = am_2));
+      send_eWithDrawReq(this, setting, (rId = __x2, accountId = __x0, amount = __x3));
       receive { case syn_eReadQuery: (input: tsyn_eReadQuery) {
+        announce an_syn_eReadQuery, input;
         forward_syn_eReadQuery(input);
         input_eReadQuery = cast_syn_eReadQuery(input);
-        tmp_6 = input_eReadQuery.rId;
-        tmp_7 = input_eReadQuery.amount;
-        tmp_8 = input_eReadQuery.accountId;
+        __y4 = input_eReadQuery.rId;
+        __y5 = input_eReadQuery.amount;
+        __y6 = input_eReadQuery.accountId;
       }};
-      assert (((tmp_6 == id_0) && (tmp_7 == am_2)) && (tmp_8 == ac));
+      assert true;
       receive { case syn_eReadQueryResp: (input: tsyn_eReadQueryResp) {
+        announce an_syn_eReadQueryResp, input;
         forward_syn_eReadQueryResp(input);
         input_eReadQueryResp = cast_syn_eReadQueryResp(input);
-        tmp_2 = input_eReadQueryResp.rId;
-        tmp_3 = input_eReadQueryResp.amount;
-        tmp_4 = input_eReadQueryResp.accountId;
-        tmp_5 = input_eReadQueryResp.balance;
+        __y7 = input_eReadQueryResp.rId;
+        __y8 = input_eReadQueryResp.amount;
+        __y9 = input_eReadQueryResp.accountId;
+        __y10 = input_eReadQueryResp.balance;
       }};
-      assert ((((tmp_2 == id_0) && (tmp_3 == am_2)) && (tmp_4 == ac)) && (tmp_5 == ba_5));
+      assert true;
       receive { case syn_eWithDrawResp: (input: tsyn_eWithDrawResp) {
+        announce an_syn_eWithDrawResp, input;
         forward_syn_eWithDrawResp(input);
         input_eWithDrawResp = cast_syn_eWithDrawResp(input);
-        tmp_0 = input_eWithDrawResp.rId;
-        tmp_1 = input_eWithDrawResp.accountId;
-        ba_0 = input_eWithDrawResp.balance;
-        st_0 = input_eWithDrawResp.status;
+        __y11 = input_eWithDrawResp.rId;
+        __y12 = input_eWithDrawResp.accountId;
+        __y13 = input_eWithDrawResp.balance;
+        __y14 = input_eWithDrawResp.status;
       }};
-      assert (((tmp_0 == id_0) && (tmp_1 == ac)) && (((((((((((((!(st_0) && !((ba_5 == ba_0))) && !((ba_0 == am_2))) && !((ba_0 == 0))) && !((ba_0 > ba_5))) && !((ba_0 > am_2))) && !((0 > ba_0))) || ((((((!(st_0) && (ba_5 == ba_0)) && !((ba_0 == am_2))) && !((ba_0 == 0))) && !((ba_0 > ba_5))) && !((ba_0 > am_2))) && !((0 > ba_0)))) || ((((((!(st_0) && (ba_5 == ba_0)) && (ba_0 == am_2)) && !((ba_0 == 0))) && !((ba_0 > ba_5))) && !((ba_0 > am_2))) && !((0 > ba_0)))) || ((((((!(st_0) && !((ba_5 == ba_0))) && !((ba_0 == am_2))) && (ba_0 == 0)) && !((ba_0 > ba_5))) && !((ba_0 > am_2))) && !((0 > ba_0)))) || ((((((!(st_0) && !((ba_5 == ba_0))) && !((ba_0 == am_2))) && !((ba_0 == 0))) && (ba_0 > ba_5)) && !((ba_0 > am_2))) && !((0 > ba_0)))) || ((((((!(st_0) && !((ba_5 == ba_0))) && (ba_0 == am_2)) && !((ba_0 == 0))) && (ba_0 > ba_5)) && !((ba_0 > am_2))) && !((0 > ba_0)))) || ((((((!(st_0) && !((ba_5 == ba_0))) && !((ba_0 == am_2))) && !((ba_0 == 0))) && (ba_0 > ba_5)) && (ba_0 > am_2)) && !((0 > ba_0)))) || ((((((!(st_0) && !((ba_5 == ba_0))) && !((ba_0 == am_2))) && !((ba_0 == 0))) && !((ba_0 > ba_5))) && !((ba_0 > am_2))) && (0 > ba_0))));
+      assert true;
     }
 
   }

@@ -237,12 +237,13 @@ let rec layout_p_expr ctx n = function
 
 and layout_typed_p_expr ctx n { x; ty } =
   match (x, ty) with
-  | PConst (PInt _), Nt.Ty_constructor (_, []) ->
-      _die_with [%here] "unimp"
-      (* match get_opt ctx.abstract_tyctx name with *)
-      (* | None -> layout_p_expr ctx n x *)
-      (* | Some (CEnumType { enum_elems; _ }) -> List.nth enum_elems i *)
-      (* | _ -> layout_p_expr ctx n x *)
+  (* | PConst (PInt _), Nt.Ty_constructor (_, []) ->
+      _die_with [%here] (spf "unimp (%s)" (Nt.layout ty)) *)
+  (* (
+      match get_opt ctx.abstract_tyctx name with
+      | None -> layout_p_expr ctx n x
+      | Some (CEnumType { enum_elems; _ }) -> List.nth enum_elems i
+      | _ -> layout_p_expr ctx n x) *)
   | _, _ -> layout_p_expr ctx n x
 
 let layout_p_func_ ctx if_omit n { params; local_vars; body } =

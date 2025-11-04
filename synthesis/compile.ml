@@ -14,7 +14,6 @@ module SimpleRename = struct
   let add_preserved_var l = preserved_vars := !preserved_vars @ l
 
   let new_gen_var used_vars x =
-    let used_vars = List.map (fun x -> x.x) used_vars in
     if List.exists (String.equal x.x) (!preserved_vars @ used_vars) then x
     else
       let fresh_var = spf "%s%i" default_gen_var !_var_counter in
@@ -48,11 +47,17 @@ let unique_name_line env { gprop; elems } =
           let new_names = List.map (fun x -> x.x) act.aargs in
           aux (used_names @ new_names) (gprop, acts @ [ LineAct act ]) post
         else
-          let f x =
-            if List.exists (String.equal x.x) used_names then x
-            else (Rename.unique_var "ttmp")#:x.ty
-          in
+          let f x = (Rename.unique_var "ttmp")#:x.ty in
           let aargs' = List.map f act.aargs in
+          let m =
+            List.map
+              (fun (x, y) -> (x.x, y))
+              (_safe_combine [%here] act.aargs aargs')
+          in
+          let () =
+            Pp.printf "@{<bold>unique name:@}\n%s\n"
+              (List.split_by_comma (fun (x, y) -> spf "%s -> %s" x y.x) m)
+          in
           let prop =
             List.filter_map (fun (x, y) ->
                 if String.equal x.x y.x then None
@@ -71,7 +76,8 @@ let unique_name_line env { gprop; elems } =
     | (LineStarMultiChar _ as elem) :: post ->
         aux used_names (gprop, acts @ [ elem ]) post
   in
-  aux [] (gprop, []) elems
+  if Prover.check_sat_bool (None, gprop) then aux [] (gprop, []) elems
+  else _die_with [%here] (spf "not pass sanity check (%s)" (layout_prop gprop))
 
 let normalize_line env line =
   let { gprop; elems } = unique_name_line env line in
@@ -79,18 +85,46 @@ let normalize_line env line =
     Pp.printf "@{<bold>unique line:@}\n%s\n"
       (Plan.omit_layout_line { gprop; elems })
   in
-  let rec aux gen_vars obs_vars (gprop, acts) = function
+  let rec aux gen_vars obs_vars (gprop, acts) elems =
+    let () =
+      Pp.printf "@{<bold>aux@} (%s, %s)\nprop: %s\nelems: %s\n"
+        (List.split_by_comma (fun x -> x.x) gen_vars)
+        (List.split_by_comma (fun x -> x.x) obs_vars)
+        (layout_prop gprop)
+        (Plan.omit_layout_line_elems elems)
+    in
+    match elems with
     | [] -> (gen_vars, obs_vars, (gprop, acts))
     | LineAct act :: post ->
         if is_gen env act.aop then
-          let aargs' = List.map (new_gen_var []) act.aargs in
+          let aargs' =
+            List.map
+              (new_gen_var (List.map _get_x (gen_vars @ obs_vars)))
+              act.aargs
+          in
+          let m =
+            List.map
+              (fun (x, y) -> (x.x, y))
+              (_safe_combine [%here] act.aargs aargs')
+          in
           let gprop = msubst_prop (act.aargs, aargs') gprop in
           let act = { act with aargs = aargs' } in
+          let () =
+            Pp.printf "@{<bold>m:@}\n%s\n"
+              (List.split_by_comma (fun (x, y) -> spf "%s -> %s" x y.x) m)
+          in
+          let post = List.map (msubst subst_name_in_line_elem m) post in
           aux (gen_vars @ aargs') obs_vars (gprop, acts @ [ act ]) post
         else if is_obs env act.aop then
           let aargs' = List.map new_obs_var act.aargs in
+          let m =
+            List.map
+              (fun (x, y) -> (x.x, y))
+              (_safe_combine [%here] act.aargs aargs')
+          in
           let gprop = msubst_prop (act.aargs, aargs') gprop in
           let act = { act with aargs = aargs' } in
+          let post = List.map (msubst subst_name_in_line_elem m) post in
           aux gen_vars (obs_vars @ aargs') (gprop, acts @ [ act ]) post
         else _die [%here]
     | LineStarMultiChar _ :: post -> aux gen_vars obs_vars (gprop, acts) post

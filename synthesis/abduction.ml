@@ -11,6 +11,7 @@ open Zdatatype
   (not (aux (lit_to_prop p))) && not (aux @@ Not (lit_to_prop p)) *)
 
 let pre_simplify_lit (qvs, pre) lit =
+  let qvs = List.slow_rm_dup (fun x y -> String.equal x.x y.x) qvs in
   let q1 = smart_forall qvs @@ smart_implies pre (lit_to_prop lit) in
   let q2 = smart_forall qvs @@ smart_implies pre (Not (lit_to_prop lit)) in
   (* let () = Pp.printf "@{<bold>pre_simplify_lit:@}\n%s\n" (layout_prop q1) in *)
