@@ -111,39 +111,31 @@ let is_course_created ~tid ~course_id =
 let async_register_student ~thread_id student_id () =
   let open Lwt.Syntax in
   let* tid = DB.async_begin ~thread_id () in
-  (* Check if student already registered *)
-  let* registered = async_is_student_registered ~tid ~student_id in
-  if registered then
-    let* _ = DB.async_release_connection ~tid () in
-    Lwt.return_false
-  else
-    (* Register student *)
-    let* () =
-      DB.table_async_put ~db:dbname ~tid ~table:"students"
-        ~key:(string_of_int student_id)
-        ~json:(Config.values_to_json [ VConst (B true) ])
-        ()
-    in
-    (* Initialize empty enrollment list *)
-    let* () =
-      DB.table_async_put ~db:dbname ~tid ~table:"student_enrollments"
-        ~key:(string_of_int student_id)
-        ~json:(Config.values_to_json [ VCIntList [] ])
-        ()
-    in
-    let* _ = DB.async_commit ~tid () in
-    Lwt.return_true
+  (* Register student *)
+  let* () =
+    DB.table_async_put ~db:dbname ~tid ~table:"students"
+      ~key:(string_of_int student_id)
+      ~json:(Config.values_to_json [ VConst (B true) ])
+      ()
+  in
+  (* Initialize empty enrollment list *)
+  let* () =
+    DB.table_async_put ~db:dbname ~tid ~table:"student_enrollments"
+      ~key:(string_of_int student_id)
+      ~json:(Config.values_to_json [ VCIntList [] ])
+      ()
+  in
+  let* _ = DB.async_commit ~tid () in
+  Lwt.return_true
 
 let registerStudentReqHandler (msg : msg) =
   let aux (student_id : int) =
     do_trans (fun tid ->
-        if is_student_registered ~tid ~student_id then false
-        else
-          let _ = do_putStudents tid student_id (bool_to_values true) in
-          let _ =
-            do_putStudentEnrollments tid student_id (int_list_to_values [])
-          in
-          true)
+        let _ = do_putStudents tid student_id (bool_to_values true) in
+        let _ =
+          do_putStudentEnrollments tid student_id (int_list_to_values [])
+        in
+        true)
   in
   match msg.ev.args with
   | [ VConst (I student_id) ] ->
@@ -154,28 +146,20 @@ let registerStudentReqHandler (msg : msg) =
 let async_create_course ~thread_id course_id () =
   let open Lwt.Syntax in
   let* tid = DB.async_begin ~thread_id () in
-  let* created = async_is_course_created ~tid ~course_id in
-  if created then
-    let* _ = DB.async_release_connection ~tid () in
-    Lwt.return_false
-  else
-    (* Course does not exist, create course *)
-    let* () =
-      DB.table_async_put ~db:dbname ~tid ~table:"courses"
-        ~key:(string_of_int course_id)
-        ~json:(Config.values_to_json [ VConst (B true) ])
-        ()
-    in
-    let* _ = DB.async_commit ~tid () in
-    Lwt.return_true
+  let* () =
+    DB.table_async_put ~db:dbname ~tid ~table:"courses"
+      ~key:(string_of_int course_id)
+      ~json:(Config.values_to_json [ VConst (B true) ])
+      ()
+  in
+  let* _ = DB.async_commit ~tid () in
+  Lwt.return_true
 
 let createCourseReqHandler (msg : msg) =
   let aux (course_id : int) =
     do_trans (fun tid ->
-        if is_course_created ~tid ~course_id then false
-        else
-          let _ = do_putCourses tid course_id (bool_to_values true) in
-          true)
+        let _ = do_putCourses tid course_id (bool_to_values true) in
+        true)
   in
   match msg.ev.args with
   | [ VConst (I course_id) ] ->
@@ -186,57 +170,44 @@ let createCourseReqHandler (msg : msg) =
 let async_enroll_student ~thread_id student_id course_id () =
   let open Lwt.Syntax in
   let* tid = DB.async_begin ~thread_id () in
-  (* Make sure student and course both exist *)
-  let* student_registered = async_is_student_registered ~tid ~student_id in
-  let* course_exists = async_is_course_created ~tid ~course_id in
-  if (not student_registered) || not course_exists then
-    let* _ = DB.async_release_connection ~tid () in
-    Lwt.return_false
-  else
-    (* Student and course both exist *)
-    (* Update student's enrollments *)
-    let* _, _, enrollments =
-      DB.table_async_get ~db:dbname ~tid ~table:"student_enrollments"
-        ~key:(string_of_int student_id) ()
-    in
-    let oldEnrollments =
-      match Config.json_to_values enrollments with
-      | [ VCIntList l ] -> l
-      | _ -> _die [%here]
-    in
-    let newEnrollments =
-      if List.mem course_id oldEnrollments then oldEnrollments
-      else course_id :: oldEnrollments
-    in
-    let* () =
-      DB.table_async_put ~db:dbname ~tid ~table:"student_enrollments"
-        ~key:(string_of_int student_id)
-        ~json:(Config.values_to_json [ VCIntList newEnrollments ])
-        ()
-    in
-    let* _ = DB.async_commit ~tid () in
-    Lwt.return_true
+  (* Update student's enrollments *)
+  let* _, _, enrollments =
+    DB.table_async_get ~db:dbname ~tid ~table:"student_enrollments"
+      ~key:(string_of_int student_id) ()
+  in
+  let oldEnrollments =
+    match Config.json_to_values enrollments with
+    | [ VCIntList l ] -> l
+    | _ -> _die [%here]
+  in
+  let newEnrollments =
+    if List.mem course_id oldEnrollments then oldEnrollments
+    else course_id :: oldEnrollments
+  in
+  let* () =
+    DB.table_async_put ~db:dbname ~tid ~table:"student_enrollments"
+      ~key:(string_of_int student_id)
+      ~json:(Config.values_to_json [ VCIntList newEnrollments ])
+      ()
+  in
+  let* _ = DB.async_commit ~tid () in
+  Lwt.return_true
 
 let enrollStudentReqHandler (msg : msg) =
   let aux (student_id : int) (course_id : int) =
     do_trans (fun tid ->
-        if
-          (not (is_student_registered ~tid ~student_id))
-          || not (is_course_created ~tid ~course_id)
-        then false
-        else
-          let oldEnrollments =
-            values_to_int_list (do_getStudentEnrollments tid student_id)
-          in
-          let newEnrollments =
-            if List.mem course_id oldEnrollments then oldEnrollments
-            else course_id :: oldEnrollments
-          in
-          let _ =
-            do_putStudentEnrollments tid student_id
-              (int_list_to_values newEnrollments)
-          in
-          true)
+        let oldEnrollments =
+          values_to_int_list (do_getStudentEnrollments tid student_id)
+        in
+        let newEnrollments =
+          if List.mem course_id oldEnrollments then oldEnrollments
+          else course_id :: oldEnrollments
+        in
+        let _ =
+          do_putStudentEnrollments tid student_id
+            (int_list_to_values newEnrollments)
+        in
+        true)
   in
   match msg.ev.args with
   | [ VConst (I student_id); VConst (I course_id) ] ->
@@ -247,51 +218,38 @@ let enrollStudentReqHandler (msg : msg) =
 let async_unenroll_student ~thread_id student_id course_id () =
   let open Lwt.Syntax in
   let* tid = DB.async_begin ~thread_id () in
-  (* Make sure student and course both exist *)
-  let* student_registered = async_is_student_registered ~tid ~student_id in
-  let* course_exists = async_is_course_created ~tid ~course_id in
-  if (not student_registered) || not course_exists then
-    let* _ = DB.async_release_connection ~tid () in
-    Lwt.return_false
-  else
-    (* Student and course both exist *)
-    (* Update student's enrollments *)
-    let* _, _, enrollments =
-      DB.table_async_get ~db:dbname ~tid ~table:"student_enrollments"
-        ~key:(string_of_int student_id) ()
-    in
-    let oldEnrollments =
-      match Config.json_to_values enrollments with
-      | [ VCIntList l ] -> l
-      | _ -> _die [%here]
-    in
-    let newEnrollments = List.filter ((<>) course_id) oldEnrollments in
-    let* () =
-      DB.table_async_put ~db:dbname ~tid ~table:"student_enrollments"
-        ~key:(string_of_int student_id)
-        ~json:(Config.values_to_json [ VCIntList newEnrollments ])
-        ()
-    in
-    let* _ = DB.async_commit ~tid () in
-    Lwt.return_true
+  (* Update student's enrollments *)
+  let* _, _, enrollments =
+    DB.table_async_get ~db:dbname ~tid ~table:"student_enrollments"
+      ~key:(string_of_int student_id) ()
+  in
+  let oldEnrollments =
+    match Config.json_to_values enrollments with
+    | [ VCIntList l ] -> l
+    | _ -> _die [%here]
+  in
+  let newEnrollments = List.filter ((<>) course_id) oldEnrollments in
+  let* () =
+    DB.table_async_put ~db:dbname ~tid ~table:"student_enrollments"
+      ~key:(string_of_int student_id)
+      ~json:(Config.values_to_json [ VCIntList newEnrollments ])
+      ()
+  in
+  let* _ = DB.async_commit ~tid () in
+  Lwt.return_true
 
 let unenrollStudentReqHandler (msg : msg) =
   let aux (student_id : int) (course_id : int) =
     do_trans (fun tid ->
-        if
-          (not (is_student_registered ~tid ~student_id))
-          || not (is_course_created ~tid ~course_id)
-        then false
-        else
-          let oldEnrollments =
-            values_to_int_list (do_getStudentEnrollments tid student_id)
-          in
-          let newEnrollments = List.filter ((<>) course_id) oldEnrollments in
-          let _ =
-            do_putStudentEnrollments tid student_id
-              (int_list_to_values newEnrollments)
-          in
-          true)
+        let oldEnrollments =
+          values_to_int_list (do_getStudentEnrollments tid student_id)
+        in
+        let newEnrollments = List.filter ((<>) course_id) oldEnrollments in
+        let _ =
+          do_putStudentEnrollments tid student_id
+            (int_list_to_values newEnrollments)
+        in
+        true)
   in
   match msg.ev.args with
   | [ VConst (I student_id); VConst (I course_id) ] ->
