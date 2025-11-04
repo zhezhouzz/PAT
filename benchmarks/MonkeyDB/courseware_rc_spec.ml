@@ -43,25 +43,13 @@ val getStudentEnrollments :
 
 val putStudentEnrollments : < tid : int ; key : int ; value : int list > [@@obs]
 
-val getCourseEnrollments :
-  < tid : int ; prevTid : int ; prevCid : int ; key : int ; value : int list >
-[@@obs]
-
-val putCourseEnrollments : < tid : int ; key : int ; value : int list > [@@obs]
-
 (* Courseware operations *)
 
 val registerStudentReq : < user : int > [@@gen]
 val registerStudentResp : < > [@@obs]
 
-(* val deregisterStudentReq : < student_id : int > [@@gen]
-val deregisterStudentResp : < success : bool > [@@obs] *)
-
 val createCourseReq : < course_id : int > [@@gen]
 val createCourseResp : < success : bool > [@@obs]
-
-(* val deleteCourseReq : < course_id : int > [@@gen]
-val deleteCourseResp : < success : bool > [@@obs] *)
 
 val enrollStudentReq : < user : int ; item : int > [@@gen]
 val enrollStudentResp : < > [@@obs]
@@ -172,35 +160,6 @@ let getStudentEnrollments =
         allA ));
   |]
 
-let getCourseEnrollments =
-  [|
-    (* Read most recent committed transaction *)
-    (fun ?l:(i = (true : [%v: int]))
-      ?l:(pi = (true : [%v: int]))
-      ?l:(pj = (true : [%v: int]))
-      ?l:(k = (true : [%v: int]))
-      ?l:(z = (true : [%v: int list]))
-    ->
-      ( (starA (anyA - PutCourseEnrollments (tid == i && key == k));
-         PutCourseEnrollments (tid == i && key == k && value == z);
-         starA (anyA - PutCourseEnrollments (tid == i && key == k));
-         Commit (tid == pi && cid == pj);
-         starA (anyA - Commit true - PutCourseEnrollments (tid == i && key == k))),
-        GetCourseEnrollments
-          (tid == i && key == k && prevTid == pi && prevCid == pj
-          && (not (tid == prevTid))
-          && value == z),
-        allA ));
-  |]
-
-let putCourseEnrollments ?l:(i = (true : [%v: int])) ?l:(k = (true : [%v: int]))
-    ?l:(z = (true : [%v: int list])) =
-  ( (allA;
-     BeginT (tid == i);
-     starA (anyA - Commit (tid == i))),
-    PutCourseEnrollments (tid == i && key == k && value == z),
-    allA )
-
 (* Courseware operations *)
 
 let registerStudentReq (i : int) ?l:(x = (true : [%v: int])) =
@@ -220,76 +179,16 @@ let registerStudentReq (i : int) ?l:(x = (true : [%v: int])) =
 
 let registerStudentResp = (allA, RegisterStudentResp true, allA)
 
-(* let deregisterStudentReq (i : int) (l : int list)
-  ?l:(x = (true : [%v: int]))
-  ?l:(y = (true : [%v: bool])) = 
-  (
-    allA,
-    DeregisterStudentReq (student_id == x),
-    (
-      BeginT (tid == i);
-      GetStudents (tid == i && key == x);
-      allA;
-      PutStudents (tid == i && key == x && value == false);
-      starA (anyA - PutStudents (key == x));
-      (* GetStudentEnrollments (tid == i && key == x && value == l);
-      (* TODO: figure out how to encode the loop *)
-      (* starA (
-
-      ); *)
-      PutStudentEnrollments (tid == i && key == x && emp value); *)
-      Commit (tid == i);
-      DeregisterStudentResp (success == y);
-      allA
-    )
-  )
-
-let deregisterStudentResp ?l:(x = (true : [%v: bool])) = 
-  (
-    allA, 
-    DeregisterStudentResp (success == x), 
-    allA
-  ) *)
-
 let createCourseReq (i : int) ?l:(x = (true : [%v: int])) =
   ( allA,
     CreateCourseReq (course_id == x),
     (BeginT (tid == i);
      PutCourses (tid == i && key == x && value == true);
-     PutCourseEnrollments (tid == i && key == x && emp value);
      Commit (tid == i);
      CreateCourseResp true;
      allA) )
 
 let createCourseResp = (allA, CreateCourseResp true, allA)
-
-(* let deleteCourseReq (i : int) (l : int list)
-  ?l:(x = (true : [%v: int])) =
-  (
-    allA,
-    DeleteCourseReq (course_id == x),
-    (
-      BeginT (tid == i);
-      GetCourses (tid == i && key == x);
-      PutCourses (tid == i && key == x && value == false);
-      GetCourseEnrollments (tid == i && key == x && value == l);
-      (* TODO: loop *)
-      (* starA (
-
-      ); *)
-      PutCourseEnrollments (tid == i && key == x && emp value);
-      Commit (tid == i);
-      DeleteCourseResp (success == true);
-      allA
-    )
-  )
-
-let deleteCourseResp ?l:(x = (true : [%v: bool])) = 
-  (
-    allA,
-    DeleteCourseResp (success == x),
-    allA
-  ) *)
 
 let enrollStudentReq (i : int) (l : int list) ?l:(x = (true : [%v: int]))
     ?l:(y = (true : [%v: int])) =
