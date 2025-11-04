@@ -19,9 +19,9 @@ let eNominate =
   [|
     (fun ?l:(n = (true : [%v: tNode])) ?l:(ld = (not (v == n) : [%v: tNode])) ->
       (allA, ENominate (leader == ld && node == n), [| EWon (leader == ld) |]));
-    (fun ?l:(n = (true : [%v: tNode])) ?l:(ld = (true : [%v: tNode])) ->
+    (fun ?l:(n = (true : [%v: tNode])) ?l:(ld = (v == n : [%v: tNode])) ->
       ( allA,
-        ENominate (leader == ld && node == n && n == ld),
+        ENominate (leader == ld && node == n),
         [| ENominate (leader == ld && node == next n) |] ));
   |]
 
