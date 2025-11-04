@@ -4,89 +4,89 @@ machine SynClient {
       var setting: setting;
       var domain_bool: set[bool];
       var domain_tNode: set[tNode];
-      var n: tNode;
+      var __x0: tNode;
       var input_eInternalReq: (node: tNode);
-      var tmp_7: tNode;
-      var n_25: tNode;
-      var tmp_6: tNode;
+      var __y1: tNode;
+      var __x2: tNode;
+      var __y3: tNode;
       var input_eForwardReq: (node: tNode);
-      var tmp_5: tNode;
+      var __y4: tNode;
       var input_eExternalReq: (node: tNode);
-      var tmp_4: tNode;
+      var __y5: tNode;
       var input_eExternalRsp: (node: tNode, stat: bool);
-      var tmp_3: tNode;
-      var st_5: bool;
-      var tmp_2: tNode;
-      var tmp_1: tNode;
-      var tmp_0: tNode;
-      var st_0: bool;
+      var __y6: tNode;
+      var __y7: bool;
+      var __y8: tNode;
+      var __y9: tNode;
+      var __y10: tNode;
+      var __y11: bool;
       setting = input.setting;
       domain_bool = input.domain_bool;
       domain_tNode = input.domain_tNode;
       while(true){
-        n = choose(domain_tNode);
+        __x0 = choose(domain_tNode);
         if (true) {
           break;
         };
       };
-      send_eStart(this, setting, (node = n,));
+      send_eStart(this, setting, (node = __x0,));
       receive { case syn_eInternalReq: (input: tsyn_eInternalReq) {
-        forward_syn_eInternalReq(input);
+        announce an_syn_eInternalReq, input;
         input_eInternalReq = cast_syn_eInternalReq(input);
-        tmp_7 = input_eInternalReq.node;
+        __y1 = input_eInternalReq.node;
       }};
-      assert (tmp_7 == n);
+      assert true;
       while(true){
-        n_25 = choose(domain_tNode);
-        if (!((n_25 == n))) {
+        __x2 = choose(domain_tNode);
+        if ((!((__x0 == __x2)) && !((__x2 == __x0)))) {
           break;
         };
       };
-      send_eStart(this, setting, (node = n_25,));
+      send_eStart(this, setting, (node = __x2,));
       receive { case syn_eInternalReq: (input: tsyn_eInternalReq) {
-        forward_syn_eInternalReq(input);
+        announce an_syn_eInternalReq, input;
         input_eInternalReq = cast_syn_eInternalReq(input);
-        tmp_6 = input_eInternalReq.node;
+        __y3 = input_eInternalReq.node;
       }};
-      assert (tmp_6 == n_25);
+      assert true;
       receive { case syn_eForwardReq: (input: tsyn_eForwardReq) {
-        forward_syn_eForwardReq(input);
+        announce an_syn_eForwardReq, input;
         input_eForwardReq = cast_syn_eForwardReq(input);
-        tmp_5 = input_eForwardReq.node;
+        __y4 = input_eForwardReq.node;
       }};
-      assert (tmp_5 == n_25);
+      assert true;
       receive { case syn_eExternalReq: (input: tsyn_eExternalReq) {
-        forward_syn_eExternalReq(input);
+        announce an_syn_eExternalReq, input;
         input_eExternalReq = cast_syn_eExternalReq(input);
-        tmp_4 = input_eExternalReq.node;
+        __y5 = input_eExternalReq.node;
       }};
-      assert (tmp_4 == n_25);
+      assert true;
       receive { case syn_eExternalRsp: (input: tsyn_eExternalRsp) {
-        forward_syn_eExternalRsp(input);
+        announce an_syn_eExternalRsp, input;
         input_eExternalRsp = cast_syn_eExternalRsp(input);
-        tmp_3 = input_eExternalRsp.node;
-        st_5 = input_eExternalRsp.stat;
+        __y6 = input_eExternalRsp.node;
+        __y7 = input_eExternalRsp.stat;
       }};
-      assert ((tmp_3 == n_25) && st_5);
+      assert true;
       receive { case syn_eForwardReq: (input: tsyn_eForwardReq) {
-        forward_syn_eForwardReq(input);
+        announce an_syn_eForwardReq, input;
         input_eForwardReq = cast_syn_eForwardReq(input);
-        tmp_2 = input_eForwardReq.node;
+        __y8 = input_eForwardReq.node;
       }};
-      assert (tmp_2 == n);
+      assert true;
       receive { case syn_eExternalReq: (input: tsyn_eExternalReq) {
-        forward_syn_eExternalReq(input);
+        announce an_syn_eExternalReq, input;
         input_eExternalReq = cast_syn_eExternalReq(input);
-        tmp_1 = input_eExternalReq.node;
+        __y9 = input_eExternalReq.node;
       }};
-      assert (tmp_1 == n);
+      assert true;
       receive { case syn_eExternalRsp: (input: tsyn_eExternalRsp) {
-        forward_syn_eExternalRsp(input);
+        announce an_syn_eExternalRsp, input;
         input_eExternalRsp = cast_syn_eExternalRsp(input);
-        tmp_0 = input_eExternalRsp.node;
-        st_0 = input_eExternalRsp.stat;
+        __y10 = input_eExternalRsp.node;
+        __y11 = input_eExternalRsp.stat;
       }};
-      assert ((tmp_0 == n) && !(st_0));
+      assert true;
     }
 
   }

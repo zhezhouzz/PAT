@@ -52,7 +52,13 @@ let ocaml_structure_item_to_item structure =
                  msgkind = Obs;
                })
       | [ x ] when String.equal x.attr_name.txt "obsRecv" ->
-          _die_with [%here] "We don't support obsRecv anymore"
+          Some
+            (MsgNtDecl
+               {
+                 name = pval_name.txt;
+                 nt = Nt.core_type_to_t pval_type;
+                 msgkind = ObsRecv;
+               })
       | _ -> _die [%here])
   | Pstr_value (_, [ value_binding ]) ->
       Some
@@ -90,7 +96,10 @@ let layout_syn_goal { name; qvs; prop } =
     (List.split_by "." (fun x -> spf "∃%s" @@ layout_qv x) qvs)
     (layout_rich_symbolic_regex prop)
 
-let layout_msgkind = function Gen -> "gen" | Obs -> "obs"
+let layout_msgkind = function
+  | Gen -> "gen"
+  | Obs -> "obs"
+  | ObsRecv -> "obsRecv"
 
 let layout_item = function
   | MsgNtDecl { msgkind; name; nt } ->

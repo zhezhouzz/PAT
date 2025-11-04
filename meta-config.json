@@ -54,7 +54,7 @@
         ],
         [
             "show_record_type_feilds",
-            true
+            false
         ],
         [
             "show_sevent_fds",

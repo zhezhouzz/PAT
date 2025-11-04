@@ -77,11 +77,10 @@ let mk_p_while body = (PWhile { body })#:Nt.int_ty
 
 let mk_sample_space_decl nt =
   let actual_type =
-    if Nt.equal_nt Nt.bool_ty nt then Nt.bool_ty
-    else
-      match nt with
+    if Nt.equal_nt Nt.bool_ty nt then Nt.bool_ty else nt
+    (* match nt with
       (* | Nt.Ty { enum_name; _ } -> mk_p_abstract_ty enum_name *)
-      | _ -> Nt.int_ty
+      | _ -> Nt.int_ty *)
   in
   let name = spf "domain_%s" (Nt.layout nt) in
   let decl = name#:(mk_p_set_ty actual_type) in
@@ -392,6 +391,8 @@ let compile_syn_result (env : syn_env) e =
         | Gen ->
             (add_to_right gen_ctx x.x#:true, add_to_right obs_ctx x.x#:false)
         | Obs ->
+            (add_to_right gen_ctx x.x#:false, add_to_right obs_ctx x.x#:false)
+        | ObsRecv ->
             (add_to_right gen_ctx x.x#:false, add_to_right obs_ctx x.x#:true))
       (ctx_to_list env.msgkind_ctx)
       (emp, emp)

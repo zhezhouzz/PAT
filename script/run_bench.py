@@ -40,7 +40,8 @@ def invoc_cmd(cmd, cwd=None):
 # benchmarks = ["Database", "Firewall", "RingLeaderElection", "EspressoMachine", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Raft", "Kermit2PCModel"]
 # benchmarks = ["ChainReplication", "Paxos", "Raft"]
 # benchmarks = ["Raft"]
-benchmarks = ["Firewall"]
+# benchmarks = ["Firewall"]
+benchmarks = ["Database"]
 
 def syn_num_map(name):
     return 500
@@ -308,14 +309,24 @@ def fix():
         with open (stat_file, "w") as f:
             j = json.dump(j, f)
 
+
 if __name__ == '__main__':
-    do_p_syn()
-    # do_eval()
-    # do_compile()
-    # run_syn_p()
-    # run_random_p()
-    # run_default_p()
-    exit()
-    j = load_stat()
-    print_cols(benchmarks, j)
-    # fix()
+    if len(sys.argv) > 1:
+        arg = sys.argv[1]
+        if arg == "syn_p":
+            do_p_syn()
+            do_compile()
+        elif arg == "run_syn":
+            run_syn_p()
+        elif arg == "run_random":
+            run_random_p()
+    else:
+        # do_p_syn()
+        # do_compile()
+        run_syn_p()
+        # run_random_p()
+        # run_default_p()
+        exit()
+        j = load_stat()
+        print_cols(benchmarks, j)
+        # fix()

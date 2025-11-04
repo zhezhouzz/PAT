@@ -1,8 +1,8 @@
 val ( == ) : 'a. 'a -> 'a -> bool
 val readReq : < > [@@gen]
-val readRsp : < va : int ; st : bool > [@@obs]
+val readRsp : < va : int ; st : bool > [@@obsRecv]
 val writeReq : < va : int > [@@gen]
-val writeRsp : < va : int > [@@obs]
+val writeRsp : < va : int > [@@obsRecv]
 
 let readReq =
   [|
