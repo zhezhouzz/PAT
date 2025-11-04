@@ -27,7 +27,7 @@ machine SynOrchestrator {
         send proposerMap[Proposer2], eInit, setting;
         send acceptorMap[Acceptor1], eInit, setting;
         send acceptorMap[Acceptor2], eInit, setting;
-        new SynClient((setting = setting, domain_tVal = domain_tVal, domain_tAcceptorNode = domain_tAcceptorNode, domain_tProposerNode = domain_tProposerNode));
+        new SynClient((setting = setting, domain_tAcceptorNode = domain_tAcceptorNode, domain_tProposerNode = domain_tProposerNode, domain_tVal = domain_tVal));
       }
     }
   }

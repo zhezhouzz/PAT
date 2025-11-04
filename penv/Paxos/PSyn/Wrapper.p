@@ -1,3 +1,16 @@
+fun acc1 (a: tAcceptorNode): bool {
+  return a == Acceptor1;
+}
+fun acc2 (a: tAcceptorNode): bool {
+  return a == Acceptor2;
+}
+fun pr1 (p: tProposerNode): bool {
+  return p == Proposer1;
+}
+fun pr2 (p: tProposerNode): bool {
+  return p == Proposer2;
+}
+
 fun send_eStart (src: machine, setting: setting, input: (proposer: tProposerNode, va: tVal)) {
   var dest: machine;
   dest = setting.proposerMap[input.proposer];

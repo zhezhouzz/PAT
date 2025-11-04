@@ -41,7 +41,7 @@ def invoc_cmd(cmd, cwd=None):
 # benchmarks = ["ChainReplication", "Paxos", "Raft"]
 # benchmarks = ["Raft"]
 # benchmarks = ["Firewall"]
-benchmarks = ["ChainReplication"]
+benchmarks = ["Paxos"]
 
 def syn_num_map(name):
     return 500
@@ -313,12 +313,12 @@ def fix():
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         arg = sys.argv[1]
-        if arg == "syn_p":
+        if arg == "syn":
             do_p_syn()
             do_compile()
-        elif arg == "run_syn":
+        elif arg == "runsyn":
             run_syn_p()
-        elif arg == "run_random":
+        elif arg == "runrandom":
             run_random_p()
     else:
         # do_p_syn()
