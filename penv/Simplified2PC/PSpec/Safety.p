@@ -1,5 +1,13 @@
+event an_syn_writeRsp: tsyn_writeRsp;
+event an_syn_readRsp: tsyn_readRsp;
+event an_syn_putRsp: tsyn_putRsp;
+event an_syn_putReq: tsyn_putReq;
+event an_syn_getReq: tsyn_getReq;
+event an_syn_commit: tsyn_commit;
+event an_syn_abort: tsyn_abort;
+
 spec strong_consistenty
-observes syn_readRsp, syn_writeRsp
+observes an_syn_writeRsp, an_syn_readRsp
 {
   var store: int;
   var is_init: bool;
@@ -8,14 +16,14 @@ observes syn_readRsp, syn_writeRsp
       is_init = false;
     }
 
-    on syn_writeRsp do (input: tsyn_writeRsp) {
+    on an_syn_writeRsp do (input: tsyn_writeRsp) {
       if (input.stat) {
         store = input.va;
         is_init = true;
       } 
     }
 
-    on syn_readRsp do (input: tsyn_readRsp) {
+    on an_syn_readRsp do (input: tsyn_readRsp) {
       if (is_init) {
         assert (store == input.va), "spec violation";
       }

@@ -36,7 +36,7 @@ let _strategy =
     {
       search = DFS;
       layout_bound = 10;
-      result_expection = 3;
+      result_expection = 1;
       pause = Myconfig.get_bool_option "pause_during_synthesis";
       search_new_goals = false;
       addKstar = Myconfig.get_bool_option "add_kstar_during_synthesis";
@@ -77,7 +77,7 @@ let init_strategy env =
         !_strategy with
         search = UnSortedDFS 1;
         search_new_goals = false;
-        result_expection = 2;
+        result_expection = 1;
         addKstar = false;
       }
   else if StrMap.cardinal env.axioms > 3 || num_obs > num_gen + 3 then
@@ -103,7 +103,7 @@ let init_strategy env =
       {
         !_strategy with
         search = UnSortedDFS 1;
-        result_expection = 2;
+        result_expection = 1;
         search_new_goals = false;
       }
 

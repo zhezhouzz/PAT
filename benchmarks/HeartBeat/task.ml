@@ -5,7 +5,7 @@ val ( == ) : 'a. 'a -> 'a -> bool
 
 (** handled by env *)
 
-val eNotifyNodesDown : unit [@@obsRecv]
+val eNotifyNodesDown : < > [@@obsRecv]
 
 let eNotifyNodesDown =
   (starA (anyA - ENotifyNodesDown true), ENotifyNodesDown true, [||])
@@ -22,7 +22,7 @@ let eNetworkError ?l:(tl = (true : [%v: int])) =
 (** Node Machine *)
 
 val ePing : < trial : int > [@@obs]
-val eShutDown : unit [@@obs]
+val eShutDown : < > [@@obs]
 
 let ePing =
   [|
@@ -39,7 +39,7 @@ let eShutDown = (starA (anyA - EShutDown true), EShutDown true, [||])
 
 (** Detector Machine *)
 
-val eStart : unit [@@gen]
+val eStart : < > [@@gen]
 val ePong : < trial : int > [@@obs]
 val ePongLost : < trial : int > [@@obs]
 

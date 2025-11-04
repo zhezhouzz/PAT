@@ -12,7 +12,7 @@ machine SynOrchestrator {
       domain_bool += (false);
       database = new Database();
       coordinator = new Coordinator((database = database, ));
-      new SynClient((setting = coordinator, domain_int = domain_int, domain_bool = domain_bool));
+      new SynClient((setting = coordinator, domain_bool = domain_bool, domain_int = domain_int));
     }
   }
 }

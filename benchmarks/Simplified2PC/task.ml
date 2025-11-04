@@ -1,13 +1,14 @@
 val ( == ) : 'a. 'a -> 'a -> bool
-val readReq : unit [@@gen]
-val getReq : unit [@@obs]
+val ( >= ) : int -> int -> bool
+val readReq : < > [@@gen]
+val getReq : < > [@@obs]
 val readRsp : < va : int > [@@obsRecv]
 val writeReq : < va : int > [@@gen]
 val putReq : < va : int > [@@obs]
 val putRsp : < va : int ; stat : bool > [@@obs]
 val writeRsp : < va : int ; stat : bool > [@@obsRecv]
-val commit : unit [@@obs]
-val abort : unit [@@obs]
+val commit : < > [@@obs]
+val abort : < > [@@obs]
 
 let readReq = (allA, ReadReq true, [| GetReq true |])
 
@@ -20,7 +21,7 @@ let readReq = (allA, ReadReq true, [| GetReq true |])
 let getReq = (starA (anyA - Commit true), GetReq true, [| ReadRsp (va == -1) |])
 let readRsp ?l:(x = (true : [%v: int])) = (allA, ReadRsp (va == x), [||])
 
-let writeReq ?l:(x = (true : [%v: int])) =
+let writeReq ?l:(x = (v >= 0 : [%v: int])) =
   (allA, WriteReq (va == x), [| PutReq (va == x) |])
 
 let putReq ?l:(x = (true : [%v: int])) =
