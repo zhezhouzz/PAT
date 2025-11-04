@@ -18,7 +18,7 @@ machine SynOrchestrator {
         setting = (nodes = nodes, initnode = initnode);
         send nodes, eInit, setting;
         send initnode, eInit, setting;
-        new SynClient((setting = setting, domain_bool = domain_bool, domain_tVal = domain_tVal, domain_tNode = domain_tNode));
+        new SynClient((setting = setting, domain_bool = domain_bool, domain_tNode = domain_tNode, domain_tVal = domain_tVal));
       }
     }
   }

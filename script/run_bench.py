@@ -41,7 +41,7 @@ def invoc_cmd(cmd, cwd=None):
 # benchmarks = ["ChainReplication", "Paxos", "Raft"]
 # benchmarks = ["Raft"]
 # benchmarks = ["Firewall"]
-benchmarks = ["Paxos"]
+benchmarks = ["Raft"]
 
 def syn_num_map(name):
     return 500
