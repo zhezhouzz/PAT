@@ -1,128 +1,136 @@
 machine SynClient {
   start state Syn {
-    entry (input: (setting: setting, domain_int: set[int], domain_bool: set[bool], domain_tKey: set[int], domain_tNode: set[tNode])) {
+    entry (input: (setting: setting, domain_bool: set[bool], domain_int: set[int], domain_tKey: set[tKey], domain_tNode: set[tNode])) {
       var setting: setting;
-      var domain_int: set[int];
       var domain_bool: set[bool];
-      var domain_tKey: set[int];
+      var domain_int: set[int];
+      var domain_tKey: set[tKey];
       var domain_tNode: set[tNode];
-      var k: tKey;
-      var x: int;
+      var __x0: tKey;
+      var __x1: int;
       var input_writeToMid: (key: tKey, va: int, node: tNode);
-      var tmp_18: tKey;
-      var tmp_19: int;
-      var n_7: tNode;
-      var tmp_16: tKey;
-      var tmp_17: int;
-      var n_4: tNode;
-      var y: int;
-      var tmp_13: tKey;
-      var tmp_14: int;
-      var tmp_15: tNode;
-      var tmp_10: tKey;
-      var tmp_11: int;
-      var tmp_12: tNode;
+      var __y2: tKey;
+      var __y3: int;
+      var __y4: tNode;
+      var __y5: tKey;
+      var __y6: int;
+      var __y7: tNode;
       var input_writeToTail: (key: tKey, va: int);
-      var tmp_8: tKey;
-      var tmp_9: int;
-      var tmp_6: tKey;
-      var tmp_7: int;
+      var __y8: tKey;
+      var __y9: int;
       var input_writeRsp: (key: tKey, va: int);
-      var tmp_4: tKey;
-      var tmp_5: int;
+      var __y10: tKey;
+      var __y11: int;
+      var __x12: int;
+      var __y13: tKey;
+      var __y14: int;
+      var __y15: tNode;
+      var __y16: tKey;
+      var __y17: int;
+      var __y18: tNode;
+      var __y19: tKey;
+      var __y20: int;
       var input_readRsp: (key: tKey, va: int, st: bool);
-      var tmp_2: tKey;
-      var tmp_3: int;
-      var s_0: bool;
-      var tmp_0: tKey;
-      var tmp_1: int;
+      var __y21: tKey;
+      var __y22: int;
+      var __y23: bool;
+      var __y24: tKey;
+      var __y25: int;
       setting = input.setting;
-      domain_int = input.domain_int;
       domain_bool = input.domain_bool;
+      domain_int = input.domain_int;
       domain_tKey = input.domain_tKey;
       domain_tNode = input.domain_tNode;
       while(true){
-        k = choose(domain_tKey);
-        x = choose(domain_int);
+        __x0 = choose(domain_tKey);
+        __x1 = choose(domain_int);
         if (true) {
           break;
         };
       };
-      send_writeReq(this, setting, (key = k, va = x));
+      send_writeReq(this, setting, (key = __x0, va = __x1));
       receive { case syn_writeToMid: (input: tsyn_writeToMid) {
+        announce an_syn_writeToMid, input;
         forward_syn_writeToMid(input);
         input_writeToMid = cast_syn_writeToMid(input);
-        tmp_18 = input_writeToMid.key;
-        tmp_19 = input_writeToMid.va;
-        n_7 = input_writeToMid.node;
+        __y2 = input_writeToMid.key;
+        __y3 = input_writeToMid.va;
+        __y4 = input_writeToMid.node;
       }};
-      assert ((((tmp_18 == k) && (tmp_19 == x)) && (n_7 == Node1)) && !((n_7 == Node2)));
+      assert true;
       receive { case syn_writeToMid: (input: tsyn_writeToMid) {
+        announce an_syn_writeToMid, input;
         forward_syn_writeToMid(input);
         input_writeToMid = cast_syn_writeToMid(input);
-        tmp_16 = input_writeToMid.key;
-        tmp_17 = input_writeToMid.va;
-        n_4 = input_writeToMid.node;
+        __y5 = input_writeToMid.key;
+        __y6 = input_writeToMid.va;
+        __y7 = input_writeToMid.node;
       }};
-      assert (((((tmp_16 == k) && (tmp_17 == x)) && !((n_7 == n_4))) && !((n_4 == Node1))) && (n_4 == Node2));
+      assert true;
+      receive { case syn_writeToTail: (input: tsyn_writeToTail) {
+        announce an_syn_writeToTail, input;
+        forward_syn_writeToTail(input);
+        input_writeToTail = cast_syn_writeToTail(input);
+        __y8 = input_writeToTail.key;
+        __y9 = input_writeToTail.va;
+      }};
+      assert true;
+      receive { case syn_writeRsp: (input: tsyn_writeRsp) {
+        announce an_syn_writeRsp, input;
+        input_writeRsp = cast_syn_writeRsp(input);
+        __y10 = input_writeRsp.key;
+        __y11 = input_writeRsp.va;
+      }};
+      assert true;
       while(true){
-        y = choose(domain_int);
-        if (!((y == x))) {
+        __x12 = choose(domain_int);
+        if (!((__x1 == __x12))) {
           break;
         };
       };
-      send_writeReq(this, setting, (key = k, va = y));
+      send_writeReq(this, setting, (key = __x0, va = __x12));
       receive { case syn_writeToMid: (input: tsyn_writeToMid) {
+        announce an_syn_writeToMid, input;
         forward_syn_writeToMid(input);
         input_writeToMid = cast_syn_writeToMid(input);
-        tmp_13 = input_writeToMid.key;
-        tmp_14 = input_writeToMid.va;
-        tmp_15 = input_writeToMid.node;
+        __y13 = input_writeToMid.key;
+        __y14 = input_writeToMid.va;
+        __y15 = input_writeToMid.node;
       }};
-      assert (((tmp_13 == k) && (tmp_14 == y)) && (tmp_15 == n_7));
+      assert true;
       receive { case syn_writeToMid: (input: tsyn_writeToMid) {
+        announce an_syn_writeToMid, input;
         forward_syn_writeToMid(input);
         input_writeToMid = cast_syn_writeToMid(input);
-        tmp_10 = input_writeToMid.key;
-        tmp_11 = input_writeToMid.va;
-        tmp_12 = input_writeToMid.node;
+        __y16 = input_writeToMid.key;
+        __y17 = input_writeToMid.va;
+        __y18 = input_writeToMid.node;
       }};
-      assert (((tmp_10 == k) && (tmp_11 == y)) && (tmp_12 == n_4));
+      assert true;
       receive { case syn_writeToTail: (input: tsyn_writeToTail) {
+        announce an_syn_writeToTail, input;
         forward_syn_writeToTail(input);
         input_writeToTail = cast_syn_writeToTail(input);
-        tmp_8 = input_writeToTail.key;
-        tmp_9 = input_writeToTail.va;
+        __y19 = input_writeToTail.key;
+        __y20 = input_writeToTail.va;
       }};
-      assert ((tmp_8 == k) && (tmp_9 == y));
-      receive { case syn_writeToTail: (input: tsyn_writeToTail) {
-        forward_syn_writeToTail(input);
-        input_writeToTail = cast_syn_writeToTail(input);
-        tmp_6 = input_writeToTail.key;
-        tmp_7 = input_writeToTail.va;
-      }};
-      assert ((tmp_6 == k) && (tmp_7 == x));
-      send_crashTail(this, setting);
-      receive { case syn_writeRsp: (input: tsyn_writeRsp) {
-        input_writeRsp = cast_syn_writeRsp(input);
-        tmp_4 = input_writeRsp.key;
-        tmp_5 = input_writeRsp.va;
-      }};
-      assert ((tmp_4 == k) && (tmp_5 == x));
-      send_readReq(this, setting, (key = k,));
+      assert true;
+      send_readReq(this, setting, (key = __x0,));
       receive { case syn_readRsp: (input: tsyn_readRsp) {
+        announce an_syn_readRsp, input;
         input_readRsp = cast_syn_readRsp(input);
-        tmp_2 = input_readRsp.key;
-        tmp_3 = input_readRsp.va;
-        s_0 = input_readRsp.st;
+        __y21 = input_readRsp.key;
+        __y22 = input_readRsp.va;
+        __y23 = input_readRsp.st;
       }};
-      assert (((tmp_2 == k) && (tmp_3 == y)) && s_0);
+      assert true;
       receive { case syn_writeRsp: (input: tsyn_writeRsp) {
+        announce an_syn_writeRsp, input;
         input_writeRsp = cast_syn_writeRsp(input);
-        tmp_0 = input_writeRsp.key;
-        tmp_1 = input_writeRsp.va;
+        __y24 = input_writeRsp.key;
+        __y25 = input_writeRsp.va;
       }};
-      assert ((tmp_0 == k) && (tmp_1 == y));
+      assert true;
     }
 
   }

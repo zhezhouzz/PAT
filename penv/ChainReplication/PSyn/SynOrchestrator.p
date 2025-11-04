@@ -20,7 +20,7 @@ machine SynOrchestrator {
         mid = new Mid(tail);
         head = new Head(mid);
         send tail, mkChain, (mid = mid,);
-        new SynClient((setting = (head = head, mid = mid, tail = tail), domain_int = domain_int, domain_bool = domain_bool, domain_tKey = domain_tKey, domain_tNode = domain_tNode));
+        new SynClient((setting = (head = head, mid = mid, tail = tail), domain_bool = domain_bool, domain_int = domain_int, domain_tKey = domain_tKey, domain_tNode = domain_tNode));
       }
     }
   }

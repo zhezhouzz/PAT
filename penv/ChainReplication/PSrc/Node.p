@@ -13,7 +13,6 @@ machine Head {
 machine Mid {
     var tail: machine;
     var store: map[tNode, map[tKey, int]];
-    var cache: seq[tsyn_writeToTail];
     start state Init {
         entry (_tail: machine) {
             tail = _tail;
@@ -24,23 +23,14 @@ machine Mid {
     }
     state Loop {
         entry {
-            var i: int;
-            if (sizeof(cache) >= 2) {
-                i = sizeof(cache) - 1;
-                while(i >= 0) {
-                    do_send_write_to_tail(cache[i]);
-                    i = i - 1;
-                }
-                cache = default(seq[tsyn_writeToTail]);
-            }
-        }
+	        }
         on syn_writeToMid do (input: tsyn_writeToMid) {
             store[input.node][input.key] = input.va;
             if (input.node == Node1) {
                 send input.controller, syn_writeToMid, (controller = input.controller, dst = this, key = input.key, va = input.va, node = Node2);
             } else {
                 print format("CACHE: {0}", (controller = input.controller, dst = tail, key = input.key, va = input.va));
-                cache += (sizeof(cache), (controller = input.controller, dst = tail, key = input.key, va = input.va));
+                do_send_write_to_tail((controller = input.controller, dst = tail, key = input.key, va = input.va));
             }
             goto Loop;
         }
@@ -58,7 +48,6 @@ machine Tail {
     var store: map[tKey, int];
     var is_crashed: bool;
     var mid: machine;
-    var cache: seq[tsyn_writeRsp];
     start state Init {
         entry {
             is_crashed = false;
@@ -72,20 +61,11 @@ machine Tail {
     }
     state Loop {
         entry {
-            var i: int;
-            if (sizeof(cache) >= 2) {
-                i = sizeof(cache) - 1;
-                while(i >= 0) {
-                    do_send_write_rsp(cache[i]);
-                    i = i - 1;
-                }
-                cache = default(seq[tsyn_writeRsp]);
-            }
-        }
+	        }
         on syn_writeToTail do (input: tsyn_writeToTail) {
             if (!is_crashed) {
                 store[input.key] = input.va;
-                cache += (sizeof(cache), (controller = input.controller, dst = input.controller, key = input.key, va = input.va)); 
+                do_send_write_rsp((controller = input.controller, dst = input.controller, key = input.key, va = input.va));
             }
             goto Loop;
         }
