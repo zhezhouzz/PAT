@@ -66,6 +66,7 @@ let rich_symbolic_global_prop_type_check event_ctx ctx (qvs, prop) =
 
 let type_check_item env = function
   | MsgDecl { name; pat } ->
+      let () = Printf.printf "type_check_item: MsgDecl %s\n" name in
       let pat =
         Normal_rty_typing.rich_symbolic_regex_pat_type_check env.event_tyctx
           env.tyctx pat
