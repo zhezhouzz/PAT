@@ -58,7 +58,9 @@ let synthesize (env : syn_env) name =
   let () = Pp.printf "@{<bold>num of progs:@}%i\n" (List.length progs) in
   let () =
     List.iteri
-      (fun i p -> Pp.printf "@{<bold>Prog[%i]:@}\n%s\n" i (layout_term p))
+      (fun i (num_assert, p) ->
+        Pp.printf "@{<bold>Prog[%i]:@}\n%s\nAssertion number: %i" i
+          (layout_term p) num_assert)
       progs
   in
   let () = Language.Stat.set_num_result (List.length plans) in

@@ -199,6 +199,31 @@ let distribute_assumption (qvs, term, gprop) =
   in
   aux [] (term, gprop)
 
+let calculate_assertion_num prog gprop =
+  let fvs = fv_prop gprop in
+  let rec aux term =
+    match term with
+    | CLetE { rhs = { x = CAssume (_, prop); _ }; body; _ } ->
+        if is_true prop then aux body.x else 1 + aux body.x
+    | CLetE { rhs = { x = CAssertP prop; _ }; body; _ } ->
+        if is_true prop then aux body.x else 1 + aux body.x
+    | CLetE { lhs; rhs = { x = CObs _; _ }; body; _ } ->
+        if
+          List.exists
+            (fun x -> List.exists (fun y -> String.equal x.x y.x) fvs)
+            lhs
+        then 1 + aux body.x
+        else aux body.x
+    | CLetE { rhs; body; _ } -> aux rhs.x + aux body.x
+    | CGen _ -> 0
+    | CObs _ -> 0
+    | CVal _ | CAppOp _ | CAssume _ | CAssertP _ -> 0
+    | CUnion es -> List.fold_left (fun x y -> x + aux y.x) 0 es
+    | CFix { retBranch; recBranch } -> aux retBranch.x + aux recBranch.x
+    | CFixApp { cfix; _ } -> ( match cfix with None -> 0 | Some x -> aux x.x)
+  in
+  aux prog
+
 let compile_term_from_line env e =
   let gen_vars, obs_vars, gprop, prog = normalize_line env e in
   let tmp_vars =
@@ -214,7 +239,8 @@ let compile_term_from_line env e =
   let prog, post = distribute_assumption (gen_vars @ obs_vars, prog, gprop) in
   let () = Pp.printf "@{<bold>prog:@}\n%s\n" (layout_term prog) in
   let () = Pp.printf "@{<bold>post:@}\n%s\n" (layout_prop post) in
-  prog
+  let assertion_num = calculate_assertion_num prog post in
+  (assertion_num, prog)
 
 let add_kstar (pre_len, length) e rec_branch_1 rec_branch_2 =
   let () = Pp.printf "@{<bold>add_kstar@}\n" in
@@ -511,11 +537,11 @@ let compile_term env e =
   | SynMidKStar { old_goal; pre_len; line_b1; line_b2; line_b2_pre_len; v } ->
       let () = SimpleRename.add_preserved_var (List.map _get_x (fv_value v)) in
       let () = Pp.printf "@{<bold>compiled term:@}\n" in
-      let e = compile_term_from_line env old_goal in
+      let num_assert0, e = compile_term_from_line env old_goal in
       let () = Pp.printf "@{<bold>rec_branch_2:@}\n" in
-      let rec_branch_2 = compile_term_from_line env line_b2 in
+      let num_assert2, rec_branch_2 = compile_term_from_line env line_b2 in
       let () = Pp.printf "@{<bold>rec_branch_1:@}\npre_len: %i\n" pre_len in
-      let rec_branch_1 = compile_term_from_line env line_b1 in
+      let num_assert1, rec_branch_1 = compile_term_from_line env line_b1 in
       let rec_branch_2 =
         mk_fix_body line_b2_pre_len (term_to_tterm rec_branch_2)
       in
@@ -549,4 +575,4 @@ let compile_term env e =
         Pp.printf "@{<bold>result term after merging assume:@}\n%s\n"
           (layout_term res)
       in
-      res
+      (num_assert0 + num_assert1 + num_assert2, res)

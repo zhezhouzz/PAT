@@ -22,20 +22,18 @@ machine SynClient {
       var __y10: tKey;
       var __y11: int;
       var __x12: int;
+      var input_readRsp: (key: tKey, va: int, st: bool);
       var __y13: tKey;
       var __y14: int;
-      var __y15: tNode;
+      var __y15: bool;
       var __y16: tKey;
       var __y17: int;
       var __y18: tNode;
       var __y19: tKey;
       var __y20: int;
-      var input_readRsp: (key: tKey, va: int, st: bool);
-      var __y21: tKey;
-      var __y22: int;
-      var __y23: bool;
-      var __y24: tKey;
-      var __y25: int;
+      var __y21: tNode;
+      var __y22: tKey;
+      var __y23: int;
       setting = input.setting;
       domain_bool = input.domain_bool;
       domain_int = input.domain_int;
@@ -84,18 +82,18 @@ machine SynClient {
       assert true;
       while(true){
         __x12 = choose(domain_int);
-        if (!((__x1 == __x12))) {
+        if (!((__x12 == __x1))) {
           break;
         };
       };
       send_writeReq(this, setting, (key = __x0, va = __x12));
-      receive { case syn_writeToMid: (input: tsyn_writeToMid) {
-        announce an_syn_writeToMid, input;
-        forward_syn_writeToMid(input);
-        input_writeToMid = cast_syn_writeToMid(input);
-        __y13 = input_writeToMid.key;
-        __y14 = input_writeToMid.va;
-        __y15 = input_writeToMid.node;
+      send_readReq(this, setting, (key = __x0,));
+      receive { case syn_readRsp: (input: tsyn_readRsp) {
+        announce an_syn_readRsp, input;
+        input_readRsp = cast_syn_readRsp(input);
+        __y13 = input_readRsp.key;
+        __y14 = input_readRsp.va;
+        __y15 = input_readRsp.st;
       }};
       assert true;
       receive { case syn_writeToMid: (input: tsyn_writeToMid) {
@@ -107,28 +105,22 @@ machine SynClient {
         __y18 = input_writeToMid.node;
       }};
       assert true;
+      receive { case syn_writeToMid: (input: tsyn_writeToMid) {
+        announce an_syn_writeToMid, input;
+        forward_syn_writeToMid(input);
+        input_writeToMid = cast_syn_writeToMid(input);
+        __y19 = input_writeToMid.key;
+        __y20 = input_writeToMid.va;
+        __y21 = input_writeToMid.node;
+      }};
+      assert true;
+      send_crashTail(this, setting);
       receive { case syn_writeToTail: (input: tsyn_writeToTail) {
         announce an_syn_writeToTail, input;
         forward_syn_writeToTail(input);
         input_writeToTail = cast_syn_writeToTail(input);
-        __y19 = input_writeToTail.key;
-        __y20 = input_writeToTail.va;
-      }};
-      assert true;
-      send_readReq(this, setting, (key = __x0,));
-      receive { case syn_readRsp: (input: tsyn_readRsp) {
-        announce an_syn_readRsp, input;
-        input_readRsp = cast_syn_readRsp(input);
-        __y21 = input_readRsp.key;
-        __y22 = input_readRsp.va;
-        __y23 = input_readRsp.st;
-      }};
-      assert true;
-      receive { case syn_writeRsp: (input: tsyn_writeRsp) {
-        announce an_syn_writeRsp, input;
-        input_writeRsp = cast_syn_writeRsp(input);
-        __y24 = input_writeRsp.key;
-        __y25 = input_writeRsp.va;
+        __y22 = input_writeToTail.key;
+        __y23 = input_writeToTail.va;
       }};
       assert true;
     }

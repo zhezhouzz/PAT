@@ -34,7 +34,7 @@ let eClientPutRsp ?l:(x = (true : [%v: tVal])) ?l:(st = (true : [%v: bool])) =
 let eClientPut =
   [|
     (fun ?l:(x = (true : [%v: tVal])) ->
-      ( starA (anyA - EShutDown true - EBecomeLeader true),
+      ( allA,
         EClientPut (va == x),
         [|
           EAppendEntry (nodeId node == 1 && va == x);
@@ -47,7 +47,7 @@ let eAppendEntry ?l:(n = (true : [%v: tNode])) ?l:(x = (true : [%v: tVal])) =
 
 let eShutDown =
   [|
-    ( starA (anyA - EBecomeLeader true),
+    ( allA,
       EShutDown true,
       [| ETimeout (nodeId dest == 1); ETimeout (nodeId dest == 2) |] );
   |]
@@ -55,7 +55,7 @@ let eShutDown =
 let eTimeout =
   [|
     (fun ?l:(d = (true : [%v: tNode])) ->
-      ( starA (anyA - EBecomeLeader true),
+      ( allA,
         ETimeout (dest == d),
         [| EVoteReq (src == d && leader == d && dest == next d) |] ));
   |]
@@ -64,9 +64,16 @@ let eVoteReq =
   [|
     (fun ?l:(s = (true : [%v: tNode]))
       ?l:(d = (true : [%v: tNode]))
+      ?l:(ld = (v == d : [%v: tNode]))
+    ->
+      ( allA,
+        EVoteReq (src == s && dest == d && leader == ld),
+        [| EVoteRsp (src == d && dest == s && not stat) |] ));
+    (fun ?l:(s = (true : [%v: tNode]))
+      ?l:(d = (true : [%v: tNode]))
       ?l:(ld = (not (v == d) : [%v: tNode]))
     ->
-      ( starA (anyA - EBecomeLeader true),
+      ( allA,
         EVoteReq (src == s && dest == d && leader == ld),
         [| EVoteRsp (src == d && dest == s && stat == (nodeId d < nodeId ld)) |]
       ));
@@ -74,7 +81,7 @@ let eVoteReq =
 
 let eVoteRsp ?l:(s = (true : [%v: tNode])) ?l:(d = (not (v == s) : [%v: tNode]))
     ?l:(st = (true : [%v: bool])) =
-  ( starA (anyA - EBecomeLeader (leader == d)),
+  ( allA,
     EVoteRsp (src == s && dest == d && stat == st),
     [| EBecomeLeader (leader == d) |] )
 
@@ -83,6 +90,16 @@ let eBecomeLeader ?l:(ld = (true : [%v: tNode])) =
 
 (* leader log safety *)
 let[@goal] task_Raft (n1 : tNode) (n2 : tNode) (x : tVal) =
+  allA;
+  EAppendEntry (node == n1 && va == x);
+  allA;
+  EBecomeLeader (leader == n1 && not (n1 == n2));
+  allA;
+  EBecomeLeader (leader == n2);
+  starA (anyA - EBecomeLeader true - EVoteReq true - EVoteRsp true)
+
+(* leader log safety *)
+(* let[@goal] task_Raft (n1 : tNode) (n2 : tNode) (x : tVal) =
   starA (anyA - EAppendEntry (node == n2 && va == x) - EBecomeLeader true);
   EAppendEntry (node == n1 && va == x);
   starA (anyA - EAppendEntry (node == n2 && va == x) - EBecomeLeader true);
@@ -92,4 +109,4 @@ let[@goal] task_Raft (n1 : tNode) (n2 : tNode) (x : tVal) =
     - EAppendEntry (node == n2 && va == x)
     - EBecomeLeader true - EVoteReq true - EVoteRsp true);
   EBecomeLeader (leader == n2);
-  starA (anyA - EBecomeLeader true - EVoteReq true - EVoteRsp true)
+  starA (anyA - EBecomeLeader true - EVoteReq true - EVoteRsp true) *)

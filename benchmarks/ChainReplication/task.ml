@@ -56,12 +56,6 @@ let writeRsp ?l:(k = (true : [%v: tKey])) ?l:(x = (true : [%v: int])) =
 
 let readReq =
   [|
-    (fun (x : int) ?l:(k = (true : [%v: tKey])) ->
-      ( (starA (anyA - CrashTail true);
-         WriteToTail (key == k && va == x);
-         starA (anyA - CrashTail true - WriteToTail true)),
-        ReadReq (key == k),
-        [| ReadRsp (key == k && va == x && st) |] ));
     (fun ?l:(k = (true : [%v: tKey])) ->
       ( starA (anyA - CrashTail true - WriteToTail (key == k)),
         ReadReq (key == k),
@@ -88,6 +82,12 @@ let readReq =
          starA (anyA - CrashTail true - WriteToMid (key == k && mid2 node))),
         ReadReq (key == k),
         [| ReadRsp (key == k && not st) |] ));
+    (fun (x : int) ?l:(k = (true : [%v: tKey])) ->
+      ( (starA (anyA - CrashTail true);
+         WriteToTail (key == k && va == x);
+         starA (anyA - CrashTail true - WriteToTail true)),
+        ReadReq (key == k),
+        [| ReadRsp (key == k && va == x && st) |] ));
   |]
 
 let crashTail = (allA, CrashTail true, [||])
@@ -96,24 +96,22 @@ let readRsp ?l:(k = (true : [%v: tKey])) ?l:(x = (true : [%v: int]))
     ?l:(s = (true : [%v: bool])) =
   (allA, ReadRsp (key == k && va == x && st == s), [||])
 
-(* let[@goal] missingWriteRsp (k : tKey) (x : int) = *)
-(*   not *)
-(*     (allA; *)
-(*      WriteReq (key == k && va == x); *)
-(*      starA (anyA - WriteRsp (key == k && va == x))) *)
+(* let[@goal] task_ChainReplication (k : tKey) (x : int) =
+  allA;
+  WriteReq (key == k && va == x);
+  starA (anyA - WriteRsp (key == k && va == x)) *)
 
-(* let[@goal] read_your_write (k : tKey) (x : int) (y : int) = *)
-(*   not *)
-(*     (allA; *)
-(*      WriteRsp (key == k && va == x); *)
-(*      starA (anyA - WriteRsp (key == k)); *)
-(*      ReadRsp (key == k && va == y && (not (x == y)) && st); *)
-(*      allA) *)
+let[@goal] task_ChainReplication (k : tKey) (x : int) (y : int) =
+  allA;
+  WriteReq (key == k && va == x);
+  starA (anyA - WriteRsp true);
+  ReadRsp (key == k && va == y && (not (x == y)) && st);
+  starA (anyA - WriteRsp true)
 
 (* no response but can still read *)
-let[@goal] task_ChainReplication (k : tKey) (x : int) (y : int) =
+(* let[@goal] task_ChainReplication (k : tKey) (x : int) (y : int) =
   starA (anyA - WriteRsp (key == k && va == y));
   WriteRsp (key == k && va == x);
   starA (anyA - WriteRsp (key == k && va == y));
   ReadRsp (key == k && va == y && (not (x == y)) && st);
-  allA
+  allA *)

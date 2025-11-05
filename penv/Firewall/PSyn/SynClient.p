@@ -32,6 +32,7 @@ machine SynClient {
       send_eStart(this, setting, (node = __x0,));
       receive { case syn_eInternalReq: (input: tsyn_eInternalReq) {
         announce an_syn_eInternalReq, input;
+        forward_syn_eInternalReq(input);
         input_eInternalReq = cast_syn_eInternalReq(input);
         __y1 = input_eInternalReq.node;
       }};
@@ -45,24 +46,28 @@ machine SynClient {
       send_eStart(this, setting, (node = __x2,));
       receive { case syn_eInternalReq: (input: tsyn_eInternalReq) {
         announce an_syn_eInternalReq, input;
+        forward_syn_eInternalReq(input);
         input_eInternalReq = cast_syn_eInternalReq(input);
         __y3 = input_eInternalReq.node;
       }};
       assert true;
       receive { case syn_eForwardReq: (input: tsyn_eForwardReq) {
         announce an_syn_eForwardReq, input;
+        forward_syn_eForwardReq(input);
         input_eForwardReq = cast_syn_eForwardReq(input);
         __y4 = input_eForwardReq.node;
       }};
       assert true;
       receive { case syn_eExternalReq: (input: tsyn_eExternalReq) {
         announce an_syn_eExternalReq, input;
+        forward_syn_eExternalReq(input);
         input_eExternalReq = cast_syn_eExternalReq(input);
         __y5 = input_eExternalReq.node;
       }};
       assert true;
       receive { case syn_eExternalRsp: (input: tsyn_eExternalRsp) {
         announce an_syn_eExternalRsp, input;
+        forward_syn_eExternalRsp(input);
         input_eExternalRsp = cast_syn_eExternalRsp(input);
         __y6 = input_eExternalRsp.node;
         __y7 = input_eExternalRsp.stat;
@@ -70,18 +75,21 @@ machine SynClient {
       assert true;
       receive { case syn_eForwardReq: (input: tsyn_eForwardReq) {
         announce an_syn_eForwardReq, input;
+        forward_syn_eForwardReq(input);
         input_eForwardReq = cast_syn_eForwardReq(input);
         __y8 = input_eForwardReq.node;
       }};
       assert true;
       receive { case syn_eExternalReq: (input: tsyn_eExternalReq) {
         announce an_syn_eExternalReq, input;
+        forward_syn_eExternalReq(input);
         input_eExternalReq = cast_syn_eExternalReq(input);
         __y9 = input_eExternalReq.node;
       }};
       assert true;
       receive { case syn_eExternalRsp: (input: tsyn_eExternalRsp) {
         announce an_syn_eExternalRsp, input;
+        forward_syn_eExternalRsp(input);
         input_eExternalRsp = cast_syn_eExternalRsp(input);
         __y10 = input_eExternalRsp.node;
         __y11 = input_eExternalRsp.stat;

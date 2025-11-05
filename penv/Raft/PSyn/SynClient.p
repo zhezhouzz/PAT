@@ -19,15 +19,15 @@ machine SynClient {
       var __y7: tNode;
       var __y8: tNode;
       var __y9: bool;
+      var input_eBecomeLeader: (leader: tNode);
       var __y10: tNode;
       var __y11: tNode;
       var __y12: tNode;
       var __y13: tNode;
       var __y14: tNode;
       var __y15: tNode;
-      var __y16: bool;
-      var input_eBecomeLeader: (leader: tNode);
-      var __y17: tNode;
+      var __y16: tNode;
+      var __y17: bool;
       var __y18: tNode;
       var __y19: tNode;
       var __y20: tVal;
@@ -76,36 +76,36 @@ machine SynClient {
         __y9 = input_eVoteRsp.stat;
       }};
       assert true;
+      receive { case syn_eBecomeLeader: (input: tsyn_eBecomeLeader) {
+        announce an_syn_eBecomeLeader, input;
+        forward_syn_eBecomeLeader(input);
+        input_eBecomeLeader = cast_syn_eBecomeLeader(input);
+        __y10 = input_eBecomeLeader.leader;
+      }};
+      assert true;
       receive { case syn_eTimeout: (input: tsyn_eTimeout) {
         announce an_syn_eTimeout, input;
         forward_syn_eTimeout(input);
         input_eTimeout = cast_syn_eTimeout(input);
-        __y10 = input_eTimeout.dest;
+        __y11 = input_eTimeout.dest;
       }};
       assert true;
       receive { case syn_eVoteReq: (input: tsyn_eVoteReq) {
         announce an_syn_eVoteReq, input;
         forward_syn_eVoteReq(input);
         input_eVoteReq = cast_syn_eVoteReq(input);
-        __y11 = input_eVoteReq.src;
-        __y12 = input_eVoteReq.dest;
-        __y13 = input_eVoteReq.leader;
+        __y12 = input_eVoteReq.src;
+        __y13 = input_eVoteReq.dest;
+        __y14 = input_eVoteReq.leader;
       }};
       assert true;
       receive { case syn_eVoteRsp: (input: tsyn_eVoteRsp) {
         announce an_syn_eVoteRsp, input;
         forward_syn_eVoteRsp(input);
         input_eVoteRsp = cast_syn_eVoteRsp(input);
-        __y14 = input_eVoteRsp.src;
-        __y15 = input_eVoteRsp.dest;
-        __y16 = input_eVoteRsp.stat;
-      }};
-      assert true;
-      receive { case syn_eBecomeLeader: (input: tsyn_eBecomeLeader) {
-        announce an_syn_eBecomeLeader, input;
-        forward_syn_eBecomeLeader(input);
-        input_eBecomeLeader = cast_syn_eBecomeLeader(input);
-        __y17 = input_eBecomeLeader.leader;
+        __y15 = input_eVoteRsp.src;
+        __y16 = input_eVoteRsp.dest;
+        __y17 = input_eVoteRsp.stat;
       }};
       assert true;
       receive { case syn_eBecomeLeader: (input: tsyn_eBecomeLeader) {

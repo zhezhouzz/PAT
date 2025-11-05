@@ -133,12 +133,13 @@ module Stat = struct
     in
     aux
 
-  let mk_result_complexity (term : term) : result_complexity =
+  let mk_result_complexity num_assert (term : term) : result_complexity =
     {
       n_var = count_vars term;
       n_obs = count_obs term;
       n_gen = count_gen term;
-      n_assert = count_assert term;
+      (* n_assert = count_assert term; *)
+      n_assert = num_assert;
     }
 
   let init_algo_complexity () =
@@ -236,13 +237,13 @@ module Stat = struct
       let n_backward = stat.n_backward / stat.n_result in
       { stat with n_forward; n_backward; n_result = 1 }
 
-  let dump (env, term) filename =
+  let dump (env, num_assert, term) filename =
     let stat =
       {
         rate = 0.0;
         n_retry = 0.0;
         task_complexity = mk_task_complexity env;
-        result_complexity = mk_result_complexity term;
+        result_complexity = mk_result_complexity num_assert term;
         algo_complexity = normalize_algo_complexity ();
       }
     in
@@ -252,21 +253,13 @@ module Stat = struct
     let () = Yojson.Safe.to_file filename json in
     ()
 
-  let update_when_eval (env, term) rate n_retry filename =
+  let update_when_eval rate n_retry filename =
     let stat =
       match stat_of_yojson @@ Yojson.Safe.from_file filename with
       | Result.Ok x -> x
       | Error _ -> _die [%here]
     in
-    let stat =
-      {
-        stat with
-        rate;
-        n_retry;
-        task_complexity = mk_task_complexity env;
-        result_complexity = mk_result_complexity term;
-      }
-    in
+    let stat = { stat with rate; n_retry } in
     let () = Yojson.Safe.to_file filename @@ stat_to_yojson stat in
     ()
 

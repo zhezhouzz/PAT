@@ -400,7 +400,7 @@ and gen_new_kstar env (goal : line) : (int * line * int) list =
       goals
 
 and backward env (goal : line) mid : line list =
-  let () = Language.Stat.incr_forward () in
+  let () = Language.Stat.incr_backward () in
   let _, (_, midAct, _) = line_divide_by_task_id goal mid in
   let op = midAct.aop in
   let rules = select_rule_by_future env op in

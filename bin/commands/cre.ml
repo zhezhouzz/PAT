@@ -39,8 +39,8 @@ let read_syn source_file () =
   let term = Synthesis.synthesize env in
   ()
 
-let handle_syn_result (env, term) name =
-  let () = Stat.dump (env, term) (spf "stat/.%s.json" name) in
+let handle_syn_result (env, num_assert, term) name =
+  let () = Stat.dump (env, num_assert, term) (spf "stat/.%s.json" name) in
   let output_file = spf "output/%s.scm" name in
   let () = Pp.printf "@{<bold>Output file:@}:\n%s\n" output_file in
   let oc = Out_channel.open_text output_file in
@@ -56,8 +56,10 @@ let do_syn name source_file () =
   (* let () = Printf.printf "%s\n" (layout_structure code) in *)
   let env = Ntypecheck.(struct_check init_env code) in
   let () = Stat.init_algo_complexity () in
-  let prog = Synthesis.synthesize env name in
-  let () = handle_syn_result (env, prog) name in
+  let num_assert, prog =
+    Stat.stat_total (fun () -> Synthesis.synthesize env name)
+  in
+  let () = handle_syn_result (env, num_assert, prog) name in
   (* let () = Synthesis.save_progs name progs in *)
   ()
 
@@ -142,7 +144,7 @@ let eval_benchmark task_name benchname () =
     benchmark_convension task_name benchname
   in
   let (env, term), (rate, n_retry) = eval_aux source_file output_file () in
-  let () = Stat.update_when_eval (env, term) rate n_retry stat_file in
+  let () = Stat.update_when_eval rate n_retry stat_file in
   ()
 
 let compile_to_p_aux source_file output_file p_output_file () =

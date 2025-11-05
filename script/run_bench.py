@@ -41,7 +41,10 @@ def invoc_cmd(cmd, cwd=None):
 # benchmarks = ["ChainReplication", "Paxos", "Raft"]
 # benchmarks = ["Raft"]
 # benchmarks = ["Firewall"]
-benchmarks = ["Kermit2PCModel"]
+benchmarks = ["Raft"]
+
+def task_name(name):
+    return "task" + "_" + name
 
 def syn_num_map(name):
     return 500
@@ -49,30 +52,17 @@ def syn_num_map(name):
 def default_num_map(name):
     return 2000
 
-# dict = {"Database":10000,
-#         "EspressoMachine":10000,
-#         "Simplified2PC":10000,
-#         "HeartBeat":10000,
-#         "BankServer":10000,
-#         "RingLeaderElection":10000,
-#         "Firewall":50,
-#         "ChainReplication":10000,
-#         "Paxos":10000,
-#         "Raft":1000,
-#         "Kermit2PCModel": 1000}
-
-dict = {"Database":10,
-        "EspressoMachine":100,
-        "Simplified2PC":100,
-        "HeartBeat":100,
-        "BankServer":100,
-        "RingLeaderElection":100,
+dict = {"Database":10000,
+        "EspressoMachine":10000,
+        "Simplified2PC":10000,
+        "HeartBeat":10000,
+        "BankServer":10000,
+        "RingLeaderElection":10000,
         "Firewall":50,
-        "ChainReplication":100,
-        "Paxos":100,
-        "Raft":100,
-        "Kermit2PCModel": 100}
-
+        "ChainReplication":10000,
+        "Paxos":10000,
+        "Raft":1000,
+        "Kermit2PCModel": 1000}
 
 def random_num_map(name):
     return dict[name]
@@ -112,8 +102,8 @@ def print_pat_col2(stat):
     n_gen = stat["n_gen"]
     n_assert = stat["n_assert"]
     return [safe_print_int(n_var),
-            "({}, {})".format(safe_print_int(n_gen),
-                              safe_print_int(n_obs)),
+            safe_print_int(n_gen),
+            safe_print_int(n_obs),
             safe_print_int(n_assert)]
 
 def print_tries(ratio):
@@ -128,7 +118,7 @@ def print_pat_col3(stat):
     # return [safe_print_float(stat["n_retry"])+ "\\%"]
     # return ["${:.1f}$".format(stat["n_retry"])]
     # return ["$({:.0f}\\%, {:.2f}\\%)$".format(stat["syn_ratio"], stat["random_ratio"])]
-    return [ print_tries(stat["syn_ratio"]), print_tries(stat["default_ratio"]), print_tries(stat["random_ratio"])]
+    return [ print_tries(stat["syn_ratio"]), print_tries(stat["random_ratio"]), print_tries(stat["default_ratio"])]
 
 def print_pat_col4(statA):
     stat = statA["algo_complexity"]
@@ -170,7 +160,7 @@ def print_pat_col(name, stat):
 def load_stat():
     jmap = {}
     for name in benchmarks:
-        stat_file = "stat/.{}.json".format(name)
+        stat_file = "stat/.{}.json".format(task_name(name))
         with open (stat_file, "r") as f:
             jmap[name] = json.load(f)
     return jmap
@@ -193,12 +183,24 @@ def print_cols(benchnames, stat):
             syn_stat[name] = [100.0, 0.1]
             default_stat[name] = [None, None]
             stat[name]["n_retry"] = 1.0
-        stat[name]["random_ratio"] = random_stat[name][0]
-        stat[name]["random_time"] = random_stat[name][1]
-        stat[name]["syn_ratio"] = syn_stat[name][0]
-        stat[name]["syn_time"] = syn_stat[name][1]
-        stat[name]["default_ratio"] = default_stat[name][0]
-        stat[name]["default_time"] = default_stat[name][1]
+        if name in random_stat:
+            stat[name]["random_ratio"] = random_stat[name][0]
+            stat[name]["random_time"] = random_stat[name][1]
+        else:
+            stat[name]["random_ratio"] = None
+            stat[name]["random_time"] = None
+        if name in syn_stat:
+            stat[name]["syn_ratio"] = syn_stat[name][0]
+            stat[name]["syn_time"] = syn_stat[name][1]
+        else:
+            stat[name]["syn_ratio"] = None
+            stat[name]["syn_time"] = None
+        if name in default_stat:
+            stat[name]["default_ratio"] = default_stat[name][0]
+            stat[name]["default_time"] = default_stat[name][1]
+        else:
+            stat[name]["default_ratio"] = None
+            stat[name]["default_time"] = None
     i = len(benchnames)
     for name in benchnames:
         print_pat_col(name, stat[name])
@@ -216,22 +218,19 @@ def do_syn():
 
 def do_p_syn():
     for bench_name in benchmarks:
-        task_name = "task" + "_" + bench_name
-        cmd = cmd_prefix + ["do-syn", task_name, "benchmarks/" + bench_name + "/task.ml"]
+        cmd = cmd_prefix + ["do-syn", task_name(bench_name), "benchmarks/" + bench_name + "/task.ml"]
         invoc_cmd(cmd)
     return
 
 def do_eval():
     for bench_name in benchmarks:
-        task_name = "task" + "_" + bench_name
-        cmd = cmd_prefix + ["eval-benchmark", task_name, bench_name]
+        cmd = cmd_prefix + ["eval-benchmark", task_name(bench_name), bench_name]
         invoc_cmd(cmd)
     return
 
 def do_compile():
     for bench_name in benchmarks:
-        task_name = "task" + "_" + bench_name
-        cmd = cmd_prefix + ["compile-to-p", task_name, bench_name]
+        cmd = cmd_prefix + ["compile-to-p", task_name(bench_name), bench_name]
         invoc_cmd(cmd)
     return
 
@@ -318,15 +317,16 @@ if __name__ == '__main__':
             do_compile()
         elif arg == "runsyn":
             run_syn_p()
+            j = load_stat()
+            print_cols(benchmarks, j)
         elif arg == "runrandom":
             run_random_p()
     else:
-        # do_p_syn()
-        # do_compile()
+        do_p_syn()
+        do_compile()
         run_syn_p()
-        # run_random_p()
-        # run_default_p()
-        exit()
+        run_random_p()
+        run_default_p()
         j = load_stat()
         print_cols(benchmarks, j)
         # fix()

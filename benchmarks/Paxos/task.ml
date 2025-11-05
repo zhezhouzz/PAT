@@ -74,6 +74,16 @@ let eLostPrepareReq ?l:(p = (true : [%v: tProposerNode]))
 
 let ePrepareReq =
   [|
+    (* We can always don't reply. *)
+    (fun ?l:(p = (true : [%v: tProposerNode]))
+      ?l:(ac = (true : [%v: tAcceptorNode]))
+      ?l:(x = (true : [%v: tVal]))
+    ->
+      ( (allA;
+         ELostPrepareRsp (acceptor == ac && promised == p);
+         allA),
+        EPrepareReq (proposer == p && acceptor == ac && va == x),
+        [||] ));
     (* When there is a previous request less than proposer, accept it. *)
     (fun ?l:(p = (pr2 v : [%v: tProposerNode]))
       ?l:(ac = (true : [%v: tAcceptorNode]))
@@ -92,16 +102,6 @@ let ePrepareReq =
       ( starA (anyA - EPrepareReq (acceptor == ac) - EAcceptReq true),
         EPrepareReq (proposer == p && acceptor == ac && va == x),
         [| EPrepareRsp (acceptor == ac && promised == p && va == x) |] ));
-    (* We can always don't reply. *)
-    (fun ?l:(p = (true : [%v: tProposerNode]))
-      ?l:(ac = (true : [%v: tAcceptorNode]))
-      ?l:(x = (true : [%v: tVal]))
-    ->
-      ( (allA;
-         ELostPrepareRsp (acceptor == ac && promised == p);
-         allA),
-        EPrepareReq (proposer == p && acceptor == ac && va == x),
-        [||] ));
   |]
 
 let eLostPrepareRsp ?l:(ac = (true : [%v: tAcceptorNode]))
@@ -110,6 +110,18 @@ let eLostPrepareRsp ?l:(ac = (true : [%v: tAcceptorNode]))
 
 let ePrepareRsp =
   [|
+    (* We can always don't reply. *)
+    (fun ?l:(ac = (true : [%v: tAcceptorNode]))
+      ?l:(p = (true : [%v: tProposerNode]))
+      ?l:(x = (true : [%v: tVal]))
+      ?l:(ap = (true : [%v: tProposerNode]))
+    ->
+      ( (allA;
+         ELostAcceptReq (acceptor == ac && proposer == p);
+         allA),
+        EPrepareRsp
+          (acceptor == ac && promised == p && va == x && n_accepted == ap),
+        [||] ));
     (* When is the first response recieved, goto accept state and send accept request. (omit the second one) *)
     (fun ?l:(ac = (true : [%v: tAcceptorNode]))
       ?l:(p = (true : [%v: tProposerNode]))
@@ -132,18 +144,6 @@ let ePrepareRsp =
         EPrepareRsp
           (acceptor == ac && promised == p && va == x && n_accepted == ap),
         [| EAcceptReq (acceptor == ac && proposer == p && va == x) |] ));
-    (* We can always don't reply. *)
-    (fun ?l:(ac = (true : [%v: tAcceptorNode]))
-      ?l:(p = (true : [%v: tProposerNode]))
-      ?l:(x = (true : [%v: tVal]))
-      ?l:(ap = (true : [%v: tProposerNode]))
-    ->
-      ( (allA;
-         ELostAcceptReq (acceptor == ac && proposer == p);
-         allA),
-        EPrepareRsp
-          (acceptor == ac && promised == p && va == x && n_accepted == ap),
-        [||] ));
   |]
 
 let eLostAcceptReq ?l:(p = (true : [%v: tProposerNode]))

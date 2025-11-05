@@ -6,12 +6,16 @@ event an_syn_writeReq: tsyn_writeReq;
 event an_syn_readReq: tsyn_readReq;
 event an_syn_crashTail: tsyn_crashTail;
 
-spec ryw observes an_syn_writeRsp, an_syn_readRsp {
+spec ryw observes syn_writeReq, syn_readReq, an_syn_readRsp {
   var store: map[tKey, int];
+  var current: map[tKey, int];
   start state Init {
     entry{}
-    on an_syn_writeRsp do (input: tsyn_writeRsp) {
+    on syn_writeReq do (input: tsyn_writeReq) {
       store[input.key] = input.va;
+    }
+    on syn_readReq do (input: tsyn_readReq) {
+      current[input.key] = store[input.key];
     }
     on an_syn_readRsp do (input: tsyn_readRsp) {
       if (input.st) {
