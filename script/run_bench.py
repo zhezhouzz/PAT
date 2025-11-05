@@ -41,7 +41,7 @@ def invoc_cmd(cmd, cwd=None):
 # benchmarks = ["ChainReplication", "Paxos", "Raft"]
 # benchmarks = ["Raft"]
 # benchmarks = ["Firewall"]
-benchmarks = ["Raft"]
+benchmarks = ["Paxos"]
 
 def task_name(name):
     return "task" + "_" + name
@@ -321,6 +321,9 @@ if __name__ == '__main__':
             print_cols(benchmarks, j)
         elif arg == "runrandom":
             run_random_p()
+        elif arg == "show":
+            j = load_stat()
+            print_cols(benchmarks, j)
     else:
         do_p_syn()
         do_compile()

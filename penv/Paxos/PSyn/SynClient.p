@@ -32,18 +32,18 @@ machine SynClient {
       var __y20: tAcceptorNode;
       var __y21: tProposerNode;
       var __y22: tVal;
-      var __y23: tAcceptorNode;
-      var __y24: tProposerNode;
-      var __y25: tVal;
-      var __y26: tProposerNode;
-      var __y27: tProposerNode;
-      var __y28: tAcceptorNode;
-      var __y29: tVal;
-      var __y30: tProposerNode;
-      var __y31: tAcceptorNode;
-      var __y32: tProposerNode;
-      var __y33: tVal;
       var input_eLearn: (va: tVal);
+      var __y23: tVal;
+      var __y24: tAcceptorNode;
+      var __y25: tProposerNode;
+      var __y26: tVal;
+      var __y27: tProposerNode;
+      var __y28: tProposerNode;
+      var __y29: tAcceptorNode;
+      var __y30: tVal;
+      var __y31: tProposerNode;
+      var __y32: tAcceptorNode;
+      var __y33: tProposerNode;
       var __y34: tVal;
       var __y35: tVal;
       setting = input.setting;
@@ -127,40 +127,40 @@ machine SynClient {
         __y22 = input_eAcceptRsp.va;
       }};
       assert true;
+      receive { case syn_eLearn: (input: tsyn_eLearn) {
+        announce an_syn_eLearn, input;
+        forward_syn_eLearn(input);
+        input_eLearn = cast_syn_eLearn(input);
+        __y23 = input_eLearn.va;
+      }};
+      assert true;
       receive { case syn_ePrepareRsp: (input: tsyn_ePrepareRsp) {
         announce an_syn_ePrepareRsp, input;
         forward_syn_ePrepareRsp(input);
         input_ePrepareRsp = cast_syn_ePrepareRsp(input);
-        __y23 = input_ePrepareRsp.acceptor;
-        __y24 = input_ePrepareRsp.promised;
-        __y25 = input_ePrepareRsp.va;
-        __y26 = input_ePrepareRsp.n_accepted;
+        __y24 = input_ePrepareRsp.acceptor;
+        __y25 = input_ePrepareRsp.promised;
+        __y26 = input_ePrepareRsp.va;
+        __y27 = input_ePrepareRsp.n_accepted;
       }};
       assert true;
       receive { case syn_eAcceptReq: (input: tsyn_eAcceptReq) {
         announce an_syn_eAcceptReq, input;
         forward_syn_eAcceptReq(input);
         input_eAcceptReq = cast_syn_eAcceptReq(input);
-        __y27 = input_eAcceptReq.proposer;
-        __y28 = input_eAcceptReq.acceptor;
-        __y29 = input_eAcceptReq.va;
+        __y28 = input_eAcceptReq.proposer;
+        __y29 = input_eAcceptReq.acceptor;
+        __y30 = input_eAcceptReq.va;
       }};
       assert true;
       receive { case syn_eAcceptRsp: (input: tsyn_eAcceptRsp) {
         announce an_syn_eAcceptRsp, input;
         forward_syn_eAcceptRsp(input);
         input_eAcceptRsp = cast_syn_eAcceptRsp(input);
-        __y30 = input_eAcceptRsp.proposer;
-        __y31 = input_eAcceptRsp.acceptor;
-        __y32 = input_eAcceptRsp.accepted;
-        __y33 = input_eAcceptRsp.va;
-      }};
-      assert true;
-      receive { case syn_eLearn: (input: tsyn_eLearn) {
-        announce an_syn_eLearn, input;
-        forward_syn_eLearn(input);
-        input_eLearn = cast_syn_eLearn(input);
-        __y34 = input_eLearn.va;
+        __y31 = input_eAcceptRsp.proposer;
+        __y32 = input_eAcceptRsp.acceptor;
+        __y33 = input_eAcceptRsp.accepted;
+        __y34 = input_eAcceptRsp.va;
       }};
       assert true;
       receive { case syn_eLearn: (input: tsyn_eLearn) {
