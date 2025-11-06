@@ -27,7 +27,7 @@ let seq_random_test (init, main, checker) =
   List.filter (fun msg -> not (String.equal msg.ev.op "dummy")) his
 
 let once (init, main, checker) =
-  let main = List.nth main (Random.int (List.length main)) in
+  (* let main = List.nth main (Random.int (List.length main)) in *)
   Pool.init ();
   init ();
   run (fun () -> Eval.eval_to_unit main);
@@ -43,6 +43,31 @@ let once (init, main, checker) =
     else ()
   in *)
   his
+
+let eval_sample total test =
+  let rec aux (successed : int) (used : int) =
+    if used >= total then successed
+    else
+      try
+        let _ = test () in
+        aux (successed + 1) (used + 1)
+      with
+      | RuntimeInconsistent msg ->
+          Pp.printf "@{<red>Error:@} %s\n" msg;
+          aux successed (used + 1)
+      | IsolationViolation _ ->
+          Pp.printf "@{<red>Error:@} %s\n" "isolation violation";
+          aux successed (used + 1)
+      | NoBugDetected _ ->
+          Pp.printf "@{<red>Error:@} %s\n" "no bug detected";
+          aux successed (used + 1)
+      | e -> raise e
+  in
+  let successed, exec_time = Stat.stat_function (fun () -> aux 0 0) in
+  let rate = 100.0 *. float_of_int successed /. float_of_int total in
+  let exec_time = exec_time /. float_of_int total in
+  let () = Pp.printf "@{<red>Success rate: %f@}\n" rate in
+  (successed, rate, exec_time)
 
 let eval_until_detect_bug converge_bound test =
   let rec aux (i : int) =
@@ -69,7 +94,7 @@ let eval_until_detect_bug converge_bound test =
           aux i
       | e -> raise e
   in
-  let i, his = aux 0 in
+  let (i, his), _ = Stat.stat_function (fun () -> aux 0) in
   let () = Pp.printf "@{<red>Repeat for %i times@}\n" i in
   let () =
     Pp.printf "@{<red>Trace@}\n%s\n"
@@ -121,16 +146,3 @@ let eval_by_time time_bound test =
       (layout_time_to_detect time_to_detect)
   in
   (num_sampled, num_bug_detected, time_to_detect)
-
-let eval_sample test total =
-  let rec aux (successed : int) (used : int) =
-    if used >= total then successed
-    else
-      try
-        test ();
-        aux (successed + 1) (used + 1)
-      with
-      | RuntimeInconsistent _ -> aux successed (used + 1)
-      | e -> raise e
-  in
-  aux 0 0

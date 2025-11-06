@@ -76,7 +76,7 @@ let unique_name_line env { gprop; elems } =
     | (LineStarMultiChar _ as elem) :: post ->
         aux used_names (gprop, acts @ [ elem ]) post
   in
-  if Prover.check_sat_bool (None, gprop) then aux [] (gprop, []) elems
+  if Prover.raw_check_sat_bool (None, gprop) then aux [] (gprop, []) elems
   else _die_with [%here] (spf "not pass sanity check (%s)" (layout_prop gprop))
 
 let normalize_line env line =

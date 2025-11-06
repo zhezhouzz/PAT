@@ -2,9 +2,10 @@ open Zdatatype
 (* open AutomataLibrary *)
 
 (* open Common *)
-open Ast
+open Language
 
 let partial_func = [ "fstTy"; "sndTy" ]
+let check_sat x = Prover.raw_check_sat_bool x
 
 let do_rename_plan ass (gprop, prog) =
   let gprop =
@@ -34,7 +35,7 @@ let mk_eq_from_prev (gprop, term) =
         (fun y ->
           let phi = mk_var_eq_var [%here] x y in
           let q = smart_add_to gprop (Not (lit_to_prop phi)) in
-          if Prover.check_sat_bool (None, q) then None else Some (x, y))
+          if check_sat (None, q) then None else Some (x, y))
         ass
     in
     match ass with [] -> None | (x, y) :: _ -> Some (x.x, y)
@@ -121,11 +122,11 @@ let rename_plan ass (gen_vars, gprop, prog) =
   match ass with
   | [] -> None
   | _ ->
-      let _ = Prover.check_sat_bool (None, gprop) in
+      let _ = check_sat (None, gprop) in
       let () = Pp.printf "@{<bold>gprop:@} %s\n" (layout_prop gprop) in
       let gprop, prog = do_rename_plan ass (gprop, prog) in
       let () = Pp.printf "@{<bold>gprop:@} %s\n" (layout_prop gprop) in
-      let _ = Prover.check_sat_bool (None, gprop) in
+      let _ = check_sat (None, gprop) in
       Some (gen_vars, gprop, prog)
 
 let simp_partial_func (gen_vars, gprop, prog) =
@@ -230,7 +231,7 @@ let simp_plan { gprop; elems } =
       match ass with
       | [] -> { gprop; elems }
       | _ ->
-          let _ = Prover.check_sat_bool (None, gprop) in
+          let _ = check_sat (None, gprop) in
           let () = Pp.printf "@{<bold>gprop:@} %s\n" (layout_prop gprop) in
           let gprop =
             msubst subst_prop_instance
@@ -240,5 +241,5 @@ let simp_plan { gprop; elems } =
           let gprop = simpl_eq_in_prop gprop in
           let line = msubst subst_name_in_line ass { gprop; elems } in
           let () = Pp.printf "@{<bold>gprop:@} %s\n" (layout_prop line.gprop) in
-          let _ = Prover.check_sat_bool (None, gprop) in
+          let _ = check_sat (None, gprop) in
           line)

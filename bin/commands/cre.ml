@@ -51,13 +51,13 @@ let handle_syn_result (env, num_assert, term) name =
     Out_channel.close oc;
     raise e
 
-let do_syn name source_file () =
+let do_syn ?(num_expected = 1) name source_file () =
   let code = read_source_file source_file () in
   (* let () = Printf.printf "%s\n" (layout_structure code) in *)
   let env = Ntypecheck.(struct_check init_env code) in
   let () = Stat.init_algo_complexity () in
   let num_assert, prog =
-    Stat.stat_total (fun () -> Synthesis.synthesize env name)
+    Stat.stat_total (fun () -> Synthesis.synthesize env name num_expected)
   in
   let () = handle_syn_result (env, num_assert, prog) name in
   (* let () = Synthesis.save_progs name progs in *)
@@ -206,6 +206,19 @@ let tag_and_file message f =
       let () = Myconfig.meta_config_path := config_file in
       f file1 source_file)
 
+let tag_and_file_int message f =
+  Command.basic ~summary:message
+    Command.Let_syntax.(
+      let%map_open config_file =
+        flag "config"
+          (optional_with_default Myconfig.default_meta_config_path regular_file)
+          ~doc:"config file path"
+      and file1 = anon ("file1" %: string)
+      and source_file = anon ("source_code_file" %: regular_file)
+      and num = anon ("int" %: int) in
+      let () = Myconfig.meta_config_path := config_file in
+      f file1 source_file num)
+
 let three_param message f =
   Command.basic ~summary:message
     Command.Let_syntax.(
@@ -326,178 +339,209 @@ let four_param_string message f =
       let () = Myconfig.meta_config_path := config_file in
       f file1 file2 file3 file4)
 
-let test_eval s converge_bound () =
-  let eval = Interpreter.eval_until_detect_bug converge_bound in
-  match s with
-  (* | "queue" ->
+type eval_result =
+  | SampleResult of int * float * float
+  | UntilDetectResult of int * Interpreter.msg list
+
+let random_stat_file = "stat/.run_random_p.json"
+let syn_stat_file = "stat/.run_syn.json"
+let default_stat_file = "stat/.run_default.json"
+
+let load_eval_stat filename =
+  if not (Sys.file_exists filename) then (
+    let oc = open_out filename in
+    output_string oc "{}";
+    close_out oc);
+  let ic = open_in filename in
+  let len = in_channel_length ic in
+  let content = really_input_string ic len in
+  close_in ic;
+  Yojson.Safe.from_string content
+
+let update_eval_stat file_name (name, mode, res) =
+  match res with
+  | SampleResult (_, rate, time) ->
+      let data = load_eval_stat file_name in
+      let data =
+        let open Yojson.Safe.Util in
+        let assoc_list = to_assoc data in
+        let entry = `List [ `Float rate; `Float time ] in
+        let assoc_list =
+          match List.assoc_opt name assoc_list with
+          | Some _ ->
+              List.filter_map
+                (fun (k, v) ->
+                  if String.equal k name then Some (k, entry) else Some (k, v))
+                assoc_list
+          | None -> assoc_list @ [ (name, entry) ]
+        in
+        `Assoc assoc_list
+      in
+      let () =
+        Pp.printf "@{<bold>update eval stat:@} %s\n"
+          (Yojson.Safe.to_string data)
+      in
+      let oc = open_out file_name in
+      output_string oc (Yojson.Safe.to_string data);
+      close_out oc
+  | UntilDetectResult _ -> ()
+
+let test_eval mode s (converge_bound : int) () =
+  let eval f =
+    match mode with
+    | "sample" ->
+        let n_successed, rate, exec_time =
+          Interpreter.eval_sample converge_bound f
+        in
+        SampleResult (n_successed, rate, exec_time)
+    | "detect" ->
+        let n_retry, his = Interpreter.eval_until_detect_bug converge_bound f in
+        UntilDetectResult (n_retry, his)
+    | _ -> _die_with [%here] "unknown mode"
+  in
+  let res =
+    match s with
+    (* | "queue" ->
       let open Adt.Queue in
       let test () = Interpreter.once (init, [ main ], check_membership_queue) in
-      let _ = eval test in
-      () *)
-  | "stack" ->
-      let open Adt.Stack in
-      let main = Synthesis.load_progs s () in
-      (* let main = [ rec_main ] in *)
-      let test () = Interpreter.once (init, main, check_membership_stack) in
-      let _ = eval test in
-      ()
-  (* | "set" ->
+      eval test *)
+    | "stack" ->
+        let open Adt.Stack in
+        let main = Synthesis.load_prog s () in
+        (* let main = [ rec_main ] in *)
+        let test () = Interpreter.once (init, main, check_membership_stack) in
+        eval test
+    (* | "set" ->
   | "set" ->
       let open Adt.Set in
       let test () = Interpreter.once (init, [ main ], check_membership_set) in
-      let _ = eval test in
-      () *)
-  | "hashtable" ->
-      let open Adt.Hashtable in
-      let main = Synthesis.load_progs s () in
-      let test () = Interpreter.once (init, main, check_membership_hashtable) in
-      let _ = eval test in
-      ()
-  | "filesystem" ->
-      let open Adt.Filesystem in
-      let main = Synthesis.load_progs s () in
-      let test () = Interpreter.once (init, main, filesystem_last_delete) in
-      let _ = eval test in
-      ()
-  | "graph" ->
-      let open Adt.Graph in
-      let main = Synthesis.load_progs s () in
-      let test () = Interpreter.once (init, main, trace_is_not_connected) in
-      let _ = eval test in
-      ()
-  | "nfa" ->
-      let open Adt.Nfa in
-      let main = Synthesis.load_progs s () in
-      let test () = Interpreter.once (init, main, trace_is_not_nfa) in
-      let _ = eval test in
-      ()
-  | "stlc" ->
-      let open Adt.Stlc_moti in
-      let main = Synthesis.load_progs s () in
-      (* let main = [ main_rec ] in *)
-      let test () = Interpreter.once (init, main, trace_eval_correct) in
-      let _ = eval test in
-      ()
-  | "ifc_store" ->
-      let open Adt.Ifc in
-      let () = set_ruleset_store () in
-      let main = Synthesis.load_progs s () in
-      let test () = Interpreter.once (init, main, trace_enni) in
-      let _ = eval test in
-      ()
-  | "ifc_add" ->
-      let open Adt.Ifc in
-      let () = set_ruleset_add () in
-      let main = Synthesis.load_progs s () in
-      let test () = Interpreter.once (init, main, trace_enni) in
-      let _ = eval test in
-      ()
-  | "ifc_load" ->
-      let open Adt.Ifc in
-      let () = set_ruleset_load () in
-      let main = Synthesis.load_progs s () in
-      let test () = Interpreter.once (init, main, trace_enni) in
-      let _ = eval test in
-      ()
-  | "ifcStore" ->
-      let open Adt.Ifc in
-      let () = test_store_b_main () in
-      ()
-  | "ifcAdd" ->
-      let open Adt.Ifc in
-      let () = test_add_main () in
-      ()
-  | "ifcLoad" ->
-      let open Adt.Ifc in
-      let () = test_load_main () in
-      ()
-  | "cart_rc" ->
-      let open MonkeyBD in
-      let open Common in
-      let open Cart in
-      BackendMariaDB.MyMariaDB.maria_context "cart" ReadCommitted (fun () ->
-          let main = Synthesis.load_progs s () in
-          let test () =
-            Interpreter.once
-              (CartDB.init, main, CartDB.check_isolation_level Serializable)
-          in
-          let _ = eval test in
-          ())
-  | "cart_cc" ->
-      let open MonkeyBD in
-      let open Common in
-      let open Cart in
-      BackendMariaDB.MyMariaDB.maria_context "cart" Causal (fun () ->
-          let main = Synthesis.load_progs s () in
-          let test () =
-            Interpreter.once
-              (CartDB.init, main, CartDB.check_isolation_level Serializable)
-          in
-          let _ = eval test in
-          ())
-  (* | "twitter_rc" ->
+      eval test *)
+    | "hashtable" ->
+        let open Adt.Hashtable in
+        let main = Synthesis.load_prog s () in
+        let test () =
+          Interpreter.once (init, main, check_membership_hashtable)
+        in
+        eval test
+    | "filesystem" ->
+        let open Adt.Filesystem in
+        let main = Synthesis.load_prog s () in
+        let test () = Interpreter.once (init, main, filesystem_last_delete) in
+        eval test
+    | "graph" ->
+        let open Adt.Graph in
+        let main = Synthesis.load_prog s () in
+        let test () = Interpreter.once (init, main, trace_is_not_connected) in
+        eval test
+    | "nfa" ->
+        let open Adt.Nfa in
+        let main = Synthesis.load_prog s () in
+        let test () = Interpreter.once (init, main, trace_is_not_nfa) in
+        eval test
+    | "stlc" ->
+        let open Adt.Stlc_moti in
+        let main = Synthesis.load_prog s () in
+        (* let main = [ main_rec ] in *)
+        let test () = Interpreter.once (init, main, trace_eval_correct) in
+        eval test
+    | "ifc_store" ->
+        let open Adt.Ifc in
+        let () = set_ruleset_store () in
+        let main = Synthesis.load_prog s () in
+        let test () = Interpreter.once (init, main, trace_enni) in
+        eval test
+    | "ifc_add" ->
+        let open Adt.Ifc in
+        let () = set_ruleset_add () in
+        let main = Synthesis.load_prog s () in
+        let test () = Interpreter.once (init, main, trace_enni) in
+        eval test
+    | "ifc_load" ->
+        let open Adt.Ifc in
+        let () = set_ruleset_load () in
+        let main = Synthesis.load_prog s () in
+        let test () = Interpreter.once (init, main, trace_enni) in
+        eval test
+    | "cart_rc" ->
+        let open MonkeyBD in
+        let open Common in
+        let open Cart in
+        BackendMariaDB.MyMariaDB.maria_context "cart" ReadCommitted (fun () ->
+            let main = Synthesis.load_prog s () in
+            let test () =
+              Interpreter.once
+                (CartDB.init, main, CartDB.check_isolation_level Serializable)
+            in
+            eval test)
+    | "cart_cc" ->
+        let open MonkeyBD in
+        let open Common in
+        let open Cart in
+        BackendMariaDB.MyMariaDB.maria_context "cart" Causal (fun () ->
+            let main = Synthesis.load_prog s () in
+            let test () =
+              Interpreter.once
+                (CartDB.init, main, CartDB.check_isolation_level Serializable)
+            in
+            eval test)
+    (* | "twitter_rc" ->
       let open MonkeyBD in
       let open Common in
       let open Twitter in
-      let main = Synthesis.load_progs s () in
+      let main = Synthesis.load_prog s () in
       let test () =
         Interpreter.once
           (init ReadCommitted, main, TwitterDB.serializable_trace_checker)
       in
-            let _ = eval test in
-      ()
+            eval test
   | "twitter_cc" ->
       let open MonkeyBD in
       let open Common in
       let open Twitter in
-      let main = Synthesis.load_progs s () in
+      let main = Synthesis.load_prog s () in
       let test () =
         Interpreter.once
           (init Causal, main, TwitterDB.serializable_trace_checker)
       in
-      let _ = eval test in
-      () *)
-  | "courseware_rc" ->
-      let open MonkeyBD in
-      let open Common in
-      let open CoursewareDB in
-      BackendMariaDB.MyMariaDB.maria_context "courseware" ReadCommitted
-        (fun () ->
-          let main = Synthesis.load_progs s () in
-          let test () =
-            Interpreter.once
-              ( CoursewareDB.init,
-                main,
-                CoursewareDB.check_isolation_level Serializable )
-          in
-          let _ = eval test in
-          ())
-  | "courseware_cc" ->
-      let open MonkeyBD in
-      let open Common in
-      let open CoursewareDB in
-      BackendMariaDB.MyMariaDB.maria_context "courseware" Causal (fun () ->
-          let main = Synthesis.load_progs s () in
-          let test () =
-            Interpreter.once
-              ( CoursewareDB.init,
-                main,
-                CoursewareDB.check_isolation_level Serializable )
-          in
-          let _ = eval test in
-          ())
-  | "cart" ->
-      let open MonkeyBD in
-      let open Common in
-      let open Cart in
-      BackendMariaDB.MyMariaDB.maria_context "cart" ReadCommitted (fun () ->
-          let test () =
-            Interpreter.once
-              (CartDB.init, [ main ], CartDB.check_isolation_level Serializable)
-          in
-          let _ = eval test in
-          ())
-  (* | "smallbank" ->
+      eval test *)
+    | "courseware_rc" ->
+        let open MonkeyBD in
+        let open Common in
+        let open CoursewareDB in
+        BackendMariaDB.MyMariaDB.maria_context "courseware" ReadCommitted
+          (fun () ->
+            let main = Synthesis.load_prog s () in
+            let test () =
+              Interpreter.once
+                ( CoursewareDB.init,
+                  main,
+                  CoursewareDB.check_isolation_level Serializable )
+            in
+            eval test)
+    | "courseware_cc" ->
+        let open MonkeyBD in
+        let open Common in
+        let open CoursewareDB in
+        BackendMariaDB.MyMariaDB.maria_context "courseware" Causal (fun () ->
+            let main = Synthesis.load_prog s () in
+            let test () =
+              Interpreter.once
+                ( CoursewareDB.init,
+                  main,
+                  CoursewareDB.check_isolation_level Serializable )
+            in
+            eval test)
+    | "cart" ->
+        let open MonkeyBD in
+        let open Common in
+        let open Cart in
+        BackendMariaDB.MyMariaDB.maria_context "cart" ReadCommitted (fun () ->
+            let test () =
+              Interpreter.once
+                (CartDB.init, main, CartDB.check_isolation_level Serializable)
+            in
+            eval test)
+    (* | "smallbank" ->
       let open MonkeyBD in
       let open Common in
       let open Smallbank in
@@ -505,9 +549,8 @@ let test_eval s converge_bound () =
         Interpreter.once
           (init Causal, [ main ], SmallbankDB.serializable_trace_checker)
       in
-      let _ = eval test in
-      () *)
-  (* | "twitter" ->
+      eval test *)
+    (* | "twitter" ->
       let open MonkeyBD in
       let open Common in
       let open Twitter in
@@ -515,8 +558,7 @@ let test_eval s converge_bound () =
         Interpreter.once
           (init Causal, [ main ], TwitterDB.serializable_trace_checker)
       in
-      let _ = eval test in
-      ()
+      eval test
   | "courseware" ->
       let open MonkeyBD in
       let open Common in
@@ -525,8 +567,7 @@ let test_eval s converge_bound () =
         Interpreter.once
           (init Causal, [ main ], CoursewareDB.serializable_trace_checker)
       in
-      let _ = eval test in
-      ()
+      eval test
   | "treiber-stack" ->
       let open MonkeyBD in
       let open Common in
@@ -535,9 +576,11 @@ let test_eval s converge_bound () =
         Interpreter.once
           (init Causal, [ main ], StackDB.serializable_trace_checker)
       in
-      let _ = eval test in
-      () *)
-  | _ -> _die_with [%here] "unknown benchmark"
+      eval test *)
+    | _ -> _die_with [%here] "unknown benchmark"
+  in
+  let () = update_eval_stat syn_stat_file (s, "syn", res) in
+  ()
 
 let test_envs =
   [
@@ -569,10 +612,22 @@ let default_random_test_config =
     ("numCourseDB", 5);
   ]
 
-let test_random s converge_bound () =
-  let eval = Interpreter.eval_until_detect_bug converge_bound in
-  match s with
-  (* | "smallbank" ->
+let test_random mode s converge_bound () =
+  let eval f =
+    match mode with
+    | "detect" ->
+        let n_retry, his = Interpreter.eval_until_detect_bug converge_bound f in
+        UntilDetectResult (n_retry, his)
+    | "sample" ->
+        let n_successed, rate, exec_time =
+          Interpreter.eval_sample converge_bound f
+        in
+        SampleResult (n_successed, rate, exec_time)
+    | _ -> _die_with [%here] "unknown mode"
+  in
+  let res =
+    match s with
+    (* | "smallbank" ->
       let open MonkeyBD in
       let open Common in
       let open Smallbank in
@@ -582,8 +637,7 @@ let test_random s converge_bound () =
             (fun () -> random_user { numUser = 4; numOp = 2 }),
             SmallbankDB.serializable_trace_checker )
       in
-      let _ = eval test in
-      ()
+      eval test
   | "treiber-stack" ->
       let open MonkeyBD in
       let open Common in
@@ -594,8 +648,7 @@ let test_random s converge_bound () =
             (fun () -> qc_stack { numElems = 4; numOp = 2 }),
             StackDB.serializable_trace_checker )
       in
-      let _ = eval test in
-      ()
+      eval test
   | "twitter" ->
       let open MonkeyBD in
       let open Common in
@@ -606,9 +659,8 @@ let test_random s converge_bound () =
             (fun () -> random_user { numUser = 4; numOp = 2 }),
             TwitterDB.serializable_trace_checker )
       in
-      let _ = eval test in
-      () *)
-  (* | "courseware" ->
+      eval test *)
+    (* | "courseware" ->
       let open MonkeyBD in
       let open Common in
       let open Courseware in
@@ -620,153 +672,53 @@ let test_random s converge_bound () =
               random_operations { numStudent = 4; numCourse = 4; numOp = 2 }),
             check_isolation_level Serializable )
       in
-      let _ = eval test in
-      () *)
-  | "hashtable" ->
-      let open Adt.Hashtable in
-      let test () =
-        Interpreter.seq_random_test
-          ( init,
-            (fun () -> randomTest { numKeys = 8; numVals = 10; numOp = 20 }),
-            check_membership_hashtable )
-      in
-      let _ = eval test in
-      ()
-  (* | "cart_rc" ->
-      let open MonkeyBD in
-      let open Common in
-      let open Cart in
-      BackendMariaDB.MyMariaDB.maria_context "cart" ReadCommitted (fun () ->
-          let test () =
-            Interpreter.random_test
-              ( CartDB.init,
-                (fun () -> random_user { numUser = 4; numItem = 4; numOp = 3 }),
-                CartDB.check_isolation_level Serializable )
-          in
-          let _ = eval test in
-          ())
-  | "cart_cc" ->
-      let open MonkeyBD in
-      let open Common in
-      let open Cart in
-      BackendMariaDB.MyMariaDB.maria_context "cart" Causal (fun () ->
-          let test () =
-            Interpreter.random_test
-              ( CartDB.init,
-                (fun () -> random_user { numUser = 4; numItem = 4; numOp = 3 }),
-                CartDB.check_isolation_level Serializable )
-          in
-          let _ = eval test in
-          ()) *)
-  | _ -> (
-      let env = List.assoc_opt s test_envs in
-      match env with
-      | None -> _die_with [%here] "unknown benchmark"
-      | Some env ->
-          if env.if_concurrent then
-            match env.database_ctx with
-            | None -> _die_with [%here] "isolation not set"
-            | Some { dbname; isolation } ->
-                BackendMariaDB.MyMariaDB.maria_context dbname isolation
-                  (fun () ->
-                    let test () =
-                      Interpreter.random_test
-                        ( env.init_test_env,
-                          (fun () ->
-                            env.random_test_gen default_random_test_config),
-                          env.property )
-                    in
-                    let _ = eval test in
-                    ())
-          else
-            let test () =
-              Interpreter.seq_random_test
-                ( env.init_test_env,
-                  (fun () -> env.random_test_gen default_random_test_config),
-                  env.property )
-            in
-            let _ = eval test in
-            ())
-
-(* | "filesystem" ->
-            let open Adt.Filesystem in
-            let test () =
-              Interpreter.seq_random_test
-                (init, (fun () -> randomTest { numOp = 15 }), filesystem_last_delete)
-            in
-            let _ = eval test in
-            ()
-        | "graph" ->
-            let open Adt.Graph in
-            let test () =
-              Interpreter.seq_random_test
-                (init, (fun () -> randomTest { numOp = 15 }), trace_is_not_connected)
-            in
-            let _ = eval test in
-            ()
-        | "nfa" ->
-            let open Adt.Nfa in
-            let test () =
-              Interpreter.seq_random_test
-                (init, (fun () -> randomTest { numOp = 15 }), trace_is_not_nfa)
-            in
-            let _ = eval test in
-            ()
-        | "stlc" ->
-            let open Adt.Stlc in
-            (* let () = testAst () in
-            let () = _die_with [%here] "done" in *)
-            let test () =
-              Interpreter.seq_random_test
-                ( init,
-                  (fun () ->
-                    randomTest { numApp = 4; tyDepthBound = 4; constRange = 4 }),
-                  trace_eval_correct )
-            in
-            let _ = eval test in
-            ()
-        | "ifc_store" ->
-            let open Adt.Ifc in
-            let () = set_ruleset_store () in
-            let test () =
-              Interpreter.seq_random_test
-                (init, (fun () -> randomTest { numOp = 15 }), trace_enni)
-            in
-            let _ = eval test in
-            ()
-        | "ifc_add" ->
-            let open Adt.Ifc in
-            let () = set_ruleset_add () in
-            let test () =
-              Interpreter.seq_random_test
-                (init, (fun () -> randomTest { numOp = 15 }), trace_enni)
-            in
-            let _ = eval test in
-            ()
-        | "ifc_load" ->
-            let open Adt.Ifc in
-            let () = set_ruleset_load () in
-            let test () =
-              Interpreter.seq_random_test
-                (init, (fun () -> randomTest { numOp = 15 }), trace_enni)
-            in
-            let _ = eval test in
-            ()
-        | "stack" ->
-            let open Adt.Stack in
-            let test () =
-              Interpreter.seq_random_test
-                ( init,
-                  (fun () -> randomTest { numElem = 10; numOp = 15 }),
-                  check_membership_stack )
-            in
-            let _ = eval test in
-            () *)
+      eval test *)
+    | "hashtable" ->
+        let open Adt.Hashtable in
+        let test () =
+          Interpreter.seq_random_test
+            ( init,
+              (fun () -> randomTest { numKeys = 8; numVals = 10; numOp = 20 }),
+              check_membership_hashtable )
+        in
+        eval test
+    | _ -> (
+        let env = List.assoc_opt s test_envs in
+        match env with
+        | None -> _die_with [%here] "unknown benchmark"
+        | Some env ->
+            if env.if_concurrent then
+              match env.database_ctx with
+              | None -> _die_with [%here] "isolation not set"
+              | Some { dbname; isolation } ->
+                  BackendMariaDB.MyMariaDB.maria_context dbname isolation
+                    (fun () ->
+                      let test () =
+                        Interpreter.random_test
+                          ( env.init_test_env,
+                            (fun () ->
+                              env.random_test_gen default_random_test_config),
+                            env.property )
+                      in
+                      eval test)
+            else
+              let test () =
+                Interpreter.seq_random_test
+                  ( env.init_test_env,
+                    (fun () -> env.random_test_gen default_random_test_config),
+                    env.property )
+              in
+              eval test)
+  in
+  let () = update_eval_stat random_stat_file (s, "random", res) in
+  ()
 
 let cmds =
   [
-    ("test-eval", param_string_int "test eval" test_eval);
-    ("test-random", param_string_int "test random" test_random);
+    ("test-eval", param_string_int "test eval" (test_eval "detect"));
+    ("test-random", param_string_int "test random" (test_random "detect"));
+    ("sample-syn", param_string_int "sample syn" (test_eval "sample"));
+    ("sample-random", param_string_int "sample random" (test_random "sample"));
     ("read-syn", one_param "read syn" read_syn);
     ("do-syn", tag_and_file "read syn" do_syn);
     ("syn-one", file_and_string "syn one" syn_term);

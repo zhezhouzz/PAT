@@ -326,6 +326,20 @@ let pushPrivateHandler (msg : msg) =
   let depth = _exec !_ruleset (Push (PrivateV (x, y))) in
   send ("stackDepth", [ mk_value_int depth ])
 
+let pushHandler (msg : msg) =
+  let lv, x, y =
+    match msg.ev.args with
+    | [ VConst (B lv); VConst (I x); VConst (I y) ] -> (lv, x, y)
+    | _ -> _die [%here]
+  in
+  let data =
+    if not lv then PrivateV (x, y)
+    else if x == y then PublicV x
+    else _die_with [%here] "runtime error: public values should be equal"
+  in
+  let depth = _exec !_ruleset (Push data) in
+  send ("stackDepth", [ mk_value_int depth ])
+
 let popHandler (_ : msg) =
   let depth = _exec !_ruleset Pop in
   send ("stackDepth", [ mk_value_int depth ])
@@ -358,6 +372,7 @@ let stackDepthHandler (_ : msg) = ()
 let enniRespHandler (_ : msg) = ()
 
 let init () =
+  register_handler "push" pushHandler;
   register_handler "pushPublic" pushPublicHandler;
   register_handler "pushPrivate" pushPrivateHandler;
   register_handler "pop" popHandler;

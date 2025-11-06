@@ -23,32 +23,32 @@ let writeToMid =
   [|
     (fun ?l:(k = (true : [%v: tKey]))
       ?l:(x = (true : [%v: int]))
-      ?l:(n = (mid1 v : [%v: tNode]))
-    ->
-      ( allA,
-        WriteToMid (key == k && va == x && node == n),
-        [| WriteToMid (key == k && va == x && node == next n) |] ));
-    (fun ?l:(k = (true : [%v: tKey]))
-      ?l:(x = (true : [%v: int]))
       ?l:(n = (mid2 v : [%v: tNode]))
     ->
       ( allA,
         WriteToMid (key == k && va == x && node == n),
         [| WriteToTail (key == k && va == x) |] ));
+    (fun ?l:(k = (true : [%v: tKey]))
+      ?l:(x = (true : [%v: int]))
+      ?l:(n = (mid1 v : [%v: tNode]))
+    ->
+      ( allA,
+        WriteToMid (key == k && va == x && node == n),
+        [| WriteToMid (key == k && va == x && node == next n) |] ));
   |]
 
 let writeToTail =
   [|
-    (fun ?l:(k = (true : [%v: tKey])) ?l:(x = (true : [%v: int])) ->
-      ( starA (anyA - CrashTail true),
-        WriteToTail (key == k && va == x),
-        [| WriteRsp (key == k && va == x) |] ));
     (fun ?l:(k = (true : [%v: tKey])) ?l:(x = (true : [%v: int])) ->
       ( (starA (anyA - CrashTail true);
          CrashTail true;
          starA (anyA - CrashTail true)),
         WriteToTail (key == k && va == x),
         [||] ));
+    (fun ?l:(k = (true : [%v: tKey])) ?l:(x = (true : [%v: int])) ->
+      ( starA (anyA - CrashTail true),
+        WriteToTail (key == k && va == x),
+        [| WriteRsp (key == k && va == x) |] ));
   |]
 
 let writeRsp ?l:(k = (true : [%v: tKey])) ?l:(x = (true : [%v: int])) =

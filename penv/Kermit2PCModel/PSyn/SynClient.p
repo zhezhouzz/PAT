@@ -17,23 +17,23 @@ machine SynClient {
       var __y5: tKey;
       var __y6: tVal;
       var __y7: tGid;
-      var input_eShardReadKeyReq: (gid: tGid, key: tKey);
-      var __y9: tGid;
-      var __y10: tKey;
-      var __x11: tVal;
-      var __y12: tGid;
-      var __y13: tKey;
-      var __y14: tVal;
+      var __x9: tVal;
+      var __y10: tGid;
+      var __y11: tKey;
+      var __y12: tVal;
       var input_eShardUpdateKeyRsp: (gid: tGid, key: tKey, value: tVal, status: tCmdStatus);
-      var __y15: tGid;
-      var __y16: tKey;
-      var __y17: tVal;
-      var __y18: tCmdStatus;
+      var __y13: tGid;
+      var __y14: tKey;
+      var __y15: tVal;
+      var __y16: tCmdStatus;
       var input_eUpdateRsp: (gid: tGid, key: tKey, value: tVal, status: tCmdStatus);
-      var __y19: tGid;
-      var __y20: tKey;
-      var __y21: tVal;
-      var __y22: tCmdStatus;
+      var __y17: tGid;
+      var __y18: tKey;
+      var __y19: tVal;
+      var __y20: tCmdStatus;
+      var input_eShardReadKeyReq: (gid: tGid, key: tKey);
+      var __y21: tGid;
+      var __y22: tKey;
       var input_eShardReadKeyRsp: (gid: tGid, key: tKey, value: tVal, status: tCmdStatus);
       var __y23: tGid;
       var __y24: tKey;
@@ -90,48 +90,48 @@ machine SynClient {
         __y7 = input_eStartTxnRsp.gid;
       }};
       assert true;
-      send_eReadReq(this, setting, (gid = __y7, key = __x2));
-      receive { case syn_eShardReadKeyReq: (input: tsyn_eShardReadKeyReq) {
-        announce an_syn_eShardReadKeyReq, input;
-        forward_syn_eShardReadKeyReq(input);
-        input_eShardReadKeyReq = cast_syn_eShardReadKeyReq(input);
-        __y9 = input_eShardReadKeyReq.gid;
-        __y10 = input_eShardReadKeyReq.key;
-      }};
-      assert true;
       while(true){
-        __x11 = choose(domain_tVal);
-        if ((!((__x3 == __x11)) && !((__x11 == __x3)))) {
+        __x9 = choose(domain_tVal);
+        if ((!((__x3 == __x9)) && !((__x9 == __x3)))) {
           break;
         };
       };
-      send_eUpdateReq(this, setting, (gid = __y7, key = __x2, value = __x11));
+      send_eUpdateReq(this, setting, (gid = __y7, key = __x2, value = __x9));
       receive { case syn_eShardUpdateKeyReq: (input: tsyn_eShardUpdateKeyReq) {
         announce an_syn_eShardUpdateKeyReq, input;
         forward_syn_eShardUpdateKeyReq(input);
         input_eShardUpdateKeyReq = cast_syn_eShardUpdateKeyReq(input);
-        __y12 = input_eShardUpdateKeyReq.gid;
-        __y13 = input_eShardUpdateKeyReq.key;
-        __y14 = input_eShardUpdateKeyReq.value;
+        __y10 = input_eShardUpdateKeyReq.gid;
+        __y11 = input_eShardUpdateKeyReq.key;
+        __y12 = input_eShardUpdateKeyReq.value;
       }};
       assert true;
       receive { case syn_eShardUpdateKeyRsp: (input: tsyn_eShardUpdateKeyRsp) {
         announce an_syn_eShardUpdateKeyRsp, input;
         forward_syn_eShardUpdateKeyRsp(input);
         input_eShardUpdateKeyRsp = cast_syn_eShardUpdateKeyRsp(input);
-        __y15 = input_eShardUpdateKeyRsp.gid;
-        __y16 = input_eShardUpdateKeyRsp.key;
-        __y17 = input_eShardUpdateKeyRsp.value;
-        __y18 = input_eShardUpdateKeyRsp.status;
+        __y13 = input_eShardUpdateKeyRsp.gid;
+        __y14 = input_eShardUpdateKeyRsp.key;
+        __y15 = input_eShardUpdateKeyRsp.value;
+        __y16 = input_eShardUpdateKeyRsp.status;
       }};
       assert true;
       receive { case syn_eUpdateRsp: (input: tsyn_eUpdateRsp) {
         announce an_syn_eUpdateRsp, input;
         input_eUpdateRsp = cast_syn_eUpdateRsp(input);
-        __y19 = input_eUpdateRsp.gid;
-        __y20 = input_eUpdateRsp.key;
-        __y21 = input_eUpdateRsp.value;
-        __y22 = input_eUpdateRsp.status;
+        __y17 = input_eUpdateRsp.gid;
+        __y18 = input_eUpdateRsp.key;
+        __y19 = input_eUpdateRsp.value;
+        __y20 = input_eUpdateRsp.status;
+      }};
+      assert true;
+      send_eReadReq(this, setting, (gid = __y7, key = __x2));
+      receive { case syn_eShardReadKeyReq: (input: tsyn_eShardReadKeyReq) {
+        announce an_syn_eShardReadKeyReq, input;
+        forward_syn_eShardReadKeyReq(input);
+        input_eShardReadKeyReq = cast_syn_eShardReadKeyReq(input);
+        __y21 = input_eShardReadKeyReq.gid;
+        __y22 = input_eShardReadKeyReq.key;
       }};
       assert true;
       receive { case syn_eShardReadKeyRsp: (input: tsyn_eShardReadKeyRsp) {

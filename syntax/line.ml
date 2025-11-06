@@ -4,7 +4,10 @@ open Common
 open Ast
 open SFA
 
-let can_be_reused = [ "var"; "recE"; "deletePathReq" ] @ ghost_event_names
+let can_be_reused =
+  [ "var"; "recE"; "deletePathReq"; "PushPrivate"; "PushPublic"; "deleteReq" ]
+  @ ghost_event_names
+
 let unreusable_core_acts = ref []
 let init_unreusable_core_acts () = unreusable_core_acts := []
 let set_unreusable_core_acts (acts : int list) = unreusable_core_acts := acts
@@ -13,8 +16,11 @@ let _log_line_merge_related = _log "line_merge_related"
 let _log_line_merge_results = _log "line_merge_results"
 
 let _check_sat prop =
-  let res = Prover.check_sat_bool (None, prop) in
-  res
+  if is_true prop then true
+  else if is_false prop then false
+  else
+    let res = Prover.check_sat_bool (None, prop) in
+    res
 
 let root_aid = -1
 let se_to_regex x = MultiChar (CharSet.singleton x)
@@ -280,23 +286,25 @@ let merge_charset prop cs1 cs2 =
   | Some cs -> check_sat_se prop cs
 
 let merge_act_with_phi (prop, act) (vs, phi) =
-  if not (_check_sat prop) then None (* _die_with [%here] "never" *)
-  else
-    let s =
-      List.map
-        (fun (x, y) -> (x.x, AVar y))
-        (_safe_combine [%here] vs act.aargs)
-    in
-    let phi = msubst subst_prop_instance s phi in
-    let q = smart_and [ prop; phi ] in
-    let () =
-      _log_line_sat_related (fun () ->
-          Pp.printf "@{<bold>merge_act_with_phi@} %s ; (%s, %s)\n"
-            (layout_qvs act.aargs) (layout_qvs vs) (layout_prop phi);
-          Pp.printf "@{<bold>merge_act_with_phi[%b]@} %s\n" (_check_sat q)
-            (layout_prop q))
-    in
-    if _check_sat q then Some phi else None
+  Stat.stat_sat_query (fun () ->
+      if not (_check_sat prop) then None (* _die_with [%here] "never" *)
+      else
+        let s =
+          List.map
+            (fun (x, y) -> (x.x, AVar y))
+            (_safe_combine [%here] vs act.aargs)
+        in
+        let phi = msubst subst_prop_instance s phi in
+        let q = smart_and [ prop; phi ] in
+        let cond = _check_sat q in
+        let () =
+          _log_line_sat_related (fun () ->
+              Pp.printf "@{<bold>merge_act_with_phi@} %s ; (%s, %s)\n"
+                (layout_qvs act.aargs) (layout_qvs vs) (layout_prop phi);
+              Pp.printf "@{<bold>merge_act_with_phi[%b]@} %s\n" cond
+                (layout_prop q))
+        in
+        if cond then Some phi else None)
 
 let merge_act_with_se (prop, act) { op; vs; phi } =
   if not (String.equal act.aop op) then None

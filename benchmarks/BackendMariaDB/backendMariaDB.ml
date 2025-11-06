@@ -93,7 +93,7 @@ let no_param_no_ret db query =
   M.Stmt.close stmt >>= or_die "stmt close" >>= fun () -> Lwt.return_unit
 
 module type MyDB = sig
-  val maria_context : string -> Language.isolation -> (unit -> unit) -> unit
+  val maria_context : string -> Language.isolation -> (unit -> 'a) -> 'a
   val async_clear_db : unit -> unit Lwt.t
   val async_begin : thread_id:int -> unit -> int Lwt.t
   val async_commit : tid:int -> unit -> int Lwt.t
@@ -664,9 +664,9 @@ module MyMariaDB : MyDB = struct
 
   let maria_context db_name isolation k =
     let () = init db_name isolation in
-    let () = k () in
+    let res = k () in
     let () = close () in
-    ()
+    res
 
   let table_async_get ~tid ~db ~table ~key () =
     async_get ~tid ~table:db ~key:(table ^ ":" ^ key) ()

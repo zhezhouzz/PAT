@@ -68,7 +68,6 @@ let init_strategy env =
         !_strategy with
         search = UnSortedDFS 1;
         search_new_goals = false;
-        result_expection = 1;
         addKstar = false;
       }
   else if p_related env then
@@ -77,7 +76,6 @@ let init_strategy env =
         !_strategy with
         search = UnSortedDFS 1;
         search_new_goals = false;
-        result_expection = 1;
         addKstar = false;
       }
   else if StrMap.cardinal env.axioms > 3 || num_obs > num_gen + 3 then
@@ -86,7 +84,6 @@ let init_strategy env =
         !_strategy with
         search = UnSortedDFS 1;
         search_new_goals = false;
-        result_expection = 1;
         addKstar = true;
       }
   else if num_gen <= 4 && StrMap.cardinal env.axioms == 0 then
@@ -95,17 +92,11 @@ let init_strategy env =
         !_strategy with
         search = UnSortedDFS 1;
         search_new_goals = false;
-        result_expection = 1;
         addKstar = true;
       }
   else
     _strategy :=
-      {
-        !_strategy with
-        search = UnSortedDFS 1;
-        result_expection = 1;
-        search_new_goals = false;
-      }
+      { !_strategy with search = UnSortedDFS 1; search_new_goals = false }
 
 let search_strategy_to_string = function
   | DFS -> "DFS"
@@ -161,7 +152,6 @@ let first_n_list n list =
 
 let rec search_on_strategy (f : 'a -> 'a list) plans =
   (* For efficienct, we should unify the plans first *)
-  (* let plans = unify_lines plans in *)
   match plans with
   | [] -> _die_with [%here] "no more plans"
   | plan :: plans' -> (
@@ -235,7 +225,8 @@ let load_line name () =
   let sexp = Sexplib.Sexp.load_sexp output_file in
   line_of_sexp sexp
 
-let rec deductive_synthesis env r : synMidResult list =
+let rec deductive_synthesis env r num_expected : synMidResult list =
+  let () = _strategy := { !_strategy with result_expection = num_expected } in
   let () = init_unreusable_core_acts () in
   let plans = regex_to_lines r in
   let plans =
@@ -273,11 +264,9 @@ and refinement_loop env (res, plans) =
     (* let () = layout_candidate_res_and_plans res plans in *)
     (* let _ = try_pause () in *)
     (* let plans = List.map LineOpt.optimize_line plans in *)
-    (* let plans = unify_lines plans in *)
     let () = layout_candidate_res_and_plans res plans in
     let _ = try_pause () in
     let wf_plans, plans = List.partition finished_plan plans in
-    (* let wf_plans = unify_lines wf_plans in *)
     let new_goals = List.concat_map (gen_new_act env) wf_plans in
     refinement_loop env (res @ wf_plans, merge_new_goals plans new_goals)
 
@@ -442,6 +431,7 @@ and forward env (goal : line) mid : line list =
   let () = Language.Stat.incr_forward () in
   let _, (_, midAct, _) = line_divide_by_task_id goal mid in
   let op = midAct.aop in
+  let () = Pp.printf "forward on op: %s\n" op in
   let rules = select_rule_by_op env op in
   let handle pat =
     let _, (args, retrty) = destruct_pat [%here] pat in

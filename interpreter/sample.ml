@@ -37,6 +37,8 @@ let default_sample_domain =
              "/c/a/b/d/e";
              "/c/a/b/d/e/f";
            ] );
+       ( mk_p_abstract_ty "Byte.t",
+         List.map (fun n -> VConst (B n)) [ true; false ] );
        ( mk_p_abstract_ty "stlcTy",
          List.map
            (fun n -> VCStlcTy n)

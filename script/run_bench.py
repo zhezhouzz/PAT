@@ -37,11 +37,11 @@ def invoc_cmd(cmd, cwd=None):
         print(e.output)
 
 
-# benchmarks = ["Database", "Firewall", "RingLeaderElection", "EspressoMachine", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Raft", "Kermit2PCModel"]
+benchmarks = ["Database", "Firewall", "RingLeaderElection", "EspressoMachine", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Raft", "Kermit2PCModel"]
 # benchmarks = ["ChainReplication", "Paxos", "Raft"]
 # benchmarks = ["Raft"]
 # benchmarks = ["Firewall"]
-benchmarks = ["Paxos"]
+# benchmarks = ["ChainReplication"]
 
 def task_name(name):
     return "task" + "_" + name
@@ -109,7 +109,7 @@ def print_pat_col2(stat):
 def print_tries(ratio):
     if ratio is None:
         return "-"
-    elif ratio == 0.0:
+    elif ratio < 0.1:
         return "{\\tiny Timeout}"
     else:
         return "${:.0f}$".format(100.0 / ratio)

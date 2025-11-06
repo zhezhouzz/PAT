@@ -1,4 +1,7 @@
 val ( == ) : 'a. 'a -> 'a -> bool
+val isStart : int -> bool
+
+let[@axiom] isStart (x : int) = iff (x == 0) (isStart x)
 
 (* Basic Typing *)
 
@@ -56,13 +59,25 @@ let addEdge =
       ?l:(y = (not (v == x) : [%v: int]))
     ->
       ( (allA;
+         NewNodeResp (nid == x);
+         allA;
+         NewNodeResp (nid == y);
+         allA;
+         AddEdge (ed == x);
+         allA),
+        AddEdge (st == x && ch == c && ed == y),
+        starA (anyA - AddEdge (st == x && ch == c)) ));
+    (fun ?l:(x = (true : [%v: int]))
+      ?l:(c = (true : [%v: char]))
+      ?l:(y = (not (v == x) : [%v: int]))
+    ->
+      ( (allA;
          SetInitNode (nid == x);
          allA;
          NewNodeResp (nid == y);
          allA),
         AddEdge (st == x && ch == c && ed == y),
-        starA (anyA - NewNodeReq true - AddEdge (st == x && ch == c && ed == y))
-      ));
+        starA (anyA - AddEdge (st == x && ch == c)) ));
     (fun ?l:(x = (true : [%v: int]))
       ?l:(c = (true : [%v: char]))
       ?l:(y = (not (v == x) : [%v: int]))
@@ -75,22 +90,7 @@ let addEdge =
          AddEdge (ed == x);
          allA),
         AddEdge (st == x && ch == c && ed == y),
-        starA (anyA - NewNodeReq true - AddEdge (st == x && ch == c && ed == y))
-      ));
-    (fun ?l:(x = (true : [%v: int]))
-      ?l:(c = (true : [%v: char]))
-      ?l:(y = (not (v == x) : [%v: int]))
-    ->
-      ( (allA;
-         NewNodeResp (nid == x);
-         allA;
-         NewNodeResp (nid == y);
-         allA;
-         AddEdge (ed == x);
-         allA),
-        AddEdge (st == x && ch == c && ed == y),
-        starA (anyA - NewNodeReq true - AddEdge (st == x && ch == c && ed == y))
-      ));
+        starA (anyA - AddEdge (st == x && ch == c)) ));
   |]
 
 let isNFAReq =
@@ -107,10 +107,12 @@ let isNFAResp =
     IsNFAResp (isNFA == x),
     allA )
 
-let[@goal] nfa (x : int) (c1 : char) (c2 : char) (y : int) =
+let[@goal] nfa =
   allA;
-  AddEdge (st == x && ch == c1 && ed == y);
+  AddEdge true;
   allA;
-  AddEdge (st == x && ch == c2 && ed == y);
+  AddEdge true;
+  allA;
+  AddEdge true;
   allA;
   IsNFAResp (isNFA == true)

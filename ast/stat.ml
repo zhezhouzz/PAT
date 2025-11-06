@@ -1,116 +1,299 @@
-(* Statistics *)
-
-open ParseTree
-open Zdatatype
-
-type automataStat = { num_regex_operator : int; num_sevent : int }
-type patStat = { num_gvar : int; num_param : int; automataStat : automataStat }
-
-type complexityStat = {
-  num_prim_operators : int;
-  num_effect_operators : int;
-  num_pat : int;
-  num_axioms : int;
-  num_syn_goals : int;
-  patStat : patStat StrMap.t;
-}
-
-let init_complexityStat =
-  {
-    num_prim_operators = 0;
-    num_effect_operators = 0;
-    num_pat = 0;
-    num_axioms = 0;
-    num_syn_goals = 0;
-    patStat = StrMap.empty;
-  }
-
-let merge_automata_stat s1 s2 =
-  {
-    num_regex_operator = s1.num_regex_operator + s2.num_regex_operator;
-    num_sevent = s1.num_sevent + s2.num_sevent;
-  }
-
-let max_automata_stat s1 s2 =
-  {
-    num_regex_operator = max s1.num_regex_operator s2.num_regex_operator;
-    num_sevent = max s1.num_sevent s2.num_sevent;
-  }
-
-let max_pat_stat s1 s2 =
-  {
-    num_gvar = max s1.num_gvar s2.num_gvar;
-    num_param = max s1.num_param s2.num_param;
-    automataStat = max_automata_stat s1.automataStat s2.automataStat;
-  }
-
+open Zutils
+open Prop
 open AutomataLibrary
+open ParseTree
 
-let do_automata_complexity_stat pat =
-  let rec aux = function
-    | MultiAtomic l -> { num_regex_operator = 0; num_sevent = List.length l }
-    | Ctx _ -> { num_regex_operator = 0; num_sevent = 0 }
-    | EmptyA | EpsilonA | AnyA -> { num_regex_operator = 1; num_sevent = 0 }
-    | CtxOp { body; _ } -> aux body
-    | ComplementA r | StarA r | DComplementA { body = r; _ } | RepeatN (_, r) ->
-        let stat = aux r in
-        { stat with num_regex_operator = stat.num_regex_operator + 1 }
-    | LorA (t1, t2) | LandA (t1, t2) | SetMinusA (t1, t2) ->
-        merge_automata_stat (aux t1) (aux t2)
-    | SeqA l ->
-        List.fold_left
-          (fun stat t -> merge_automata_stat stat (aux t))
-          { num_regex_operator = 0; num_sevent = 0 }
-          l
-  in
-  aux pat
+module Stat = struct
+  type task_complexity = { n_op : int; n_qualifier : int } [@@deriving yojson]
 
-let do_pat_complexity_stat pat =
-  let rec aux = function
-    | RtyBase _ -> _die [%here]
-    | RtyHAParallel _ -> _die [%here]
-    | RtyGArr { retrty; _ } ->
-        let stat = aux retrty in
-        { stat with num_gvar = stat.num_gvar + 1 }
-    | RtyArr { retrty; _ } ->
-        let stat = aux retrty in
-        { stat with num_param = stat.num_param + 1 }
-    | RtyInter (t1, t2) -> max_pat_stat (aux t1) (aux t2)
-    | RtyHAF { history; adding; future } ->
-        let stat_history = do_automata_complexity_stat history in
-        let stat_adding = do_automata_complexity_stat adding in
-        let stat_future = do_automata_complexity_stat future in
-        let automataStat =
-          merge_automata_stat
-            (merge_automata_stat stat_history stat_adding)
-            stat_future
-        in
-        { num_gvar = 0; num_param = 0; automataStat }
-  in
-  aux pat
+  type result_complexity = {
+    n_var : int;
+    n_obs : int;
+    n_gen : int;
+    n_assert : int;
+  }
+  [@@deriving yojson]
 
-let do_complexity_stat items =
-  let aux stat = function
-    | PrimDecl _ ->
-        { stat with num_prim_operators = stat.num_prim_operators + 1 }
-    | MsgNtDecl _ ->
-        { stat with num_effect_operators = stat.num_effect_operators + 1 }
-    | MsgDecl { name; pat } ->
+  type algo_complexity = {
+    n_bt : int;
+    n_sat : int;
+    n_nonempty : int;
+    t_sat : float;
+    t_nonempty : float;
+    t_refine : float;
+    t_total : float;
+    n_forward : int;
+    n_backward : int;
+    n_result : int;
+  }
+  [@@deriving yojson]
+
+  let record : algo_complexity option ref = ref None
+
+  type stat = {
+    task_complexity : task_complexity;
+    result_complexity : result_complexity;
+    algo_complexity : algo_complexity;
+    rate : float;
+    n_retry : float;
+  }
+  [@@deriving yojson]
+
+  open Zdatatype
+
+  let count_quantifier_prop phi = if is_true phi || is_false phi then 0 else 1
+  let count_quantifier_se ({ phi; _ } : 't sevent) = count_quantifier_prop phi
+
+  let count_quantifier_charset cs =
+    SFA.CharSet.fold (fun se res -> res + count_quantifier_se se) cs 0
+
+  let count_quantifier_regex =
+    let rec aux = function
+      | Empty -> 0
+      | Eps -> 0
+      | MultiChar cs -> count_quantifier_charset cs
+      | Seq l -> List.left_reduce [%here] ( + ) @@ List.map aux l
+      | Inters (r1, r2) -> aux r1 + aux r2
+      | Alt (r1, r2) -> aux r1 + aux r2
+      | Comple (cs, r) -> count_quantifier_charset cs + aux r
+      | Star r -> aux r
+    in
+    aux
+
+  let count_quantifier_haft =
+    let rec aux = function
+      | RtyBase { phi; _ } -> count_quantifier_prop phi
+      | RtyHAF { history; adding; future } ->
+          count_quantifier_regex history
+          + count_quantifier_regex adding
+          + count_quantifier_regex future
+      | RtyHAParallel { history; adding_se; parallel } ->
+          count_quantifier_regex history
+          + count_quantifier_se adding_se
+          + List.fold_left
+              (fun res se -> res + count_quantifier_se se)
+              0 parallel
+      | RtyGArr { retrty; _ } -> aux retrty
+      | RtyArr { argcty; retrty; _ } ->
+          count_quantifier_prop argcty.phi + aux retrty
+      | RtyInter (t1, t2) -> aux t1 + aux t2
+    in
+    aux
+
+  let goal_size = ref 0
+
+  let mk_task_complexity (syn_env : syn_env) : task_complexity =
+    let l = ctx_to_list syn_env.event_rtyctx in
+    let n_op = List.length l in
+    let n_qualifier =
+      List.fold_right
+        (fun x res -> res + count_quantifier_haft x.ty)
+        l !goal_size
+    in
+    { n_qualifier; n_op }
+
+  let count_vars term =
+    let rec aux = function
+      | CLetE { lhs; body; _ } -> lhs @ aux body.x
+      | CUnion ts -> List.concat_map (fun x -> aux x.x) ts
+      | _ -> []
+    in
+    let l = List.map _get_x @@ aux term in
+    let l = List.slow_rm_dup String.equal l in
+    List.length l
+
+  let count_obs =
+    let rec aux = function
+      | CLetE { body; rhs; _ } -> aux rhs.x + aux body.x
+      | CUnion ts ->
+          List.left_reduce [%here] ( + ) @@ List.map (fun x -> aux x.x) ts
+      | CObs _ -> 1
+      | _ -> 0
+    in
+    aux
+
+  let count_gen =
+    let rec aux = function
+      | CLetE { body; rhs; _ } -> aux rhs.x + aux body.x
+      | CUnion ts ->
+          List.left_reduce [%here] ( + ) @@ List.map (fun x -> aux x.x) ts
+      | CGen _ -> 1
+      | _ -> 0
+    in
+    aux
+
+  let count_assert =
+    let rec aux = function
+      | CLetE { body; rhs; _ } -> aux rhs.x + aux body.x
+      | CUnion ts ->
+          List.left_reduce [%here] ( + ) @@ List.map (fun x -> aux x.x) ts
+      | CAssertP phi -> if not (is_true phi) then 1 else 0
+      | CAssume (_, phi) -> if not (is_true phi) then 1 else 0
+      | CObs { prop; _ } -> if not (is_true prop) then 1 else 0
+      | _ -> 0
+    in
+    aux
+
+  let mk_result_complexity num_assert (term : term) : result_complexity =
+    {
+      n_var = count_vars term;
+      n_obs = count_obs term;
+      n_gen = count_gen term;
+      (* n_assert = count_assert term; *)
+      n_assert = num_assert;
+    }
+
+  let init_algo_complexity () =
+    record :=
+      Some
         {
-          stat with
-          num_pat = stat.num_pat + 1;
-          patStat = StrMap.add name (do_pat_complexity_stat pat) stat.patStat;
+          n_bt = 0;
+          n_sat = 0;
+          n_nonempty = 0;
+          t_sat = 0.0;
+          t_nonempty = 0.0;
+          t_total = 0.0;
+          t_refine = 0.0;
+          n_forward = 0;
+          n_backward = 0;
+          n_result = 0;
         }
-    | SynGoal _ -> { stat with num_syn_goals = stat.num_syn_goals + 1 }
-    | PrAxiom _ -> { stat with num_axioms = stat.num_axioms + 1 }
-  in
-  aux init_complexityStat items
 
-let output_complexity_stat stat =
-  let num_op = stat.num_effect_operators in
-  let num_qualifier =
-    StrMap.fold
-      (fun _ x acc -> acc + x.automataStat.num_regex_operator)
-      stat.patStat 0
-  in
-  (num_op, num_qualifier)
+  let set_num_result n =
+    match !record with
+    | None -> _die_with [%here] "stat not init"
+    | Some r -> record := Some { r with n_result = n }
+
+  let incr_backtrack () =
+    match !record with
+    | None -> _die_with [%here] "stat not init"
+    | Some r -> record := Some { r with n_bt = r.n_bt + 1 }
+
+  let incr_forward () =
+    match !record with
+    | None -> _die_with [%here] "stat not init"
+    | Some r -> record := Some { r with n_forward = r.n_forward + 1 }
+
+  let incr_backward () =
+    match !record with
+    | None -> _die_with [%here] "stat not init"
+    | Some r -> record := Some { r with n_backward = r.n_backward + 1 }
+
+  let stat_function f =
+    let start_time = Sys.time () in
+    let res = f () in
+    let exec_time = Sys.time () -. start_time in
+    (res, exec_time)
+
+  let stat_sat_query f =
+    let res, exec_time = stat_function f in
+    let () =
+      match !record with
+      | None -> _die_with [%here] "stat not init"
+      | Some r ->
+          record :=
+            Some { r with t_sat = r.t_sat +. exec_time; n_sat = r.n_sat + 1 }
+    in
+    res
+
+  let stat_nonempty_check f =
+    let res, exec_time = stat_function f in
+    let () =
+      match !record with
+      | None -> _die_with [%here] "stat not init"
+      | Some r ->
+          record :=
+            Some
+              {
+                r with
+                t_nonempty = r.t_nonempty +. exec_time;
+                n_nonempty = r.n_nonempty + 1;
+              }
+    in
+    res
+
+  let stat_refine f =
+    let res, exec_time = stat_function f in
+    let () =
+      match !record with
+      | None -> _die_with [%here] "stat not init"
+      | Some r -> record := Some { r with t_refine = exec_time }
+    in
+    res
+
+  let stat_total f =
+    let res, exec_time = stat_function f in
+    let () =
+      match !record with
+      | None -> _die_with [%here] "stat not init"
+      | Some r -> record := Some { r with t_total = exec_time }
+    in
+    res
+
+  let normalize_algo_complexity () =
+    let stat = match !record with None -> _die [%here] | Some x -> x in
+    if stat.n_result == 0 then _die [%here]
+    else
+      let n_forward = stat.n_forward / stat.n_result in
+      let n_backward = stat.n_backward / stat.n_result in
+      { stat with n_forward; n_backward; n_result = 1 }
+
+  let dump (env, num_assert, term) filename =
+    let stat =
+      {
+        rate = 0.0;
+        n_retry = 0.0;
+        task_complexity = mk_task_complexity env;
+        result_complexity = mk_result_complexity num_assert term;
+        algo_complexity = normalize_algo_complexity ();
+      }
+    in
+    let json = stat_to_yojson stat in
+    (* let () = Printf.printf "%s\n" @@ Yojson.Safe.to_string json in *)
+    (* let () = Printf.printf "file: %s\n" filename in *)
+    let () = Yojson.Safe.to_file filename json in
+    ()
+
+  let update_when_eval rate n_retry filename =
+    let stat =
+      match stat_of_yojson @@ Yojson.Safe.from_file filename with
+      | Result.Ok x -> x
+      | Error _ -> _die [%here]
+    in
+    let stat = { stat with rate; n_retry } in
+    let () = Yojson.Safe.to_file filename @@ stat_to_yojson stat in
+    ()
+
+  let update rate filename =
+    let stat =
+      match stat_of_yojson @@ Yojson.Safe.from_file filename with
+      | Result.Ok x -> x
+      | Error _ -> _die [%here]
+    in
+    let stat = { stat with rate } in
+    let () = Yojson.Safe.to_file filename @@ stat_to_yojson stat in
+    ()
+
+  let update_retry n_retry filename =
+    let stat =
+      match stat_of_yojson @@ Yojson.Safe.from_file filename with
+      | Result.Ok x -> x
+      | Error _ -> _die [%here]
+    in
+    let stat = { stat with n_retry } in
+    let () = Yojson.Safe.to_file filename @@ stat_to_yojson stat in
+    ()
+end
+
+module Prover = struct
+  include Prover
+
+  let raw_check_sat_bool p = check_sat_bool p
+  let raw_check_valid p = check_valid p
+
+  (* let check_sat_bool p = Stat.stat_sat_query (fun () -> check_sat_bool p) *)
+  let check_sat_bool p = check_sat_bool p
+
+  (* let check_valid p = Stat.stat_sat_query (fun () -> check_valid p) *)
+  let check_valid p = check_valid p
+end
