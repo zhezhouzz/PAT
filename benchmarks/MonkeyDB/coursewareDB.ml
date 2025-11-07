@@ -21,12 +21,16 @@ courseware db operations:
 *)
 
 let dbname = "courseware"
-let getStudentsAsync (ev : ev) = _getAsync "students" ev
-let putStudentsAsync (ev : ev) = _putAsync "students" ev
-let getCoursesAsync (ev : ev) = _getAsync "courses" ev
-let putCoursesAsync (ev : ev) = _putAsync "courses" ev
-let getStudentEnrollmentsAsync (ev : ev) = _getAsync "student_enrollments" ev
-let putStudentEnrollmentsAsync (ev : ev) = _putAsync "student_enrollments" ev
+let getStudentsAsync (ev : ev) = _getTableAsync dbname "students" ev
+let putStudentsAsync (ev : ev) = _putTableAsync dbname "students" ev
+let getCoursesAsync (ev : ev) = _getTableAsync dbname "courses" ev
+let putCoursesAsync (ev : ev) = _putTableAsync dbname "courses" ev
+
+let getStudentEnrollmentsAsync (ev : ev) =
+  _getTableAsync dbname "student_enrollments" ev
+
+let putStudentEnrollmentsAsync (ev : ev) =
+  _putTableAsync dbname "student_enrollments" ev
 
 let do_getStudents tid student_id =
   let msg =
@@ -131,16 +135,16 @@ let async_register_student ~thread_id student_id () =
 let registerStudentReqHandler (msg : msg) =
   let aux (student_id : int) =
     do_trans (fun tid ->
-        let _ = do_putStudents tid student_id (bool_to_values true) in
         let _ =
           do_putStudentEnrollments tid student_id (int_list_to_values [])
         in
+        let _ = do_putStudents tid student_id (bool_to_values true) in
         true)
   in
   match msg.ev.args with
   | [ VConst (I student_id) ] ->
-      let success = aux student_id in
-      send ("registerStudentResp", [ VConst (B success) ])
+      let _ = aux student_id in
+      send ("registerStudentResp", [])
   | _ -> _die [%here]
 
 let async_create_course ~thread_id course_id () =
@@ -211,8 +215,8 @@ let enrollStudentReqHandler (msg : msg) =
   in
   match msg.ev.args with
   | [ VConst (I student_id); VConst (I course_id) ] ->
-      let success = aux student_id course_id in
-      send ("enrollStudentResp", [ VConst (B success) ])
+      let _ = aux student_id course_id in
+      send ("enrollStudentResp", [])
   | _ -> _die [%here]
 
 let async_unenroll_student ~thread_id student_id course_id () =
@@ -228,7 +232,7 @@ let async_unenroll_student ~thread_id student_id course_id () =
     | [ VCIntList l ] -> l
     | _ -> _die [%here]
   in
-  let newEnrollments = List.filter ((<>) course_id) oldEnrollments in
+  let newEnrollments = List.filter (( <> ) course_id) oldEnrollments in
   let* () =
     DB.table_async_put ~db:dbname ~tid ~table:"student_enrollments"
       ~key:(string_of_int student_id)
@@ -244,7 +248,7 @@ let unenrollStudentReqHandler (msg : msg) =
         let oldEnrollments =
           values_to_int_list (do_getStudentEnrollments tid student_id)
         in
-        let newEnrollments = List.filter ((<>) course_id) oldEnrollments in
+        let newEnrollments = List.filter (( <> ) course_id) oldEnrollments in
         let _ =
           do_putStudentEnrollments tid student_id
             (int_list_to_values newEnrollments)
@@ -331,6 +335,7 @@ let testCtx =
       "createCourseResp"#:(record [ "success"#:bool_ty ]);
       "enrollStudentReq"#:(record [ "student_id"#:int_ty; "course_id"#:int_ty ]);
       "enrollStudentResp"#:(record [ "success"#:bool_ty ]);
-      "unenrollStudentReq"#:(record [ "student_id"#:int_ty; "course_id"#:int_ty ]);
+      "unenrollStudentReq"#:(record
+                               [ "student_id"#:int_ty; "course_id"#:int_ty ]);
       "unenrollStudentResp"#:(record [ "success"#:bool_ty ]);
     ]
