@@ -39,7 +39,7 @@ def invoc_cmd(cmd, cwd=None):
 
 benchmarks = ["Stack", "Filesystem", "NFA", "Graph", "IFCStore", "IFCAdd", "IFCLoad", "STLC", "HashTable", "CartRC", "CartCC", "CoursewareRC", "CoursewareCC", "TwitterRC", "TwitterCC", "SmallbankRC", "SmallbankCC", "TreiberStackRC", "TreiberStackCC"]
 # benchmarks = ["Stack", "Graph", "Filesystem", "NFA", "IFCStore", "IFCAdd", "IFCLoad", "STLC", "HashTable", "CartRC", "CartCC"]
-benchmarks = ["NFA"]
+benchmarks = ["CoursewareRC"]
 
 task_name_dict = {
     "Stack": "stack",
