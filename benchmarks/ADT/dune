@@ -2,8 +2,8 @@
  (public_name haft.adt)
  (name adt)
  (wrapped true)
- (libraries language interpreter qcheck)
- (modules queue stack set filesystem graph nfa stlc ifc hashtable)
+ (libraries language interpreter qcheck-stm.sequential qcheck-stm.domain)
+ (modules queue stack set filesystem graph nfa stlc ifc hashtable hashtable_random)
  (inline_tests)
  (preprocess
   (pps

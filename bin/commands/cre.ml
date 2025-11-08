@@ -599,22 +599,8 @@ let test_random s converge_bound () =
       let _ = eval test in
       ()
   | "hashtable" ->
-      let open Adt.Hashtable in
-      let test () =
-        Interpreter.random_test
-          ( init,
-            (fun () ->
-              randomTest
-                {
-                  numKeys = 5;
-                  numVals = 10;
-                  numThreads = 10;
-                  numOpsPerThread = 20;
-                }),
-            check_membership_hashtable )
-      in
-      let _ = eval test in
-      ()
+      let open Adt.Hashtable_random in
+      test_fn ()
   | "queue" ->
       let open Adt.Queue in
       let test () =
