@@ -31,21 +31,28 @@ let read_functional_p_file source_file () =
 (*   () *)
 
 let test_prop name () =
+  let () = Printf.printf "z3: %s\n" Z3.Version.to_string in
   let ic = In_channel.open_text (spf "/tmp/%s.scm" name) in
   try
     let str = In_channel.input_all ic in
     let prop = prop_of_sexp Nt.nt_of_sexp @@ Sexplib.Sexp.of_string str in
-    let () = Printf.printf "prop: %s\n" (Prop.layout_prop__raw prop) in
+    (* let () = Printf.printf "prop: %s\n" (Prop.layout_prop__raw prop) in *)
+    (* let fvs = Prop.fv_prop prop in *)
+    (* let prop = Prop.smart_exists fvs prop in *)
+    (* let () = Printf.printf "prop: %s\n" (Prop.layout_prop prop) in *)
+    (* let prop = Prop.SimplProp.simpl_query prop in *)
+    (* let () = Printf.printf "prop: %s\n" (Prop.layout_prop prop) in *)
     In_channel.close ic;
     let res = Prover.check_sat (None, prop) in
-    match res with
+    (match res with
     | SmtUnsat -> Printf.printf "unsat prop: %s\n" (layout_prop prop)
     | SmtSat model ->
         Printf.printf "model:\n%s\n" @@ Z3.Model.to_string model;
         ()
     | Timeout ->
         Printf.printf "timeout prop: %s\n" (layout_prop prop);
-        ()
+        ());
+    _die [%here]
   with e -> raise e
 
 let read_syn source_file () =
@@ -54,6 +61,7 @@ let read_syn source_file () =
   let env = Ntypecheck.(struct_check init_env code) in
   let () = Printf.printf "%s\n" (layout_syn_env env) in
   let () = Stat.init_algo_complexity () in
+  (* let () = test_prop "timeout" () in *)
   let term = Synthesis.synthesize env in
   ()
 
@@ -74,6 +82,7 @@ let do_syn ?(num_expected = 1) name source_file () =
   (* let () = Printf.printf "%s\n" (layout_structure code) in *)
   let env = Ntypecheck.(struct_check init_env code) in
   let () = Stat.init_algo_complexity () in
+  (* let () = test_prop "timeout" () in *)
   let num_assert, prog =
     Stat.stat_total (fun () -> Synthesis.synthesize env name num_expected)
   in

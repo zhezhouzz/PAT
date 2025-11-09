@@ -41,7 +41,7 @@ benchmarks = ["Database", "Firewall", "RingLeaderElection", "EspressoMachine", "
 # benchmarks = ["ChainReplication", "Paxos", "Raft"]
 # benchmarks = ["Raft"]
 # benchmarks = ["Firewall"]
-# benchmarks = ["ChainReplication"]
+benchmarks = ["Kermit2PCModel"]
 
 def task_name(name):
     return "task" + "_" + name
@@ -325,11 +325,12 @@ if __name__ == '__main__':
             j = load_stat()
             print_cols(benchmarks, j)
     else:
-        do_p_syn()
+        # do_p_syn()
         do_compile()
+        exit()
         run_syn_p()
-        run_random_p()
-        run_default_p()
+        # run_random_p()
+        # run_default_p()
         j = load_stat()
         print_cols(benchmarks, j)
         # fix()

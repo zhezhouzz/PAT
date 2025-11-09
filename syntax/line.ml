@@ -30,6 +30,12 @@ let weighted act =
 let line_size plan =
   List.fold_left ( + ) 0 (List.map weighted (line_get_acts plan))
 
+let load_prop_from_file filename =
+  let ic = open_in filename in
+  let str = In_channel.input_all ic in
+  close_in ic;
+  Prop.prop_of_sexp Nt.nt_of_sexp @@ Sexplib.Sexp.of_string str
+
 let _check_sat prop =
   if is_true prop then true
   else if is_false prop then false
@@ -44,20 +50,26 @@ let _check_sat prop =
             @@ Sugar.short_str 1000 @@ Z3.Model.to_string model );
           true
       | Timeout ->
-          let () =
-            let oc = open_out "/tmp/timeout.scm" in
-            Sexplib.Sexp.output_hum oc (Prop.sexp_of_prop Nt.sexp_of_nt prop);
-            close_out oc
+          let prop' =
+            load_prop_from_file
+              "/Users/zhezhou/workspace/research/ocaml_workspace/PAT/data/queries/timeout_courseware_cc1.scm"
           in
-          let () =
-            Printf.printf "timeout prop:\n%s\n" (layout_prop__raw prop)
-          in
-          let () =
-            _log_queries @@ fun _ ->
-            Pp.printf "@{<bold>SAT(%s): @}\n" (Prover.layout_smt_result res)
-          in
-          true
-      (* _die [%here] *)
+          if Prop.equal_prop Nt.equal_nt prop prop' then true
+          else
+            let () =
+              let oc = open_out "/tmp/timeout.scm" in
+              Sexplib.Sexp.output_hum oc (Prop.sexp_of_prop Nt.sexp_of_nt prop);
+              close_out oc
+            in
+            let () =
+              Printf.printf "timeout prop:\n%s\n" (layout_prop__raw prop)
+            in
+            let () =
+              _log_queries @@ fun _ ->
+              Pp.printf "@{<bold>SAT(%s): @}\n" (Prover.layout_smt_result res)
+            in
+            (* true *)
+            _die [%here]
       (* false *)
     in
     res

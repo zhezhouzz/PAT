@@ -322,7 +322,15 @@ let compile_term env e =
             let recv_stmt = recv_add_tail_forward raw_input recv_body in
             mk_p_seq recv_stmt
               (mk_p_seq (mk_p_assert (compile_prop prop)) (aux body)))
-    | _ -> _die_with [%here] "unimp"
+    | CUnion [ e ] -> aux e
+    | _ -> (
+        match e.x with
+        | CUnion _ ->
+            let () = Pp.printf "@{<bold>Unimp Union:@}\n" in
+            _die_with [%here] "unimp"
+        | _ ->
+            let () = Pp.printf "@{<bold>Unimp:@}:\n%s\n" (show_term e.x) in
+            _die_with [%here] "unimp")
   in
   (* let vars = get_vars_from_term e in *)
   (* let () = Pp.printf "@{<bold>Vars:@}:\n%s\n" (layout_qvs vars) in *)
