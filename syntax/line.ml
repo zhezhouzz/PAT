@@ -15,11 +15,51 @@ let _log_line_sat_related = _log "line_sat_related"
 let _log_line_merge_related = _log "line_merge_related"
 let _log_line_merge_results = _log "line_merge_results"
 
+let line_get_acts line =
+  List.filter_map (function LineAct act -> Some act | _ -> None) line.elems
+
+(* let line_elems_size elems =
+  List.length
+    (List.filter_map (function LineAct act -> Some act | _ -> None) elems) *)
+
+let high_weight_acts = [ "commit"; "beginT" ]
+
+let weighted act =
+  if List.exists (String.equal act.aop) high_weight_acts then 4 else 1
+
+let line_size plan =
+  List.fold_left ( + ) 0 (List.map weighted (line_get_acts plan))
+
 let _check_sat prop =
   if is_true prop then true
   else if is_false prop then false
   else
-    let res = Prover.check_sat_bool (None, prop) in
+    let res = Prover.check_sat (None, prop) in
+    let res =
+      match res with
+      | SmtUnsat -> false
+      | SmtSat model ->
+          ( _log "model" @@ fun _ ->
+            Printf.printf "model:\n%s\n"
+            @@ Sugar.short_str 1000 @@ Z3.Model.to_string model );
+          true
+      | Timeout ->
+          let () =
+            let oc = open_out "/tmp/timeout.scm" in
+            Sexplib.Sexp.output_hum oc (Prop.sexp_of_prop Nt.sexp_of_nt prop);
+            close_out oc
+          in
+          let () =
+            Printf.printf "timeout prop:\n%s\n" (layout_prop__raw prop)
+          in
+          let () =
+            _log_queries @@ fun _ ->
+            Pp.printf "@{<bold>SAT(%s): @}\n" (Prover.layout_smt_result res)
+          in
+          true
+      (* _die [%here] *)
+      (* false *)
+    in
     res
 
 let root_aid = -1
@@ -73,13 +113,12 @@ let layout_line { gprop; elems } =
 
 let omit_layout_line { gprop; elems } =
   let line = List.split_by ";" (layout_line_elem_aux true) elems in
-  spf "prop: %s\nline: %s" (layout_prop gprop) line
+  spf "size: %i, prop: %s\nline: %s"
+    (line_size { gprop; elems })
+    (layout_prop gprop) line
 
 let line_elems_drop_stars elems =
   List.filter (function LineStarMultiChar _ -> false | _ -> true) elems
-
-let line_get_acts line =
-  List.filter_map (function LineAct act -> Some act | _ -> None) line.elems
 
 let act_get_id act = match act.aid with Some aid -> aid | None -> _die [%here]
 
@@ -356,15 +395,6 @@ let clear_tmp_in_elem = function
 let clear_tmp_in_line line =
   { line with elems = List.map clear_tmp_in_elem line.elems }
 
-let line_elems_size elems =
-  List.length
-    (List.filter_map (function LineAct act -> Some act | _ -> None) elems)
-
-let weighted act = if String.equal act.aop "commit" then 4 else 1
-
-let line_size plan =
-  List.fold_left ( + ) 0 (List.map weighted (line_get_acts plan))
-
 let merge_line_with_acts if_reuse line ses =
   let if_reuse act =
     if
@@ -414,7 +444,7 @@ let merge_line_with_acts if_reuse line ses =
             multi_concat [ LineAct act ]
               (aux (reusedIds, { gprop; elems = elems' }) ses)
           in
-          res1 @ res2
+          res2 @ res1
       | LineStarMultiChar c :: elems', (idx, se) :: ses' ->
           let res2 =
             let phi, act = se_to_dummy_act se in

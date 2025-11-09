@@ -48,10 +48,8 @@ val putStudentEnrollments : < tid : int ; key : int ; value : int list > [@@obs]
 
 val registerStudentReq : < user : int > [@@gen]
 val registerStudentResp : < > [@@obs]
-
 val createCourseReq : < course_id : int > [@@gen]
 val createCourseResp : < success : bool > [@@obs]
-
 val enrollStudentReq : < user : int ; item : int > [@@gen]
 val enrollStudentResp : < > [@@obs]
 val unenrollStudentReq : < user : int ; item : int > [@@gen]
@@ -121,7 +119,6 @@ let getCourses =
           && (not (tid == prevTid))
           && value == z),
         starA (anyA - Commit (tid == i && cid < pj)) ));
-
   |]
 
 let putCourses ?l:(i = (true : [%v: int])) ?l:(k = (true : [%v: int]))
@@ -159,7 +156,6 @@ let getStudentEnrollments =
           && (not (tid == prevTid))
           && value == z),
         starA (anyA - Commit (tid == i && cid < pj)) ));
-
   |]
 
 (* Courseware operations *)

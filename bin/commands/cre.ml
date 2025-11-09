@@ -30,6 +30,24 @@ let read_functional_p_file source_file () =
 (*   let code = Ptypecheck.p_items_infer emp code in *)
 (*   () *)
 
+let test_prop name () =
+  let ic = In_channel.open_text (spf "/tmp/%s.scm" name) in
+  try
+    let str = In_channel.input_all ic in
+    let prop = prop_of_sexp Nt.nt_of_sexp @@ Sexplib.Sexp.of_string str in
+    let () = Printf.printf "prop: %s\n" (Prop.layout_prop__raw prop) in
+    In_channel.close ic;
+    let res = Prover.check_sat (None, prop) in
+    match res with
+    | SmtUnsat -> Printf.printf "unsat prop: %s\n" (layout_prop prop)
+    | SmtSat model ->
+        Printf.printf "model:\n%s\n" @@ Z3.Model.to_string model;
+        ()
+    | Timeout ->
+        Printf.printf "timeout prop: %s\n" (layout_prop prop);
+        ()
+  with e -> raise e
+
 let read_syn source_file () =
   let code = read_source_file source_file () in
   (* let () = Printf.printf "%s\n" (layout_structure code) in *)

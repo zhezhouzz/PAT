@@ -23,6 +23,29 @@ module MyDB (C : Config) = struct
     let cid = DB.raw_commit ~tid in
     { ev with args = [ mk_value_int tid; mk_value_int cid ] }
 
+  let with_prefix prefix x = spf "%s:%s" prefix (key_to_string x)
+
+  let _getTableAsync table prefix (ev : ev) =
+    let tid, key =
+      match ev.args with
+      | [ VConst (I tid); VConst key ] -> (tid, key)
+      | _ -> _die [%here]
+    in
+    let prev_tid, prev_cid, value =
+      DB.raw_get ~tid ~table ~key:(with_prefix prefix key)
+    in
+    {
+      ev with
+      args =
+        [
+          mk_value_int tid;
+          VConst key;
+          mk_value_int prev_tid;
+          mk_value_int prev_cid;
+        ]
+        @ json_to_values value;
+    }
+
   let _getAsync table (ev : ev) =
     let tid, key =
       match ev.args with
@@ -43,6 +66,22 @@ module MyDB (C : Config) = struct
         ]
         @ json_to_values value;
     }
+
+  let _putTableAsync table prefix (ev : ev) =
+    let () =
+      Printf.printf "start _putAsync %s : %s\n" table
+        (Yojson.Basic.to_string (values_to_json ev.args))
+    in
+    let tid, key, v =
+      match ev.args with
+      | VConst (I tid) :: VConst key :: v -> (tid, key, v)
+      | _ -> _die [%here]
+    in
+    let () =
+      DB.raw_put ~tid ~table ~key:(with_prefix prefix key)
+        ~json:(values_to_json v)
+    in
+    ()
 
   let _putAsync table (ev : ev) =
     let () =
