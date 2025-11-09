@@ -38,8 +38,8 @@ def invoc_cmd(cmd, cwd=None):
 
 
 benchmarks = ["Stack", "Filesystem", "NFA", "Graph", "IFCStore", "IFCAdd", "IFCLoad", "STLC", "HashTable", "CartRC", "CartCC", "CoursewareRC", "CoursewareCC", "TwitterRC", "TwitterCC", "SmallbankRC", "SmallbankCC", "TreiberStackRC", "TreiberStackCC"]
-# benchmarks = ["Stack", "Graph", "Filesystem", "NFA", "IFCStore", "IFCAdd", "IFCLoad", "STLC", "HashTable", "CartRC", "CartCC"]
-benchmarks = ["CoursewareCC"]
+benchmarks = ["Stack", "Graph", "Filesystem", "NFA", "IFCStore", "IFCAdd", "IFCLoad", "STLC", "HashTable", "CartRC", "CartCC", "CoursewareRC", "CoursewareCC"]
+# benchmarks = ["CartRC", "CartCC"]
 
 task_name_dict = {
     "Stack": "stack",
@@ -153,8 +153,7 @@ def print_pat_col2(stat):
     n_gen = stat["n_gen"]
     n_assert = stat["n_assert"]
     return [safe_print_int(n_var),
-            safe_print_int(n_gen),
-            safe_print_int(n_obs),
+            safe_print_int(n_gen + n_obs),
             safe_print_int(n_assert)]
 
 def print_tries(ratio):
@@ -173,8 +172,7 @@ def print_pat_col4(statA):
     return [
         safe_print_float(stat["t_total"]),
         safe_print_int(stat["n_sat"]),    
-        safe_print_int(stat["n_forward"]),
-        safe_print_int(stat["n_backward"]) ]
+        safe_print_int(stat["n_forward"] + stat["n_backward"]) ]
 
 hat = ["Stack", "Graph", "Filesystem", "NFA"]
 ifc = ["IFCStore", "IFCAdd", "IFCLoad"]
@@ -275,7 +273,7 @@ def do_syn():
 
 def run_syn():
     for bench_name in benchmarks:
-        cmd = cmd_prefix + ["sample-syn", task_name(bench_name), "1000"]
+        cmd = cmd_prefix + ["sample-syn", task_name(bench_name), "200"]
         invoc_cmd(cmd)
     return
 
