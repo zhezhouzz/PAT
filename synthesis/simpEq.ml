@@ -190,10 +190,10 @@ let get_assign_names conjs vs =
         match l with
         | [] -> None
         | y :: _ ->
-            let () =
+            (* let () =
               Pp.printf "@{<bold>assignment:@} %s -> %s\n" (layout_typed_var x)
                 (layout_typed_var y)
-            in
+            in *)
             Some (x.x, y))
       vs
   in
@@ -223,15 +223,15 @@ let simp_plan { gprop; elems } =
   match get_assign_names (prop_to_conjuncts gprop) fvs with
   | None -> { gprop; elems }
   | Some ass -> (
-      let () =
+      (* let () =
         Pp.printf "@{<bold>ass:@} %s\n"
           (List.split_by_comma (fun (x, y) -> spf "%s -> %s" x y.x) ass)
-      in
+      in *)
       match ass with
       | [] -> { gprop; elems }
       | _ ->
           let _ = Prover.check_sat_bool (None, gprop) in
-          let () = Pp.printf "@{<bold>gprop:@} %s\n" (layout_prop gprop) in
+          (* let () = Pp.printf "@{<bold>gprop:@} %s\n" (layout_prop gprop) in *)
           let gprop =
             msubst subst_prop_instance
               (List.map (fun (x, y) -> (x, AVar y)) ass)
@@ -239,6 +239,6 @@ let simp_plan { gprop; elems } =
           in
           let gprop = simpl_eq_in_prop gprop in
           let line = msubst subst_name_in_line ass { gprop; elems } in
-          let () = Pp.printf "@{<bold>gprop:@} %s\n" (layout_prop line.gprop) in
+          (* let () = Pp.printf "@{<bold>gprop:@} %s\n" (layout_prop line.gprop) in *)
           let _ = Prover.check_sat_bool (None, gprop) in
           line)
