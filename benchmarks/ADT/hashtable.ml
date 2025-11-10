@@ -94,7 +94,7 @@ let init () =
 
 let check_membership_hashtable trace =
   let rec check (added_values, found_values) = function
-    | [] -> IntSet.subset added_values found_values 
+    | [] -> IntSet.subset added_values found_values
     | { ev = { op = "initTblReq" | "clearReq"; args = []; _ }; _ } :: rest ->
         check (IntSet.empty, IntSet.empty) rest
     | {
@@ -113,69 +113,3 @@ let check_membership_hashtable trace =
     | _ :: rest -> check (added_values, found_values) rest
   in
   check (IntSet.empty, IntSet.empty) trace
-
-type tbl_bench_config = { numKeys : int; numVals : int; numOp : int }
-
-let randomTest { numKeys; numVals; numOp } =
-  let keys = List.init numKeys (fun i -> i + 1) in
-  let vals = List.init numVals (fun i -> i + 100) in
-  let keysInTbl = ref IntSet.empty in
-
-  let pick_a_key_for_read () =
-    if (not (IntSet.is_empty !keysInTbl)) && Random.bool () then
-      IntSet.choose !keysInTbl
-    else List.nth keys (Random.int numKeys)
-  in
-
-  let random_add () =
-    let k = List.nth keys (Random.int numKeys) in
-    let v = List.nth vals (Random.int numVals) in
-    send ("addReq", [ mk_value_int k; mk_value_int v ]);
-    keysInTbl := IntSet.add k !keysInTbl
-  in
-
-  let random_find () =
-    let k = pick_a_key_for_read () in
-    send ("findReq", [ mk_value_int k ])
-  in
-
-  let random_remove () =
-    if not (IntSet.is_empty !keysInTbl) then (
-      let k_to_remove = IntSet.choose !keysInTbl in
-      send ("removeReq", [ mk_value_int k_to_remove ]);
-      keysInTbl := IntSet.remove k_to_remove !keysInTbl)
-  in
-
-  let random_clear () =
-    send ("clearReq", []);
-    keysInTbl := IntSet.empty
-  in
-
-  let random_mem () =
-    let k = pick_a_key_for_read () in
-    send ("memReq", [ mk_value_int k ])
-  in
-
-  let random_length () = send ("lengthReq", []) in
-
-  let rec genOp restNum =
-    if restNum <= 0 then ()
-    else
-      let () =
-        if IntSet.is_empty !keysInTbl then
-          match Random.int 2 with 0 -> random_add () | _ -> random_clear ()
-        else
-          match Random.int 6 with
-          | 0 -> random_add ()
-          | 1 -> random_find ()
-          | 2 -> random_remove ()
-          | 3 -> random_clear ()
-          | 4 -> random_mem ()
-          | _ -> random_length ()
-      in
-      genOp (restNum - 1)
-  in
-
-  let () = random_clear () in
-  let () = genOp numOp in
-  Effect.perform End

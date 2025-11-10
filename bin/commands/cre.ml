@@ -472,6 +472,9 @@ let test_eval mode s (converge_bound : int) () =
           Interpreter.once (init, main, check_membership_hashtable)
         in
         eval test
+    (* | "hashtable" ->
+        let open Adt.Hashtable_random in
+        test_fn () *)
     | "filesystem" ->
         let open Adt.Filesystem in
         let main = Synthesis.load_prog s () in
@@ -697,6 +700,9 @@ let test_random mode s converge_bound () =
   let res =
     match s with
     | "hashtable" ->
+        let open Adt.Hashtable_random in
+        test_fn ()
+    (* | "hashtable" ->
         let open Adt.Hashtable in
         let test () =
           Interpreter.seq_random_test
@@ -704,7 +710,7 @@ let test_random mode s converge_bound () =
               (fun () -> randomTest { numKeys = 8; numVals = 10; numOp = 20 }),
               check_membership_hashtable )
         in
-        eval test
+        eval test *)
     | _ -> (
         let env = List.assoc_opt s test_envs in
         match env with
