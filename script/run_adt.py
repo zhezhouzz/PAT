@@ -6,7 +6,7 @@ import time
 
 bench_json = []
 
-random_stat_file = "stat/.run_random.json"
+random_stat_file = "stat/.run_random_p.json"
 syn_stat_file = "stat/.run_syn.json"
 default_stat_file = "stat/.run_default.json"
 
@@ -37,9 +37,9 @@ def invoc_cmd(cmd, cwd=None):
         print(e.output)
 
 
-# benchmarks = ["Stack", "HashTable", "Filesystem", "Graph", "NFA", "IFCStore", "IFCAdd", "IFCLoad", "DeBruijn",  "CartRC", "CartCC", "CoursewareRC", "CoursewareCC", "TwitterRC", "TwitterCC", "SmallbankRC", "SmallbankCC", "TreiberStackRC", "TreiberStackCC"]
-benchmarks = ["Stack", "HashTable", "Filesystem", "Graph", "NFA", "IFCStore", "IFCAdd", "IFCLoad", "DeBruijn",  "CartRC", "CartCC", "CoursewareRC", "CoursewareCC", "TwitterRC", "TwitterCC", "SmallbankRC", "SmallbankCC"]
-# benchmarks = ["TwitterRC", "TwitterCC", "SmallbankRC", "SmallbankCC"]
+# benchmarks = ["Stack", "HashTable", "Filesystem", "Graph", "NFA", "IFCStore", "IFCAdd", "IFCLoad", "DeBruijn2",  "CartRC", "CartCC", "CoursewareRC", "CoursewareCC", "TwitterRC", "TwitterCC", "SmallbankRC", "SmallbankCC", "TreiberStackRC", "TreiberStackCC"]
+benchmarks = ["Stack", "HashTable", "Filesystem", "Graph", "NFA", "IFCStore", "IFCAdd", "IFCLoad", "DeBruijn1", "DeBruijn2",  "CartRC", "CartCC", "CoursewareRC", "CoursewareCC", "TwitterRC", "TwitterCC", "SmallbankRC", "SmallbankCC"]
+# benchmarks = ["DeBruijn1", "DeBruijn2"]
 
 task_name_dict = {
     "Stack": "stack",
@@ -49,7 +49,8 @@ task_name_dict = {
     "IFCStore": "ifc_store",
     "IFCAdd": "ifc_add",
     "IFCLoad": "ifc_load",
-    "DeBruijn": "stlc",
+    "DeBruijn1": "stlc1",
+    "DeBruijn2": "stlc2",
     "HashTable": "hashtable",
     "CartRC": "cart_rc",
     "CartCC": "cart_cc",
@@ -71,7 +72,8 @@ task_dir_dict = {
     "IFCStore": "ADT/ifc_spec.ml",
     "IFCAdd": "ADT/ifc_spec.ml",
     "IFCLoad": "ADT/ifc_spec.ml",
-    "DeBruijn": "ADT/stlc_spec_moti.ml",
+    "DeBruijn1": "ADT/stlc_spec_simple.ml",
+    "DeBruijn2": "ADT/stlc_spec_moti.ml",
     "HashTable": "ADT/hashtable_spec.ml",
     "CartRC": "MonkeyDB/cart_rc_spec.ml",
     "CartCC": "MonkeyDB/cart_cc_spec.ml",
@@ -97,17 +99,28 @@ def syn_num_map(name):
 def default_num_map(name):
     return 2000
 
-dict = {"Database":10000,
-        "EspressoMachine":10000,
-        "Simplified2PC":10000,
-        "HeartBeat":10000,
-        "BankServer":10000,
-        "RingLeaderElection":10000,
-        "Firewall":50,
-        "ChainReplication":10000,
-        "Paxos":10000,
-        "Raft":1000,
-        "Kermit2PCModel": 1000}
+dict = {
+    "Stack": "100000",
+    "Graph": "100000",
+    "Filesystem": "100000",
+    "NFA": "100000",
+    "IFCStore": "100000",
+    "IFCAdd": "100000",
+    "IFCLoad": "100000",
+    "DeBruijn1": "100000",
+    "DeBruijn2": "100000",
+    "HashTable": "100000",
+    "CartRC": "10000",
+    "CartCC": "10000",
+    "CoursewareRC": "10000",
+    "CoursewareCC": "10000",
+    "TwitterRC": "10000",
+    "TwitterCC": "10000",
+    "SmallbankRC": "10000",
+    "SmallbankCC": "10000",
+    "TreiberStackRC": "10000",
+    "TreiberStackCC": "10000"
+}
 
 def random_num_map(name):
     return dict[name]
@@ -165,7 +178,8 @@ def print_tries(ratio):
         return "${:.0f}$".format(100.0 / ratio)
 
 def print_pat_col3(stat):
-    return [ print_tries(stat["syn_ratio"]), print_tries(stat["random_ratio"])]
+    return [ print_tries(stat["syn_ratio"]), print_tries(stat["random_ratio"]), 
+    safe_print_float(stat["random_time"])]
     # return [ print_tries(stat["syn_ratio"]), print_tries(stat["random_ratio"]), print_tries(stat["default_ratio"])]
 
 def print_pat_col4(statA):
@@ -177,7 +191,7 @@ def print_pat_col4(statA):
 
 hat = ["Stack", "Graph", "Filesystem", "NFA"]
 ifc = ["IFCStore", "IFCAdd", "IFCLoad"]
-stlc = ["DeBruijn"]
+stlc = ["DeBruijn1", "DeBruijn2"]
 hashtable = ["HashTable"]
 monkeydb = ["CartRC", "CartCC", "CoursewareRC", "CoursewareCC", "TwitterRC", "TwitterCC", "SmallbankRC", "SmallbankCC", "TreiberStackRC", "TreiberStackCC"]
 
@@ -239,6 +253,7 @@ def print_cols(benchnames, stat):
     syn_stat = load_eval_stat(syn_stat_file)
     default_stat = load_eval_stat(default_stat_file)
     for name in benchnames:
+        print(random_stat)
         if task_name(name) in random_stat:
             stat[name]["random_ratio"] = random_stat[task_name(name)][0]
             stat[name]["random_time"] = random_stat[task_name(name)][1]
@@ -281,7 +296,7 @@ def run_syn():
 
 def run_random():
     for bench_name in benchmarks:
-        cmd = cmd_prefix + ["sample-random", task_name(bench_name), "1000"]
+        cmd = cmd_prefix + ["sample-random", task_name(bench_name), dict[bench_name]]
         invoc_cmd(cmd)
     return
 
@@ -309,6 +324,8 @@ if __name__ == '__main__':
             print_cols(benchmarks, j)
         elif arg == "runrandom":
             run_random()
+            j = load_stat()
+            print_cols(benchmarks, j)
         elif arg == "show":
             j = load_stat()
             print_cols(benchmarks, j)
@@ -316,6 +333,6 @@ if __name__ == '__main__':
         do_syn()
         run_syn()
         run_random()
-        run_default()
+        # run_default()
         j = load_stat()
         print_cols(benchmarks, j)

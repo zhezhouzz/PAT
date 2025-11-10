@@ -173,6 +173,8 @@ let rec search_on_strategy (f : 'a -> 'a list) plans =
           let plan1 = List.concat_map f plan1 in
           plan1)
 
+let num_recursion = ref 3
+
 let simp_print_syn_judgement plan =
   let () = Pp.printf "@{<bold>@{<red>Synthesis plan:@}@}\n" in
   print_plan plan
@@ -276,7 +278,9 @@ and syn_loop env init_r (goal : line) : synMidResult list =
     | None -> [ SynMidPlan goal ]
     | Some ((old_goal, pre_len), line_b1, line_b2, match_back, v) ->
         (* let () = _strategy := { !_strategy with pause = true } in *)
-        let () = _strategy := { !_strategy with result_expection = 3 } in
+        let () =
+          _strategy := { !_strategy with result_expection = !num_recursion }
+        in
         (* let () =
           Pp.printf "@{<bold>@{<red>line_b2@}@}\n%s\n" (layout_line line_b2)
         in *)

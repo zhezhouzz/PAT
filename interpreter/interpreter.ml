@@ -65,7 +65,9 @@ let eval_sample total test =
   in
   let successed, exec_time = Stat.stat_function (fun () -> aux 0 0) in
   let rate = 100.0 *. float_of_int successed /. float_of_int total in
-  let exec_time = exec_time /. float_of_int total in
+  let exec_time =
+    if successed > 0 then exec_time /. float_of_int successed else -1.0
+  in
   let () = Pp.printf "@{<red>Success rate: %f@}\n" rate in
   (successed, rate, exec_time)
 
