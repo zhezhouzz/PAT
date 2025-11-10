@@ -39,7 +39,8 @@ def invoc_cmd(cmd, cwd=None):
 
 # benchmarks = ["Stack", "HashTable", "Filesystem", "Graph", "NFA", "IFCStore", "IFCAdd", "IFCLoad", "DeBruijn2",  "CartRC", "CartCC", "CoursewareRC", "CoursewareCC", "TwitterRC", "TwitterCC", "SmallbankRC", "SmallbankCC", "TreiberStackRC", "TreiberStackCC"]
 benchmarks = ["Stack", "HashTable", "Filesystem", "Graph", "NFA", "IFCStore", "IFCAdd", "IFCLoad", "DeBruijn1", "DeBruijn2",  "CartRC", "CartCC", "CoursewareRC", "CoursewareCC", "TwitterRC", "TwitterCC", "SmallbankRC", "SmallbankCC"]
-# benchmarks = ["DeBruijn1", "DeBruijn2"]
+benchmarks = ["Stack", "HashTable", "Filesystem", "Graph", "NFA", "IFCStore", "IFCAdd", "IFCLoad", "DeBruijn1", "DeBruijn2"]
+benchmarks = ["DeBruijn1"]
 
 task_name_dict = {
     "Stack": "stack",
@@ -100,14 +101,14 @@ def default_num_map(name):
     return 2000
 
 dict = {
-    "Stack": "100000",
+    "Stack": "10000",
     "Graph": "100000",
     "Filesystem": "100000",
     "NFA": "100000",
-    "IFCStore": "100000",
-    "IFCAdd": "100000",
-    "IFCLoad": "100000",
-    "DeBruijn1": "100000",
+    "IFCStore": "10000",
+    "IFCAdd": "10000",
+    "IFCLoad": "10000",
+    "DeBruijn1": "10000",
     "DeBruijn2": "100000",
     "HashTable": "100000",
     "CartRC": "10000",

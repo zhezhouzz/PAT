@@ -667,7 +667,7 @@ let test_envs =
 
 let default_random_test_config =
   [
-    ("numOp", 15);
+    ("numOp", 10);
     ("numElem", 10);
     ("numApp", 5);
     ("tyDepthBound", 5);
