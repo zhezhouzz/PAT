@@ -101,6 +101,14 @@ end
 module HTest_dom = STM_domain.Make (HConf)
 
 let test_fn () =
-  QCheck_base_runner.run_tests_main
-    (let count = 1000 in
-     [ HTest_dom.agree_test_par ~count ~name:"STM Hashtbl test parallel" ])
+  let start_time = Unix.gettimeofday () in
+  let test_passed =
+    QCheck_base_runner.run_tests_main
+      (let count = 1000 in
+       [ HTest_dom.agree_test_par ~count ~name:"STM Hashtbl test parallel" ])
+  in
+  let end_time = Unix.gettimeofday () in
+  let duration = end_time -. start_time in
+  Printf.printf "\ntest execution time: %.3f seconds.\n%!" duration;
+
+  test_passed
