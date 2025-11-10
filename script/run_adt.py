@@ -37,9 +37,9 @@ def invoc_cmd(cmd, cwd=None):
         print(e.output)
 
 
-benchmarks = ["Stack", "Filesystem", "NFA", "Graph", "IFCStore", "IFCAdd", "IFCLoad", "STLC", "HashTable", "CartRC", "CartCC", "CoursewareRC", "CoursewareCC", "TwitterRC", "TwitterCC", "SmallbankRC", "SmallbankCC", "TreiberStackRC", "TreiberStackCC"]
-benchmarks = ["Stack", "Graph", "Filesystem", "NFA", "IFCStore", "IFCAdd", "IFCLoad", "STLC", "HashTable", "CartRC", "CartCC", "CoursewareRC", "CoursewareCC"]
-# benchmarks = ["CartRC", "CartCC"]
+# benchmarks = ["Stack", "HashTable", "Filesystem", "Graph", "NFA", "IFCStore", "IFCAdd", "IFCLoad", "DeBruijn",  "CartRC", "CartCC", "CoursewareRC", "CoursewareCC", "TwitterRC", "TwitterCC", "SmallbankRC", "SmallbankCC", "TreiberStackRC", "TreiberStackCC"]
+benchmarks = ["Stack", "HashTable", "Filesystem", "Graph", "NFA", "IFCStore", "IFCAdd", "IFCLoad", "DeBruijn",  "CartRC", "CartCC", "CoursewareRC", "CoursewareCC", "TwitterRC", "TwitterCC", "SmallbankRC", "SmallbankCC"]
+# benchmarks = ["TwitterRC", "TwitterCC", "SmallbankRC", "SmallbankCC"]
 
 task_name_dict = {
     "Stack": "stack",
@@ -49,7 +49,7 @@ task_name_dict = {
     "IFCStore": "ifc_store",
     "IFCAdd": "ifc_add",
     "IFCLoad": "ifc_load",
-    "STLC": "stlc",
+    "DeBruijn": "stlc",
     "HashTable": "hashtable",
     "CartRC": "cart_rc",
     "CartCC": "cart_cc",
@@ -71,7 +71,7 @@ task_dir_dict = {
     "IFCStore": "ADT/ifc_spec.ml",
     "IFCAdd": "ADT/ifc_spec.ml",
     "IFCLoad": "ADT/ifc_spec.ml",
-    "STLC": "ADT/stlc_spec_moti.ml",
+    "DeBruijn": "ADT/stlc_spec_moti.ml",
     "HashTable": "ADT/hashtable_spec.ml",
     "CartRC": "MonkeyDB/cart_rc_spec.ml",
     "CartCC": "MonkeyDB/cart_cc_spec.ml",
@@ -165,7 +165,8 @@ def print_tries(ratio):
         return "${:.0f}$".format(100.0 / ratio)
 
 def print_pat_col3(stat):
-    return [ print_tries(stat["syn_ratio"]), print_tries(stat["random_ratio"]), print_tries(stat["default_ratio"])]
+    return [ print_tries(stat["syn_ratio"]), print_tries(stat["random_ratio"])]
+    # return [ print_tries(stat["syn_ratio"]), print_tries(stat["random_ratio"]), print_tries(stat["default_ratio"])]
 
 def print_pat_col4(statA):
     stat = statA["algo_complexity"]
@@ -176,7 +177,7 @@ def print_pat_col4(statA):
 
 hat = ["Stack", "Graph", "Filesystem", "NFA"]
 ifc = ["IFCStore", "IFCAdd", "IFCLoad"]
-stlc = ["STLC"]
+stlc = ["DeBruijn"]
 hashtable = ["HashTable"]
 monkeydb = ["CartRC", "CartCC", "CoursewareRC", "CoursewareCC", "TwitterRC", "TwitterCC", "SmallbankRC", "SmallbankCC", "TreiberStackRC", "TreiberStackCC"]
 
@@ -274,6 +275,7 @@ def do_syn():
 def run_syn():
     for bench_name in benchmarks:
         cmd = cmd_prefix + ["sample-syn", task_name(bench_name), "200"]
+        print(" ".join(cmd))
         invoc_cmd(cmd)
     return
 

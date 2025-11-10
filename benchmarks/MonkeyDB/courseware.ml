@@ -152,6 +152,7 @@ let random_operations config =
       let () =
         Pp.printf "@{<yellow>[thread: %i] restNum@}: %i\n" thread_id restNum
       in
+      let* () = Lwt_unix.sleep 0.001 in
       let* _ = random_option ~thread_id () in
       genOp ~thread_id (restNum - 1)
   in

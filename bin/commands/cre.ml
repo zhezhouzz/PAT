@@ -7,7 +7,9 @@ open Zdatatype
 let parse = Oparse.parse_imp_from_file
 
 let read_ocaml_file source_file () =
+  let _ = Pp.printf "@{<yellow>cre.ml:@}  10\n" in
   let code = Oparse.parse_imp_from_file ~sourcefile:source_file in
+  let _ = Pp.printf "@{<yellow>cre.ml:@}  12\n" in
   let code = ocaml_structure_to_items code in
   code
 
@@ -30,13 +32,33 @@ let read_functional_p_file source_file () =
 (*   let code = Ptypecheck.p_items_infer emp code in *)
 (*   () *)
 
-let test_prop name () =
+let read_prop_from_ml source_file () =
+  let open Language in
+  let code = read_source_file source_file () in
+  let prop =
+    match code with PrAxiom { prop; _ } :: _ -> prop | _ -> _die [%here]
+  in
+  prop
+
+let test_prop env name () =
+  let open Language in
   let () = Printf.printf "z3: %s\n" Z3.Version.to_string in
   let ic = In_channel.open_text (spf "/tmp/%s.scm" name) in
   try
     let str = In_channel.input_all ic in
     let prop = prop_of_sexp Nt.nt_of_sexp @@ Sexplib.Sexp.of_string str in
-    (* let () = Printf.printf "prop: %s\n" (Prop.layout_prop__raw prop) in *)
+    (* let fvs =
+      List.slow_rm_dup (fun x y -> String.equal x.x y.x) @@ Prop.fv_prop prop
+    in
+    let prop = Prop.smart_exists fvs prop in *)
+    let () = Printf.printf "prop: %s\n" (Prop.layout_prop__raw prop) in
+    let prop =
+      read_prop_from_ml
+        "/Users/zhezhou/workspace/research/ocaml_workspace/PAT/data/queries/t.ml"
+        ()
+    in
+    let prop = Zutils.PropTypecheck.prop_type_check env.tyctx [] prop in
+    let () = Printf.printf "new prop: %s\n" (Prop.layout_prop prop) in
     (* let fvs = Prop.fv_prop prop in *)
     (* let prop = Prop.smart_exists fvs prop in *)
     (* let () = Printf.printf "prop: %s\n" (Prop.layout_prop prop) in *)
@@ -50,7 +72,7 @@ let test_prop name () =
         Printf.printf "model:\n%s\n" @@ Z3.Model.to_string model;
         ()
     | Timeout ->
-        Printf.printf "timeout prop: %s\n" (layout_prop prop);
+        Printf.printf "timeout\n";
         ());
     _die [%here]
   with e -> raise e
@@ -82,7 +104,7 @@ let do_syn ?(num_expected = 1) name source_file () =
   (* let () = Printf.printf "%s\n" (layout_structure code) in *)
   let env = Ntypecheck.(struct_check init_env code) in
   let () = Stat.init_algo_complexity () in
-  (* let () = test_prop "timeout" () in *)
+  (* let () = test_prop env "timeout" () in *)
   let num_assert, prog =
     Stat.stat_total (fun () -> Synthesis.synthesize env name num_expected)
   in
@@ -511,26 +533,33 @@ let test_eval mode s (converge_bound : int) () =
                 (CartDB.init, main, CartDB.check_isolation_level Serializable)
             in
             eval test)
-    (* | "twitter_rc" ->
-      let open MonkeyBD in
-      let open Common in
-      let open Twitter in
-      let main = Synthesis.load_prog s () in
-      let test () =
-        Interpreter.once
-          (init ReadCommitted, main, TwitterDB.serializable_trace_checker)
-      in
-            eval test
-  | "twitter_cc" ->
-      let open MonkeyBD in
-      let open Common in
-      let open Twitter in
-      let main = Synthesis.load_prog s () in
-      let test () =
-        Interpreter.once
-          (init Causal, main, TwitterDB.serializable_trace_checker)
-      in
-      eval test *)
+    | "twitter_rc" ->
+        let open MonkeyBD in
+        let open Common in
+        let open Twitter in
+        BackendMariaDB.MyMariaDB.maria_context "twitter" ReadCommitted
+          (fun () ->
+            let main = Synthesis.load_prog s () in
+            let test () =
+              Interpreter.once
+                ( TwitterDB.init,
+                  main,
+                  TwitterDB.check_isolation_level Serializable )
+            in
+            eval test)
+    | "twitter_cc" ->
+        let open MonkeyBD in
+        let open Common in
+        let open Twitter in
+        BackendMariaDB.MyMariaDB.maria_context "twitter" Causal (fun () ->
+            let main = Synthesis.load_prog s () in
+            let test () =
+              Interpreter.once
+                ( TwitterDB.init,
+                  main,
+                  TwitterDB.check_isolation_level Serializable )
+            in
+            eval test)
     | "courseware_rc" ->
         let open MonkeyBD in
         let open Common in
@@ -558,6 +587,33 @@ let test_eval mode s (converge_bound : int) () =
                   CoursewareDB.check_isolation_level Serializable )
             in
             eval test)
+    | "smallbank_rc" ->
+        let open MonkeyBD in
+        let open Common in
+        let open Smallbank in
+        BackendMariaDB.MyMariaDB.maria_context "smallbank" ReadCommitted
+          (fun () ->
+            let main = Synthesis.load_prog s () in
+            let test () =
+              Interpreter.once
+                ( SmallBankDB.init,
+                  main,
+                  SmallBankDB.check_isolation_level Serializable )
+            in
+            eval test)
+    | "smallbank_cc" ->
+        let open MonkeyBD in
+        let open Common in
+        let open Smallbank in
+        BackendMariaDB.MyMariaDB.maria_context "smallbank" Causal (fun () ->
+            let main = Synthesis.load_prog s () in
+            let test () =
+              Interpreter.once
+                ( SmallBankDB.init,
+                  main,
+                  SmallBankDB.check_isolation_level Serializable )
+            in
+            eval test)
     | "cart" ->
         let open MonkeyBD in
         let open Common in
@@ -568,42 +624,15 @@ let test_eval mode s (converge_bound : int) () =
                 (CartDB.init, main, CartDB.check_isolation_level Serializable)
             in
             eval test)
-    (* | "smallbank" ->
-      let open MonkeyBD in
-      let open Common in
-      let open Smallbank in
-      let test () =
-        Interpreter.once
-          (init Causal, [ main ], SmallbankDB.serializable_trace_checker)
-      in
-      eval test *)
-    (* | "twitter" ->
-      let open MonkeyBD in
-      let open Common in
-      let open Twitter in
-      let test () =
-        Interpreter.once
-          (init Causal, [ main ], TwitterDB.serializable_trace_checker)
-      in
-      eval test
-  | "courseware" ->
-      let open MonkeyBD in
-      let open Common in
-      let open Courseware in
-      let test () =
-        Interpreter.once
-          (init Causal, [ main ], CoursewareDB.serializable_trace_checker)
-      in
-      eval test
-  | "treiber-stack" ->
-      let open MonkeyBD in
-      let open Common in
-      let open TreiberStack in
-      let test () =
-        Interpreter.once
-          (init Causal, [ main ], StackDB.serializable_trace_checker)
-      in
-      eval test *)
+    (* | "treiber-stack" ->
+        let open MonkeyBD in
+        let open Common in
+        let open TreiberStack in
+        let test () =
+          Interpreter.once
+            (init Causal, [ main ], StackDB.serializable_trace_checker)
+        in
+        eval test *)
     | _ -> _die_with [%here] "unknown benchmark"
   in
   let () = update_eval_stat syn_stat_file (s, "syn", res) in
@@ -623,6 +652,10 @@ let test_envs =
     ("cart_cc", MonkeyBD.Cart.test_env Causal);
     ("courseware_rc", MonkeyBD.Courseware.test_env ReadCommitted);
     ("courseware_cc", MonkeyBD.Courseware.test_env Causal);
+    ("smallbank_rc", MonkeyBD.Smallbank.test_env ReadCommitted);
+    ("smallbank_cc", MonkeyBD.Smallbank.test_env Causal);
+    ("twitter_rc", MonkeyBD.Twitter.test_env ReadCommitted);
+    ("twitter_cc", MonkeyBD.Twitter.test_env Causal);
   ]
 
 let default_random_test_config =
@@ -634,12 +667,14 @@ let default_random_test_config =
     ("constRange", 10);
     ("numUserDB", 5);
     ("numItemDB", 5);
-    ("numOpDB", 3);
+    ("numOpDB", 10);
     ("numStudentDB", 5);
     ("numCourseDB", 5);
+    ("numBalanceDB", 20);
   ]
 
 let test_random mode s converge_bound () =
+  let () = BackendMariaDB.MyMariaDB.set_single_connection_mode true in
   let eval f =
     match mode with
     | "detect" ->
@@ -654,52 +689,6 @@ let test_random mode s converge_bound () =
   in
   let res =
     match s with
-    (* | "smallbank" ->
-      let open MonkeyBD in
-      let open Common in
-      let open Smallbank in
-      let test () =
-        Interpreter.random_test
-          ( init Causal,
-            (fun () -> random_user { numUser = 4; numOp = 2 }),
-            SmallbankDB.serializable_trace_checker )
-      in
-      eval test
-  | "treiber-stack" ->
-      let open MonkeyBD in
-      let open Common in
-      let open TreiberStack in
-      let test () =
-        Interpreter.random_test
-          ( init ReadCommitted,
-            (fun () -> qc_stack { numElems = 4; numOp = 2 }),
-            StackDB.serializable_trace_checker )
-      in
-      eval test
-  | "twitter" ->
-      let open MonkeyBD in
-      let open Common in
-      let open Twitter in
-      let test () =
-        Interpreter.random_test
-          ( init Causal,
-            (fun () -> random_user { numUser = 4; numOp = 2 }),
-            TwitterDB.serializable_trace_checker )
-      in
-      eval test *)
-    (* | "courseware" ->
-      let open MonkeyBD in
-      let open Common in
-      let open Courseware in
-      let open CoursewareDB in
-      let test () =
-        Interpreter.random_test
-          ( CoursewareDB.init,
-            (fun () ->
-              random_operations { numStudent = 4; numCourse = 4; numOp = 2 }),
-            check_isolation_level Serializable )
-      in
-      eval test *)
     | "hashtable" ->
         let open Adt.Hashtable in
         let test () =

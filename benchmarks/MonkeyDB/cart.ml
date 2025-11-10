@@ -99,6 +99,11 @@ let random_user config =
   let open Lwt.Syntax in
   let users = List.init numUserDB (fun i -> i + 1) in
   let items = List.init numItemDB (fun i -> i + 1) in
+  (*let rec fill_users ~thread_id i () = 
+    match List.nth_opt users i with
+    | Some user -> let* () = fill_users ~thread_id (i+1) () in async_new_user ~thread_id user ()
+    | None -> Lwt.return_unit
+  in*)
   let random_add ~thread_id () =
     let user = List.nth users (Random.int numUserDB) in
     let item = List.nth items (Random.int numItemDB) in
@@ -130,6 +135,7 @@ let random_user config =
       let () =
         Pp.printf "@{<yellow>[thread: %i] restNum@}: %i\n" thread_id restNum
       in
+      let* () = Lwt_unix.sleep 0.001 in
       let* _ = random_option ~thread_id () in
       genOp ~thread_id (restNum - 1)
   in

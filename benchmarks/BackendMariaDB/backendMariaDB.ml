@@ -142,11 +142,27 @@ module type MyDB = sig
   val raw_put :
     tid:int -> table:string -> key:string -> json:Yojson.Basic.t -> unit
 
+  val table_raw_get :
+    tid:int ->
+    db:string ->
+    table:string ->
+    key:string ->
+    int * int * Yojson.Basic.t
+
+  val table_raw_put :
+    tid:int ->
+    db:string ->
+    table:string ->
+    key:string ->
+    json:Yojson.Basic.t ->
+    unit
+
   val raw_get_current_isolation : tid:int -> unit
   val check_causal : unit -> bool
   val check_serializable : unit -> bool
   val check_read_committed : unit -> bool
   val layout_field : M.Field.t -> unit Lwt.t
+  val set_single_connection_mode : bool -> unit
 end
 
 module MyMariaDB : MyDB = struct
@@ -174,21 +190,36 @@ module MyMariaDB : MyDB = struct
 
   (* tid to connection id *)
   let connMap : (int, int) Hashtbl.t = Hashtbl.create 10
+  let single_connection_mode = ref false
+  let set_single_connection_mode mode = single_connection_mode := mode
 
   let use_connection () =
-    let connId =
-      Hashtbl.fold
-        (fun conn status res ->
-          match res with
-          | Some conn -> Some conn
-          | None -> if status then Some conn else None)
-        connectionStatus None
-    in
-    match connId with
-    | Some id ->
-        Hashtbl.replace connectionStatus id false;
-        id
-    | None -> Zutils.(_die_with [%here] "no connection available")
+    if !single_connection_mode then
+      let connId =
+        Hashtbl.fold
+          (fun conn status res ->
+            match res with
+            | Some conn -> Some conn
+            | None -> if status then Some conn else None)
+          connectionStatus None
+      in
+      match connId with
+      | Some id -> id
+      | None -> Zutils.(_die_with [%here] "no connection available")
+    else
+      let connId =
+        Hashtbl.fold
+          (fun conn status res ->
+            match res with
+            | Some conn -> Some conn
+            | None -> if status then Some conn else None)
+          connectionStatus None
+      in
+      match connId with
+      | Some id ->
+          Hashtbl.replace connectionStatus id false;
+          id
+      | None -> Zutils.(_die_with [%here] "no connection available")
 
   (* let release_connection id = Hashtbl.replace connectionStatus id true *)
 
@@ -577,7 +608,8 @@ module MyMariaDB : MyDB = struct
         [| `String raw_key; `String json_str; `String json_str |]
       >>= or_die "exec"
     in
-    let () = Language.(if !__counter == 10 then _die_with [%here] "die") in
+    (*let () = Language.(if !__counter == 37 then _die_with [%here] "die") in*)
+    (* DEBUG *)
     let* _ = M.Stmt.close stmt >>= or_die "stmt close" in
     let () = _history := !_history @ [ Put { tid; key; value = json } ] in
     Lwt.return_unit
@@ -672,7 +704,14 @@ module MyMariaDB : MyDB = struct
     async_get ~tid ~table:db ~key:(table ^ ":" ^ key) ()
 
   let table_async_put ~tid ~db ~table ~key ~json () =
+    (* let* () = Lwt_io.printf "!!!db: %s\n" db in *)
     async_put ~tid ~table:db ~key:(table ^ ":" ^ key) ~json ()
+
+  let table_raw_get ~tid ~db ~table ~key =
+    Lwt_main.run (table_async_get ~tid ~db ~table ~key ())
+
+  let table_raw_put ~tid ~db ~table ~key ~json =
+    Lwt_main.run (table_async_put ~tid ~db ~table ~key ~json ())
 end
 
 open MyMariaDB

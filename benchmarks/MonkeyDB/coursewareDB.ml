@@ -21,16 +21,16 @@ courseware db operations:
 *)
 
 let dbname = "courseware"
-let getStudentsAsync (ev : ev) = _getTableAsync dbname "students" ev
-let putStudentsAsync (ev : ev) = _putTableAsync dbname "students" ev
-let getCoursesAsync (ev : ev) = _getTableAsync dbname "courses" ev
-let putCoursesAsync (ev : ev) = _putTableAsync dbname "courses" ev
+let getStudentsAsync (ev : ev) = _getAsyncTable dbname "students" ev
+let putStudentsAsync (ev : ev) = _putAsyncTable dbname "students" ev
+let getCoursesAsync (ev : ev) = _getAsyncTable dbname "courses" ev
+let putCoursesAsync (ev : ev) = _putAsyncTable dbname "courses" ev
 
 let getStudentEnrollmentsAsync (ev : ev) =
-  _getTableAsync dbname "student_enrollments" ev
+  _getAsyncTable dbname "student_enrollments" ev
 
 let putStudentEnrollmentsAsync (ev : ev) =
-  _putTableAsync dbname "student_enrollments" ev
+  _putAsyncTable dbname "student_enrollments" ev
 
 let do_getStudents tid student_id =
   let msg =
@@ -116,21 +116,25 @@ let async_register_student ~thread_id student_id () =
   let open Lwt.Syntax in
   let* tid = DB.async_begin ~thread_id () in
   (* Register student *)
-  let* () =
-    DB.table_async_put ~db:dbname ~tid ~table:"students"
-      ~key:(string_of_int student_id)
-      ~json:(Config.values_to_json [ VConst (B true) ])
-      ()
-  in
-  (* Initialize empty enrollment list *)
-  let* () =
-    DB.table_async_put ~db:dbname ~tid ~table:"student_enrollments"
-      ~key:(string_of_int student_id)
-      ~json:(Config.values_to_json [ VCIntList [] ])
-      ()
-  in
-  let* _ = DB.async_commit ~tid () in
-  Lwt.return_true
+  try
+    let* () =
+      DB.table_async_put ~db:dbname ~tid ~table:"students"
+        ~key:(string_of_int student_id)
+        ~json:(Config.values_to_json [ VConst (B true) ])
+        ()
+    in
+    (* Initialize empty enrollment list *)
+    let* () =
+      DB.table_async_put ~db:dbname ~tid ~table:"student_enrollments"
+        ~key:(string_of_int student_id)
+        ~json:(Config.values_to_json [ VCIntList [] ])
+        ()
+    in
+    let* _ = DB.async_commit ~tid () in
+    Lwt.return_true
+  with BackendMariaDB.DBKeyNotFound _ ->
+    let* _ = DB.async_release_connection ~tid () in
+    Lwt.return_false
 
 let registerStudentReqHandler (msg : msg) =
   let aux (student_id : int) =
@@ -150,14 +154,18 @@ let registerStudentReqHandler (msg : msg) =
 let async_create_course ~thread_id course_id () =
   let open Lwt.Syntax in
   let* tid = DB.async_begin ~thread_id () in
-  let* () =
-    DB.table_async_put ~db:dbname ~tid ~table:"courses"
-      ~key:(string_of_int course_id)
-      ~json:(Config.values_to_json [ VConst (B true) ])
-      ()
-  in
-  let* _ = DB.async_commit ~tid () in
-  Lwt.return_true
+  try
+    let* () =
+      DB.table_async_put ~db:dbname ~tid ~table:"courses"
+        ~key:(string_of_int course_id)
+        ~json:(Config.values_to_json [ VConst (B true) ])
+        ()
+    in
+    let* _ = DB.async_commit ~tid () in
+    Lwt.return_true
+  with BackendMariaDB.DBKeyNotFound _ ->
+    let* _ = DB.async_release_connection ~tid () in
+    Lwt.return_false
 
 let createCourseReqHandler (msg : msg) =
   let aux (course_id : int) =
@@ -175,27 +183,31 @@ let async_enroll_student ~thread_id student_id course_id () =
   let open Lwt.Syntax in
   let* tid = DB.async_begin ~thread_id () in
   (* Update student's enrollments *)
-  let* _, _, enrollments =
-    DB.table_async_get ~db:dbname ~tid ~table:"student_enrollments"
-      ~key:(string_of_int student_id) ()
-  in
-  let oldEnrollments =
-    match Config.json_to_values enrollments with
-    | [ VCIntList l ] -> l
-    | _ -> _die [%here]
-  in
-  let newEnrollments =
-    if List.mem course_id oldEnrollments then oldEnrollments
-    else course_id :: oldEnrollments
-  in
-  let* () =
-    DB.table_async_put ~db:dbname ~tid ~table:"student_enrollments"
-      ~key:(string_of_int student_id)
-      ~json:(Config.values_to_json [ VCIntList newEnrollments ])
-      ()
-  in
-  let* _ = DB.async_commit ~tid () in
-  Lwt.return_true
+  try
+    let* _, _, enrollments =
+      DB.table_async_get ~db:dbname ~tid ~table:"student_enrollments"
+        ~key:(string_of_int student_id) ()
+    in
+    let oldEnrollments =
+      match Config.json_to_values enrollments with
+      | [ VCIntList l ] -> l
+      | _ -> _die [%here]
+    in
+    let newEnrollments =
+      if List.mem course_id oldEnrollments then oldEnrollments
+      else course_id :: oldEnrollments
+    in
+    let* () =
+      DB.table_async_put ~db:dbname ~tid ~table:"student_enrollments"
+        ~key:(string_of_int student_id)
+        ~json:(Config.values_to_json [ VCIntList newEnrollments ])
+        ()
+    in
+    let* _ = DB.async_commit ~tid () in
+    Lwt.return_true
+  with BackendMariaDB.DBKeyNotFound _ ->
+    let* _ = DB.async_release_connection ~tid () in
+    Lwt.return_false
 
 let enrollStudentReqHandler (msg : msg) =
   let aux (student_id : int) (course_id : int) =
@@ -223,24 +235,28 @@ let async_unenroll_student ~thread_id student_id course_id () =
   let open Lwt.Syntax in
   let* tid = DB.async_begin ~thread_id () in
   (* Update student's enrollments *)
-  let* _, _, enrollments =
-    DB.table_async_get ~db:dbname ~tid ~table:"student_enrollments"
-      ~key:(string_of_int student_id) ()
-  in
-  let oldEnrollments =
-    match Config.json_to_values enrollments with
-    | [ VCIntList l ] -> l
-    | _ -> _die [%here]
-  in
-  let newEnrollments = List.filter (( <> ) course_id) oldEnrollments in
-  let* () =
-    DB.table_async_put ~db:dbname ~tid ~table:"student_enrollments"
-      ~key:(string_of_int student_id)
-      ~json:(Config.values_to_json [ VCIntList newEnrollments ])
-      ()
-  in
-  let* _ = DB.async_commit ~tid () in
-  Lwt.return_true
+  try
+    let* _, _, enrollments =
+      DB.table_async_get ~db:dbname ~tid ~table:"student_enrollments"
+        ~key:(string_of_int student_id) ()
+    in
+    let oldEnrollments =
+      match Config.json_to_values enrollments with
+      | [ VCIntList l ] -> l
+      | _ -> _die [%here]
+    in
+    let newEnrollments = List.filter (( <> ) course_id) oldEnrollments in
+    let* () =
+      DB.table_async_put ~db:dbname ~tid ~table:"student_enrollments"
+        ~key:(string_of_int student_id)
+        ~json:(Config.values_to_json [ VCIntList newEnrollments ])
+        ()
+    in
+    let* _ = DB.async_commit ~tid () in
+    Lwt.return_true
+  with BackendMariaDB.DBKeyNotFound _ ->
+    let* _ = DB.async_release_connection ~tid () in
+    Lwt.return_false
 
 let unenrollStudentReqHandler (msg : msg) =
   let aux (student_id : int) (course_id : int) =

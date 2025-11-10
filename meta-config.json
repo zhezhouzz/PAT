@@ -69,7 +69,7 @@
             false
         ]
     ],
-    "prover_timeout_bound": 999,
+    "prover_timeout_bound": 1999,
     "prim_path": {
         "predefined_path": "synRuntime/automata/builtin.s",
         "axioms_path": "",

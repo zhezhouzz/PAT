@@ -6,8 +6,12 @@
  (modules
   common
   cart
+  twitter 
+  smallbank
+  ; courseware 
   coursewareDB
-  ; twitter 
+  twitter 
+  smallbank
   courseware 
   ; treiberStack 
   ; smallbank

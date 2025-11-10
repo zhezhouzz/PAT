@@ -41,7 +41,7 @@ benchmarks = ["Database", "Firewall", "RingLeaderElection", "EspressoMachine", "
 # benchmarks = ["ChainReplication", "Paxos", "Raft"]
 # benchmarks = ["Raft"]
 # benchmarks = ["Firewall"]
-benchmarks = ["Kermit2PCModel"]
+# benchmarks = ["Kermit2PCModel"]
 
 def task_name(name):
     return "task" + "_" + name
@@ -115,10 +115,8 @@ def print_tries(ratio):
         return "${:.0f}$".format(100.0 / ratio)
 
 def print_pat_col3(stat):
-    # return [safe_print_float(stat["n_retry"])+ "\\%"]
-    # return ["${:.1f}$".format(stat["n_retry"])]
-    # return ["$({:.0f}\\%, {:.2f}\\%)$".format(stat["syn_ratio"], stat["random_ratio"])]
     return [ print_tries(stat["syn_ratio"]), print_tries(stat["random_ratio"]), print_tries(stat["default_ratio"])]
+    # return [ print_tries(stat["syn_ratio"]), print_tries(stat["random_ratio"])]
 
 def print_pat_col4(statA):
     stat = statA["algo_complexity"]
@@ -131,8 +129,7 @@ def print_pat_col4(statA):
             # safe_print_float(stat["t_refine"]),
         safe_print_int(stat["n_sat"]),
             # safe_print_int(stat["n_nonempty"]),
-            safe_print_int(stat["n_forward"]),
-            safe_print_int(stat["n_backward"])
+            safe_print_int(stat["n_forward"] + stat["n_backward"])
             ]
 
 plang = ["EspressoMachine", "Simplified2PC", "HeartBeat", "BankServer"]
