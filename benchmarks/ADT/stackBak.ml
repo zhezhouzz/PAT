@@ -1,0 +1,171 @@
+open Interpreter
+open Language
+open Zdatatype
+
+module Stack = struct
+  let init s = s := []
+  let push s (x : int) = s := x :: !s
+
+  let wrong_pop s : int option =
+    match List.last_destruct_opt !s with
+    | Some (s', x) ->
+        s := s';
+        Some x
+    | None -> None
+
+  let pop s : int option =
+    match !s with
+    | [] -> None
+    | x :: s' ->
+        s := s';
+        Some x
+
+  let isEmpty s = match !s with [] -> true | _ -> false
+end
+
+open Stack
+
+let _stack : int list ref = ref []
+
+let initStackReqHandler (msg : msg) =
+  let () = match msg.ev.args with [] -> () | _ -> _die [%here] in
+  init _stack;
+  send ("initStackResp", [])
+
+let pushReqHandler (msg : msg) =
+  let x = match msg.ev.args with [ VConst (I x) ] -> x | _ -> _die [%here] in
+  push _stack x;
+  send ("pushResp", [])
+
+let popReqHandler (msg : msg) =
+  let () = match msg.ev.args with [] -> () | _ -> _die [%here] in
+  let x = wrong_pop _stack in
+  match x with
+  | None -> raise (Runtime.RuntimeError "Stack is empty")
+  | Some x -> send ("popResp", [ mk_value_int x ])
+
+let isEmptyReqHandler (msg : msg) =
+  let () = match msg.ev.args with [] -> () | _ -> _die [%here] in
+  let is_empty = isEmpty _stack in
+  send ("isEmptyResp", [ mk_value_bool is_empty ])
+
+let initStackRespHandler (_ : msg) = ()
+let pushRespHandler (_ : msg) = ()
+let popRespHandler (_ : msg) = ()
+let isEmptyRespHandler (_ : msg) = ()
+
+let init () =
+  register_handler "initStackReq" initStackReqHandler;
+  register_handler "pushReq" pushReqHandler;
+  register_handler "popReq" popReqHandler;
+  register_handler "isEmptyReq" isEmptyReqHandler;
+  register_handler "initStackResp" initStackRespHandler;
+  register_handler "pushResp" pushRespHandler;
+  register_handler "popResp" popRespHandler;
+  register_handler "isEmptyResp" isEmptyRespHandler;
+  init _stack
+
+open Nt
+
+let record l = Ty_record { alias = None; fds = l }
+
+let testCtx =
+  Typectx.add_to_rights Typectx.emp
+    [
+      "initStackReq"#:(record []);
+      "pushReq"#:(record [ "x"#:int_ty ]);
+      "popReq"#:(record []);
+      "isEmptyReq"#:(record []);
+      "initStackResp"#:(record []);
+      "pushResp"#:(record []);
+      "popResp"#:(record [ "x"#:int_ty ]);
+      "isEmptyResp"#:(record [ "isEmpty"#:bool_ty ]);
+    ]
+
+let gen name args body =
+  mk_term_gen testCtx name (List.map (fun x -> VVar x) args) body
+
+let obs name k = mk_term_obs_fresh testCtx name (fun _ -> k)
+let obsInitStackResp e = mk_term_obs_fresh testCtx "initStackResp" (fun _ -> e)
+let obsPushResp e = mk_term_obs_fresh testCtx "pushResp" (fun _ -> e)
+let obsPopResp e = mk_term_obs_fresh testCtx "popResp" (fun _ -> e)
+let obsIsEmptyResp e = mk_term_obs_fresh testCtx "isEmptyResp" (fun _ -> e)
+
+let trace_checker trace =
+  let update_first_pushed firstPushed x =
+    match firstPushed with None -> Some x | Some _ -> firstPushed
+  in
+  let update_last_popped _ x = Some x in
+  let rec check (firstPushed, lastPopped) = function
+    | [] -> true
+    | { ev = { op = "initStackReq"; args = [] }; _ } :: rest ->
+        check (None, None) rest
+    | { ev = { op = "pushReq"; args = [ VConst (I x) ] }; _ } :: rest ->
+        check (update_first_pushed firstPushed x, lastPopped) rest
+    | { ev = { op = "popResp"; args = [ VConst (I x) ] }; _ } :: rest ->
+        check (firstPushed, update_last_popped lastPopped x) rest
+    | { ev = { op = "isEmptyResp"; args = [ VConst (B is_empty) ] }; _ } :: rest
+      ->
+        let res =
+          if is_empty then
+            match (firstPushed, lastPopped) with
+            | Some x, Some y -> x == y
+            | None, None -> true
+            | _, _ -> false
+          else true
+        in
+        res && check (firstPushed, lastPopped) rest
+    | _ :: rest -> check (firstPushed, lastPopped) rest
+  in
+  check (None, None) trace
+
+let main =
+  mk_term_assume_fresh_true int_ty (fun x ->
+      mk_term_assume_fresh int_ty
+        (fun y -> Not (lit_to_prop (mk_var_eq_var [%here] x y)))
+        (fun y ->
+          gen "initStackReq" [] @@ obsInitStackResp @@ gen "pushReq" [ x ]
+          @@ obsPushResp @@ gen "pushReq" [ y ] @@ obsPushResp
+          @@ gen "popReq" [] @@ obsPopResp @@ gen "popReq" [] @@ obsPopResp
+          @@ gen "isEmptyReq" [] @@ obsIsEmptyResp mk_term_tt))
+
+type stack_bench_config = { numElem : int; numOp : int }
+
+let randomTest { numElem; numOp } =
+  let elems = List.init numElem (fun i -> i + 1) in
+  let currentSize = ref 0 in
+  let random_push () =
+    let elem = List.nth elems (Random.int numElem) in
+    send ("pushReq", [ mk_value_int elem ]);
+    currentSize := !currentSize + 1
+  in
+  let random_pop () =
+    send ("popReq", []);
+    currentSize := !currentSize - 1
+  in
+  let random_isEmpty () = send ("isEmptyReq", []) in
+  let random_init () =
+    send ("initStackReq", []);
+    currentSize := 0
+  in
+  let rec genOp restNum =
+    if restNum <= 0 then ()
+    else
+      let () = Pp.printf "@{<yellow>restNum@}: %i\n" restNum in
+      (if !currentSize <= 0 then
+         match Random.int 3 with
+         | 0 -> random_isEmpty ()
+         | 1 -> random_push ()
+         | _ -> random_init ()
+       else
+         match Random.int 4 with
+         | 0 -> random_isEmpty ()
+         | 1 -> random_push ()
+         | 2 -> random_pop ()
+         | _ -> random_init ());
+      genOp (restNum - 1)
+  in
+  let () = random_init () in
+  let () = genOp numOp in
+  let () = Pp.printf "@{<red>End with numOp@}\n%i\n" numOp in
+  Effect.perform End

@@ -9,25 +9,33 @@
    (:standard -unsafe -noassert -inline 100))))
 
 (library
- (public_name automata_library.ast)
  (name ast)
+ (public_name haft.ast)
  (wrapped true)
  (modules
-   common
-   ; op
-   ; constant
-   ; lit
-   ; prop
-   ; sevent
-   ; regex
-   ; finiteAutomata
-   minterm
-   constructor_declaration
-   inst
-   item
-   pmachine
-   wrapper
-   ast
- )
- (preprocess (pps ppx_optcomp ppx_compare ppx_sexp_conv ppx_inline_test ppx_assert ppx_deriving.show ppx_deriving.eq ppx_deriving.ord ppx_here))
- (libraries zutils AutomataLibrary))
+  common
+  parseTree
+  stat
+  map
+  subst
+  fv
+  astHelper
+  constructor_declaration
+  inst
+  item
+  pmachine
+  wrapper
+  ast)
+ (preprocess
+  (pps
+   ppx_optcomp
+   ppx_compare
+   ppx_sexp_conv
+   ppx_inline_test
+   ppx_assert
+   ppx_deriving.show
+   ppx_deriving.eq
+   ppx_deriving.ord
+   ppx_here
+   ppx_deriving_yojson))
+ (libraries zutils AutomataLibrary spectrum))

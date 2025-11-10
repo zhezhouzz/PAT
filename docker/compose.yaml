@@ -1,0 +1,74 @@
+version: '3.9'
+
+services:
+  galera1:
+    image: bitnami/mariadb-galera:latest
+    container_name: galera1
+    environment:
+      - MARIADB_ROOT_PASSWORD=rootpass
+      - MARIADB_GALERA_CLUSTER_NAME=galera_cluster
+      - MARIADB_GALERA_CLUSTER_ADDRESS=gcomm://galera1,galera2,galera3
+      - MARIADB_GALERA_NODE_NAME=galera1
+      - MARIADB_GALERA_NODE_ADDRESS=galera1
+      - MARIADB_GALERA_FORCE_SAFETOBOOTSTRAP=yes
+      - MARIADB_GALERA_MARIABACKUP_USER=backup
+      - MARIADB_GALERA_MARIABACKUP_PASSWORD=backup123
+    volumes:
+      - galera1_data:/bitnami/mariadb
+    networks:
+      - galera
+    ports:
+      - "3307:3306"
+
+  galera2:
+    image: bitnami/mariadb-galera:latest
+    container_name: galera2
+    environment:
+      - MARIADB_ROOT_PASSWORD=rootpass
+      - MARIADB_GALERA_CLUSTER_NAME=galera_cluster
+      - MARIADB_GALERA_CLUSTER_ADDRESS=gcomm://galera1,galera2,galera3
+      - MARIADB_GALERA_NODE_NAME=galera2
+      - MARIADB_GALERA_NODE_ADDRESS=galera2
+      - MARIADB_GALERA_MARIABACKUP_USER=backup
+      - MARIADB_GALERA_MARIABACKUP_PASSWORD=backup123
+    volumes:
+      - galera2_data:/bitnami/mariadb
+    networks:
+      - galera
+    ports:
+      - "3308:3306"
+
+  galera3:
+    image: bitnami/mariadb-galera:latest
+    container_name: galera3
+    environment:
+      - MARIADB_ROOT_PASSWORD=rootpass
+      - MARIADB_GALERA_CLUSTER_NAME=galera_cluster
+      - MARIADB_GALERA_CLUSTER_ADDRESS=gcomm://galera1,galera2,galera3
+      - MARIADB_GALERA_NODE_NAME=galera3
+      - MARIADB_GALERA_NODE_ADDRESS=galera3
+      - MARIADB_GALERA_MARIABACKUP_USER=backup
+      - MARIADB_GALERA_MARIABACKUP_PASSWORD=backup123
+    volumes:
+      - galera3_data:/bitnami/mariadb
+    networks:
+      - galera
+    ports:
+      - "3309:3306"
+
+  adminer:
+    image: adminer:latest
+    container_name: adminer
+    restart: always
+    ports:
+      - "8080:8080"
+
+volumes:
+  galera1_data:
+  galera2_data:
+  galera3_data:
+
+networks:
+  galera:
+    driver: bridge
+

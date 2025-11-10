@@ -6,7 +6,8 @@ let instantiate_absty (x, ty) nt =
   let rec aux nt =
     match nt with
     | Nt.Ty_bool | Nt.Ty_int -> nt
-    | Nt.Ty_record l -> Nt.Ty_record (List.map (( #=> ) aux) l)
+    | Nt.Ty_record r ->
+        Nt.Ty_record { r with fds = List.map (( #=> ) aux) r.fds }
     | Nt.Ty_tuple l -> Nt.Ty_tuple (List.map aux l)
     | Nt.Ty_constructor (name, []) when String.equal name x -> ty
     | Nt.Ty_constructor (_, []) -> nt
@@ -216,7 +217,7 @@ let mk_event_to_p_event (x, p_x, l) =
   in
   let params =
     match event.ty with
-    | Nt.Ty_record [] -> [ client; servers ]
+    | Nt.Ty_record { fds = []; _ } -> [ client; servers ]
     | _ -> [ client; servers; event ]
   in
   ( x.x,
@@ -259,7 +260,9 @@ let mk_wrapper enum_names env (event_name, p_event_name) =
   in
   let spec_event_type = event_name.ty in
   let fields =
-    match spec_event_type with Nt.Ty_record l -> l | _ -> _die [%here]
+    match spec_event_type with
+    | Nt.Ty_record { fds; _ } -> fds
+    | _ -> _die [%here]
   in
   let fields =
     List.map

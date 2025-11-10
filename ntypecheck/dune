@@ -1,18 +1,8 @@
 (library
  (name ntypecheck)
- (public_name automata_library.ntypecheck)
+ (public_name haft.ntypecheck)
  (wrapped true)
- (libraries syntax language)
- (modules
-  ; normal_constant_typing
-  ; normal_id_typing
-  ; normal_op_typing
-  ; normal_lit_typing
-  ; normal_prop_typing
-  ; normal_sevent_typing
-  ; normal_regex_typing
-  normal_item_typing
-  ntypecheck
-)
-(preprocess (pps ppx_here))
-)
+ (libraries syntax language zutils)
+ (modules normal_rty_typing normal_item_typing ntypecheck)
+ (preprocess
+  (pps ppx_here ppx_deriving.show ppx_deriving.eq ppx_deriving.ord)))

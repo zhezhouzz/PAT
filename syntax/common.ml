@@ -6,11 +6,10 @@ open Zdatatype
 
 let layout_qv x = spf "(%s: %s)" x.x (Nt.layout x.ty)
 let layout_qvs = List.split_by " " layout_qv
-let p_prim_types = [ "machine"; "any"; "string" ]
+let p_prim_types = [ "int"; "bool"; "machine"; "any"; "string" ]
 
 let rec is_p_prim_type = function
-  | Nt.Ty_bool | Nt.Ty_int -> true
-  | Nt.Ty_record l -> List.for_all (fun x -> is_p_prim_type x.ty) l
+  | Nt.Ty_record { fds; _ } -> List.for_all (fun x -> is_p_prim_type x.ty) fds
   | Nt.Ty_tuple l -> List.for_all is_p_prim_type l
   | Nt.Ty_constructor (name, [])
     when List.exists (String.equal name) p_prim_types ->
@@ -23,8 +22,7 @@ let rec is_p_prim_type = function
 
 let get_absty nt =
   let rec aux = function
-    | Nt.Ty_bool | Nt.Ty_int | Nt.Ty_any -> []
-    | Nt.Ty_record l -> List.concat_map (fun x -> aux x.ty) l
+    | Nt.Ty_record { fds; _ } -> List.concat_map (fun x -> aux x.ty) fds
     | Nt.Ty_tuple l -> List.concat_map aux l
     | Nt.Ty_constructor (name, [])
       when List.exists (String.equal name) p_prim_types ->
@@ -35,3 +33,47 @@ let get_absty nt =
     | _ -> _die_with [%here] (Nt.layout nt)
   in
   List.slow_rm_dup String.equal (aux nt)
+
+let rec layout_stlcTy = function
+  | StlcInt -> "Int"
+  | StlcArrow (ty1, ty2) ->
+      let s1 =
+        match ty1 with
+        | StlcArrow _ -> "(" ^ layout_stlcTy ty1 ^ ")"
+        | _ -> layout_stlcTy ty1
+      in
+      let s2 =
+        match ty2 with
+        | StlcArrow _ -> "(" ^ layout_stlcTy ty2 ^ ")"
+        | _ -> layout_stlcTy ty2
+      in
+      spf "%s -> %s" s1 s2
+
+let rec layout_stlcTerm = function
+  | StlcVar x -> spf "[%i]" x
+  | StlcConst n -> string_of_int n
+  | StlcAbs { absTy; absBody } ->
+      spf "\\(%s).%s" (layout_stlcTy absTy) (layout_stlcTerm absBody)
+  | StlcApp { appFun; appArg } ->
+      spf "(%s %s)" (layout_stlcTerm appFun) (layout_stlcTerm appArg)
+
+let rec layout_value = function
+  | VVar qv -> layout_qv qv
+  | VConst c -> layout_constant c
+  | VCStlcTy ty -> layout_stlcTy ty
+  | VCIntList xs ->
+      spf "[%s]" (List.split_by "; " (fun x -> string_of_int x) xs)
+  | VTu vs -> spf "(%s)" (List.split_by ", " layout_value vs)
+  | VProj (v, i) -> spf "(%s, %i)" (layout_value v) i
+  | VField (v, s) -> spf "(%s, %s)" (layout_value v) s
+  | VRecord fds ->
+      spf "{ %s }"
+        (List.split_by ", " (fun (s, v) -> spf "%s: %s" s (layout_value v)) fds)
+
+let is_gen env op = is_generative @@ _get_force [%here] env.msgkind_ctx op
+let is_obs env op = is_observable @@ _get_force [%here] env.msgkind_ctx op
+
+let destruct_cty_var x =
+  let x' = x.x#:x.ty.nty in
+  let phi = subst_prop_instance default_v (AVar x') x.ty.phi in
+  (x', phi)

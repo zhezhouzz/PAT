@@ -16,7 +16,7 @@ let typed_to_expr f expr =
       desc_to_ocamlexpr @@ Pexp_constraint (f expr.x, Nt.t_to_core_type ty)
 
 let update_ty { x; ty } ty' =
-  match ty with None -> x #: (Some ty') | Some _ -> x #: (Some ty')
+  match ty with None -> x#:(Some ty') | Some _ -> x#:(Some ty')
 
 let notated (name, t) =
   desc_to_ct
@@ -29,8 +29,7 @@ let quantifier_to_pattern (q, u) =
          notated (Nt.qt_to_string q, u.ty) ))
 
 let smt_layout_ty = function
-  | Some Nt.Ty_bool -> "Bool"
-  | Some Nt.Ty_int -> "Int"
+  | Some (Nt.Ty_constructor (name, [])) when String.equal name "bool" -> "Bool"
   | Some (Nt.Ty_constructor _) -> "Int"
   | _ -> _die_with [%here] "unimp"
 

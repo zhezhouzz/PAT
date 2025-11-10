@@ -1,0 +1,9 @@
+(library
+ (public_name haft.stlc)
+ (name stlc)
+ (wrapped true)
+ (libraries language interpreter)
+ (modules stlc)
+ (inline_tests)
+ (preprocess
+  (pps ppx_here ppx_inline_test)))

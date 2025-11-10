@@ -40,7 +40,7 @@ type 't item =
   | MValDecl of (Nt.nt, string) typed
   | MAbstractType of (concrete_type, string) typed
   | MEventDecl of { ev : (Nt.nt, string) typed; event_kind : event_kind }
-  | MRegex of { name : (Nt.nt, string) typed; automata : ('t, 't sevent) regex }
+  | MRegex of { name : (Nt.nt, string) typed; automata : 't sevent regex }
   | MClient of client_setting
 [@@deriving sexp, show, eq, ord]
 
@@ -70,16 +70,22 @@ let parse_client name fields =
   in
   MClient !setting
 
-let default_serv_field = "dest" #: (Nt.Ty_constructor ("server", []))
+let default_serv_field = "dest"#:(Nt.Ty_constructor ("server", []))
 
 let add_server_field_record_type = function
-  | Nt.Ty_record l -> Nt.Ty_record (default_serv_field :: l)
+  | Nt.Ty_record r -> Nt.Ty_record { r with fds = default_serv_field :: r.fds }
   | _ -> Sugar._die [%here]
 
 let remove_server_field_record_type = function
-  | Nt.Ty_record l ->
+  | Nt.Ty_record r ->
       Nt.Ty_record
-        (List.filter (fun x -> not (String.equal x.x default_serv_field.x)) l)
+        {
+          r with
+          fds =
+            List.filter
+              (fun x -> not (String.equal x.x default_serv_field.x))
+              r.fds;
+        }
   | _ -> Sugar._die [%here]
 
 type spec_tyctx = {

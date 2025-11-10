@@ -1,0 +1,14 @@
+(library
+ (public_name haft.interpreter)
+ (name interpreter)
+ (wrapped true)
+ (libraries zutils AutomataLibrary core compiler-libs language)
+ (modules sample common msgBuffer store eval pool interpreter)
+ (inline_tests)
+ (preprocess
+  (pps
+   ppx_here
+   ppx_inline_test
+   ppx_deriving.show
+   ppx_deriving.eq
+   ppx_deriving.ord)))

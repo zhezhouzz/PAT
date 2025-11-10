@@ -13,14 +13,14 @@ let test_compile_raw_regex_to_dfa f =
       and num_regex = anon ("num-regex" %: int)
       and times = anon ("times" %: int) in
       let () = Myconfig.meta_config_path := config_file in
-      fun () -> f num_regex times)
+      fun () -> Zutils._assert [%here] "test" @@ f num_regex times)
 
 let cmds =
   [
-    ( "test-reg-fa-1",
+    (* ( "test-reg-fa-1",
       test_compile_raw_regex_to_dfa QcFa.qc_test_compile_raw_regex_to_dfa_1 );
     ( "test-reg-fa-2",
-      test_compile_raw_regex_to_dfa QcFa.qc_test_compile_raw_regex_to_dfa_2 );
+      test_compile_raw_regex_to_dfa QcFa.qc_test_compile_raw_regex_to_dfa_2 ); *)
     ( "test-fa-minimalize",
       test_compile_raw_regex_to_dfa QcFa.qc_test_fa_minimalize );
     ( "test-fa-normalize",

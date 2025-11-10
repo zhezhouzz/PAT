@@ -1,18 +1,72 @@
 open Language
-open Normal_cty_typing
+open AutomataLibrary
+open PropTypecheck
 
 type t = Nt.t
 
-let bi_typed_rty_check (ctx : t ctx) (rty : t option rty) : t rty =
-  let rec aux ctx = function
-    | RtyBase { ou; cty } -> RtyBase { ou; cty = bi_typed_cty_check ctx cty }
-    | RtyBaseArr { argcty; arg; retty } ->
-        let argcty = bi_typed_cty_check ctx argcty in
-        let arg' = arg #: (erase_cty argcty) in
-        RtyBaseArr { argcty; arg; retty = aux (add_to_right ctx arg') retty }
-    | RtyArrArr { argrty; retty } ->
-        let argrty = aux ctx argrty in
-        RtyArrArr { argrty; retty = aux ctx retty }
-    | RtyTuple _trtylist0 -> RtyTuple (List.map (aux ctx) _trtylist0)
+let _log = Myconfig._log_preprocess
+
+let constraint_cty_type_check (bctx : basic_typing_ctx) (bc : BC.bc)
+    ({ phi; nty } : cty) =
+  let ctx = add_to_right bctx.ctx default_v#:nty in
+  let bc, phi = constraint_prop_type_check ctx bc phi in
+  (bc, { nty; phi })
+
+let constraint_pat_type_check
+    (constraint_type_check : basic_typing_ctx -> BC.bc -> 'a -> BC.bc * 'a)
+    (bctx : basic_typing_ctx) (bc : BC.bc) (rty : 'a pat) =
+  let rec aux bctx bc rty =
+    match rty with
+    | RtyBase cty ->
+        let bc, cty = constraint_cty_type_check bctx bc cty in
+        (bc, RtyBase cty)
+    | RtyHAF { history; adding; future } ->
+        let bc, history = constraint_type_check bctx bc history in
+        let bc, adding = constraint_type_check bctx bc adding in
+        let bc, future = constraint_type_check bctx bc future in
+        (bc, RtyHAF { history; adding; future })
+    | RtyHAParallel { history; adding_se; parallel } ->
+        let bc, history = constraint_type_check bctx bc history in
+        let bc, adding_se = constraint_sevent_type_check bctx bc adding_se in
+        let bc, parallel =
+          List.fold_left_map
+            (fun bc se ->
+              let bc, se = constraint_sevent_type_check bctx bc se in
+              (bc, se))
+            bc parallel
+        in
+        (bc, RtyHAParallel { history; adding_se; parallel })
+    | RtyArr { arg; argcty; retrty } ->
+        let bc, argcty = constraint_cty_type_check bctx bc argcty in
+        let argnty = erase_cty argcty in
+        let ctx' =
+          if Nt.is_base_tp argnty then add_to_right bctx.ctx arg#:argnty
+          else _die_with [%here] "not a base type"
+        in
+        let bc, retrty = aux { bctx with ctx = ctx' } bc retrty in
+        (bc, RtyArr { argcty; arg; retrty })
+    | RtyGArr { arg; argnty; retrty } ->
+        let ctx' =
+          if Nt.is_base_tp argnty then add_to_right bctx.ctx arg#:argnty
+          else _die_with [%here] "not a base type"
+        in
+        let bc, retrty = aux { bctx with ctx = ctx' } bc retrty in
+        (bc, RtyGArr { argnty; arg; retrty })
+    | RtyInter (t1, t2) ->
+        let bc, t1 = aux bctx bc t1 in
+        let bc, t2 = aux bctx bc t2 in
+        (bc, RtyInter (t1, t2))
   in
-  aux ctx rty
+  aux bctx bc rty
+
+let rich_symbolic_regex_pat_type_check event_ctx ctx r =
+  let bctx = { event_ctx; ctx } in
+  let bc, r =
+    constraint_pat_type_check constraint_rich_regex_type_check bctx
+      (BC.empty []) r
+  in
+  let sol = solve bc in
+  let f = Nt.msubst_nt sol in
+  let r = map_rich_srl_pat f r in
+  (* let () = Pp.printf "@{<bold>Before subst:@}\n%s\n" (layout_typed_raw_term term) in *)
+  r

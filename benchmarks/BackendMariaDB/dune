@@ -1,0 +1,20 @@
+(library
+ (public_name haft.BackendMariaDB)
+ (name BackendMariaDB)
+ (wrapped true)
+ (libraries mariadb lwt lwt.unix yojson zutils language)
+ (modules backendMariaDB)
+ (inline_tests)
+ (preprocess
+  (pps
+   ppx_here
+   lwt_ppx
+   ppx_optcomp
+   ppx_compare
+   ppx_sexp_conv
+   ppx_inline_test
+   ppx_assert
+   ppx_deriving.show
+   ppx_deriving.eq
+   ppx_deriving.ord
+   ppx_here)))

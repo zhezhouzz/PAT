@@ -1,0 +1,21 @@
+(library
+ (public_name haft.monkeyBD)
+ (name monkeyBD)
+ (wrapped true)
+ (libraries language interpreter BackendMariaDB)
+ (modules
+  common
+  cart
+  twitter 
+  smallbank
+  ; courseware 
+  coursewareDB
+  twitter 
+  smallbank
+  courseware 
+  ; treiberStack 
+  ; smallbank
+  )
+ (inline_tests)
+ (preprocess
+  (pps ppx_here ppx_inline_test)))

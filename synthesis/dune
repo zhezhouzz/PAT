@@ -1,0 +1,20 @@
+(library
+ (name synthesis)
+ (public_name haft.synthesis)
+ (wrapped true)
+ (libraries syntax language rawdesym)
+ (modules
+  common
+  ; gamma
+  abduction
+  feature
+  ; optimize
+  ; norm
+  refine
+  simpEq
+  compile
+  synthesis
+  recursion)
+ (inline_tests)
+ (preprocess
+  (pps ppx_here ppx_inline_test)))

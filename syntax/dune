@@ -9,30 +9,19 @@
 ;    (:standard -unsafe -noassert -inline 100))))
 
 (library
- (public_name automata_library.syntax)
+ (public_name haft.syntax)
  (name syntax)
  (wrapped true)
  (modules
-   common
-   ; op
-   ; constant
-   ; lit
-   ; prop
-   ; sevent
-   ; finiteAutomata
-   ; regex
-   ; qregex
-   ; typectx
-   ; nfa
-   ; basicFA
-   ; finiteAutomata
-   ; minterm
-   item
-   inst
-   pmachine
-   wrapper
-   syntax
- )
+  common
+  ; item
+  ; inst
+  ; pmachine
+  ; wrapper
+  line
+  lineOpt
+  plan
+  syntax)
  (preprocess
   (pps ppx_optcomp ppx_compare ppx_sexp_conv ppx_here))
- (libraries core ast backend))
+ (libraries core ast))
