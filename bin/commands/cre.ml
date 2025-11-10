@@ -487,7 +487,13 @@ let test_eval mode s (converge_bound : int) () =
         let main = Synthesis.load_prog s () in
         let test () = Interpreter.once (init, main, trace_is_not_nfa) in
         eval test
-    | "stlc" ->
+    | "stlc1" ->
+        let open Adt.Stlc_simple in
+        let main = Synthesis.load_prog s () in
+        (* let main = [ main_rec ] in *)
+        let test () = Interpreter.once (init, main, trace_eval_correct) in
+        eval test
+    | "stlc2" ->
         let open Adt.Stlc_moti in
         let main = Synthesis.load_prog s () in
         (* let main = [ main_rec ] in *)
@@ -644,7 +650,8 @@ let test_envs =
     ("filesystem", Adt.Filesystem.test_env);
     ("graph", Adt.Graph.test_env);
     ("nfa", Adt.Nfa.test_env);
-    ("stlc", Adt.Stlc_moti.test_env);
+    ("stlc1", Adt.Stlc_simple.test_env);
+    ("stlc2", Adt.Stlc_moti.test_env);
     ("ifc_store", Adt.Ifc.test_env);
     ("ifc_add", Adt.Ifc.test_env);
     ("ifc_load", Adt.Ifc.test_env);
