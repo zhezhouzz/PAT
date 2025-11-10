@@ -15,7 +15,8 @@
   stlc_moti
   stlc_simple
   hashtable
-  hashtable_random)
+  hashtable_random
+  naive_hashtable)
  (inline_tests)
  (preprocess
   (pps
