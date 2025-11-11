@@ -14,10 +14,10 @@ val commit : < tid : int ; cid : int > [@@obs]
 val beginCAS < tid : int ; cas_id : int > [@@obs]
 val endCAS < tid : int ; cas_id : int > [@@obs]
 *)
-(*
+
 val passCAS : < tid : int ; old_head : int ; new_head : int > [@@obs]
 val failCAS : < tid : int ; old_head : int ; new_head : int > [@@obs]
-*)
+
 val get :
   < tid : int ; prevTid : int ; prevCid : int ; key : int ; value : int ; next : int >
 [@@obs]
@@ -56,13 +56,11 @@ let commit ?l:(i = (true : [%v: int])) ?l:(j = (true : [%v: int])) =
     starA (anyA - Put (tid == i) - Get (tid == i)) )
 
 (* compare and swap *)
-(*
+
 let passCAS ?l:(i = (true : [%v: int])) ?l:(o = (true : [%v: int])) ?l:(n = (true : [%v: int])) =
   ( (allA;
      Get (tid == i && next == o && key == topKey && value == emptyVal);
-     allA;
-     Put (tid == i && next == n && key == topKey && value == emptyVal);
-     allA),
+     Put (tid == i && next == n && key == topKey && value == emptyVal)),
     PassCAS (tid == i && old_head == o && new_head == n),
     allA )
 
@@ -72,7 +70,7 @@ let failCAS ?l:(i = (true : [%v: int])) ?l:(o = (true : [%v: int])) ?l:(n = (tru
      allA),
     FailCAS (tid == i && old_head == o && new_head == n),
     allA )
-*)
+
 (*
 let putTop ?l:(i = (true : [%v: int]))
            ?l:(v = (true : [%v: int]))
@@ -142,10 +140,10 @@ let pushReq (i : int) (y : int) (x : int) (a : int) (* a represents the key of a
 
      (*allA;*)
      Get (tid == i && next == x && key == topKey && value == emptyVal);
-     allA;
+     (*allA;*)
      Put (tid == i && next == y && key == topKey && value == emptyVal);
-     (*allA;
-     PassCAS (tid == i && old_head == x && new_head == y);*)
+     (*allA;*)
+     PassCAS (tid == i && old_head == x && new_head == y);
 
      allA;
      Commit (tid == i);
@@ -201,14 +199,22 @@ let[@goal] t_stack (x : int) (* rc *) =
   allA
 *)
 
-let[@goal] t_stack (* rc *) (*treiber_stack_cc*) (x : int) (y_1 : int) (y_2 : int) (t_0 : int) (t_1 : int) (t_2 : int) (a : int) (b : int)= 
-(*  InitReq true;
-  BeginT (tid == t_0);
-  Put (tid == t_0 && key == topKey && next == x && value == emptyVal);
-  Commit (tid == t_0);
+let[@goal] t_stack (x : int) = (* low detail: looking for a program *)
+  InitReq true;
+  allA;
+  Get (key == topKey && next == x);
+  starA (anyA - Put (key == topKey));
+  Get (key == topKey && not (next == x));
+  allA;
+
+(*
+let[@goal] t_stack (* rc *) (* high detail: most of the outline of the program we're looking for *)
+      (x : int) (y_1 : int) (y_2 : int) (t_0 : int) (t_1 : int) (t_2 : int) (a : int) (b : int) = 
+  InitReq true;
+  allA;
   InitResp true;
+
   (* t_1 *)
-  
   PushReq (elem == a);
   BeginT (tid == t_1);
   Get (tid == t_1 && key == topKey && next == x && value == emptyVal);
@@ -217,32 +223,22 @@ let[@goal] t_stack (* rc *) (*treiber_stack_cc*) (x : int) (y_1 : int) (y_2 : in
   Put (tid == t_1 && next == y_1 && key == topKey && value == emptyVal);
 
 
-
   (* t_2 *)
   PushReq (elem == b);
   BeginT (tid == t_2);
-  
-
   Get (tid == t_2 && key == topKey && next == x && value == emptyVal);
   Put (tid == t_2 && key == y_2 && next == x && value == b);
   Get (tid == t_2 && key == x && key == topKey && value == emptyVal);
   Put (tid == t_2 && key == topKey && next == y_2 && value == emptyVal);
-
   Commit (tid == t_2);
   PushResp true;
 
   Commit (tid == t_1);
-*)
-  InitReq true;
-  allA;
-
-  Put (key == topKey && next == y_2);
-
-
   starA (anyA - Put (key == topKey));
-
-  Get (key == topKey && not (next == y_2));
+  Get (key == topKey && not (next == x));
   allA;
+*)
+
 
   (*InitReq true;
   allA;

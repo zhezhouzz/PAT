@@ -480,11 +480,23 @@ let test_eval s converge_bound () =
         in
         let _ = eval test in
         ())
-  | "t_stack" ->
+  | "t_stack_cc" ->
     let open MonkeyBD in
     let open Common in
     let open TreiberStack in
     BackendMariaDB.MyMariaDB.maria_context "stack" Causal (fun () ->
+        let main = Synthesis.load_progs s () in
+        let test () =
+          Interpreter.once
+            (TreiberStackDB.init, main, TreiberStackDB.check_isolation_level Serializable)
+        in
+        let _ = eval test in
+        ())
+  | "t_stack_rc" ->
+    let open MonkeyBD in
+    let open Common in
+    let open TreiberStack in
+    BackendMariaDB.MyMariaDB.maria_context "stack" ReadCommitted (fun () ->
         let main = Synthesis.load_progs s () in
         let test () =
           Interpreter.once

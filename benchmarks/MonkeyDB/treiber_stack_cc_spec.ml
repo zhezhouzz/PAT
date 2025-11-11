@@ -103,13 +103,13 @@ let get =
          Put (tid == pi && key == k && next == x && value == y);
          starA (anyA - Put (tid == i && key == k));
          Commit (tid == pi && cid == pj);
-         starA (anyA - Commit true - Put (tid == i && key == k))),
+         starA (anyA - Put (tid == i && key == k))),
         Get
           (tid == i && key == k && prevTid == pi && prevCid == pj
           && (not (tid == prevTid))
           && next == x
           && value == y),
-        allA ));
+        starA (anyA - Commit (tid == i && cid < pj)) ));
   |]
 
 (* stack operations *)
@@ -138,9 +138,9 @@ let pushReq (i : int) (y : int) (x : int) (a : int) (* a represents the key of a
      Get (tid == i && key == topKey && next == x && value == emptyVal);
      Put (tid == i && key == y && value == e && next == x);
 
-     (*allA;*)
+     allA;
      Get (tid == i && next == x && key == topKey && value == emptyVal);
-     (*allA;*)
+     
      Put (tid == i && next == y && key == topKey && value == emptyVal);
      (*allA;*)
      PassCAS (tid == i && old_head == x && new_head == y);
@@ -199,10 +199,10 @@ let[@goal] t_stack (x : int) (* rc *) =
   allA
 *)
 
-let[@goal] t_stack_rc (x : int) = (* low detail: looking for a program *)
+let[@goal] t_stack_cc (x : int) = (* low detail: looking for a program *)
   InitReq true;
   allA;
-  Put (key == topKey && next == x);
+  Get (key == topKey && next == x);
   starA (anyA - Put (key == topKey));
   Get (key == topKey && not (next == x));
   allA;
