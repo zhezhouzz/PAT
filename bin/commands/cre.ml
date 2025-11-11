@@ -701,7 +701,7 @@ let test_random mode s converge_bound () =
     match s with
     | "hashtable" ->
         let open Adt.Hashtable_random in
-        test_fn ()
+        let result = test_fn () in SampleResult(0, float_of_int (fst result), float_of_int (snd result))
     (* | "hashtable" ->
         let open Adt.Hashtable in
         let test () =

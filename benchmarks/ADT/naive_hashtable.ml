@@ -13,7 +13,6 @@ module HConf = struct
 
   let gen_cmd () : cmd =
     let key = Random.int 20 in
-    (* Use a smaller key space to force collisions *)
     let value = Random.int 1000 in
     match Random.int 8 with
     | 0 -> Clear
