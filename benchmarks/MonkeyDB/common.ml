@@ -331,7 +331,7 @@ module CartDB = struct
 end
 
 
-(*
+
 
 module TreiberStackDB = struct
   (* Tstack transactions: Just CAS? No. Add cell, remove cell (bimyou), CAS *)
@@ -344,22 +344,28 @@ module TreiberStackDB = struct
   module D = MyDB (Config)
   include D
 
-  let topKey = 0
+  let db_str = "stack"
+
+  let topKey = -1
+  let emptyVal = -1
   (*let _opCount = ref 0*)
 
-  let readAsync (ev : ev) = _getAsync "stack" ev
-  let writeAsync (ev : ev) = _putAsync "stack" ev
+  let getAsync (ev : ev) = _getAsync db_str ev
+  let putAsync (ev : ev) = _putAsync db_str ev
 
-
-  let do_read tid key = 
-    let msg = async ("read", [ mk_value_int tid; mk_value_int key ]) in
+  let do_get tid key = 
+    let msg = (*if key == topKey
+      then async ("getTop", [ mk_value_int tid; mk_value_int key ])
+      else*) async ("get", [ mk_value_int tid; mk_value_int key ])
+    in
     match msg.ev.args with
-    | _ :: _ :: _ :: _ :: [ VConst (I value) ; VConst (I next) ] -> value, next
+    | _ :: _ :: _ :: _ :: [ VConst (I value) ; VConst (I next) ] -> (value, next)
     | _ -> _die [%here]
 
-  let do_write tid key value next =
-    async ("updateAccounts", [ mk_value_int tid; mk_value_int key ; mk_value_int value; mk_value_int next])
-
+  let do_put tid key value next =
+    (*if key == topKey
+      then async ("putTop", [ mk_value_int tid; mk_value_int key ; mk_value_int value; mk_value_int next])
+      else *)async ("put", [ mk_value_int tid; mk_value_int key ; mk_value_int value; mk_value_int next ])
 
   let do_trans f =
     let msg = async ("beginT", []) in
@@ -371,102 +377,109 @@ module TreiberStackDB = struct
     (*let () = _opCount := !_opCount + 1 *)
     res
 
-  let async_cas old_head new_head tid =
-      let* _, _, key =
-        DB.async_get ~tid ~table:"stack" ~key:(string_of_int topKey)
-      in
-      let key =
-        match Config.json_to_values key with
-          | [ VConst (I _) ; VConst (I next) ] -> next
-          | _ -> _die [%here]
-      in
-      if key == old_head then
-        let () = DB.async_put ~tid ~table:"stack" ~key:(string_of_int topKey)
-                 ~json (Config.values_to_json [ VConst (I -1) ; VConst (I new_head)])
-        in true
-      else false
-
-
-  let do_cas old_head new_head tid =
-      let key = do_read topKey in
-      let key =
-        match Config.json_to_values topKey with
-        | [ VConst (I _) ; VConst (I key)] -> key
-        | _ -> _die [%here]
-      in
-      if key == old_head then
-        let _ = do_write tid new_head in
-        true
-      else false
-
-  (* top *)
-  (*
-  let async_top ~thread_id () =
+  let async_cas tid old_head new_head =
     let open Lwt.Syntax in
-    let* tid = DB.async_begin ~thread_id () in
-    try
-      (* TODO the top operation stuff *)
-    with BackendMariaDB.DBKeyNotFound _ ->
-      let* _ = DB.async_release_connection ~tid () in
-      Lwt.return_unit
-
-  let topReqHandler (msg : msg) =
-    let aux () =
-      do_trans (fun tid ->
-        let _ = (* TODO some database interactions here *) in
-        ())
+    let* _, _, key =
+      DB.async_get ~tid ~table:db_str ~key:(string_of_int topKey) ()
     in
-    match msg.ev.args with
-    | [] ->
-        let v = aux () in
-        send ("topResp", [ mk_value_int v ])
-    | _ -> _die [%here]
-  *)
-  (* push *) 
+    let key =
+      match Config.json_to_values key with
+        | [ VConst (I _) ; VConst (I next) ] -> next
+        | _ -> _die [%here]
+    in
+    if key == old_head then
+      let* () = DB.async_put ~tid ~table:db_str ~key:(string_of_int topKey)
+               ~json:(Config.values_to_json [ VConst (I emptyVal) ; VConst (I new_head)]) ()
+      in Lwt.return_true
+    else Lwt.return_false
 
-  let async_push ~thread_id element () = 
+
+  let do_cas tid old_head new_head =
+      let key = do_get tid topKey in
+      let key =
+        match key with
+        | (_ , next) -> next
+      in
+      if key == old_head then
+        let _ = do_put tid topKey emptyVal new_head in
+        true
+      else let _ = (Printf.printf "key: 
+      %d\n old_head: %d\nfailed CAS\n" key old_head) in false
+
+  (* init *)
+  let async_init ~thread_id () =
     let open Lwt.Syntax in
     let* tid = DB.async_begin ~thread_id () in
     try
-      let* _, _, old_head =
-        DB.async_get ~tid ~table:"stack" ~key:(string_of_int topKey)
+      let* () =
+        DB.async_put ~tid ~table:db_str ~key:(string_of_int topKey)
+        ~json:(Config.values_to_json [ VConst (I emptyVal) ; VConst (I tid)]) ()
       in
-      let old_head =
-        match Config.json_to_values old_head with
-          | [ VConst (I _) ; VConst (I next) ] -> next
-          | _ -> _die [%here]
-      in
-      let cas = ref false in
-      while !cas do
-        let () =
-          DB.async_put ~tid ~table:"stack" ~key:(string_of_int tid)
-          ~json (Config.values_to_json [ VConst (I element) ; VConst (I old_head)])
-        in
-        let () = cas := (async_cas old_head tid tid)
-        in
-        ()
-      done
       let* _ = DB.async_commit ~tid () in
       Lwt.return_unit
     with BackendMariaDB.DBKeyNotFound _ ->
       let* _ = DB.async_release_connection ~tid () in
       Lwt.return_unit
 
-  let pushReqHandler (msg : msg) = 
-    let rec aux (v : int) =
-      let oldHeadKey = do_trans (fun tid -> do_read tid) in
-      let newHead = (v, oldHeadKey) in
-      let newHeadKey = fresh_key () in
-      let cas_res =
-        do_trans (fun tid ->
-            let key = do_read tid in
-            if key == oldHeadKey then
-              let _ = do_write tid newHeadKey in
-              let _ = do_put tid newHeadKey newHead in
-              true
-            else false)
+  let initReqHandler (msg : msg) =
+    let aux () =
+      do_trans (fun tid ->
+          let _ = do_put tid topKey emptyVal tid in
+          let _ = Printf.printf "INIT REQ\n" in
+          ())
     in
-    if cas_res then () else aux v
+    match msg.ev.args with
+    | [] -> let _ = aux () in
+            send ("initResp", [])
+    | _ -> _die [%here]
+
+  (* push *) 
+  let async_push ~thread_id element () = 
+    let open Lwt.Syntax in
+    let* tid = DB.async_begin ~thread_id () in
+    let rec try_cas () =
+      let fail_cas () = try_cas () in
+      let pass_cas () = let* _ = DB.async_commit ~tid () in
+                        Lwt.return_unit in
+      let* _, _, old_head =
+          DB.async_get ~tid ~table:db_str ~key:(string_of_int topKey) ()
+        in
+        let old_head =
+          match Config.json_to_values old_head with
+            | [ VConst (I _) ; VConst (I next) ] -> next
+            | _ -> _die [%here]
+        in
+        let* () =
+          DB.async_put ~tid ~table:db_str ~key:(string_of_int tid)
+          ~json:(Config.values_to_json [ VConst (I element) ; VConst (I old_head)]) ()
+        in
+        let* cas = async_cas tid old_head tid in
+        if cas then pass_cas () else fail_cas ()
+    in
+    try
+      try_cas ()
+    with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = DB.async_release_connection ~tid () in
+      Lwt.return_unit
+
+
+  let pushReqHandler (msg : msg) = 
+    let aux (element : int) =
+      let rec try_cas (tid : int) = 
+        let fail_cas (tid : int) = let _ = send ("failCAS", []) in
+                                  try_cas (tid) in
+        let pass_cas () = let _ = send ("passCAS", []) in
+                                  () in
+        let old_head =
+          match do_get tid topKey with
+          | (_ , next) -> next
+        in
+        let _ = do_put tid tid element old_head in
+        if (do_cas tid old_head tid) then pass_cas () else fail_cas (tid)
+      in
+      do_trans (fun tid ->
+        try_cas (tid))
+    in
     match msg.ev.args with
     | [ VConst (I v) ] ->
         let _ = aux v in
@@ -477,59 +490,87 @@ module TreiberStackDB = struct
   let async_pop ~thread_id () =
     let open Lwt.Syntax in
     let* tid = DB.async_begin ~thread_id () in
+    let rec try_cas () =
+      let fail_cas () = try_cas () in
+      let pass_cas (v : int) = let* _ = DB.async_commit ~tid () in
+                        Lwt.return v in
+      let* _, _, old_head =
+        DB.async_get ~tid ~table:db_str ~key:(string_of_int topKey) ()
+      in
+      let old_head =
+        match Config.json_to_values old_head with
+          | [ VConst (I _) ; VConst (I next) ] -> next
+          | _ -> _die [%here]
+      in
+      let* _, _, old_head_value =
+        DB.async_get ~tid ~table:db_str ~key:(string_of_int old_head) ()
+      in
+      let top_value, new_head =
+        match Config.json_to_values old_head_value with
+          | [ VConst (I v) ; VConst (I next) ] -> v, next
+          | _ -> _die [%here]
+      in
+      let* cas = async_cas tid old_head new_head in
+      if cas then pass_cas (top_value) else fail_cas ()
+    in
     try
-      let cas = ref false in
-      while not !cas do
-        let* _, _, old_head =
-          DB.async_get ~tid ~table:"stack" ~key:(string_of_int topKey)
-        in
-        let old_head =
-          match Config.json_to_values old_head with
-            | [ VConst (I _) ; VConst (I next) ] -> next
-            | _ -> _die [%here]
-        in
-        let* _, _, old_head_value =
-          DB.async_get ~tid ~table:"stack" ~key:(string_of_int old_head)
-        in
-        let top_value, new_head =
-          match Config.json_to_values old_head with
-            | [ VConst (I v) ; VConst (I next) ] -> v, next
-            | _ -> _die [%here]
-        in
-        let () = cas := (async_cas old_head new_head tid)
-        in
-        ()
-      done
-      let* _ = DB.async_commit ~tid () in
-      Lwt.return top_value
-    with BackendMariaDB.DBKeyNotFound _ ->
+      try_cas ()
+    with BackendMariaDB.DBKeyNotFound s ->
       let* _ = DB.async_release_connection ~tid () in
       Lwt.fail (BackendMariaDB.DBKeyNotFound s)
 
   let popReqHandler (msg : msg) =
+
     let aux () =
+      let rec try_cas (tid : int) = 
+        let fail_cas (tid : int) = let _ = send ("failCAS", []) in
+                                  try_cas (tid) in
+        let pass_cas (v : int) = 
+                                 v in
+        let old_head =
+          match do_get tid topKey with
+          | (_, next) -> next
+        in
+        let old_head_value, new_head = match do_get tid old_head with
+          | (v, next) -> v, next
+        in
+        if (do_cas tid old_head new_head)
+          then 
+            let _ = send ("passCAS", [ mk_value_int tid ; mk_value_int old_head ; mk_value_int new_head ])
+              in pass_cas old_head_value
+          else
+            let _ = send ("failCAS", [ mk_value_int tid ; mk_value_int old_head ; mk_value_int new_head ])
+              in fail_cas tid
+      in
       do_trans (fun tid ->
-        let _ = (* TODO some database interactions here *) in
-        ())
+        try_cas (tid))
     in
     match msg.ev.args with
-    | [] ->
-        let v = aux () in
-        send ("popResp", [ mk_value_int v ])
+    | [] -> let v = aux () in
+            send ("popResp", [ mk_value_int v ])
     | _ -> _die [%here]
         
+
+  let initRespHandler (_ : msg) = ()
+  let pushRespHandler (_ : msg) = ()
+  let popRespHandler (_ : msg) = ()
+  let passCASHandler (_ : msg) = ()
+  let failCASHandler (_ : msg) = ()
   
   let init () =
     register_async_has_ret "beginT" beginAsync;
     register_async_has_ret "commit" commitAsync;
-    (*register_async_has_ret "selectTop" selectTopAsync;
-    register_async_no_ret "updateTop" updateTopAsync; *)
-    register_async_has_ret "selectCell" selectCellAsync;
-    register_async_no_ret "updateCell" updateCellAsync;
-    (*register_handler "topReq" topReqHandler;*)
+    register_async_has_ret "getTop" getAsync;
+    register_async_no_ret "putTop" putAsync;
+    register_async_has_ret "get" getAsync;
+    register_async_no_ret "put" putAsync;
+    register_handler "initReq" initReqHandler;
+    register_handler "initResp" initRespHandler;
+    (*register_async_has_ret "CAS" async_cas;*)
+    register_handler "passCAS" passCASHandler;
+    register_handler "failCAS" failCASHandler;
     register_handler "pushReq" pushReqHandler;
     register_handler "popReq" popReqHandler;
-    (*register_handler "topResp" topRespHandler;*)
     register_handler "pushResp" pushRespHandler;
     register_handler "popResp" popRespHandler;
     D.clear()
@@ -541,34 +582,32 @@ module TreiberStackDB = struct
       [
         "beginT"#:(record [ "tid"#:int_ty ]);
         "commit"#:(record [ "tid"#:int_ty; "cid"#:int_ty ]);
-        "selectTop"#:(record
-                        [
-                          "tid"#:int_ty;
-                          TODO
-                        ]);
-        "updateTop"#:(record
-                        [ "tid"#:int_ty; TODO ]);
-        "selectCell"#:(record
-                          [
-                            "tid"#:int_ty;
-                            TODO
-                          ]);
-        "updateCell"#:(record
-                          [ "tid"#:int_ty; TODO ]);
-
-        "topReq"#:(record [] TODO);
-        "topResp"#:(record [ "top"#:int_ty ]);
+        "put"#:(record
+                  [ "tid"#:int_ty; "key"#:int_ty; "value"#:int_ty; "next"#:int_ty ]);
+        "get"#:(record
+                  [
+                    "tid"#:int_ty;
+                    "key"#:int_ty;
+                    "prev_tid"#:int_ty;
+                    "prev_cid"#:int_ty;
+                    "value"#:int_ty;
+                  ]);
+        "passCAS"#:(record
+                  [ "tid"#:int_ty; "old_head"#:int_ty; "new_head"#:int_ty ]);
+        "failCAS"#:(record
+                  [ "tid"#:int_ty; "old_head"#:int_ty; "new_head"#:int_ty ]);
+        "initReq"#:(record []);
+        "initResp"#:(record []);
         "pushReq"#:(record [ "element"#:int_ty ]);
         "pushResp"#:(record []);
         "popReq"#:(record []);
-        "popResp"#:(record [ "element"#int_ty ]);
+        "popResp"#:(record [ "element"#:int_ty ]);
       ]
 
 
 
 end
 
-*)
 
 
 module SmallBankDB = struct
@@ -1132,7 +1171,7 @@ module TwitterDB = struct
     | _ -> _die [%here]
 
   let do_selectTweets tid user =
-    let msg = async ("selectTweets", [ mk_value_int tid; mk_value_int user ]) in
+    let msg = async ("selectTweets", [mk_value_int tid; mk_value_int user ]) in
     match msg.ev.args with
     | _ :: _ :: _ :: _ :: args -> args
     | _ -> _die [%here]
@@ -1419,3 +1458,341 @@ module TwitterDB = struct
         "timelineResp"#:(record [ "tweets"#:(mk_list_ty int_ty) ]);
       ]
 end
+
+
+(*
+module TPCCDB = struct 
+  module D = MyDB (Config)
+  include D
+
+  let db_str = "tpcc"
+  let district_table = "district"
+  let warehouse_table = "warehouse"
+  let item_table = "item"
+  let stock_table = "stock"
+  let customer_table = "customer"
+  let history_table = "history"
+  let openorder_table = "oorder"
+  let orderline_table = "order_line"
+  let neworder_table = "new_order"
+
+  let selectDistrictAsync (ev : ev) = _getAsyncTable db_str district_table ev
+  let selectWarehouseAsync (ev : ev) = _getAsyncTable db_str warehouse_table ev
+  let selectItemAsync (ev : ev) = _getAsyncTable db_str item_table ev
+  let selectStockAsync (ev : ev) = _getAsyncTable db_str stock_table ev
+  let selectCustomerAsync (ev : ev) = _getAsyncTable db_str customer_table ev
+  let selectHistoryAsync (ev : ev) = _getAsyncTable db_str history_table ev
+  let selectOpenOrderAsync (ev : ev) = _getAsyncTable db_str openorder_table ev
+  let selectOrderLineAsync (ev : ev) = _getAsyncTable db_str orderline_table ev
+  let selectNewOrderAsync (ev : ev) = _getAsyncTable db_str neworder_table ev
+
+  let updateDistrictAsync (ev : ev) = _putAsyncTable db_str district_table ev
+  let updateWarehouseAsync (ev : ev) = _putAsyncTable db_str warehouse_table ev
+  let updateItemAsync (ev : ev) = _putAsyncTable db_str item_table ev
+  let updateStockAsync (ev : ev) = _putAsyncTable db_str stock_table ev
+  let updateCustomerAsync (ev : ev) = _putAsyncTable db_str customer_table ev
+  let updateHistoryAsync (ev : ev) = _putAsyncTable db_str history_table ev
+  let updateOpenOrderAsync (ev : ev) = _putAsyncTable db_str openorder_table ev
+  let updateOrderLineAsync (ev : ev) = _putAsyncTable db_str orderline_table ev
+  let updateNewOrderAsync (ev : ev) = _putAsyncTable db_str neworder_table ev
+
+
+  let do_selectCustomer tid c_id =
+    let msg = async ("selectCustomer", [ mk_value_int tid; mk_value_int c_id ]) in
+    match msg.ev.args with
+    | _ :: _ :: _ :: _ :: args -> args
+    | _ -> _die [%here]
+
+  let do_selectDistrict tid d_id =
+    let msg = async ("selectDistrict", [ mk_value_int tid; mk_value_int d_id ]) in
+    match msg.ev.args with
+    | _ :: _ :: _ :: _ :: args -> args
+    | _ -> _die [%here]
+
+  let do_selectHistory tid h_c_id =
+    let msg = async ("selectHistory", [ mk_value_int tid; mk_value_int h_c_id ]) in
+    match msg.ev.args with
+    | _ :: _ :: _ :: _ :: args -> args
+    | _ -> _die [%here]
+
+  let do_selectItem tid i_id =
+    let msg = async ("selectItem", [ mk_value_int tid; mk_value_int i_id ]) in
+    match msg.ev.args with
+    | _ :: _ :: _ :: _ :: args -> args
+    | _ -> _die [%here]
+
+  let do_selectNewOrder tid no_o_id =
+    let msg = async ("selectNewOrder", [ mk_value_int tid; mk_value_int no_o_id ]) in
+    match msg.ev.args with
+    | _ :: _ :: _ :: _ :: args -> args
+    | _ -> _die [%here]
+
+  let do_selectOpenOrder tid o_id =
+    let msg = async ("selectOpenOrder", [ mk_value_int tid; mk_value_int o_id ]) in
+    match msg.ev.args with
+    | _ :: _ :: _ :: _ :: args -> args
+    | _ -> _die [%here]
+
+  
+
+  let do_updateCustomer tid c_id c_w_id c_d_id c_discount
+                        c_credit c_last c_first c_credit_lim
+                        c_balance c_ytd_payment c_payment_cnt
+                        c_delivery_cnt c_street_1 c_street_2
+                        c_city c_state c_zip c_phone c_since
+                        c_middle c_data =
+    async ("updateCustomer", [
+      mk_value_int tid;
+      mk_value_int c_id;
+      mk_value_int c_w_id;
+      mk_value_int c_d_id;
+      mk_value_int c_discount; (*decimal(4,4)*)
+      mk_value_int c_credit; (*char(2)*)
+      mk_value_int c_last; (*varchar(16)*)
+      mk_value_int c_first; (*varchar(16)*)
+      mk_value_int c_credit_lim; (*decimal(12,2)*)
+      mk_value_int c_balance; (*decimal(12,2)*)
+      mk_value_int c_ytd_payment; (*float*)
+      mk_value_int c_payment_cnt;
+      mk_value_int c_delivery_cnt;
+      mk_value_int c_street_1; (*varchar(20)*)
+      mk_value_int c_street_2; (*varchar(20)*)
+      mk_value_int c_city; (*varchar(20)*)
+      mk_value_int c_state; (*char(2)*)
+      mk_value_int c_zip; (*char(9)*)
+      mk_value_int c_phone; (*char(16)*)
+      mk_value_int c_since; (*timestamp, default current*)
+      mk_value_int c_middle; (*char(2)*)
+      mk_value_int c_data; (*varchar(500)*)
+    ])
+
+  let do_updateDistrict tid d_id d_w_id d_ytd d_tax
+                        d_next_o_id d_name d_street_1
+                        d_street_2 d_city d_state d_zip =
+    async ("updateDistrict", [ 
+      mk_value_int tid;
+      mk_value_int d_id;
+      mk_value_int d_w_id;
+      mk_value_int d_ytd; (*decimal (12,2)*)
+      mk_value_int d_tax; (*decimal (12,2)*)
+      mk_value_int d_next_o_id;
+      mk_value_int d_name; (*varchar(10)*)
+      mk_value_int d_street_1; (*varchar(20)*)
+      mk_value_int d_street_2; (*varchar(20)*)
+      mk_value_int d_city; (*carchar(20)*)
+      mk_value_int d_state; (*char(2)*)
+      mk_value_int d_zip; (*char(9)*)
+    ])
+
+  let do_updateHistory tid h_c_id h_c_d_id h_c_w_id
+                       h_d_id h_w_id h_date h_amount h_data =
+    async ("updateHistory", [
+      mk_value_int tid;
+      mk_value_int h_c_id;
+      mk_value_int h_c_d_id;
+      mk_value_int h_c_w_id;
+      mk_value_int h_d_id;
+      mk_value_int h_w_id;
+      mk_value_int h_date; (*timestamp*)
+      mk_value_int h_amount; (*decimal(6,2)*)
+      mk_value_int h_data (*varchar(24)*)
+    ])
+
+  let do_updateItem tid i_id i_name i_price i_data i_im_id =
+    async ("updateItem", [
+      mk_value_int tid;
+      mk_value_int i_id;
+      mk_value_int i_name; (*varchar(24)*)
+      mk_value_int i_price; (*decimal(5,2)*)
+      mk_value_int i_data; (*varchar(50)*)
+      mk_value_int i_im_id
+    ])
+
+  let do_updateNewOrder tid no_w_id no_d_id no_o_id =
+    async ("updateNewOrder", [
+      mk_value_int tid;
+      mk_value_int no_w_id;
+      mk_value_int no_d_id;
+      mk_value_int no_o_id;
+    ])
+
+  let do_updateOpenOrder tid o_w_id o_d_id o_id o_c_id
+                         o_carrier_id o_ol_cnt o_all_local
+                         o_entry_d =
+    async ("updateOpenOrder", [
+      mk_value_int tid;
+      mk_value_int o_w_id;
+      mk_value_int o_d_id;
+      mk_value_int o_id;
+      mk_value_int o_c_id;
+      mk_value_int o_carrier_id;
+      mk_value_int o_ol_cnt; (*decimal(2,0)*)
+      mk_value_int o_all_local; (*decimal(1,0)*)
+      mk_value_int o_entry_d; (*timestamp default current*)
+    ])
+(*
+CREATE TABLE ORDER_LINE (
+  OL_W_ID INT NOT NULL,
+  OL_D_ID INT NOT NULL,
+  OL_O_ID INT NOT NULL,
+  OL_NUMBER INT NOT NULL,
+  OL_I_ID INT NOT NULL,
+  OL_DELIVERY_D TIMESTAMP NULL DEFAULT NULL,
+  OL_AMOUNT DECIMAL(6,2) NOT NULL,
+  OL_SUPPLY_W_ID INT NOT NULL,
+  OL_QUANTITY DECIMAL(2,0) NOT NULL,
+  OL_DIST_INFO CHAR(24) NOT NULL,
+  PRIMARY KEY (OL_W_ID,OL_D_ID,OL_O_ID,OL_NUMBER)
+);
+
+CREATE TABLE STOCK (
+  S_W_ID INT NOT NULL,
+  S_I_ID INT NOT NULL,
+  S_QUANTITY DECIMAL(4,0) NOT NULL,
+  S_YTD DECIMAL(8,2) NOT NULL,
+  S_ORDER_CNT INT NOT NULL,
+  S_REMOTE_CNT INT NOT NULL,
+  S_DATA VARCHAR(50) NOT NULL,
+  S_DIST_01 CHAR(24) NOT NULL,
+  S_DIST_02 CHAR(24) NOT NULL,
+  S_DIST_03 CHAR(24) NOT NULL,
+  S_DIST_04 CHAR(24) NOT NULL,
+  S_DIST_05 CHAR(24) NOT NULL,
+  S_DIST_06 CHAR(24) NOT NULL,
+  S_DIST_07 CHAR(24) NOT NULL,
+  S_DIST_08 CHAR(24) NOT NULL,
+  S_DIST_09 CHAR(24) NOT NULL,
+  S_DIST_10 CHAR(24) NOT NULL,
+  PRIMARY KEY (S_W_ID,S_I_ID)
+);
+
+CREATE TABLE WAREHOUSE (
+  W_ID INT NOT NULL,
+  W_YTD DECIMAL(12,2) NOT NULL,
+  W_TAX DECIMAL(4,4) NOT NULL,
+  W_NAME VARCHAR(10) NOT NULL,
+  W_STREET_1 VARCHAR(20) NOT NULL,
+  W_STREET_2 VARCHAR(20) NOT NULL,
+  W_CITY VARCHAR(20) NOT NULL,
+  W_STATE CHAR(2) NOT NULL,
+  W_ZIP CHAR(9) NOT NULL,
+  PRIMARY KEY (W_ID)
+);
+*)
+
+  let do_trans f =
+    let msg = async ("beginT", []) in
+    let tid =
+      match msg.ev.args with [ VConst (I tid) ] -> tid | _ -> _die [%here]
+    in
+    let res = f tid in
+    let _ = async ("commit", [ mk_value_int tid ]) in
+    res
+
+  (* delivery *)
+  let async_delivery = true
+
+  let deliveryReqHandler = true
+
+  (* new order *)
+  let async_new_order = true
+
+  let newOrderReqHandler = true
+
+  (* order status *)
+  let async_order_status = true
+
+  let orderStatusReqHandler = true
+
+  (* payment *)
+  let async_payment = true
+
+  let paymentReqHandler = true
+
+  (* stock level *)
+  let async_stock_level = true
+
+  let stockLevelReqHandler = true
+
+
+
+  let deliveryRespHandler (_ : msg) = ()
+  let newOrderRespHandler (_ : msg) = ()
+  let orderStatusRespHandler (_ : msg) = ()
+  let paymentRespHandler (_ : msg) = ()
+  let stockLevelRespHandler (_ : msg) = ()
+
+  let init () =
+    (* database *)
+    register_async_has_ret "beginT" beginAsync;
+    register_async_has_ret "commit" commitAsync;
+    register_async_has_ret "selectDistrict" selectDistrictAsync;
+    register_async_no_ret "updateDistrict" updateDistrictAsync;
+    register_async_has_ret "selectWarehouse" selectWarehouseAsync;
+    register_async_no_ret "updateWarehouse" updateWarehouseAsync;
+    register_async_has_ret "selectItem" selectItemAsync;
+    register_async_no_ret "updateItem" updateItemAsync;
+    register_async_has_ret "selectStock" selectStockAsync;
+    register_async_no_ret "updateStock" updateStockAsync;
+    register_async_has_ret "selectCustomer" selectCustomerAsync;
+    register_async_no_ret "updateCustomer" updateCustomerAsync;
+    register_async_has_ret "selectHistory" selectHistoryAsync;
+    register_async_no_ret "updateHistory" updateHistoryAsync;
+    register_async_has_ret "selectOOrder" selectOOrderAsync;
+    register_async_no_ret "updateOOrder" updateOOrderAsync;
+    register_async_has_ret "selectOrderLine" selectOrderLineAsync;
+    register_async_no_ret "updateOrderLine" updateOrderLineAsync;
+    register_async_has_ret "selectNewOrder" selectNewOrderAsync;
+    register_async_no_ret "updateNewOrder" updateNewOrderAsync;
+    (* procedures *)
+    register_handler "deliveryReq" deliveryReqHandler;
+    register_handler "newOrderReq" newOrderReqHandler;
+    register_handler "orderStatusReq" orderStatusReqHandler;
+    register_handler "paymentReq" paymentReqHandler;
+    register_handler "stockLevelReq" stockLevelReqHandler;
+    register_handler "deliveryResp" deliveryRespHandler;
+    register_handler "newOrderResp" newOrderRespHandler;
+    register_handler "orderStatusResp" orderStatusRespHandler;
+    register_handler "paymentResp" paymentRespHandler;
+    register_handler "stockLevelResp" stockLevelRespHandler;
+    D.clear ()
+
+  let testCtx =
+    let open Nt in
+    let record l = Ty_record { alias = None; fds = l } in
+    Typectx.add_to_rights Typectx.emp
+      [
+        "beginT"#:(record [ "tid"#:int_ty ]);
+        "commit"#:(record [ "tid"#:int_ty; "cid"#:int_ty ]);
+        "selectFollows"#:(record
+                            [
+                              "tid"#:int_ty;
+                              "key"#:int_ty;
+                              "prev_tid"#:int_ty;
+                              "prev_cid"#:int_ty;
+                              "value"#:(mk_list_ty int_ty);
+                            ]);
+        "updateFollows"#:(record
+                            [ "tid"#:int_ty; "key"#:int_ty; "value"#:(mk_list_ty int_ty) ]);
+        "selectTweets"#:(record
+                            [
+                              "tid"#:int_ty;
+                              "key"#:int_ty;
+                              "prev_tid"#:int_ty;
+                              "prev_cid"#:int_ty;
+                              "value"#:(mk_list_ty int_ty);
+                            ]);
+        "updateTweets"#:(record
+                            [ "tid"#:int_ty; "key"#:int_ty; "value"#:(mk_list_ty int_ty) ]);
+        "newUserReq"#:(record [ "user"#:int_ty ]);
+        "newUserResp"#:(record []);
+        "followReq"#:(record [ "user"#:int_ty; "follow_o"#:int_ty ]);
+        "followResp"#:(record []);
+        "unfollowReq"#:(record [ "user"#:int_ty; "unfollow_o"#:int_ty ]);
+        "unfollowResp"#:(record []);
+        "postTweetReq"#:(record [ "user"#:int_ty; "tweet"#:int_ty ]);
+        "postTweetResp"#:(record []);
+        "timelineReq"#:(record [ "user"#:int_ty ]);
+        "timelineResp"#:(record [ "tweets"#:(mk_list_ty int_ty) ]);
+      ]
+  *)

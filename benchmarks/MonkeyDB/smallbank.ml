@@ -14,13 +14,13 @@ let obsAmalgamateResp e = mk_term_obs_fresh testCtx "amalgamateResp" (fun _ -> e
 
 let obsBalanceResp e = mk_term_obs_fresh testCtx "balanceResp" (fun _ -> e)
 
-let obsDepositCheckingRespHandler e = mk_term_obs_fresh testCtx "depositCheckingResp" (fun _ -> e)
+let obsDepositCheckingResp e = mk_term_obs_fresh testCtx "depositCheckingResp" (fun _ -> e)
 
-let obsSendPaymentRespHandler e = mk_term_obs_fresh testCtx "sendPaymentResp" (fun _ -> e)
+let obsSendPaymentResp e = mk_term_obs_fresh testCtx "sendPaymentResp" (fun _ -> e)
 
-let obsTransactSavingsRespHandler e = mk_term_obs_fresh testCtx "transactSavingsResp" (fun _ -> e)
+let obsTransactSavingsResp e = mk_term_obs_fresh testCtx "transactSavingsResp" (fun _ -> e)
 
-let obsWriteCheckRespHandler e = mk_term_obs_fresh testCtx "writeCheckResp" (fun _ -> e)
+let obsWriteCheckResp e = mk_term_obs_fresh testCtx "writeCheckResp" (fun _ -> e)
 
 
 let obsBegin k =

@@ -99,17 +99,17 @@ let selectFollows =
          UpdateFollows (tid == pi && user == u && follows == f);
          starA (anyA - UpdateFollows (tid == i && user == u));
          Commit (tid == pi && cid == pj);
-         starA (anyA - UpdateFollows (tid == i && user == u))),
+         starA (anyA - Commit true - UpdateFollows (tid == i && user == u))),
         SelectFollows
           (tid == i && user == u && prevTid == pi && prevCid == pj
           && (not (tid == prevTid))
           && follows == f),
-        starA (anyA - Commit (tid == i && cid < pj)) ));
+        allA ));
   |]
 
 let selectTweets =
   [|
-    (* Read one previous committed transaction *)
+    (* Read most recent committed transaction *)
     (fun ?l:(i = (true : [%v: int]))
       ?l:(pi = (true : [%v: int]))
       ?l:(pj = (true : [%v: int]))
@@ -120,13 +120,14 @@ let selectTweets =
          UpdateTweets (tid == pi && user == u && tweets == t);
          starA (anyA - UpdateTweets (tid == i && user == u));
          Commit (tid == pi && cid == pj);
-         starA (anyA - UpdateTweets (tid == i && user == u))),
+         starA (anyA - Commit true - UpdateTweets (tid == i && user == u))),
         SelectTweets
           (tid == i && user == u && prevTid == pi && prevCid == pj
           && (not (tid == prevTid))
           && tweets == t),
-        starA (anyA - Commit (tid == i && cid < pj)) ));
+        allA ));
   |]
+
 
 
 (* Twitter *)

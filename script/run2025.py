@@ -35,10 +35,7 @@ spec_file = {
     "twitter_cc": "MonkeyDB/twitter_cc_spec.ml",
     "smallbank_rc": "MonkeyDB/smallbank_rc_spec.ml",
     "smallbank_cc": "MonkeyDB/smallbank_cc_spec.ml",
-    "twitter_rc": "MonkeyDB/twitter_rc_spec.ml",
-    "twitter_cc": "MonkeyDB/twitter_cc_spec.ml",
-    "smallbank_rc": "MonkeyDB/smallbank_rc_spec.ml",
-    "smallbank_cc": "MonkeyDB/smallbank_cc_spec.ml",
+    "t_stack": "MonkeyDB/treiber_stack_spec.ml"
 }
 
 def run_syn(name):
