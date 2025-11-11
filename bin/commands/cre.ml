@@ -325,6 +325,7 @@ let four_param_string message f =
 
 let test_eval s converge_bound () =
   let eval = Interpreter.eval_until_detect_bug converge_bound in
+  let _ = Printf.printf "%s\n", s in
   match s with
   (* | "queue" ->
       let open Adt.Queue in
@@ -455,30 +456,44 @@ let test_eval s converge_bound () =
           in
           let _ = eval test in
           ())
-    | "smallbank_rc" ->
-      let open MonkeyBD in
-      let open Common in
-      let open Smallbank in
-      BackendMariaDB.MyMariaDB.maria_context "smallbank" ReadCommitted (fun () ->
-          let main = Synthesis.load_progs s () in
-          let test () =
-            Interpreter.once
-              (SmallBankDB.init, main, SmallBankDB.check_isolation_level Serializable)
-          in
-          let _ = eval test in
-          ())
-    | "smallbank_cc" ->
-      let open MonkeyBD in
-      let open Common in
-      let open Smallbank in
-      BackendMariaDB.MyMariaDB.maria_context "smallbank" Causal (fun () ->
-          let main = Synthesis.load_progs s () in
-          let test () =
-            Interpreter.once
-              (SmallBankDB.init, main, SmallBankDB.check_isolation_level Serializable)
-          in
-          let _ = eval test in
-          ())
+  | "smallbank_rc" ->
+    let open MonkeyBD in
+    let open Common in
+    let open Smallbank in
+    BackendMariaDB.MyMariaDB.maria_context "smallbank" ReadCommitted (fun () ->
+        let main = Synthesis.load_progs s () in
+        let test () =
+          Interpreter.once
+            (SmallBankDB.init, main, SmallBankDB.check_isolation_level Serializable)
+        in
+        let _ = eval test in
+        ())
+  | "smallbank_cc" ->
+    let open MonkeyBD in
+    let open Common in
+    let open Smallbank in
+    BackendMariaDB.MyMariaDB.maria_context "smallbank" Causal (fun () ->
+        let main = Synthesis.load_progs s () in
+        let test () =
+          Interpreter.once
+            (SmallBankDB.init, main, SmallBankDB.check_isolation_level Serializable)
+        in
+        let _ = eval test in
+        ())
+  | "t_stack" ->
+    let open MonkeyBD in
+    let open Common in
+    let open TreiberStack in
+    BackendMariaDB.MyMariaDB.maria_context "stack" Causal (fun () ->
+        let main = Synthesis.load_progs s () in
+        let test () =
+          Interpreter.once
+            (TreiberStackDB.init, main, TreiberStackDB.check_isolation_level Serializable)
+        in
+        let _ = eval test in
+        ())
+
+      
   (* | "courseware_rc" ->
       let open MonkeyBD in
       let open Common in

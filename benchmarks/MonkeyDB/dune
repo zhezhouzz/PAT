@@ -10,10 +10,7 @@
   twitter 
   smallbank
   courseware 
-  twitter 
-  smallbank
-  ; courseware 
-  ; treiberStack 
+  treiberStack 
   ; smallbank
   )
  (inline_tests)

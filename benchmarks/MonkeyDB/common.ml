@@ -328,6 +328,7 @@ end
 
 
 
+
 module TreiberStackDB = struct
   (* Tstack transactions: Just CAS? No. Add cell, remove cell (bimyou), CAS *)
   (*
@@ -339,22 +340,28 @@ module TreiberStackDB = struct
   module D = MyDB (Config)
   include D
 
-  let topKey = 0
+  let db_str = "stack"
+
+  let topKey = -1
+  let emptyVal = -1
   (*let _opCount = ref 0*)
 
-  let readAsync (ev : ev) = _getAsync "stack" ev
-  let writeAsync (ev : ev) = _putAsync "stack" ev
+  let getAsync (ev : ev) = _getAsync db_str ev
+  let putAsync (ev : ev) = _putAsync db_str ev
 
-
-  let do_read tid key = 
-    let msg = async ("read", [ mk_value_int tid; mk_value_int key ]) in
+  let do_get tid key = 
+    let msg = (*if key == topKey
+      then async ("getTop", [ mk_value_int tid; mk_value_int key ])
+      else*) async ("get", [ mk_value_int tid; mk_value_int key ])
+    in
     match msg.ev.args with
-    | _ :: _ :: _ :: _ :: [ VConst (I value) ; VConst (I next) ] -> value, next
+    | _ :: _ :: _ :: _ :: [ VConst (I value) ; VConst (I next) ] -> (value, next)
     | _ -> _die [%here]
 
-  let do_write tid key value next =
-    async ("updateAccounts", [ mk_value_int tid; mk_value_int key ; mk_value_int value; mk_value_int next])
-
+  let do_put tid key value next =
+    (*if key == topKey
+      then async ("putTop", [ mk_value_int tid; mk_value_int key ; mk_value_int value; mk_value_int next])
+      else *)async ("put", [ mk_value_int tid; mk_value_int key ; mk_value_int value; mk_value_int next ])
 
   let do_trans f =
     let msg = async ("beginT", []) in
@@ -366,102 +373,109 @@ module TreiberStackDB = struct
     (*let () = _opCount := !_opCount + 1 *)
     res
 
-  let async_cas old_head new_head tid =
-      let* _, _, key =
-        DB.async_get ~tid ~table:"stack" ~key:(string_of_int topKey)
-      in
-      let key =
-        match Config.json_to_values key with
-          | [ VConst (I _) ; VConst (I next) ] -> next
-          | _ -> _die [%here]
-      in
-      if key == old_head then
-        let () = DB.async_put ~tid ~table:"stack" ~key:(string_of_int topKey)
-                 ~json (Config.values_to_json [ VConst (I -1) ; VConst (I new_head)])
-        in true
-      else false
-
-
-  let do_cas old_head new_head tid =
-      let key = do_read topKey in
-      let key =
-        match Config.json_to_values topKey with
-        | [ VConst (I _) ; VConst (I key)] -> key
-        | _ -> _die [%here]
-      in
-      if key == old_head then
-        let _ = do_write tid new_head in
-        true
-      else false
-
-  (* top *)
-  (*
-  let async_top ~thread_id () =
+  let async_cas tid old_head new_head =
     let open Lwt.Syntax in
-    let* tid = DB.async_begin ~thread_id () in
-    try
-      (* TODO the top operation stuff *)
-    with BackendMariaDB.DBKeyNotFound _ ->
-      let* _ = DB.async_release_connection ~tid () in
-      Lwt.return_unit
-
-  let topReqHandler (msg : msg) =
-    let aux () =
-      do_trans (fun tid ->
-        let _ = (* TODO some database interactions here *) in
-        ())
+    let* _, _, key =
+      DB.async_get ~tid ~table:db_str ~key:(string_of_int topKey) ()
     in
-    match msg.ev.args with
-    | [] ->
-        let v = aux () in
-        send ("topResp", [ mk_value_int v ])
-    | _ -> _die [%here]
-  *)
-  (* push *) 
+    let key =
+      match Config.json_to_values key with
+        | [ VConst (I _) ; VConst (I next) ] -> next
+        | _ -> _die [%here]
+    in
+    if key == old_head then
+      let* () = DB.async_put ~tid ~table:db_str ~key:(string_of_int topKey)
+               ~json:(Config.values_to_json [ VConst (I emptyVal) ; VConst (I new_head)]) ()
+      in Lwt.return_true
+    else Lwt.return_false
 
-  let async_push ~thread_id element () = 
+
+  let do_cas tid old_head new_head =
+      let key = do_get tid topKey in
+      let key =
+        match key with
+        | (_ , next) -> next
+      in
+      if key == old_head then
+        let _ = do_put tid topKey emptyVal new_head in
+        true
+      else let _ = (Printf.printf "key: 
+      %d\n old_head: %d\nfailed CAS\n" key old_head) in false
+
+  (* init *)
+  let async_init ~thread_id () =
     let open Lwt.Syntax in
     let* tid = DB.async_begin ~thread_id () in
     try
-      let* _, _, old_head =
-        DB.async_get ~tid ~table:"stack" ~key:(string_of_int topKey)
+      let* () =
+        DB.async_put ~tid ~table:db_str ~key:(string_of_int topKey)
+        ~json:(Config.values_to_json [ VConst (I emptyVal) ; VConst (I tid)]) ()
       in
-      let old_head =
-        match Config.json_to_values old_head with
-          | [ VConst (I _) ; VConst (I next) ] -> next
-          | _ -> _die [%here]
-      in
-      let cas = ref false in
-      while !cas do
-        let () =
-          DB.async_put ~tid ~table:"stack" ~key:(string_of_int tid)
-          ~json (Config.values_to_json [ VConst (I element) ; VConst (I old_head)])
-        in
-        let () = cas := (async_cas old_head tid tid)
-        in
-        ()
-      done
       let* _ = DB.async_commit ~tid () in
       Lwt.return_unit
     with BackendMariaDB.DBKeyNotFound _ ->
       let* _ = DB.async_release_connection ~tid () in
       Lwt.return_unit
 
-  let pushReqHandler (msg : msg) = 
-    let rec aux (v : int) =
-      let oldHeadKey = do_trans (fun tid -> do_read tid) in
-      let newHead = (v, oldHeadKey) in
-      let newHeadKey = fresh_key () in
-      let cas_res =
-        do_trans (fun tid ->
-            let key = do_read tid in
-            if key == oldHeadKey then
-              let _ = do_write tid newHeadKey in
-              let _ = do_put tid newHeadKey newHead in
-              true
-            else false)
+  let initReqHandler (msg : msg) =
+    let aux () =
+      do_trans (fun tid ->
+          let _ = do_put tid topKey emptyVal tid in
+          let _ = Printf.printf "INIT REQ\n" in
+          ())
     in
-    if cas_res then () else aux v
+    match msg.ev.args with
+    | [] -> let _ = aux () in
+            send ("initResp", [])
+    | _ -> _die [%here]
+
+  (* push *) 
+  let async_push ~thread_id element () = 
+    let open Lwt.Syntax in
+    let* tid = DB.async_begin ~thread_id () in
+    let rec try_cas () =
+      let fail_cas () = try_cas () in
+      let pass_cas () = let* _ = DB.async_commit ~tid () in
+                        Lwt.return_unit in
+      let* _, _, old_head =
+          DB.async_get ~tid ~table:db_str ~key:(string_of_int topKey) ()
+        in
+        let old_head =
+          match Config.json_to_values old_head with
+            | [ VConst (I _) ; VConst (I next) ] -> next
+            | _ -> _die [%here]
+        in
+        let* () =
+          DB.async_put ~tid ~table:db_str ~key:(string_of_int tid)
+          ~json:(Config.values_to_json [ VConst (I element) ; VConst (I old_head)]) ()
+        in
+        let* cas = async_cas tid old_head tid in
+        if cas then pass_cas () else fail_cas ()
+    in
+    try
+      try_cas ()
+    with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = DB.async_release_connection ~tid () in
+      Lwt.return_unit
+
+
+  let pushReqHandler (msg : msg) = 
+    let aux (element : int) =
+      let rec try_cas (tid : int) = 
+        let fail_cas (tid : int) = let _ = send ("failCAS", []) in
+                                  try_cas (tid) in
+        let pass_cas () = let _ = send ("passCAS", []) in
+                                  () in
+        let old_head =
+          match do_get tid topKey with
+          | (_ , next) -> next
+        in
+        let _ = do_put tid tid element old_head in
+        if (do_cas tid old_head tid) then pass_cas () else fail_cas (tid)
+      in
+      do_trans (fun tid ->
+        try_cas (tid))
+    in
     match msg.ev.args with
     | [ VConst (I v) ] ->
         let _ = aux v in
@@ -472,59 +486,87 @@ module TreiberStackDB = struct
   let async_pop ~thread_id () =
     let open Lwt.Syntax in
     let* tid = DB.async_begin ~thread_id () in
+    let rec try_cas () =
+      let fail_cas () = try_cas () in
+      let pass_cas (v : int) = let* _ = DB.async_commit ~tid () in
+                        Lwt.return v in
+      let* _, _, old_head =
+        DB.async_get ~tid ~table:db_str ~key:(string_of_int topKey) ()
+      in
+      let old_head =
+        match Config.json_to_values old_head with
+          | [ VConst (I _) ; VConst (I next) ] -> next
+          | _ -> _die [%here]
+      in
+      let* _, _, old_head_value =
+        DB.async_get ~tid ~table:db_str ~key:(string_of_int old_head) ()
+      in
+      let top_value, new_head =
+        match Config.json_to_values old_head_value with
+          | [ VConst (I v) ; VConst (I next) ] -> v, next
+          | _ -> _die [%here]
+      in
+      let* cas = async_cas tid old_head new_head in
+      if cas then pass_cas (top_value) else fail_cas ()
+    in
     try
-      let cas = ref false in
-      while not !cas do
-        let* _, _, old_head =
-          DB.async_get ~tid ~table:"stack" ~key:(string_of_int topKey)
-        in
-        let old_head =
-          match Config.json_to_values old_head with
-            | [ VConst (I _) ; VConst (I next) ] -> next
-            | _ -> _die [%here]
-        in
-        let* _, _, old_head_value =
-          DB.async_get ~tid ~table:"stack" ~key:(string_of_int old_head)
-        in
-        let top_value, new_head =
-          match Config.json_to_values old_head with
-            | [ VConst (I v) ; VConst (I next) ] -> v, next
-            | _ -> _die [%here]
-        in
-        let () = cas := (async_cas old_head new_head tid)
-        in
-        ()
-      done
-      let* _ = DB.async_commit ~tid () in
-      Lwt.return top_value
-    with BackendMariaDB.DBKeyNotFound _ ->
+      try_cas ()
+    with BackendMariaDB.DBKeyNotFound s ->
       let* _ = DB.async_release_connection ~tid () in
       Lwt.fail (BackendMariaDB.DBKeyNotFound s)
 
   let popReqHandler (msg : msg) =
+
     let aux () =
+      let rec try_cas (tid : int) = 
+        let fail_cas (tid : int) = let _ = send ("failCAS", []) in
+                                  try_cas (tid) in
+        let pass_cas (v : int) = 
+                                 v in
+        let old_head =
+          match do_get tid topKey with
+          | (_, next) -> next
+        in
+        let old_head_value, new_head = match do_get tid old_head with
+          | (v, next) -> v, next
+        in
+        if (do_cas tid old_head new_head)
+          then 
+            let _ = send ("passCAS", [ mk_value_int tid ; mk_value_int old_head ; mk_value_int new_head ])
+              in pass_cas old_head_value
+          else
+            let _ = send ("failCAS", [ mk_value_int tid ; mk_value_int old_head ; mk_value_int new_head ])
+              in fail_cas tid
+      in
       do_trans (fun tid ->
-        let _ = (* TODO some database interactions here *) in
-        ())
+        try_cas (tid))
     in
     match msg.ev.args with
-    | [] ->
-        let v = aux () in
-        send ("popResp", [ mk_value_int v ])
+    | [] -> let v = aux () in
+            send ("popResp", [ mk_value_int v ])
     | _ -> _die [%here]
         
+
+  let initRespHandler (_ : msg) = ()
+  let pushRespHandler (_ : msg) = ()
+  let popRespHandler (_ : msg) = ()
+  let passCASHandler (_ : msg) = ()
+  let failCASHandler (_ : msg) = ()
   
   let init () =
     register_async_has_ret "beginT" beginAsync;
     register_async_has_ret "commit" commitAsync;
-    (*register_async_has_ret "selectTop" selectTopAsync;
-    register_async_no_ret "updateTop" updateTopAsync; *)
-    register_async_has_ret "selectCell" selectCellAsync;
-    register_async_no_ret "updateCell" updateCellAsync;
-    (*register_handler "topReq" topReqHandler;*)
+    register_async_has_ret "getTop" getAsync;
+    register_async_no_ret "putTop" putAsync;
+    register_async_has_ret "get" getAsync;
+    register_async_no_ret "put" putAsync;
+    register_handler "initReq" initReqHandler;
+    register_handler "initResp" initRespHandler;
+    (*register_async_has_ret "CAS" async_cas;*)
+    register_handler "passCAS" passCASHandler;
+    register_handler "failCAS" failCASHandler;
     register_handler "pushReq" pushReqHandler;
     register_handler "popReq" popReqHandler;
-    (*register_handler "topResp" topRespHandler;*)
     register_handler "pushResp" pushRespHandler;
     register_handler "popResp" popRespHandler;
     D.clear()
@@ -536,33 +578,31 @@ module TreiberStackDB = struct
       [
         "beginT"#:(record [ "tid"#:int_ty ]);
         "commit"#:(record [ "tid"#:int_ty; "cid"#:int_ty ]);
-        "selectTop"#:(record
-                        [
-                          "tid"#:int_ty;
-                          TODO
-                        ]);
-        "updateTop"#:(record
-                        [ "tid"#:int_ty; TODO ]);
-        "selectCell"#:(record
-                          [
-                            "tid"#:int_ty;
-                            TODO
-                          ]);
-        "updateCell"#:(record
-                          [ "tid"#:int_ty; TODO ]);
-
-        "topReq"#:(record [] TODO);
-        "topResp"#:(record [ "top"#:int_ty ]);
+        "put"#:(record
+                  [ "tid"#:int_ty; "key"#:int_ty; "value"#:int_ty; "next"#:int_ty ]);
+        "get"#:(record
+                  [
+                    "tid"#:int_ty;
+                    "key"#:int_ty;
+                    "prev_tid"#:int_ty;
+                    "prev_cid"#:int_ty;
+                    "value"#:int_ty;
+                  ]);
+        "passCAS"#:(record
+                  [ "tid"#:int_ty; "old_head"#:int_ty; "new_head"#:int_ty ]);
+        "failCAS"#:(record
+                  [ "tid"#:int_ty; "old_head"#:int_ty; "new_head"#:int_ty ]);
+        "initReq"#:(record []);
+        "initResp"#:(record []);
         "pushReq"#:(record [ "element"#:int_ty ]);
         "pushResp"#:(record []);
         "popReq"#:(record []);
-        "popResp"#:(record [ "element"#int_ty ]);
+        "popResp"#:(record [ "element"#:int_ty ]);
       ]
 
 
 
 end
-
 
 
 
@@ -1128,7 +1168,7 @@ module TwitterDB = struct
     | _ -> _die [%here]
 
   let do_selectTweets tid user =
-    let msg = async ("selectTweets", [ mk_value_int tid; mk_value_int user ]) in
+    let msg = async ("selectTweets", [mk_value_int tid; mk_value_int user ]) in
     match msg.ev.args with
     | _ :: _ :: _ :: _ :: args -> args
     | _ -> _die [%here]
@@ -1519,14 +1559,6 @@ module TwitterDB = struct
                             [ "tid"#:int_ty; "key"#:int_ty; "value"#:(mk_list_ty int_ty) ]);
         "newUserReq"#:(record [ "user"#:int_ty ]);
         "newUserResp"#:(record []);
-        "followReq"#:(record [ "user"#:int_ty; "follow_o"#:int_ty ]);
-        "followResp"#:(record []);
-        "unfollowReq"#:(record [ "user"#:int_ty; "unfollow_o"#:int_ty ]);
-        "unfollowResp"#:(record []);
-        "postTweetReq"#:(record [ "user"#:int_ty; "tweet"#:int_ty ]);
-        "postTweetResp"#:(record []);
-        "timelineReq"#:(record [ "user"#:int_ty ]);
-        "timelineResp"#:(record [ "tweets"#:(mk_list_ty int_ty) ]);
         "followReq"#:(record [ "user"#:int_ty; "follow_o"#:int_ty ]);
         "followResp"#:(record []);
         "unfollowReq"#:(record [ "user"#:int_ty; "unfollow_o"#:int_ty ]);
