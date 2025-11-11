@@ -466,16 +466,20 @@ module TreiberStackDB = struct
   let pushReqHandler (msg : msg) = 
     let aux (element : int) =
       let rec try_cas (tid : int) = 
-        let fail_cas (tid : int) = let _ = send ("failCAS", []) in
-                                  try_cas (tid) in
-        let pass_cas () = let _ = send ("passCAS", []) in
-                                  () in
+        let fail_cas (tid : int) = try_cas (tid) in
+        let pass_cas () = () in
         let old_head =
           match do_get tid topKey with
           | (_ , next) -> next
         in
         let _ = do_put tid tid element old_head in
-        if (do_cas tid old_head tid) then pass_cas () else fail_cas (tid)
+        if (do_cas tid old_head tid)
+          then 
+            let _ = send ("passCAS", [ mk_value_int tid ; mk_value_int old_head ; mk_value_int tid ])
+              in pass_cas ()
+          else
+            let _ = send ("failCAS", [ mk_value_int tid ; mk_value_int old_head ; mk_value_int tid ])
+              in fail_cas tid
       in
       do_trans (fun tid ->
         try_cas (tid))
@@ -536,11 +540,11 @@ module TreiberStackDB = struct
         in
         if (do_cas tid old_head new_head)
           then 
-            let _ = send ("passCAS", [ mk_value_int tid ; mk_value_int old_head ; mk_value_int new_head ])
-              in pass_cas old_head_value
+            (*let _ = send ("passCAS", [ mk_value_int tid ; mk_value_int old_head ; mk_value_int new_head ])
+              in*) pass_cas old_head_value
           else
-            let _ = send ("failCAS", [ mk_value_int tid ; mk_value_int old_head ; mk_value_int new_head ])
-              in fail_cas tid
+            (*let _ = send ("failCAS", [ mk_value_int tid ; mk_value_int old_head ; mk_value_int new_head ])
+              in*) fail_cas tid
       in
       do_trans (fun tid ->
         try_cas (tid))
