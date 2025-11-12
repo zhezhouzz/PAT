@@ -17,9 +17,11 @@ let addReq ?l:(k = (true : [%v: int])) ?l:(v = (true : [%v: int])) =
   (allA, AddReq (key == k && value == v), allA)
 
 let findReq ?l:(k = (true : [%v: int])) =
-  (allA, FindReq (key == k), (allA;
-  FindResp true;
-  allA))
+  ( allA,
+    FindReq (key == k),
+    (allA;
+     FindResp true;
+     allA) )
 
 let findResp ?l:(v = (true : [%v: int])) = (allA, FindResp (value == v), allA)
 let removeReq ?l:(k = (true : [%v: int])) = (allA, RemoveReq (key == k), allA)
@@ -75,4 +77,4 @@ let[@goal] hashtable (k : int) (v1 : int) (v2 : int) =
     (anyA - RemoveReq (key == k) - ClearReq true - AddReq true - InitTblReq true);
   ReplaceReq (key == k && value == v2);
   starA (anyA - RemoveReq (key == k) - ClearReq true - InitTblReq true);
-  FindResp ((value == v2) == false)
+  FindResp (value == v2 == false)

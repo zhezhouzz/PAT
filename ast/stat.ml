@@ -4,7 +4,12 @@ open AutomataLibrary
 open ParseTree
 
 module Stat = struct
-  type task_complexity = { n_op : int; n_qualifier : int } [@@deriving yojson]
+  type task_complexity = {
+    n_op : int;
+    n_qualifier : int;
+    n_qualifier_goal : int;
+  }
+  [@@deriving yojson]
 
   type result_complexity = {
     n_var : int;
@@ -41,24 +46,32 @@ module Stat = struct
 
   open Zdatatype
 
-  let count_quantifier_prop phi = if is_true phi || is_false phi then 0 else 1
+  (* let count_quantifier_prop phi = if is_true phi || is_false phi then 0 else 1 *)
+  let count_quantifier_prop _ = 1
   let count_quantifier_se ({ phi; _ } : 't sevent) = count_quantifier_prop phi
 
   let count_quantifier_charset cs =
     SFA.CharSet.fold (fun se res -> res + count_quantifier_se se) cs 0
 
-  let count_quantifier_regex =
-    let rec aux = function
-      | Empty -> 0
-      | Eps -> 0
-      | MultiChar cs -> count_quantifier_charset cs
-      | Seq l -> List.left_reduce [%here] ( + ) @@ List.map aux l
-      | Inters (r1, r2) -> aux r1 + aux r2
-      | Alt (r1, r2) -> aux r1 + aux r2
-      | Comple (cs, r) -> count_quantifier_charset cs + aux r
-      | Star r -> aux r
+  let count_quantifier_regex (regex : Nt.nt sevent rich_regex) =
+    let rec aux regex =
+      match regex with
+      | EmptyA -> 0
+      | EpsilonA -> 0
+      | MultiAtomic cs -> List.length cs
+      | SeqA l -> List.left_reduce [%here] ( + ) @@ List.map aux l
+      | LorA (r1, r2) -> aux r1 + aux r2
+      | LandA (r1, r2) -> aux r1 + aux r2
+      | DComplementA { body; _ } -> aux body
+      | RepeatN (_, r) -> aux r
+      | SetMinusA (r1, r2) -> aux r1 + aux r2
+      | CtxOp { body; _ } -> aux body
+      | AnyA -> 0
+      | ComplementA r -> aux r
+      | Ctx { body; _ } -> aux body
+      | StarA r -> aux r
     in
-    aux
+    aux regex
 
   let count_quantifier_haft =
     let rec aux = function
@@ -82,15 +95,21 @@ module Stat = struct
 
   let goal_size = ref 0
 
-  let mk_task_complexity (syn_env : syn_env) : task_complexity =
-    let l = ctx_to_list syn_env.event_rtyctx in
+  let mk_task_complexity (syn_env : syn_env) name : task_complexity =
+    let l = ctx_to_list syn_env.event_rich_rtyctx in
     let n_op = List.length l in
     let n_qualifier =
       List.fold_right
         (fun x res -> res + count_quantifier_haft x.ty)
         l !goal_size
     in
-    { n_qualifier; n_op }
+    let qvs, reg =
+      match StrMap.find_opt syn_env.goals name with
+      | None -> _die_with [%here] "no goal"
+      | Some { qvs; prop; _ } -> (qvs, prop)
+    in
+    let n_qualifier_goal = count_quantifier_regex reg in
+    { n_qualifier; n_op; n_qualifier_goal }
 
   let count_vars term =
     let rec aux = function
@@ -238,12 +257,33 @@ module Stat = struct
       let n_backward = stat.n_backward / stat.n_result in
       { stat with n_forward; n_backward; n_result = 1 }
 
-  let dump (env, num_assert, term) filename =
+  let dump_complexity env name =
+    let filename = spf "stat/.%s.json" name in
+    (* let () = Printf.printf "dump_complexity: %s\n" filename in *)
+    let json = Yojson.Safe.from_file filename in
+    let stat =
+      match stat_of_yojson json with
+      | Result.Ok x -> x
+      | Error _ -> _die [%here]
+    in
+    (* let () =
+      Printf.printf "stat: %s\n"
+        (Yojson.Safe.to_string
+        @@ task_complexity_to_yojson (mk_task_complexity env name))
+    in
+    let () = _die [%here] in *)
+    let stat = { stat with task_complexity = mk_task_complexity env name } in
+    let json = stat_to_yojson stat in
+    let () = Yojson.Safe.to_file filename json in
+    ()
+
+  let dump (env, num_assert, term) name =
+    let filename = spf "stat/.%s.json" name in
     let stat =
       {
         rate = 0.0;
         n_retry = 0.0;
-        task_complexity = mk_task_complexity env;
+        task_complexity = mk_task_complexity env name;
         result_complexity = mk_result_complexity num_assert term;
         algo_complexity = normalize_algo_complexity ();
       }

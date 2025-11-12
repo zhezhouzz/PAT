@@ -15,7 +15,15 @@ open AutomataLibrary
 open Zdatatype
 
 let layout_syn_env
-    { event_rtyctx; msgkind_ctx; event_tyctx; tyctx; goals; axioms } =
+    {
+      event_rich_rtyctx;
+      event_rtyctx;
+      msgkind_ctx;
+      event_tyctx;
+      tyctx;
+      goals;
+      axioms;
+    } =
   let str = "" in
   let str = spf "%s\n    tyctx:\n%s\n" str (layout_ctx Nt.layout tyctx) in
   let str =
@@ -23,6 +31,10 @@ let layout_syn_env
   in
   let str =
     spf "%s\n    msgkind_ctx:\n%s\n" str (layout_ctx layout_msgkind msgkind_ctx)
+  in
+  let str =
+    spf "%s\n    event_rich_rtyctx: %i\n" str
+      (List.length @@ ctx_to_list event_rich_rtyctx)
   in
   let str =
     spf "%s\n    event_rtyctx:\n%s\n" str

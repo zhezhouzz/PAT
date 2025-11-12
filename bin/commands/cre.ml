@@ -88,7 +88,7 @@ let read_syn source_file () =
   ()
 
 let handle_syn_result (env, num_assert, term) name =
-  let () = Stat.dump (env, num_assert, term) (spf "stat/.%s.json" name) in
+  let () = Stat.dump (env, num_assert, term) name in
   let output_file = spf "output/%s.scm" name in
   let () = Pp.printf "@{<bold>Output file:@}:\n%s\n" output_file in
   let oc = Out_channel.open_text output_file in
@@ -109,6 +109,16 @@ let do_syn ?(num_expected = 1) name source_file () =
     Stat.stat_total (fun () -> Synthesis.synthesize env name num_expected)
   in
   let () = handle_syn_result (env, num_assert, prog) name in
+  (* let () = Synthesis.save_progs name progs in *)
+  ()
+
+let do_parse ?(num_expected = 1) name source_file () =
+  let code = read_source_file source_file () in
+  (* let () = Printf.printf "%s\n" (layout_structure code) in *)
+  let env = Ntypecheck.(struct_check init_env code) in
+  let () = Stat.init_algo_complexity () in
+  (* let () = test_prop env "timeout" () in *)
+  let () = Stat.dump_complexity env name in
   (* let () = Synthesis.save_progs name progs in *)
   ()
 
@@ -440,7 +450,8 @@ let test_eval mode s (converge_bound : int) () =
     match mode with
     | "sample" ->
         let n_successed, rate, exec_time =
-          Interpreter.eval_sample converge_bound f
+          Interpreter.eval_sample ~number_bound:(Some converge_bound)
+            ~time_bound:None f
         in
         SampleResult (n_successed, rate, exec_time)
     | "detect" ->
@@ -670,7 +681,7 @@ let test_envs =
 
 let default_random_test_config =
   [
-    ("numOp", 10);
+    ("numOp", 15);
     ("numElem", 10);
     ("numApp", 5);
     ("tyDepthBound", 5);
@@ -683,16 +694,21 @@ let default_random_test_config =
     ("numBalanceDB", 20);
   ]
 
-let test_random mode s converge_bound () =
+let test_random mode s converge_bound time_bound () =
   let () = BackendMariaDB.MyMariaDB.set_single_connection_mode true in
   let eval f =
     match mode with
     | "detect" ->
+        let converge_bound =
+          match converge_bound with
+          | Some x -> x
+          | None -> _die_with [%here] "converge bound not set"
+        in
         let n_retry, his = Interpreter.eval_until_detect_bug converge_bound f in
         UntilDetectResult (n_retry, his)
     | "sample" ->
         let n_successed, rate, exec_time =
-          Interpreter.eval_sample converge_bound f
+          Interpreter.eval_sample ~number_bound:converge_bound ~time_bound f
         in
         SampleResult (n_successed, rate, exec_time)
     | _ -> _die_with [%here] "unknown mode"
@@ -745,11 +761,16 @@ let test_random mode s converge_bound () =
 let cmds =
   [
     ("test-eval", param_string_int "test eval" (test_eval "detect"));
-    ("test-random", param_string_int "test random" (test_random "detect"));
+    ( "test-random",
+      param_string_int "test random" (fun name n ->
+          test_random "detect" name (Some n) None) );
     ("sample-syn", param_string_int "sample syn" (test_eval "sample"));
-    ("sample-random", param_string_int "sample random" (test_random "sample"));
+    ( "sample-random",
+      param_string_int "sample random" (fun name n ->
+          test_random "sample" name None (Some n)) );
     ("read-syn", one_param "read syn" read_syn);
     ("do-syn", tag_and_file "read syn" do_syn);
+    ("do-parse", tag_and_file "read parse" do_parse);
     ("syn-one", file_and_string "syn one" syn_term);
     ("syn-benchmark", string_and_string "run benchmark" syn_benchmark);
     ("eval-benchmark", string_and_string "run benchmark" eval_benchmark);

@@ -144,6 +144,7 @@ type synMidResult =
 [@@deriving sexp]
 
 type syn_env = {
+  event_rich_rtyctx : rich_srl pat ctx;
   event_rtyctx : srl pat ctx;
   event_tyctx : t ctx;
   msgkind_ctx : message_kind ctx;

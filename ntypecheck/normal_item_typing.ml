@@ -5,6 +5,7 @@ open Zdatatype
 let init_env =
   {
     goals = StrMap.empty;
+    event_rich_rtyctx = emp;
     event_tyctx = emp;
     msgkind_ctx = emp;
     tyctx = emp;
@@ -74,6 +75,7 @@ let type_check_item env = function
       {
         env with
         event_rtyctx = add_to_right env.event_rtyctx name#:(desugar_pat env pat);
+        event_rich_rtyctx = add_to_right env.event_rich_rtyctx name#:pat;
       }
   | SynGoal { name; qvs; prop } -> (
       let prop =

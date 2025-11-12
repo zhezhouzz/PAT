@@ -10,12 +10,6 @@ let[@axiom] emp_same (l1 : int list) (l2 : int list) =
 
 let[@axiom] cons_not_eq (x : int) (l : int list) = not (cons x l == l)
 
-(* let[@axiom] remove_cons1 (x : int) (l : int list) =
-  implies (emp l) (remove x (cons x l) == l)
-
-let[@axiom] remove_cons2 (x : int) (l : int list) =
-  implies (emp l) (remove x (cons x (cons x l)) == cons x l) *)
-
 let[@axiom] remove_emp (x : int) (l : int list) =
   implies (emp l) (remove x l == l)
 

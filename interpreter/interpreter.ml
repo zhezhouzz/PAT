@@ -44,9 +44,26 @@ let once (init, main, checker) =
   in *)
   his
 
-let eval_sample total test =
+let over_number_bound number_bound n =
+  match number_bound with
+  | Some number_bound -> n >= number_bound
+  | None -> false
+
+let over_time_bound time_bound exec_time =
+  match time_bound with
+  | Some time_bound ->
+      (* let () = Printf.printf "@{<red>Time bound: %i@}\n" time_bound in
+      let () = Printf.printf "@{<red>Exec time: %f@}\n" exec_time in
+      let _ = read_line () in *)
+      exec_time > float_of_int time_bound
+  | None -> false
+
+let eval_sample ~number_bound ~time_bound test =
+  let start_time = Sys.time () in
   let rec aux (successed : int) (used : int) =
-    if used >= total then successed
+    let exec_time = Sys.time () -. start_time in
+    if over_time_bound time_bound exec_time then (exec_time, successed, used)
+    else if over_number_bound number_bound used then (exec_time, successed, used)
     else
       try
         let _ = test () in
@@ -63,8 +80,8 @@ let eval_sample total test =
           aux successed (used + 1)
       | e -> raise e
   in
-  let successed, exec_time = Stat.stat_function (fun () -> aux 0 0) in
-  let rate = 100.0 *. float_of_int successed /. float_of_int total in
+  let exec_time, successed, total = aux 0 0 in
+  let rate = float_of_int total /. float_of_int successed in
   let exec_time =
     if successed > 0 then exec_time /. float_of_int successed else -1.0
   in

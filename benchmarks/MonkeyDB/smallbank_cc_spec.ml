@@ -7,20 +7,6 @@ val cons : int -> int list -> int list
 val remove : int -> int list -> int list
 val emp : int list -> bool
 
-let[@axiom] emp_same (l1 : int list) (l2 : int list) =
-  implies (emp l1 && emp l2) (l1 == l2)
-
-let[@axiom] cons_not_eq (x : int) (l : int list) = not (cons x l == l)
-
-(* let[@axiom] remove_cons1 (x : int) (l : int list) =
-  implies (emp l) (remove x (cons x l) == l)
-
-let[@axiom] remove_cons2 (x : int) (l : int list) =
-  implies (emp l) (remove x (cons x (cons x l)) == cons x l) *)
-
-let[@axiom] remove_emp (x : int) (l : int list) =
-  implies (emp l) (remove x l == l)
-
 (* Basic Typing *)
 
 val beginT : < tid : int > [@@obs]

@@ -93,7 +93,8 @@ def print_pat_col1(stat):
     stat = stat["task_complexity"]
     n_op = stat["n_op"]
     n_qualifier = stat["n_qualifier"]
-    return [safe_print_int(n_op), safe_print_int(n_qualifier)]
+    n_qualifier_avg = (int)(n_qualifier / n_op)
+    return [safe_print_int(n_op), safe_print_int(n_qualifier_avg)]
 
 def print_pat_col2(stat):
     stat = stat["result_complexity"]
@@ -213,6 +214,12 @@ def do_syn():
         invoc_cmd(cmd)
     return
 
+def do_parse():
+    for bench_name in benchmarks:
+        cmd = cmd_prefix + ["do-parse", task_name(bench_name), "benchmarks/" + bench_name + "/task.ml"]
+        invoc_cmd(cmd)
+    return
+
 def do_p_syn():
     for bench_name in benchmarks:
         cmd = cmd_prefix + ["do-syn", task_name(bench_name), "benchmarks/" + bench_name + "/task.ml"]
@@ -298,12 +305,14 @@ def run_default_p():
 
 def fix():
     for name in benchmarks:
-        stat_file = "stat/.{}.json".format(name)
+        stat_file = "stat/.{}.json".format(task_name(name))
         with open (stat_file, "r") as f:
             j = json.load(f)
-            j["n_retry"] = 0.0
+            j["task_complexity"]["n_qualifier"] = 0
+            j["task_complexity"]["n_qualifier_goal"] = 0
         with open (stat_file, "w") as f:
             j = json.dump(j, f)
+
 
 
 if __name__ == '__main__':
@@ -318,6 +327,10 @@ if __name__ == '__main__':
             print_cols(benchmarks, j)
         elif arg == "runrandom":
             run_random_p()
+        elif arg == "parse":
+            do_parse()
+            j = load_stat()
+            print_cols(benchmarks, j)
         elif arg == "show":
             j = load_stat()
             print_cols(benchmarks, j)
