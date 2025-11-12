@@ -125,12 +125,12 @@ let selectAccounts =
          UpdateAccounts (tid == pi && custid == c && name == n);
          starA (anyA - UpdateAccounts (tid == i && custid == c));
          Commit (tid == pi && cid == pj);
-         starA (anyA - UpdateAccounts (tid == i && custid == c))),
+         starA (anyA - Commit true - UpdateAccounts (tid == i && custid == c))),
         SelectAccounts
           (tid == i && custid == c && prevTid == pi && prevCid == pj
           && (not (tid == prevTid))
           && name == n),
-        starA (anyA - Commit (tid == i && cid < pj)) ));
+        allA ));
   |]
 
 let selectSavings =
@@ -146,12 +146,12 @@ let selectSavings =
          UpdateSavings (tid == pi && custid == c && balance == b);
          starA (anyA - UpdateSavings (tid == i && custid == c));
          Commit (tid == pi && cid == pj);
-         starA (anyA - UpdateSavings (tid == i && custid == c))),
+         starA (anyA - Commit true -UpdateSavings (tid == i && custid == c))),
         SelectSavings
           (tid == i && custid == c && prevTid == pi && prevCid == pj
           && (not (tid == prevTid))
           && balance == b),
-        starA (anyA - Commit (tid == i && cid < pj)) ));
+        allA ));
   |]
 
 let selectChecking =
@@ -167,12 +167,12 @@ let selectChecking =
          UpdateChecking (tid == pi && custid == c && balance == b);
          starA (anyA - UpdateChecking (tid == i && custid == c));
          Commit (tid == pi && cid == pj);
-         starA (anyA - UpdateChecking (tid == i && custid == c))),
+         starA (anyA - Commit true - UpdateChecking (tid == i && custid == c))),
         SelectChecking
           (tid == i && custid == c && prevTid == pi && prevCid == pj
           && (not (tid == prevTid))
           && balance == b),
-        starA (anyA - Commit (tid == i && cid < pj)) ));
+        allA ));
   |]
 
 
