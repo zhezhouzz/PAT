@@ -46,6 +46,7 @@ benchmarks = ["Stack", "HashTable", "Filesystem", "Graph", "NFA", "IFCAdd", "IFC
 benchmarks = ["IFCStore", "IFCAdd", "IFCLoad"]
 benchmarks = ["Set", "ReaderWriter"]
 benchmarks = ["ReaderWriter"]
+benchmarks = ["HashTable"]
 
 discription_dict = {
     "Set": "Missing inserted value.",

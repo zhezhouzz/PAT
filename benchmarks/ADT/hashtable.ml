@@ -34,8 +34,8 @@ let findReqHandler (msg : msg) =
   let k = match msg.ev.args with [ VConst (I k) ] -> k | _ -> _die [%here] in
   let v = find _tbl k in
   match v with
-  | None -> send ("findResp", [ mk_value_int (-127) ])
-  | Some v -> send ("findResp", [ mk_value_int v ])
+  | None -> send ("findResp", [ mk_value_int k; mk_value_int (-127) ])
+  | Some v -> send ("findResp", [ mk_value_int k; mk_value_int v ])
 
 let removeReqHandler (msg : msg) =
   let k = match msg.ev.args with [ VConst (I k) ] -> k | _ -> _die [%here] in
