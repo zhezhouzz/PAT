@@ -6,13 +6,14 @@
  (modules
   common
   cart
-  twitter 
+  twitter
   smallbank
   ; courseware 
   coursewareDB
-  twitter 
+  twitter
   smallbank
-  courseware 
+  courseware
+  read
   ; treiberStack 
   ; smallbank
   )

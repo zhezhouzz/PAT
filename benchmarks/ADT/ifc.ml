@@ -411,7 +411,7 @@ let parse_config config =
 let instrGen config =
   let { numOp } = parse_config config in
   let open QCheck.Gen in
-  let valueGen = int_range 0 10 in
+  let valueGen = int_bound 10 in
   let random_push =
     oneof
       [
@@ -424,7 +424,6 @@ let instrGen config =
   let random_store =
     oneof
       [
-        pure [ Store ];
         map (fun x -> [ Push (PublicV x); Store ]) valueGen;
         map2 (fun x y -> [ Push (PrivateV (x, y)); Store ]) valueGen valueGen;
       ]

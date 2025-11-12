@@ -52,7 +52,7 @@ def syn_num_map(name):
 def default_num_map(name):
     return 2000
 
-manual_baseline_benchmarks = ["EspressoMachine", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos"]
+manual_baseline_benchmarks = ["EspressoMachine", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Kermit2PCModel"]
 
 dict = {"Database":10000,
         "EspressoMachine":10000,
@@ -120,6 +120,23 @@ def print_tries(ratio):
     else:
         return "${:.0f}$".format(100.0 / ratio)
 
+def print_tries_label(ratio, label):
+    if ratio is None:
+        if label == "":
+            return "-"
+        else:
+            return "-${}$".format(label)
+    elif ratio < 0.1:
+        if label == "":
+            return "{\\tiny Timeout}"
+        else:
+            return "{{\\tiny Timeout}}${}$".format(label)
+    else:
+        if label == "":
+            return "${:.0f}$".format(100.0 / ratio)
+        else:
+            return "${:.0f}{}$".format(100.0 / ratio, label)
+
 def print_pat_col3(stat):
     return [ print_tries(stat["syn_ratio"]), print_tries(stat["random_ratio"]), print_tries(stat["default_ratio"])]
     # return [ print_tries(stat["syn_ratio"]), print_tries(stat["random_ratio"])]
@@ -142,6 +159,7 @@ plang = ["EspressoMachine", "Simplified2PC", "HeartBeat", "BankServer"]
 message_chain = ["RingLeaderElection", "Firewall"]
 modP = ["ChainReplication", "Paxos"]
 aws = ["Kermit2PCModel"]
+
 
 def pp_benchname(name):
     postfix=""
@@ -167,8 +185,14 @@ def print_table_complexity(stat):
     n_qualifier_goal = stat["n_qualifier_goal"]
     return [safe_print_int(n_op), safe_print_int(n_qualifier), safe_print_int(n_qualifier_goal)]
 
-def print_table_compare(stat):
-    return [ print_tries(stat["syn_ratio"]), print_tries(stat["random_ratio"])]
+def manual_label(name):
+    if name in manual_baseline_benchmarks:
+        return "^{\\dagger}"
+    else:
+        return ""
+
+def print_table_compare(name, stat):
+    return [ print_tries(stat["syn_ratio"]), print_tries_label(stat["random_ratio"], manual_label(name))]
 
 def print_table_algo(statA):
     res_stat = statA["result_complexity"]
@@ -197,7 +221,7 @@ def discription(name):
     return "{\\scriptsize " + discription_dict[name] + "}"
 
 def print_tabel1_col(name, stat):
-    col = print_table_complexity(stat) + print_table_compare(stat) + print_table_algo(stat)
+    col = print_table_complexity(stat) + print_table_compare(name, stat) + print_table_algo(stat)
     col = [pp_benchname(name), discription(name)] + col
     print (" & ".join(col) + "\\\\")
 

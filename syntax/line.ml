@@ -5,7 +5,15 @@ open Ast
 open SFA
 
 let can_be_reused =
-  [ "var"; "recE"; "deletePathReq"; "PushPrivate"; "PushPublic"; "deleteReq" ]
+  [
+    "var";
+    "recE";
+    "deletePathReq";
+    "PushPrivate";
+    "PushPublic";
+    "deleteReq";
+    "size";
+  ]
   @ ghost_event_names
 
 let unreusable_core_acts = ref []

@@ -70,3 +70,26 @@ let synthesize (env : syn_env) name num_expected =
   in
   let prog = Language.CUnion (List.map (fun (_, p) -> term_to_tterm p) progs) in
   (avg_num, prog)
+
+let naive_synthesize (env : syn_env) name size timebound =
+  let start_time = Sys.time () in
+  let qvs, reg =
+    match StrMap.find_opt env.goals name with
+    | None -> _die_with [%here] "no goal"
+    | Some { qvs; prop; _ } -> (qvs, prop)
+  in
+  let op_names = List.map _get_x (ctx_to_list env.event_tyctx) in
+  let reg =
+    rich_regex_desugar env.event_tyctx (CtxOp { op_names; body = reg })
+  in
+  let m = List.map (fun x -> (x.x, AVar (Rename.unique_var x.x)#:x.ty)) qvs in
+  let () =
+    Pp.printf "@{<bold>m:@} %s\n"
+      (List.split_by_comma (fun (x, y) -> spf "%s -> %s" x (layout_lit y)) m)
+  in
+  let reg = msubst subst_rich_regex_instance m reg in
+  let r = SFA.rich_regex_to_regex reg in
+  let () = Pp.printf "\n@{<red>Original Reg:@} %s\n" (SFA.layout_regex r) in
+  let res = Refine.naive_searching ~timebound env r size in
+  let exec_time = Sys.time () -. start_time in
+  if List.length res > 0 then Some exec_time else None

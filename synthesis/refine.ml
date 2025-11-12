@@ -29,6 +29,7 @@ type strategy = {
   search_new_goals : bool;
   pause : bool;
   addKstar : bool;
+  expected_end_time : float option;
 }
 
 let _strategy =
@@ -40,6 +41,7 @@ let _strategy =
       pause = Myconfig.get_bool_option "pause_during_synthesis";
       search_new_goals = false;
       addKstar = Myconfig.get_bool_option "add_kstar_during_synthesis";
+      expected_end_time = None;
     }
 
 let database_related env =
@@ -112,6 +114,7 @@ let layout_strategy
       search_new_goals;
       pause;
       addKstar;
+      expected_end_time;
     } =
   spf
     "search: %s\n\
@@ -119,9 +122,13 @@ let layout_strategy
      result_expection: %i\n\
      search_new_goals: %b\n\
      pause: %b\n\
-     addKstar: %b"
+     addKstar: %b\n\
+     expected_end_time: %s"
     (search_strategy_to_string search)
     layout_bound result_expection search_new_goals pause addKstar
+    (match expected_end_time with
+    | Some t -> string_of_float t
+    | None -> "None")
 
 let merge_new_goals old_goals new_goals =
   if !_strategy.search_new_goals then
@@ -136,7 +143,15 @@ let merge_new_goals old_goals new_goals =
 
 let pause_counter = ref 0
 
+exception SynthesisTimeout
+
 let try_pause () =
+  let () =
+    match !_strategy.expected_end_time with
+    | Some end_time ->
+        if Sys.time () -. end_time > 0.1 then raise SynthesisTimeout else ()
+    | None -> ()
+  in
   let () = pause_counter := !pause_counter + 1 in
   let () = Pp.printf "@{<bold>@{<red>pause_counter@}: %i@}\n" !pause_counter in
   if !_strategy.pause then
@@ -455,3 +470,51 @@ and forward env (goal : line) mid : line list =
       goals
   in *)
   goals
+
+open QCheck.Gen
+
+let scratch_gen env size_bound =
+  let l = ctx_to_list env.event_tyctx in
+  let elem_gen =
+    map
+      (fun x ->
+        let se = Plan.mk_se env.event_tyctx x.x (fun _ -> mk_true) in
+        let _, act = se_to_dummy_act se in
+        LineAct act)
+      (oneofl l)
+  in
+  let elem_list_gen = list_repeat size_bound elem_gen in
+  map
+    (fun acts ->
+      let _, elems, _ = register_elems_under_plan [] acts in
+      { gprop = mk_true; elems })
+    elem_list_gen
+
+let naive_searching ~timebound env r size =
+  let gen = scratch_gen env size in
+  let () = init_strategy env in
+  let () =
+    _strategy :=
+      { !_strategy with expected_end_time = Some (Sys.time () +. timebound) }
+  in
+  let valid_init_plans = ref 0 in
+  let rec loop () =
+    let plans = generate ~n:10 gen in
+    let plans =
+      List.concat_map
+        (fun line ->
+          List.map snd @@ inter_line_with_regex (fun _ -> true) line r)
+        plans
+    in
+    let () = _strategy := { !_strategy with result_expection = 1 } in
+    (* let () = layout_candidate_plans plans in *)
+    let () = try_pause () in
+    let () = valid_init_plans := !valid_init_plans + List.length plans in
+    let res = refinement_loop env ([], plans) in
+    if List.length res == 0 then loop () else res
+  in
+  let res = try loop () with SynthesisTimeout -> [] in
+  let () =
+    Pp.printf "@{<bold>@{<red>valid_init_plans@}@}\n%i\n" !valid_init_plans
+  in
+  res

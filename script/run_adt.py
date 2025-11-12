@@ -3,6 +3,7 @@ import json
 import os
 import sys
 import time
+import math
 
 bench_json = []
 
@@ -42,8 +43,12 @@ benchmarks = ["Stack", "HashTable", "Filesystem", "Graph", "NFA", "IFCAdd", "IFC
 # benchmarks = ["Shopping", "Courseware", "Twitter", "Smallbank"]
 # benchmarks  = ["Filesystem", "Graph",  "NFA", "IFCAdd", "IFCStore",  "IFCLoad"]
 # benchmarks  = ["DeBruijn1"]
+benchmarks = ["IFCStore", "IFCAdd", "IFCLoad"]
+benchmarks = ["Set", "ReaderWriter"]
+benchmarks = ["ReaderWriter"]
 
 discription_dict = {
+    "Set": "Missing inserted value.",
     "Stack": "All pushed values should be popped.",
     "HashTable": "Updates must be visible to all threads.",
     "Filesystem": "No access allowed after parent path deletion.",
@@ -54,6 +59,7 @@ discription_dict = {
     "IFCLoad": "A IFC program that contains $\\Code{Load}$ command.",
     "DeBruijn1": "A $\\Int$ typed De Bruijn STLC program.",
     "DeBruijn2": "A $\\Int$ typed De Bruijn STLC program and all lambda variables should be used.",
+    "ReaderWriter": "Read atomicity property violation.",
     "Shopping": "Added items should be visible in the cart.",
     "Courseware": "Courses enrolled by students should be visible.",
     "Twitter": "Posted tweets are visible to all followers.",
@@ -65,6 +71,7 @@ def discription(name):
     return "{\\scriptsize " + discription_dict[name] + "}"
 
 task_name_dict = {
+    "Set": "set",
     "Stack": "stack",
     "Graph": "graph",
     "Filesystem": "filesystem",
@@ -75,6 +82,7 @@ task_name_dict = {
     "DeBruijn1": "stlc1",
     "DeBruijn2": "stlc2",
     "HashTable": "hashtable",
+    "ReaderWriter": "read_cc",
     "CartRC": "cart_rc",
     "CartCC": "cart_cc",
     "Shopping": "cart_cc",
@@ -93,6 +101,7 @@ task_name_dict = {
 }
 
 task_dir_dict = {
+    "Set": "ADT/set_spec.ml",
     "Stack": "ADT/stack_spec.ml",
     "Graph": "ADT/graph_spec.ml",
     "Filesystem": "ADT/filesystem_spec.ml",
@@ -103,6 +112,7 @@ task_dir_dict = {
     "DeBruijn1": "ADT/stlc_spec_simple.ml",
     "DeBruijn2": "ADT/stlc_spec_moti.ml",
     "HashTable": "ADT/hashtable_spec.ml",
+    "ReaderWriter": "MonkeyDB/read_cc_spec.ml",
     "CartRC": "MonkeyDB/cart_rc_spec.ml",
     "CartCC": "MonkeyDB/cart_cc_spec.ml",
     "Shopping": "MonkeyDB/cart_cc_spec.ml",
@@ -133,6 +143,7 @@ def default_num_map(name):
     return 2000
 
 dict = {
+    "Set": "1",
     "Stack": "1800",
     "Graph": "1800",
     "Filesystem": "1800",
@@ -143,6 +154,7 @@ dict = {
     "DeBruijn1": "1800",
     "DeBruijn2": "1800",
     "HashTable": "1800",
+    "ReaderWriter": "1",
     "CartRC": "1800",
     "CartCC": "1800",
     "Shopping": "1800",
@@ -212,10 +224,27 @@ def print_pat_col2(stat):
 def print_tries(ratio):
     if ratio is None:
         return "-"
-    elif ratio == 0.0:
+    elif not math.isfinite(ratio) or ratio < 0.1:
         return "{\\tiny Timeout}"
     else:
         return "${:.1f}$".format(ratio)
+
+def print_tries_label(ratio, label):
+    if ratio is None:
+        if label == "":
+            return "-"
+        else:
+            return "-${}$".format(label)
+    elif not math.isfinite(ratio) or ratio < 0.1:
+        if label == "":
+            return "{\\tiny Timeout}"
+        else:
+            return "{{\\tiny Timeout}}${}$".format(label)
+    else:
+        if label == "":
+            return "${:.1f}$".format(ratio)
+        else:
+            return "${:.1f}{}$".format(ratio, label)
 
 def print_pat_col3(stat):
     return [ print_tries(stat["syn_ratio"]), print_tries(stat["random_ratio"]), 
@@ -228,9 +257,6 @@ def print_table_complexity(stat):
     n_qualifier = stat["n_qualifier"]
     n_qualifier_goal = stat["n_qualifier_goal"]
     return [safe_print_int(n_op), safe_print_int(n_qualifier), safe_print_int(n_qualifier_goal)]
-
-def print_table_compare(stat):
-    return [ print_tries(stat["syn_ratio"]), print_tries(stat["random_ratio"])]
 
 def print_table_algo(statA):
     res_stat = statA["result_complexity"]
@@ -248,11 +274,24 @@ def print_pat_col4(statA):
         safe_print_int(stat["n_sat"]),    
         safe_print_int(stat["n_forward"] + stat["n_backward"]) ]
 
-hat = ["Stack", "Graph", "Filesystem", "NFA"]
+hat = ["Set", "Stack", "Graph", "Filesystem", "NFA"]
 ifc = ["IFCStore", "IFCAdd", "IFCLoad"]
 stlc = ["DeBruijn1", "DeBruijn2"]
 hashtable = ["HashTable"]
 monkeydb = ["Shopping", "CartRC", "CartCC", "Courseware", "CoursewareRC", "CoursewareCC", "Twitter", "TwitterRC", "TwitterCC", "Smallbank", "SmallbankRC", "SmallbankCC", "TreiberStack", "TreiberStackRC", "TreiberStackCC"]
+
+
+def manual_label(name):
+    if name in ifc:
+        return "^{\\dagger}"
+    elif name in stlc:
+        return "^{\\dagger}"
+    elif name in hashtable:
+        return "^{\\dagger}"
+    elif name in monkeydb:
+        return "^{\\dagger}"
+    else:
+        return ""
 
 monkeydb_ratio = {
     "Shopping": 20.0,
@@ -281,8 +320,11 @@ def print_pat_col(name, stat):
     col = [pp_benchname(name)] + col
     print (" & ".join(col) + "\\\\")
 
+def print_table_compare(name, stat):
+    return [ print_tries(stat["syn_ratio"]), print_tries_label(stat["random_ratio"], manual_label(name))]
+
 def print_tabel1_col(name, stat):
-    col = print_table_complexity(stat) + print_table_compare(stat) + print_table_algo(stat)
+    col = print_table_complexity(stat) + print_table_compare(name, stat) + print_table_algo(stat)
     col = [pp_benchname(name), discription(name)] + col
     print (" & ".join(col) + "\\\\")
 
@@ -363,6 +405,8 @@ def table1(benchnames, stat):
     for name in benchnames:
         if name in monkeydb_ratio:
             stat[name]["random_ratio"] = monkeydb_ratio[name]
+        elif name == "HashTable":
+            stat[name]["random_ratio"] = 2.5
         elif task_name(name) in random_stat:
             stat[name]["random_ratio"] = random_stat[task_name(name)][0]
         else:

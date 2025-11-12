@@ -175,6 +175,128 @@ module IntDB = struct
   include MyDB (Config)
 end
 
+module ReadWriteDB = struct
+  module D = MyDB (Config)
+  include D
+
+  let getAsync (ev : ev) = _getAsync "readwrite" ev
+  let putAsync (ev : ev) = _putAsync "readwrite" ev
+
+  let do_get tid key =
+    let msg = async ("get", [ mk_value_int tid; mk_value_int key ]) in
+    match msg.ev.args with
+    | _ :: _ :: _ :: _ :: args -> args
+    | _ -> _die [%here]
+
+  let do_put tid key v =
+    async ("put", [ mk_value_int tid; mk_value_int key ] @ v)
+
+  let do_trans f =
+    let msg = async ("beginT", []) in
+    let tid =
+      match msg.ev.args with [ VConst (I tid) ] -> tid | _ -> _die [%here]
+    in
+    let res = f tid in
+    let _ = async ("commit", [ mk_value_int tid ]) in
+    res
+
+  let int_to_values x = [ VConst (I x) ]
+  let values_to_int x = match x with [ VConst (I x) ] -> x | _ -> _die [%here]
+
+  (* add item *)
+  (* add item *)
+  let async_write ~thread_id x () =
+    let open Lwt.Syntax in
+    let* tid = DB.async_begin ~thread_id () in
+    try
+      let* () =
+        DB.async_put ~tid ~table:"readwrite" ~key:(string_of_int 0)
+          ~json:(Config.values_to_json [ VConst (I x) ])
+          ()
+      in
+      let* _ = DB.async_commit ~tid () in
+      Lwt.return_unit
+    with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = DB.async_release_connection ~tid () in
+      Lwt.return_unit
+
+  let writeReqHandler (msg : msg) =
+    let aux (x : int) =
+      do_trans (fun tid ->
+          let _ = do_put tid 0 (int_to_values x) in
+          ())
+    in
+    match msg.ev.args with
+    | [ VConst (I x) ] ->
+        let _ = aux x in
+        send ("writeResp", [ mk_value_int x ])
+    | _ -> _die [%here]
+
+  let async_read ~thread_id () =
+    let open Lwt.Syntax in
+    let* tid = DB.async_begin ~thread_id () in
+    try
+      let* _, _, x =
+        DB.async_get ~tid ~table:"readwrite" ~key:(string_of_int 0) ()
+      in
+      let x =
+        match Config.json_to_values x with
+        | [ VConst (I x) ] -> x
+        | _ -> _die [%here]
+      in
+      let* _ = DB.async_commit ~tid () in
+      Lwt.return x
+    with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = DB.async_release_connection ~tid () in
+      Lwt.return 0
+
+  let readReqHandler (msg : msg) =
+    let aux () = do_trans (fun tid -> do_get tid 0) in
+    match msg.ev.args with
+    | [] ->
+        let x = aux () in
+        let x = match x with [ VConst (I x) ] -> x | _ -> _die [%here] in
+        send ("readResp", [ mk_value_int x ])
+    | _ -> _die [%here]
+
+  let writeRespHandler (_ : msg) = ()
+  let readRespHandler (_ : msg) = ()
+
+  let init () =
+    register_async_has_ret "beginT" beginAsync;
+    register_async_has_ret "commit" commitAsync;
+    register_async_has_ret "get" getAsync;
+    register_async_no_ret "put" putAsync;
+    register_handler "writeReq" writeReqHandler;
+    register_handler "readReq" readReqHandler;
+    register_handler "writeResp" writeRespHandler;
+    register_handler "readResp" readRespHandler;
+    D.clear ()
+
+  let testCtx =
+    let open Nt in
+    let record l = Ty_record { alias = None; fds = l } in
+    Typectx.add_to_rights Typectx.emp
+      [
+        "beginT"#:(record [ "tid"#:int_ty ]);
+        "commit"#:(record [ "tid"#:int_ty; "cid"#:int_ty ]);
+        "put"#:(record
+                  [ "tid"#:int_ty; "key"#:int_ty; "value"#:(mk_list_ty int_ty) ]);
+        "get"#:(record
+                  [
+                    "tid"#:int_ty;
+                    "key"#:int_ty;
+                    "prev_tid"#:int_ty;
+                    "prev_cid"#:int_ty;
+                    "value"#:(mk_list_ty int_ty);
+                  ]);
+        "writeReq"#:(record [ "value"#:int_ty ]);
+        "writeResp"#:(record [ "value"#:int_ty ]);
+        "readReq"#:(record []);
+        "readResp"#:(record [ "value"#:int_ty ]);
+      ]
+end
+
 module CartDB = struct
   module D = MyDB (Config)
   include D

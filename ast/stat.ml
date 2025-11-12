@@ -4,6 +4,49 @@ open AutomataLibrary
 open ParseTree
 
 module Stat = struct
+  type naive_syn_result = {
+    naive_syn_name : string;
+    naive_syn_size : int;
+    naive_syn_timebound : float;
+    naive_syn_success : bool;
+    naive_syn_time : float;
+  }
+  [@@deriving yojson]
+
+  let naive_syn_file = "stat/.naive_syn.json"
+
+  let load_naive_syn_result () =
+    let json = Yojson.Safe.from_file naive_syn_file in
+    let result =
+      List.map naive_syn_result_of_yojson @@ Yojson.Safe.Util.to_list json
+    in
+    result
+
+  let save_naive_syn_result result =
+    let json = Yojson.Safe.from_file naive_syn_file in
+    let stat =
+      List.map (fun x ->
+          match naive_syn_result_of_yojson x with
+          | Result.Ok x -> x
+          | Error _ -> _die [%here])
+      @@ Yojson.Safe.Util.to_list json
+    in
+    let stat =
+      if
+        List.exists
+          (fun x -> String.equal x.naive_syn_name result.naive_syn_name)
+          stat
+      then
+        List.map
+          (fun x ->
+            if String.equal x.naive_syn_name result.naive_syn_name then result
+            else x)
+          stat
+      else result :: stat
+    in
+    let json = `List (List.map naive_syn_result_to_yojson stat) in
+    Yojson.Safe.to_file naive_syn_file json
+
   type task_complexity = {
     n_op : int;
     n_qualifier : int;

@@ -112,6 +112,26 @@ let do_syn ?(num_expected = 1) name source_file () =
   (* let () = Synthesis.save_progs name progs in *)
   ()
 
+let do_naive_syn name source_file size timebound () =
+  let code = read_source_file source_file () in
+  (* let () = Printf.printf "%s\n" (layout_structure code) in *)
+  let env = Ntypecheck.(struct_check init_env code) in
+  let () = Stat.init_algo_complexity () in
+  (* let () = test_prop env "timeout" () in *)
+  let res = Synthesis.naive_synthesize env name size timebound in
+  let result =
+    {
+      Stat.naive_syn_name = name;
+      Stat.naive_syn_size = size;
+      Stat.naive_syn_timebound = timebound;
+      Stat.naive_syn_success = (match res with Some x -> true | None -> false);
+      Stat.naive_syn_time = (match res with Some x -> x | None -> -1.0);
+    }
+  in
+  Stat.save_naive_syn_result result;
+  (* let () = Synthesis.save_progs name progs in *)
+  ()
+
 let do_parse ?(num_expected = 1) name source_file () =
   let code = read_source_file source_file () in
   (* let () = Printf.printf "%s\n" (layout_structure code) in *)
@@ -371,6 +391,20 @@ let string_and_string message f =
       let () = Myconfig.meta_config_path := config_file in
       f source_file file1)
 
+let string_string_int_float message f =
+  Command.basic ~summary:message
+    Command.Let_syntax.(
+      let%map_open config_file =
+        flag "config"
+          (optional_with_default Myconfig.default_meta_config_path regular_file)
+          ~doc:"config file path"
+      and source_file = anon ("source_code_file" %: string)
+      and file1 = anon ("file1" %: string)
+      and size = anon ("size" %: int)
+      and timebound = anon ("timebound" %: float) in
+      let () = Myconfig.meta_config_path := config_file in
+      f source_file file1 size timebound)
+
 let timeout_param message f =
   Command.basic ~summary:message
     Command.Let_syntax.(
@@ -471,11 +505,11 @@ let test_eval mode s (converge_bound : int) () =
         (* let main = [ rec_main ] in *)
         let test () = Interpreter.once (init, main, check_membership_stack) in
         eval test
-    (* | "set" ->
-  | "set" ->
-      let open Adt.Set in
-      let test () = Interpreter.once (init, [ main ], check_membership_set) in
-      eval test *)
+    | "set" ->
+        let open Adt.Set in
+        let main = Synthesis.load_prog s () in
+        let test () = Interpreter.once (init, main, check_membership_set) in
+        eval test
     | "hashtable" ->
         let open Adt.Hashtable in
         let main = Synthesis.load_prog s () in
@@ -531,6 +565,17 @@ let test_eval mode s (converge_bound : int) () =
         let main = Synthesis.load_prog s () in
         let test () = Interpreter.once (init, main, trace_enni) in
         eval test
+    | "read_cc" ->
+        let open MonkeyBD in
+        let open Common in
+        let open ReadWriteDB in
+        BackendMariaDB.MyMariaDB.maria_context "readwrite" Causal (fun () ->
+            let main = Synthesis.load_prog s () in
+            let test () =
+              Interpreter.once
+                (ReadWriteDB.init, main, Read.check_read_atomicity)
+            in
+            eval test)
     | "cart_rc" ->
         let open MonkeyBD in
         let open Common in
@@ -661,6 +706,7 @@ let test_eval mode s (converge_bound : int) () =
 let test_envs =
   [
     ("stack", Adt.Stack.test_env);
+    ("set", Adt.Set.test_env);
     ("filesystem", Adt.Filesystem.test_env);
     ("graph", Adt.Graph.test_env);
     ("nfa", Adt.Nfa.test_env);
@@ -669,6 +715,7 @@ let test_envs =
     ("ifc_store", Adt.Ifc.test_env);
     ("ifc_add", Adt.Ifc.test_env);
     ("ifc_load", Adt.Ifc.test_env);
+    ("read_cc", MonkeyBD.Read.test_env Causal);
     ("cart_rc", MonkeyBD.Cart.test_env ReadCommitted);
     ("cart_cc", MonkeyBD.Cart.test_env Causal);
     ("courseware_rc", MonkeyBD.Courseware.test_env ReadCommitted);
@@ -684,6 +731,7 @@ let default_random_test_config =
     ("numOp", 15);
     ("numOpGraph", 20);
     ("numElem", 10);
+    ("numSet", 30);
     ("numApp", 5);
     ("tyDepthBound", 5);
     ("constRange", 10);
@@ -771,6 +819,7 @@ let cmds =
           test_random "sample" name None (Some n)) );
     ("read-syn", one_param "read syn" read_syn);
     ("do-syn", tag_and_file "read syn" do_syn);
+    ("do-naive", string_string_int_float "do naive syn" do_naive_syn);
     ("do-parse", tag_and_file "read parse" do_parse);
     ("syn-one", file_and_string "syn one" syn_term);
     ("syn-benchmark", string_and_string "run benchmark" syn_benchmark);

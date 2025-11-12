@@ -69,6 +69,9 @@ let eval_sample ~number_bound ~time_bound test =
         let _ = test () in
         aux (successed + 1) (used + 1)
       with
+      | Sample.SampleTooManyTimes ->
+          Pp.printf "@{<red>Error:@} %s\n" "sample too many times";
+          aux successed used
       | RuntimeInconsistent msg ->
           Pp.printf "@{<red>Error:@} %s\n" msg;
           aux successed (used + 1)
@@ -99,9 +102,9 @@ let eval_until_detect_bug converge_bound test =
         let his = test () in
         (i, his)
       with
-      (* | Sample.SampleTooManyTimes ->
+      | Sample.SampleTooManyTimes ->
           Pp.printf "@{<red>Error:@} %s\n" "sample too many times";
-          aux i *)
+          aux i
       | RuntimeInconsistent msg ->
           Pp.printf "@{<red>Error:@} %s\n" msg;
           aux i
