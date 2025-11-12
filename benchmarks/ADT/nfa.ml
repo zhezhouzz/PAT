@@ -209,7 +209,7 @@ let trace_is_not_nfa trace =
 type nfa_bench_config = { numOp : int }
 
 let parse_config config =
-  let numOp = get_config_value config "numOp" in
+  let numOp = get_config_value config "numOpGraph" in
   { numOp }
 
 let randomTest config =

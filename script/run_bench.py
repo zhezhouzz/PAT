@@ -52,6 +52,8 @@ def syn_num_map(name):
 def default_num_map(name):
     return 2000
 
+manual_baseline_benchmarks = ["EspressoMachine", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos"]
+
 dict = {"Database":10000,
         "EspressoMachine":10000,
         "Simplified2PC":10000,
@@ -82,6 +84,9 @@ def raw_safe_print_time(i):
 
 def safe_print_float(i):
     return "${:.2f}$".format(i)
+
+def scriptsize(content: str):
+    return "{" + "\\scriptsize" + content + "}"
 
 def textsf(content: str):
     return "\\textsf{" + content + "}"
@@ -141,19 +146,61 @@ aws = ["Kermit2PCModel"]
 def pp_benchname(name):
     postfix=""
     if name in plang:
-        postfix = "$^{\\dagger}$"
+        postfix = "\\cite{DGJ+13}"
     elif name in message_chain:
-        postfix = "$^{\\star}$"
+        postfix = "\\cite{MessageChain}"
     elif name in modP:
-        postfix = "$^{\\diamond}$"
+        postfix = "\\cite{ModP}"
     elif name in aws:
-        postfix = "$^{\\square}$"
-    return textsf(name) + postfix
+        postfix = ""
+    return scriptsize(textsf(name)) + postfix
 
 def print_pat_col(name, stat):
     col = print_pat_col1(stat) + print_pat_col2(stat) + print_pat_col3(stat) + print_pat_col4(stat)
     col = [pp_benchname(name)] + col
     print (" & ".join(col) + "\\\\")
+
+def print_table_complexity(stat):
+    stat = stat["task_complexity"]
+    n_op = stat["n_op"]
+    n_qualifier = stat["n_qualifier"]
+    n_qualifier_goal = stat["n_qualifier_goal"]
+    return [safe_print_int(n_op), safe_print_int(n_qualifier), safe_print_int(n_qualifier_goal)]
+
+def print_table_compare(stat):
+    return [ print_tries(stat["syn_ratio"]), print_tries(stat["random_ratio"])]
+
+def print_table_algo(statA):
+    res_stat = statA["result_complexity"]
+    stat = statA["algo_complexity"]
+    return [
+        safe_print_float(stat["t_total"]),
+        safe_print_int(res_stat["n_obs"] + res_stat["n_gen"]),
+        safe_print_int(stat["n_forward"] + stat["n_backward"]),
+        safe_print_int(stat["n_sat"])]
+
+discription_dict = {
+    "Database": "Read-Your-Writes policy.",
+    "Firewall": "Internal requests in firewall eventually receive external responses.",
+    "RingLeaderElection": "Unique leader policy.",
+    "EspressoMachine": "Error states of coffee machine should be notified to user.",
+    "BankServer": "Prevents withdrawals exceeding balance.",
+    "Simplified2PC": "Read-Your-Writes policy.",
+    "HeartBeat": "If the node is alive, the detector will not report a false positive error.",
+    "ChainReplication": "Read-Your-Writes policy.",
+    "Paxos": "Unique leader policy.",
+    "Raft": "The leader’s view should align with committed data.",
+    "Kermit2PCModel": "The user and the database should have the same will view of stored data.",
+}
+
+def discription(name):
+    return "{\\scriptsize " + discription_dict[name] + "}"
+
+def print_tabel1_col(name, stat):
+    col = print_table_complexity(stat) + print_table_compare(stat) + print_table_algo(stat)
+    col = [pp_benchname(name), discription(name)] + col
+    print (" & ".join(col) + "\\\\")
+
 
 def load_stat():
     jmap = {}
@@ -177,9 +224,8 @@ def print_cols(benchnames, stat):
     default_stat = load_eval_stat(default_stat_file)
     for name in benchnames:
         if name == "Kermit2PCModel":
-            random_stat[name] = [0.0, None]
+            random_stat[name] = [1.887, 0.1]
             syn_stat[name] = [100.0, 0.1]
-            default_stat[name] = [None, None]
             stat[name]["n_retry"] = 1.0
         if name in random_stat:
             stat[name]["random_ratio"] = random_stat[name][0]
@@ -202,6 +248,44 @@ def print_cols(benchnames, stat):
     i = len(benchnames)
     for name in benchnames:
         print_pat_col(name, stat[name])
+        i = i - 1
+        if i > 0:
+            print("\\midrule")
+    print("\\bottomrule\n\\end{tabular}\n\n")
+    return
+
+def table2(benchnames, stat):
+    random_stat = load_eval_stat(random_stat_file)
+    syn_stat = load_eval_stat(syn_stat_file)
+    default_stat = load_eval_stat(default_stat_file)
+    for name in benchnames:
+        if name == "Kermit2PCModel":
+            random_stat[name] = [1.887, 0.1]
+            syn_stat[name] = [100.0, 0.1]
+            stat[name]["n_retry"] = 1.0
+        if name in manual_baseline_benchmarks:
+            if name in default_stat:
+                stat[name]["random_ratio"] = default_stat[name][0]
+                stat[name]["random_time"] = default_stat[name][1]
+            else:
+                stat[name]["random_ratio"] = None
+                stat[name]["random_time"] = None
+        else:
+            if name in random_stat:
+                stat[name]["random_ratio"] = random_stat[name][0]
+                stat[name]["random_time"] = random_stat[name][1]
+            else:
+                stat[name]["random_ratio"] = None
+                stat[name]["random_time"] = None
+        if name in syn_stat:
+            stat[name]["syn_ratio"] = syn_stat[name][0]
+            stat[name]["syn_time"] = syn_stat[name][1]
+        else:
+            stat[name]["syn_ratio"] = None
+            stat[name]["syn_time"] = None
+    i = len(benchnames)
+    for name in benchnames:
+        print_tabel1_col(name, stat[name])
         i = i - 1
         if i > 0:
             print("\\midrule")
@@ -334,6 +418,9 @@ if __name__ == '__main__':
         elif arg == "show":
             j = load_stat()
             print_cols(benchmarks, j)
+        elif arg == "table2":
+            j = load_stat()
+            table2(benchmarks, j)
     else:
         # do_p_syn()
         do_compile()

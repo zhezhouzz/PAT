@@ -37,10 +37,11 @@ def invoc_cmd(cmd, cwd=None):
         print(e.output)
 
 
-# benchmarks = ["Stack", "HashTable", "Filesystem", "Graph", "NFA", "IFCStore", "IFCAdd", "IFCLoad", "DeBruijn2",  "CartRC", "CartCC", "CoursewareRC", "CoursewareCC", "TwitterRC", "TwitterCC", "SmallbankRC", "SmallbankCC", "TreiberStackRC", "TreiberStackCC"]
+# benchmarks = ["Stack", "HashTable", "Filesystem", "Graph", "NFA", "IFCAdd", "IFCStore", "IFCLoad", "DeBruijn2",  "CartRC", "CartCC", "CoursewareRC", "CoursewareCC", "TwitterRC", "TwitterCC", "SmallbankRC", "SmallbankCC", "TreiberStackRC", "TreiberStackCC"]
 benchmarks = ["Stack", "HashTable", "Filesystem", "Graph", "NFA", "IFCAdd", "IFCStore",  "IFCLoad", "DeBruijn1", "DeBruijn2", "Shopping", "Courseware", "Twitter", "Smallbank"]
 # benchmarks = ["Shopping", "Courseware", "Twitter", "Smallbank"]
-# benchmarks  = ["IFCAdd", "IFCStore",  "IFCLoad", "Smallbank"]
+# benchmarks  = ["Filesystem", "Graph",  "NFA", "IFCAdd", "IFCStore",  "IFCLoad"]
+# benchmarks  = ["DeBruijn1"]
 
 discription_dict = {
     "Stack": "All pushed values should be popped.",
@@ -132,31 +133,31 @@ def default_num_map(name):
     return 2000
 
 dict = {
-    "Stack": "1",
-    "Graph": "1",
-    "Filesystem": "1",
-    "NFA": "1",
-    "IFCStore": "1",
-    "IFCAdd": "1",
-    "IFCLoad": "1",
-    "DeBruijn1": "1",
-    "DeBruijn2": "1",
-    "HashTable": "1",
-    "CartRC": "1",
-    "CartCC": "1",
-    "Shopping": "1",
-    "CoursewareRC": "1",
-    "CoursewareCC": "1",
-    "Courseware": "1",
-    "TwitterRC": "1",
-    "TwitterCC": "1",
-    "Twitter": "1",
-    "SmallbankRC": "1",
-    "SmallbankCC": "1",
-    "Smallbank": "1",
-    "TreiberStackRC": "1",
-    "TreiberStackCC": "1",
-    "TreiberStack": "1",
+    "Stack": "1800",
+    "Graph": "1800",
+    "Filesystem": "1800",
+    "NFA": "1800",
+    "IFCStore": "1800",
+    "IFCAdd": "1800",
+    "IFCLoad": "1800",
+    "DeBruijn1": "1800",
+    "DeBruijn2": "1800",
+    "HashTable": "1800",
+    "CartRC": "1800",
+    "CartCC": "1800",
+    "Shopping": "1800",
+    "CoursewareRC": "1800",
+    "CoursewareCC": "1800",
+    "Courseware": "1800",
+    "TwitterRC": "1800",
+    "TwitterCC": "1800",
+    "Twitter": "1800",
+    "SmallbankRC": "1800",
+    "SmallbankCC": "1800",
+    "Smallbank": "1800",
+    "TreiberStackRC": "1800",
+    "TreiberStackCC": "1800",
+    "TreiberStack": "1800",
 }
 
 def random_num_map(name):
@@ -251,7 +252,7 @@ hat = ["Stack", "Graph", "Filesystem", "NFA"]
 ifc = ["IFCStore", "IFCAdd", "IFCLoad"]
 stlc = ["DeBruijn1", "DeBruijn2"]
 hashtable = ["HashTable"]
-monkeydb = ["CartRC", "CartCC", "CoursewareRC", "CoursewareCC", "TwitterRC", "TwitterCC", "SmallbankRC", "SmallbankCC", "TreiberStackRC", "TreiberStackCC"]
+monkeydb = ["Shopping", "CartRC", "CartCC", "Courseware", "CoursewareRC", "CoursewareCC", "Twitter", "TwitterRC", "TwitterCC", "Smallbank", "SmallbankRC", "SmallbankCC", "TreiberStack", "TreiberStackRC", "TreiberStackCC"]
 
 monkeydb_ratio = {
     "Shopping": 20.0,
@@ -264,13 +265,15 @@ monkeydb_ratio = {
 def pp_benchname(name):
     postfix=""
     if name in hat:
-        postfix = "$^{\\dagger}$"
+        postfix = "\\cite{ZYDJ24}"
     elif name in ifc:
-        postfix = "$^{\\star}$"
+        postfix = "\\cite{pbt-ifc}"
     elif name in stlc:
-        postfix = "$^{\\diamond}$"
+        postfix = "\\cite{CoverageType}"
     elif name in hashtable:
-        postfix = "$^{\\square}$"
+        postfix = "\\cite{OcamlMulticorePBT}"
+    elif name in monkeydb:
+        postfix = "\\cite{MonkeyDB}"
     return textsf(name) + postfix
 
 def print_pat_col(name, stat):
@@ -348,6 +351,8 @@ def print_cols(benchnames, stat):
         i = i - 1
         if i > 0:
             print("\\midrule")
+        if name in ["NFA", "DeBruijn2"]:
+            print("\\midrule")
     print("\\bottomrule\n\\end{tabular}\n\n")
     return
 
@@ -375,6 +380,8 @@ def table1(benchnames, stat):
         print_tabel1_col(name, stat[name])
         i = i - 1
         if i > 0:
+            print("\\midrule")
+        if name in ["NFA", "DeBruijn2"]:
             print("\\midrule")
     print("\\bottomrule\n\\end{tabular}\n\n")
     return

@@ -405,13 +405,13 @@ let trace_enni trace =
 type ifc_bench_config = { numOp : int }
 
 let parse_config config =
-  let numOp = get_config_value config "numOp" in
+  let numOp = get_config_value config "numOpGraph" in
   { numOp }
 
 let instrGen config =
   let { numOp } = parse_config config in
   let open QCheck.Gen in
-  let valueGen = int_range (-50) 50 in
+  let valueGen = int_range 0 10 in
   let random_push =
     oneof
       [
