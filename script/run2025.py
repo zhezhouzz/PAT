@@ -54,8 +54,8 @@ def run_random(name, testNum):
 if __name__ == "__main__":
     name = sys.argv[1]
     testNum = int(sys.argv[2])
-    #print("\n\n\n\nRunning synthesis for", name)
-    #run_syn(name)
+    print("\n\n\n\nRunning synthesis for", name)
+    run_syn(name)
     #input()
     #print("Running evaluation for", name, testNum)
     #run_eval(name, testNum)
