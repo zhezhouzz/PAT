@@ -116,11 +116,11 @@ let pushReq (i : int) (y : int) (x : int) (a : int) (* a represents the key of a
     PushReq (elem == e),
     (BeginT (tid == i);
      (*allA;*)
-     (*epsilonA || ((Get (tid == i && key == topKey && next == a);
+     epsilonA || ((Get (tid == i && key == topKey && next == a);
                    Put (tid == i && key == y && value == e && next == a);
                    allA;
                    Get (tid == i && key == topKey && not (next == a));
-                   FailCAS (tid == i && old_head == a && new_head == y)));*)
+                   FailCAS (tid == i && old_head == a && new_head == y)));
      Get (tid == i && key == topKey && next == x && value == emptyVal);
      Put (tid == i && key == y && value == e && next == x);
 
@@ -143,10 +143,10 @@ let popReq (i : int) (x : int) (y : int) (e : int) (a : int) = (* a represents t
     PopReq true,
     (BeginT (tid == i);
      (*allA;*)
-     (*epsilonA || ((Get (tid == i && key == topKey && next == a && value == emptyVal);
+     epsilonA || ((Get (tid == i && key == topKey && next == a && value == emptyVal);
                    allA;
                    Get (tid == i && key == a && next == y);
-                   FailCAS (tid == i && old_head == a && new_head == y)));*)
+                   FailCAS (tid == i && old_head == a && new_head == y)));
         (Get (tid == i && key == topKey && next == x && value == emptyVal);
          Get (tid == i && key == x && value == e && next == y);
          Get (tid == i && next == x && key == topKey && value == emptyVal);
@@ -170,7 +170,7 @@ let popResp = (allA, PopResp true, allA)
 
 
 
-let[@goal] t_stack_cc (e : int) (t_1 : int) (t_2 : int) = (* low detail: looking for a program *)
+let[@goal] t_stack_cc (e : int) = (* low detail: looking for a program *)
 
   (* setup *)
   InitReq true;
