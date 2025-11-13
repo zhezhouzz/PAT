@@ -347,7 +347,8 @@ module TreiberStackDB = struct
   let db_str = "stack"
 
   let topKey = -1
-  let emptyVal = -1
+  let emptyVal = -2
+  let bottom = -3
   (*let _opCount = ref 0*)
 
   let getAsync (ev : ev) = _getAsync db_str ev
@@ -424,7 +425,7 @@ module TreiberStackDB = struct
   let initReqHandler (msg : msg) =
     let aux () =
       do_trans (fun tid ->
-          let _ = do_put tid topKey emptyVal tid in
+          let _ = do_put tid topKey emptyVal bottom in
           let _ = Printf.printf "INIT REQ\n" in
           ())
     in
@@ -535,16 +536,18 @@ module TreiberStackDB = struct
           match do_get tid topKey with
           | (_, next) -> next
         in
+        if old_head == bottom then emptyVal
+        else
         let old_head_value, new_head = match do_get tid old_head with
           | (v, next) -> v, next
         in
         if (do_cas tid old_head new_head)
           then 
-            (*let _ = send ("passCAS", [ mk_value_int tid ; mk_value_int old_head ; mk_value_int new_head ])
-              in*) pass_cas old_head_value
+            let _ = send ("passCAS", [ mk_value_int tid ; mk_value_int old_head ; mk_value_int new_head ])
+              in pass_cas old_head_value
           else
-            (*let _ = send ("failCAS", [ mk_value_int tid ; mk_value_int old_head ; mk_value_int new_head ])
-              in*) fail_cas tid
+            let _ = send ("failCAS", [ mk_value_int tid ; mk_value_int old_head ; mk_value_int new_head ])
+              in fail_cas tid
       in
       do_trans (fun tid ->
         try_cas (tid))
