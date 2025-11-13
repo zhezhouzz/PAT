@@ -122,9 +122,13 @@ let rec step_stlcTerm term =
 
 let rec mstep_stlcTerm e =
   let () = Printf.printf "mstep_stlcTerm: %s\n" (layout_stlcTerm e) in
+  let _ = typeinfer_stlcTerm [] e in
   match step_stlcTerm e with
   | EvalError _ -> EvalError e
-  | EvalNormalFrom e -> EvalNormalFrom e
+  | EvalNormalFrom e ->
+      let _ = typeinfer_stlcTerm [] e in
+      let () = Printf.printf "EvalNormalFrom: %s\n" (layout_stlcTerm e) in
+      EvalNormalFrom e
   | EvalSuccess e -> mstep_stlcTerm e
 
 open Interpreter

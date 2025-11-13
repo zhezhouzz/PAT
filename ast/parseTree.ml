@@ -85,10 +85,10 @@ type syn_goal = {
   prop : rich_srl;
 }
 
-type message_kind = Gen | Obs [@@deriving sexp, show, eq, ord]
+type message_kind = Gen | Obs | ObsRecv [@@deriving sexp, show, eq, ord]
 
-let is_generative = function Gen -> true | Obs -> false
-let is_observable = function Gen -> false | Obs -> true
+let is_generative = function Gen -> true | Obs -> false | ObsRecv -> false
+let is_observable = function Gen -> false | Obs -> true | ObsRecv -> true
 
 type 'r item =
   | PrimDecl of { name : string; nt : Nt.nt }
@@ -144,6 +144,7 @@ type synMidResult =
 [@@deriving sexp]
 
 type syn_env = {
+  event_rich_rtyctx : rich_srl pat ctx;
   event_rtyctx : srl pat ctx;
   event_tyctx : t ctx;
   msgkind_ctx : message_kind ctx;

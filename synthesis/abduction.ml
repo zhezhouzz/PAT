@@ -6,16 +6,19 @@ open Zdatatype
   let aux p =
     let q = smart_forall qvs @@ smart_implies gprop p in
     let () = Pp.printf "@{<bold>check_valid_feature:@}\n%s\n" (layout_prop q) in
-    Prover.check_valid (None, q)
+    Prover.raw_check_valid (None, q)
   in
   (not (aux (lit_to_prop p))) && not (aux @@ Not (lit_to_prop p)) *)
 
 let pre_simplify_lit (qvs, pre) lit =
+  let qvs = List.slow_rm_dup (fun x y -> String.equal x.x y.x) qvs in
   let q1 = smart_forall qvs @@ smart_implies pre (lit_to_prop lit) in
   let q2 = smart_forall qvs @@ smart_implies pre (Not (lit_to_prop lit)) in
   (* let () = Pp.printf "@{<bold>pre_simplify_lit:@}\n%s\n" (layout_prop q1) in *)
   (* let () = Pp.printf "@{<bold>pre_simplify_lit:@}\n%s\n" (layout_prop q2) in *)
-  match (Prover.check_valid (None, q1), Prover.check_valid (None, q2)) with
+  match
+    (Prover.raw_check_valid (None, q1), Prover.raw_check_valid (None, q2))
+  with
   | true, true -> _die [%here]
   | true, false -> mk_true
   | false, true -> mk_false
@@ -37,9 +40,9 @@ let pre_simplify_prop (qvs, pre) prop =
 let check_valid_feature (_, gprop) p =
   let q = smart_add_to (lit_to_prop p) gprop in
   (* let () = Pp.printf "@{<bold>check_valid_feature:@}\n%s\n" (layout_prop q) in *)
-  Prover.check_sat_bool (None, q)
+  Prover.raw_check_sat_bool (None, q)
 
-let check_valid_pre prop = not (Prover.check_valid (None, prop))
+let check_valid_pre prop = not (Prover.raw_check_valid (None, prop))
 
 let build_features _ (lits : Nt.nt lit list) =
   (* let lits = List.filter (check_valid_feature (qvs, gprop)) lits in *)
@@ -185,7 +188,7 @@ let do_abduction (qvs, abd_vars, gprop) =
       in *)
       let fvs =
         List.filter
-          (fun p -> Prover.check_sat_bool (None, smart_add_to p gprop))
+          (fun p -> Prover.raw_check_sat_bool (None, smart_add_to p gprop))
           fvs
       in
       smart_or fvs

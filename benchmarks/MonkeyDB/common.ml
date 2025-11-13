@@ -23,6 +23,28 @@ module MyDB (C : Config) = struct
     let cid = DB.raw_commit ~tid in
     { ev with args = [ mk_value_int tid; mk_value_int cid ] }
 
+  (* let with_prefix prefix x = spf "%s:%s" prefix (key_to_string x) *)
+
+  (* let _getTableAsync table prefix (ev : ev) =
+    let tid, key =
+      match ev.args with
+      | [ VConst (I tid); VConst key ] -> (tid, key)
+      | _ -> _die [%here]
+    in
+    let prev_tid, prev_cid, value =
+      DB.raw_get ~tid ~table ~key:(with_prefix prefix key)
+    in
+    {
+      ev with
+      args =
+        [
+          mk_value_int tid;
+          VConst key;
+          mk_value_int prev_tid;
+          mk_value_int prev_cid;
+        ]
+        @ json_to_values value;
+    } *)
 
   let _getAsyncTable db table (ev : ev) =
     let tid, key =
@@ -44,30 +66,6 @@ module MyDB (C : Config) = struct
         ]
         @ json_to_values value;
     }
-
-
-
-  let _getAsyncTable db table (ev : ev) =
-    let tid, key =
-      match ev.args with
-      | [ VConst (I tid); VConst key ] -> (tid, key)
-      | _ -> _die [%here]
-    in
-    let prev_tid, prev_cid, value =
-      DB.table_raw_get ~tid ~db ~table ~key:(key_to_string key)
-    in
-    {
-      ev with
-      args =
-        [
-          mk_value_int tid;
-          VConst key;
-          mk_value_int prev_tid;
-          mk_value_int prev_cid;
-        ]
-        @ json_to_values value;
-    }
-
 
   let _getAsync table (ev : ev) =
     let tid, key =
@@ -89,6 +87,22 @@ module MyDB (C : Config) = struct
         ]
         @ json_to_values value;
     }
+
+  (* let _putTableAsync table prefix (ev : ev) =
+    let () =
+      Printf.printf "start _putAsync %s : %s\n" table
+        (Yojson.Basic.to_string (values_to_json ev.args))
+    in
+    let tid, key, v =
+      match ev.args with
+      | VConst (I tid) :: VConst key :: v -> (tid, key, v)
+      | _ -> _die [%here]
+    in
+    let () =
+      DB.raw_put ~tid ~table ~key:(with_prefix prefix key)
+        ~json:(values_to_json v)
+    in
+    () *)
 
   let _putAsync table (ev : ev) =
     let () =
@@ -131,7 +145,24 @@ module MyDB (C : Config) = struct
       | _ -> _die [%here]
     in
     let () =
-      DB.table_raw_put ~tid ~db ~table ~key:(key_to_string key) ~json:(values_to_json v)
+      DB.table_raw_put ~tid ~db ~table ~key:(key_to_string key)
+        ~json:(values_to_json v)
+    in
+    ()
+
+  let _putAsyncTable db table (ev : ev) =
+    let () =
+      Printf.printf "start _putAsync %s : %s\n" table
+        (Yojson.Basic.to_string (values_to_json ev.args))
+    in
+    let tid, key, v =
+      match ev.args with
+      | VConst (I tid) :: VConst key :: v -> (tid, key, v)
+      | _ -> _die [%here]
+    in
+    let () =
+      DB.table_raw_put ~tid ~db ~table ~key:(key_to_string key)
+        ~json:(values_to_json v)
     in
     ()
 
@@ -179,6 +210,127 @@ module IntDB = struct
   include MyDB (Config)
 end
 
+module ReadWriteDB = struct
+  module D = MyDB (Config)
+  include D
+
+  let getAsync (ev : ev) = _getAsync "readwrite" ev
+  let putAsync (ev : ev) = _putAsync "readwrite" ev
+
+  let do_get tid key =
+    let msg = async ("get", [ mk_value_int tid; mk_value_int key ]) in
+    match msg.ev.args with
+    | _ :: _ :: _ :: _ :: args -> args
+    | _ -> _die [%here]
+
+  let do_put tid key v =
+    async ("put", [ mk_value_int tid; mk_value_int key ] @ v)
+
+  let do_trans f =
+    let msg = async ("beginT", []) in
+    let tid =
+      match msg.ev.args with [ VConst (I tid) ] -> tid | _ -> _die [%here]
+    in
+    let res = f tid in
+    let _ = async ("commit", [ mk_value_int tid ]) in
+    res
+
+  let int_to_values x = [ VConst (I x) ]
+  let values_to_int x = match x with [ VConst (I x) ] -> x | _ -> _die [%here]
+
+  (* add item *)
+  (* add item *)
+  let async_write ~thread_id x () =
+    let open Lwt.Syntax in
+    let* tid = DB.async_begin ~thread_id () in
+    try
+      let* () =
+        DB.async_put ~tid ~table:"readwrite" ~key:(string_of_int 0)
+          ~json:(Config.values_to_json [ VConst (I x) ])
+          ()
+      in
+      let* _ = DB.async_commit ~tid () in
+      Lwt.return_unit
+    with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = DB.async_release_connection ~tid () in
+      Lwt.return_unit
+
+  let writeReqHandler (msg : msg) =
+    let aux (x : int) =
+      do_trans (fun tid ->
+          let _ = do_put tid 0 (int_to_values x) in
+          ())
+    in
+    match msg.ev.args with
+    | [ VConst (I x) ] ->
+        let _ = aux x in
+        send ("writeResp", [ mk_value_int x ])
+    | _ -> _die [%here]
+
+  let async_read ~thread_id () =
+    let open Lwt.Syntax in
+    let* tid = DB.async_begin ~thread_id () in
+    try
+      let* _, _, x =
+        DB.async_get ~tid ~table:"readwrite" ~key:(string_of_int 0) ()
+      in
+      let x =
+        match Config.json_to_values x with
+        | [ VConst (I x) ] -> x
+        | _ -> _die [%here]
+      in
+      let* _ = DB.async_commit ~tid () in
+      Lwt.return x
+    with BackendMariaDB.DBKeyNotFound _ ->
+      let* _ = DB.async_release_connection ~tid () in
+      Lwt.return 0
+
+  let readReqHandler (msg : msg) =
+    let aux () = do_trans (fun tid -> do_get tid 0) in
+    match msg.ev.args with
+    | [] ->
+        let x = aux () in
+        let x = match x with [ VConst (I x) ] -> x | _ -> _die [%here] in
+        send ("readResp", [ mk_value_int x ])
+    | _ -> _die [%here]
+
+  let writeRespHandler (_ : msg) = ()
+  let readRespHandler (_ : msg) = ()
+
+  let init () =
+    register_async_has_ret "beginT" beginAsync;
+    register_async_has_ret "commit" commitAsync;
+    register_async_has_ret "get" getAsync;
+    register_async_no_ret "put" putAsync;
+    register_handler "writeReq" writeReqHandler;
+    register_handler "readReq" readReqHandler;
+    register_handler "writeResp" writeRespHandler;
+    register_handler "readResp" readRespHandler;
+    D.clear ()
+
+  let testCtx =
+    let open Nt in
+    let record l = Ty_record { alias = None; fds = l } in
+    Typectx.add_to_rights Typectx.emp
+      [
+        "beginT"#:(record [ "tid"#:int_ty ]);
+        "commit"#:(record [ "tid"#:int_ty; "cid"#:int_ty ]);
+        "put"#:(record
+                  [ "tid"#:int_ty; "key"#:int_ty; "value"#:(mk_list_ty int_ty) ]);
+        "get"#:(record
+                  [
+                    "tid"#:int_ty;
+                    "key"#:int_ty;
+                    "prev_tid"#:int_ty;
+                    "prev_cid"#:int_ty;
+                    "value"#:(mk_list_ty int_ty);
+                  ]);
+        "writeReq"#:(record [ "value"#:int_ty ]);
+        "writeResp"#:(record [ "value"#:int_ty ]);
+        "readReq"#:(record []);
+        "readResp"#:(record [ "value"#:int_ty ]);
+      ]
+end
 
 module CartDB = struct
   module D = MyDB (Config)
@@ -204,8 +356,6 @@ module CartDB = struct
     let res = f tid in
     let _ = async ("commit", [ mk_value_int tid ]) in
     res
-
-
 
   let int_list_to_values l = [ VCIntList l ]
 
@@ -365,9 +515,7 @@ module CartDB = struct
       ]
 end
 
-
-
-
+ 
 
 module TreiberStackDB = struct
   (* Tstack transactions: Just CAS? No. Add cell, remove cell (bimyou), CAS *)
@@ -653,8 +801,8 @@ end
 
 
 
-module SmallBankDB = struct
 
+module SmallBankDB = struct
   (* SmallBank todo:
      * how to use strings instead of ints, so that we can use customer name instead of customer id? 
           Should we just make sure every new customer has a different name and id, but make them both numbers?
@@ -671,15 +819,13 @@ module SmallBankDB = struct
   let sav_str = "savings"
   let chk_str = "checking"
 
-
   let async_get ~tid ~table ~key () =
     let _ = Printf.printf "in async get\n" in
     DB.table_async_get ~tid ~db:db_str ~table ~key ()
+
   let async_put ~tid ~table ~key ~json () =
     let _ = Printf.printf "in async put\n" in
     DB.table_async_put ~tid ~db:db_str ~table ~key ~json ()
-
-
 
   let selectAccountsAsync (ev : ev) = _getAsyncTable db_str acc_str ev
   let selectSavingsAsync (ev : ev) = _getAsyncTable db_str sav_str ev
@@ -688,32 +834,44 @@ module SmallBankDB = struct
   let updateSavingsAsync (ev : ev) = _putAsyncTable db_str sav_str ev
   let updateCheckingAsync (ev : ev) = _putAsyncTable db_str chk_str ev
 
-  let do_selectAccounts tid name = 
-    let msg = async ("selectAccounts", [ mk_value_int tid; mk_value_int name ]) in
+  let do_selectAccounts tid name =
+    let msg =
+      async ("selectAccounts", [ mk_value_int tid; mk_value_int name ])
+    in
     match msg.ev.args with
     | _ :: _ :: _ :: _ :: [ VConst (I v) ] -> v
     | _ -> _die [%here]
 
-  let do_selectSavings tid custid = 
-    let msg = async ("selectSavings", [ mk_value_int tid; mk_value_int custid ]) in
+  let do_selectSavings tid custid =
+    let msg =
+      async ("selectSavings", [ mk_value_int tid; mk_value_int custid ])
+    in
     match msg.ev.args with
     | _ :: _ :: _ :: _ :: [ VConst (I v) ] -> v
     | _ -> _die [%here]
 
-  let do_selectChecking tid custid = 
-    let msg = async ("selectChecking", [ mk_value_int tid; mk_value_int custid ]) in
+  let do_selectChecking tid custid =
+    let msg =
+      async ("selectChecking", [ mk_value_int tid; mk_value_int custid ])
+    in
     match msg.ev.args with
     | _ :: _ :: _ :: _ :: [ VConst (I v) ] -> v
     | _ -> _die [%here]
 
   let do_updateAccounts tid name custid =
-    async ("updateAccounts", [ mk_value_int tid; mk_value_int name ; mk_value_int custid])
+    async
+      ( "updateAccounts",
+        [ mk_value_int tid; mk_value_int name; mk_value_int custid ] )
 
   let do_updateSavings tid custid bal =
-    async ("updateSavings", [ mk_value_int tid; mk_value_int custid ; mk_value_int bal])
+    async
+      ( "updateSavings",
+        [ mk_value_int tid; mk_value_int custid; mk_value_int bal ] )
 
   let do_updateChecking tid custid bal =
-    async ("updateChecking", [ mk_value_int tid; mk_value_int custid ; mk_value_int bal])
+    async
+      ( "updateChecking",
+        [ mk_value_int tid; mk_value_int custid; mk_value_int bal ] )
 
   let do_trans f =
     let msg = async ("beginT", []) in
@@ -731,17 +889,20 @@ module SmallBankDB = struct
     let open Lwt.Syntax in
     let* tid = DB.async_begin ~thread_id () in
     try
-      let* () = 
+      let* () =
         async_put ~tid ~table:acc_str ~key:(string_of_int name)
-        ~json:(Config.values_to_json [ VConst (I (custid))]) ()
+          ~json:(Config.values_to_json [ VConst (I custid) ])
+          ()
       in
       let* () =
         async_put ~tid ~table:sav_str ~key:(string_of_int custid)
-        ~json:(Config.values_to_json [ VConst (I 0)]) ()     
+          ~json:(Config.values_to_json [ VConst (I 0) ])
+          ()
       in
       let* () =
         async_put ~tid ~table:chk_str ~key:(string_of_int custid)
-        ~json:(Config.values_to_json [ VConst (I 0)]) ()  
+          ~json:(Config.values_to_json [ VConst (I 0) ])
+          ()
       in
       let* _ = DB.async_commit ~tid () in
       Lwt.return_unit
@@ -772,17 +933,17 @@ module SmallBankDB = struct
         async_get ~tid ~table:sav_str ~key:(string_of_int custid0) ()
       in
       let sBal0 =
-        match Config.json_to_values sBal0 with 
-          | [ VConst (I v) ] -> v
-          | _ -> _die [%here]
+        match Config.json_to_values sBal0 with
+        | [ VConst (I v) ] -> v
+        | _ -> _die [%here]
       in
       let* _, _, cBal0 =
         async_get ~tid ~table:chk_str ~key:(string_of_int custid0) ()
       in
       let cBal0 =
         match Config.json_to_values cBal0 with
-          | [ VConst (I v) ] -> v
-          | _ -> _die [%here]
+        | [ VConst (I v) ] -> v
+        | _ -> _die [%here]
       in
       let* _, _, cBal1 =
         async_get ~tid ~table:chk_str ~key:(string_of_int custid1) ()
@@ -794,15 +955,18 @@ module SmallBankDB = struct
       in
       let* () =
         async_put ~tid ~table:sav_str ~key:(string_of_int custid0)
-        ~json:(Config.values_to_json [ VConst (I 0) ]) ()
+          ~json:(Config.values_to_json [ VConst (I 0) ])
+          ()
       in
       let* () =
         async_put ~tid ~table:chk_str ~key:(string_of_int custid0)
-        ~json:(Config.values_to_json [ VConst (I 0) ]) ()
+          ~json:(Config.values_to_json [ VConst (I 0) ])
+          ()
       in
       let* () =
         async_put ~tid ~table:chk_str ~key:(string_of_int custid1)
-        ~json:(Config.values_to_json [ VConst (I (sBal0 + cBal0 + cBal1))]) ()
+          ~json:(Config.values_to_json [ VConst (I (sBal0 + cBal0 + cBal1)) ])
+          ()
       in
       let* _ = DB.async_commit ~tid () in
       Lwt.return_unit
@@ -818,7 +982,7 @@ module SmallBankDB = struct
           let cBal1 = do_selectChecking tid custid1 in
           let _ = do_updateSavings tid custid0 0 in
           let _ = do_updateChecking tid custid0 0 in
-          let total = (sBal0 + cBal0 + cBal1) in
+          let total = sBal0 + cBal0 + cBal1 in
           let _ = do_updateChecking tid custid1 total in
           ())
     in
@@ -833,7 +997,7 @@ module SmallBankDB = struct
     let open Lwt.Syntax in
     let* tid = DB.async_begin ~thread_id () in
     try
-      let* _, _, custid = 
+      let* _, _, custid =
         async_get ~tid ~table:acc_str ~key:(string_of_int name) ()
       in
       let custid =
@@ -841,7 +1005,7 @@ module SmallBankDB = struct
         | [ VConst (I v) ] -> v
         | _ -> _die [%here]
       in
-      let* _, _, sBal = 
+      let* _, _, sBal =
         async_get ~tid ~table:sav_str ~key:(string_of_int custid) ()
       in
       let sBal =
@@ -849,7 +1013,7 @@ module SmallBankDB = struct
         | [ VConst (I v) ] -> v
         | _ -> _die [%here]
       in
-      let* _, _, cBal = 
+      let* _, _, cBal =
         async_get ~tid ~table:chk_str ~key:(string_of_int custid) ()
       in
       let cBal =
@@ -863,7 +1027,7 @@ module SmallBankDB = struct
       Lwt.fail (BackendMariaDB.DBKeyNotFound s)
 
   let balanceReqHandler (msg : msg) =
-    let _ = Pp.printf ("running balance req handler\n") in
+    let _ = Pp.printf "running balance req handler\n" in
     let aux (name : int) =
       do_trans (fun tid ->
           let custid = do_selectAccounts tid name in
@@ -872,12 +1036,12 @@ module SmallBankDB = struct
           let _ = Pp.printf "sBal: %d\n" sBal in
           let cBal = do_selectChecking tid custid in
           let _ = Pp.printf "cBal: %d\n" cBal in
-          (sBal + cBal))
+          sBal + cBal)
     in
     match msg.ev.args with
     | [ VConst (I name) ] ->
         let balance = aux name in
-        let _ = Pp.printf ("sending balance resp\n") in
+        let _ = Pp.printf "sending balance resp\n" in
         send ("balanceResp", [ mk_value_int balance ])
     | _ -> _die [%here]
 
@@ -904,7 +1068,8 @@ module SmallBankDB = struct
       in
       let* () =
         async_put ~tid ~table:chk_str ~key:(string_of_int custid)
-        ~json:(Config.values_to_json [ VConst (I (cBal + amount))]) ()
+          ~json:(Config.values_to_json [ VConst (I (cBal + amount)) ])
+          ()
       in
       let* _ = DB.async_commit ~tid () in
       Lwt.return_unit
@@ -913,7 +1078,7 @@ module SmallBankDB = struct
       Lwt.return_unit
 
   let depositCheckingReqHandler (msg : msg) =
-    let aux (name : int) (amount: int) =
+    let aux (name : int) (amount : int) =
       do_trans (fun tid ->
           let custid = do_selectAccounts tid name in
           let cBal = do_selectChecking tid custid in
@@ -942,25 +1107,27 @@ module SmallBankDB = struct
       let* _, _, cBalDest =
         async_get ~tid ~table:chk_str ~key:(string_of_int destid) ()
       in
-      let cBalDest = 
+      let cBalDest =
         match Config.json_to_values cBalDest with
         | [ VConst (I v) ] -> v
         | _ -> _die [%here]
       in
       let* () =
         async_put ~tid ~table:chk_str ~key:(string_of_int srcid)
-        ~json:(Config.values_to_json [ VConst (I (cBalSrc - amount))]) ()
+          ~json:(Config.values_to_json [ VConst (I (cBalSrc - amount)) ])
+          ()
       in
       let* () =
         async_put ~tid ~table:chk_str ~key:(string_of_int destid)
-        ~json:(Config.values_to_json [ VConst (I (cBalDest + amount))]) ()
+          ~json:(Config.values_to_json [ VConst (I (cBalDest + amount)) ])
+          ()
       in
       let* _ = DB.async_commit ~tid () in
       Lwt.return_unit
     with BackendMariaDB.DBKeyNotFound _ ->
       let* _ = DB.async_release_connection ~tid () in
       Lwt.return_unit
-  
+
   let sendPaymentReqHandler (msg : msg) =
     let aux (srcid : int) (destid : int) (amount : int) =
       do_trans (fun tid ->
@@ -969,12 +1136,12 @@ module SmallBankDB = struct
           let _ = do_updateChecking tid srcid (cBalSrc - amount) in
           let _ = do_updateChecking tid srcid (cBalDest + amount) in
           ())
-      in
-      match msg.ev.args with
-      | [ VConst (I srcid); VConst (I destid); VConst (I amount) ] ->
-          let _ = aux srcid destid amount in
-          send ("sendPaymentsResp", [])
-      | _ -> _die [%here]
+    in
+    match msg.ev.args with
+    | [ VConst (I srcid); VConst (I destid); VConst (I amount) ] ->
+        let _ = aux srcid destid amount in
+        send ("sendPaymentsResp", [])
+    | _ -> _die [%here]
 
   (* transact savings *)
   let async_transactSavings ~thread_id name amount () =
@@ -997,9 +1164,10 @@ module SmallBankDB = struct
         | [ VConst (I v) ] -> v
         | _ -> _die [%here]
       in
-      let* () = 
+      let* () =
         async_put ~tid ~table:sav_str ~key:(string_of_int custid)
-        ~json:(Config.values_to_json [ VConst (I (sBal + amount))]) ()
+          ~json:(Config.values_to_json [ VConst (I (sBal + amount)) ])
+          ()
       in
       let* _ = DB.async_commit ~tid () in
       Lwt.return_unit
@@ -1008,33 +1176,33 @@ module SmallBankDB = struct
       Lwt.return_unit
 
   let transactSavingsReqHandler (msg : msg) =
-    let aux (name : int) (amount: int) =
+    let aux (name : int) (amount : int) =
       do_trans (fun tid ->
           let custid = do_selectAccounts tid name in
           let sBal = do_selectSavings tid custid in
           let _ = do_updateSavings tid custid (sBal + amount) in
           ())
-      in
-      match msg.ev.args with
-      | [ VConst (I name); VConst (I amount) ] ->
-          let _ = aux name amount in
-          send ("transactSavingsResp", [])
-      | _ -> _die [%here]
+    in
+    match msg.ev.args with
+    | [ VConst (I name); VConst (I amount) ] ->
+        let _ = aux name amount in
+        send ("transactSavingsResp", [])
+    | _ -> _die [%here]
 
   (* write check *)
   let async_writeCheck ~thread_id name amount () =
     let open Lwt.Syntax in
     let* tid = DB.async_begin ~thread_id () in
     try
-      let* _, _, custid = 
+      let* _, _, custid =
         async_get ~tid ~table:acc_str ~key:(string_of_int name) ()
       in
-      let custid = 
+      let custid =
         match Config.json_to_values custid with
         | [ VConst (I v) ] -> v
         | _ -> _die [%here]
       in
-      let* _, _, sBal = 
+      let* _, _, sBal =
         async_get ~tid ~table:sav_str ~key:(string_of_int custid) ()
       in
       let sBal =
@@ -1042,7 +1210,7 @@ module SmallBankDB = struct
         | [ VConst (I v) ] -> v
         | _ -> _die [%here]
       in
-      let* _, _, cBal = 
+      let* _, _, cBal =
         async_get ~tid ~table:chk_str ~key:(string_of_int custid) ()
       in
       let cBal =
@@ -1052,19 +1220,21 @@ module SmallBankDB = struct
       in
       let total = sBal + cBal in
       let* () =
-        if (total < amount) then
+        if total < amount then
           async_put ~tid ~table:chk_str ~key:(string_of_int custid)
-          ~json:(Config.values_to_json [ VConst (I (cBal - (amount + 1)))]) ()
+            ~json:(Config.values_to_json [ VConst (I (cBal - (amount + 1))) ])
+            ()
         else
           async_put ~tid ~table:chk_str ~key:(string_of_int custid)
-          ~json:(Config.values_to_json [ VConst (I (cBal - amount))]) ()
+            ~json:(Config.values_to_json [ VConst (I (cBal - amount)) ])
+            ()
       in
       let* _ = DB.async_commit ~tid () in
       Lwt.return_unit
     with BackendMariaDB.DBKeyNotFound _ ->
       let* _ = DB.async_release_connection ~tid () in
       Lwt.return_unit
-  
+
   let writeCheckReqHandler (msg : msg) =
     let aux (name : int) (amount : int) =
       do_trans (fun tid ->
@@ -1072,32 +1242,32 @@ module SmallBankDB = struct
           let sBal = do_selectSavings tid custid in
           let cBal = do_selectChecking tid custid in
           let total = sBal + cBal in
-          let _ = if (total < amount)
-                    then do_updateChecking tid custid (cBal - amount)
-                    else do_updateChecking tid custid (cBal - (amount + 1))
-                  in
+          let _ =
+            if total < amount then do_updateChecking tid custid (cBal - amount)
+            else do_updateChecking tid custid (cBal - (amount + 1))
+          in
           ())
     in
     match msg.ev.args with
-      | [ VConst (I name); VConst (I amount) ] ->
-          let _ = aux name amount in
-          send ("writeCheckResp", [])
-      | _ -> _die [%here]
-
+    | [ VConst (I name); VConst (I amount) ] ->
+        let _ = aux name amount in
+        send ("writeCheckResp", [])
+    | _ -> _die [%here]
 
   let openAccountsRespHandler (_ : msg) = ()
   let amalgamateRespHandler (_ : msg) = ()
   (*let balanceRespHandler (_ : msg) = ()*)
 
   let balanceRespHandler (msg : msg) =
-    let balance = match msg.ev.args with [ VConst (I v) ] -> v | _ -> _die [%here] in
+    let balance =
+      match msg.ev.args with [ VConst (I v) ] -> v | _ -> _die [%here]
+    in
     send ("balanceResp", [ mk_value_int balance ])
 
   let depositCheckingRespHandler (_ : msg) = ()
   let sendPaymentRespHandler (_ : msg) = ()
   let transactSavingsRespHandler (_ : msg) = ()
   let writeCheckRespHandler (_ : msg) = ()
-
 
   let init () =
     register_async_has_ret "beginT" beginAsync;
@@ -1132,55 +1302,56 @@ module SmallBankDB = struct
         "beginT"#:(record [ "tid"#:int_ty ]);
         "commit"#:(record [ "tid"#:int_ty; "cid"#:int_ty ]);
         "selectAccounts"#:(record
-                            [
-                              "tid"#:int_ty;
-                              "key"#:int_ty;
-                              "prev_tid"#:int_ty;
-                              "prev_cid"#:int_ty;
-                              "value"#:(int_ty);
-                            ]);
+                             [
+                               "tid"#:int_ty;
+                               "key"#:int_ty;
+                               "prev_tid"#:int_ty;
+                               "prev_cid"#:int_ty;
+                               "value"#:int_ty;
+                             ]);
         "updateAccounts"#:(record
-                            [ "tid"#:int_ty; "key"#:int_ty; "value"#:(int_ty) ]);
+                             [ "tid"#:int_ty; "key"#:int_ty; "value"#:int_ty ]);
         "selectSavings"#:(record
                             [
                               "tid"#:int_ty;
                               "key"#:int_ty;
                               "prev_tid"#:int_ty;
                               "prev_cid"#:int_ty;
-                              "value"#:(int_ty);
+                              "value"#:int_ty;
                             ]);
         "updateSavings"#:(record
-                            [ "tid"#:int_ty; "key"#:int_ty; "value"#:(int_ty) ]);
+                            [ "tid"#:int_ty; "key"#:int_ty; "value"#:int_ty ]);
         "selectChecking"#:(record
-                            [
-                              "tid"#:int_ty;
-                              "key"#:int_ty;
-                              "prev_tid"#:int_ty;
-                              "prev_cid"#:int_ty;
-                              "value"#:(int_ty);
-                            ]);
+                             [
+                               "tid"#:int_ty;
+                               "key"#:int_ty;
+                               "prev_tid"#:int_ty;
+                               "prev_cid"#:int_ty;
+                               "value"#:int_ty;
+                             ]);
         "updateChecking"#:(record
-                            [ "tid"#:int_ty; "key"#:int_ty; "value"#:(int_ty) ]);   
+                             [ "tid"#:int_ty; "key"#:int_ty; "value"#:int_ty ]);
         "openAccountsReq"#:(record [ "name"#:int_ty; "custid"#:int_ty ]);
-        "openAccountsResp"#:(record []);                     
+        "openAccountsResp"#:(record []);
         "amalgamateReq"#:(record [ "custid0"#:int_ty; "custid1"#:int_ty ]);
         "amalgamateResp"#:(record []);
         "balanceReq"#:(record [ "name"#:int_ty ]);
         "balanceResp"#:(record [ "balance"#:int_ty ]);
         "depositCheckingReq"#:(record [ "name"#:int_ty; "amount"#:int_ty ]);
         "depositCheckingResp"#:(record []);
-        "sendPaymentReq"#:(record [ "srcid"#:int_ty; "destid"#:int_ty; "amount"#:int_ty ]);
+        "sendPaymentReq"#:(record
+                             [
+                               "srcid"#:int_ty;
+                               "destid"#:int_ty;
+                               "amount"#:int_ty;
+                             ]);
         "sendPaymentResp"#:(record []);
         "transactSavingsReq"#:(record [ "name"#:int_ty; "amount"#:int_ty ]);
         "transactSavingsResp"#:(record []);
         "writeCheckReq"#:(record [ "name"#:int_ty; "amount"#:int_ty ]);
         "writeCheckResp"#:(record []);
       ]
-
 end
-
-
-
 
 module TwitterDB = struct
   (* twitter db operations: get the follow list
@@ -1199,6 +1370,7 @@ module TwitterDB = struct
   let async_get ~tid ~table ~key () =
     let _ = Printf.printf "in async get\n" in
     DB.table_async_get ~tid ~db:db_str ~table ~key ()
+
   let async_put ~tid ~table ~key ~json () =
     let _ = Printf.printf "in async put\n" in
     DB.table_async_put ~tid ~db:db_str ~table ~key ~json ()
@@ -1209,7 +1381,9 @@ module TwitterDB = struct
   let updateTweetsAsync (ev : ev) = _putAsyncTable db_str twt_str ev
 
   let do_selectFollows tid user =
-    let msg = async ("selectFollows", [ mk_value_int tid; mk_value_int user ]) in
+    let msg =
+      async ("selectFollows", [ mk_value_int tid; mk_value_int user ])
+    in
     match msg.ev.args with
     | _ :: _ :: _ :: _ :: args -> args
     | _ -> _die [%here]
@@ -1223,7 +1397,7 @@ module TwitterDB = struct
   let do_updateFollows tid user v =
     async ("updateFollows", [ mk_value_int tid; mk_value_int user ] @ v)
 
-  let do_updateTweets tid user v = 
+  let do_updateTweets tid user v =
     async ("updateTweets", [ mk_value_int tid; mk_value_int user ] @ v)
 
   let do_trans f =
@@ -1246,12 +1420,14 @@ module TwitterDB = struct
     let* tid = DB.async_begin ~thread_id () in
     try
       let* () =
-        DB.async_put ~tid ~table:flw_str ~key:(string_of_int user)
+        DB.table_async_put ~tid ~db:db_str ~table:flw_str
+          ~key:(string_of_int user)
           ~json:(Config.values_to_json [ VCIntList [] ])
           ()
       in
       let* () =
-        DB.async_put ~tid ~table:twt_str ~key:(string_of_int user)
+        DB.table_async_put ~tid ~db:db_str ~table:twt_str
+          ~key:(string_of_int user)
           ~json:(Config.values_to_json [ VCIntList [] ])
           ()
       in
@@ -1279,19 +1455,22 @@ module TwitterDB = struct
     let open Lwt.Syntax in
     let* tid = DB.async_begin ~thread_id () in
     try
-      let* _, _, oldFollows = 
-        DB.async_get ~tid ~table:flw_str ~key:(string_of_int user) ()
+      let* _, _, oldFollows =
+        DB.table_async_get ~tid ~db:db_str ~table:flw_str
+          ~key:(string_of_int user) ()
       in
-      let oldFollows = 
+      let oldFollows =
         match Config.json_to_values oldFollows with
         | [ VCIntList l ] -> l
         | _ -> _die [%here]
       in
-      let newFollows = 
-        if List.mem follow_o oldFollows then oldFollows else follow_o :: oldFollows (*TODO: is it bad to stop the transaction?*)
+      let newFollows =
+        if List.mem follow_o oldFollows then oldFollows
+        else follow_o :: oldFollows (*TODO: is it bad to stop the transaction?*)
       in
-      let* () = 
-        DB.async_put ~tid ~table:flw_str ~key:(string_of_int user)
+      let* () =
+        DB.table_async_put ~tid ~db:db_str ~table:flw_str
+          ~key:(string_of_int user)
           ~json:(Config.values_to_json [ VCIntList newFollows ])
           ()
       in
@@ -1301,41 +1480,42 @@ module TwitterDB = struct
       let* _ = DB.async_release_connection ~tid () in
       Lwt.return_unit
 
-  let followReqHandler (msg : msg) = 
+  let followReqHandler (msg : msg) =
     let aux (user : int) (follow_o : int) =
       do_trans (fun tid ->
           let oldFollows = values_to_int_list (do_selectFollows tid user) in
-          let newFollows = if List.mem follow_o oldFollows then oldFollows else follow_o :: oldFollows
+          let newFollows =
+            if List.mem follow_o oldFollows then oldFollows
+            else follow_o :: oldFollows
           in
           let _ = do_updateFollows tid user (int_list_to_values newFollows) in
           ())
-      in
-      match msg.ev.args with
-      | [ VConst (I user); VConst (I follow_o) ] ->
-          let _ = aux user follow_o in
-          let _ = Pp.printf ("sending follow resp\n") in
-          send ("followResp", [])
-      | _ -> _die [%here]
-
+    in
+    match msg.ev.args with
+    | [ VConst (I user); VConst (I follow_o) ] ->
+        let _ = aux user follow_o in
+        let _ = Pp.printf "sending follow resp\n" in
+        send ("followResp", [])
+    | _ -> _die [%here]
 
   (* unfollowing a user *)
   let async_unfollow ~thread_id user unfollow_o () =
     let open Lwt.Syntax in
     let* tid = DB.async_begin ~thread_id () in
     try
-      let* _, _, oldFollows = 
-        DB.async_get ~tid ~table:flw_str ~key:(string_of_int user) ()
+      let* _, _, oldFollows =
+        DB.table_async_get ~tid ~db:db_str ~table:flw_str
+          ~key:(string_of_int user) ()
       in
-      let oldFollows = 
+      let oldFollows =
         match Config.json_to_values oldFollows with
         | [ VCIntList l ] -> l
         | _ -> _die [%here]
       in
-      let newFollows = 
-        List.filter (fun x -> x <> unfollow_o) oldFollows
-      in
-      let* () = 
-        DB.async_put ~tid ~table:flw_str ~key:(string_of_int user)
+      let newFollows = List.filter (fun x -> x <> unfollow_o) oldFollows in
+      let* () =
+        DB.table_async_put ~tid ~db:db_str ~table:flw_str
+          ~key:(string_of_int user)
           ~json:(Config.values_to_json [ VCIntList newFollows ])
           ()
       in
@@ -1345,29 +1525,28 @@ module TwitterDB = struct
       let* _ = DB.async_release_connection ~tid () in
       Lwt.return_unit
 
-  let unfollowReqHandler (msg : msg) = 
+  let unfollowReqHandler (msg : msg) =
     let aux (user : int) (unfollow_o : int) =
       do_trans (fun tid ->
           let oldFollows = values_to_int_list (do_selectFollows tid user) in
-          let newFollows = List.filter (fun x -> x <> unfollow_o) oldFollows
-          in
+          let newFollows = List.filter (fun x -> x <> unfollow_o) oldFollows in
           let _ = do_updateFollows tid user (int_list_to_values newFollows) in
           ())
-      in
-      match msg.ev.args with
-      | [ VConst (I user); VConst (I unfollow_o) ] ->
-          let _ = aux user unfollow_o in
-          send ("unfollowResp", [])
-      | _ -> _die [%here]
-
+    in
+    match msg.ev.args with
+    | [ VConst (I user); VConst (I unfollow_o) ] ->
+        let _ = aux user unfollow_o in
+        send ("unfollowResp", [])
+    | _ -> _die [%here]
 
   (* posting new tweets *)
   let async_post_tweet ~thread_id user tweet () =
     let open Lwt.Syntax in 
     let* tid = DB.async_begin ~thread_id () in
     try
-      let* _, _, oldTweets = 
-        DB.async_get ~tid ~table:twt_str ~key:(string_of_int user) ()
+      let* _, _, oldTweets =
+        DB.table_async_get ~tid ~db:db_str ~table:twt_str
+          ~key:(string_of_int user) ()
       in
       let oldTweets = 
         match Config.json_to_values oldTweets with
@@ -1392,8 +1571,7 @@ module TwitterDB = struct
     let aux (user : int) (tweet : int) =
       do_trans (fun tid ->
           let oldTweets = values_to_int_list (do_selectTweets tid user) in
-          let newTweets = tweet :: oldTweets
-          in 
+          let newTweets = tweet :: oldTweets in
           let _ = do_updateTweets tid user (int_list_to_values newTweets) in
           ())
     in
@@ -1403,8 +1581,7 @@ module TwitterDB = struct
         send ("postTweetResp", [])
     | _ -> _die [%here]
 
-
-  let timelineReqHandler (msg : msg) = 
+  let timelineReqHandler (msg : msg) =
     let aux (user : int) =
       do_trans (fun tid ->
           let tweets = values_to_int_list (do_selectTweets tid user) in
@@ -1416,20 +1593,18 @@ module TwitterDB = struct
         send ("timelineResp", [ mk_value_intList tweets ])
     | _ -> _die [%here]
 
-
   (* get timeline *)
-  let async_timeline ~thread_id user () = 
+  let async_timeline ~thread_id user () =
     let open Lwt.Syntax in
     let* tid = DB.async_begin ~thread_id () in
     try
-      let* _, _, tweets = 
+      let* _, _, tweets =
         DB.async_get ~tid ~table:twt_str ~key:(string_of_int user) ()
       in
       Lwt.return tweets
     with BackendMariaDB.DBKeyNotFound s ->
       let* _ = DB.async_release_connection ~tid () in
       Lwt.fail (BackendMariaDB.DBKeyNotFound s)
-
 
   let newUserRespHandler (_ : msg) = ()
   let followRespHandler (_ : msg) = ()
@@ -1472,17 +1647,25 @@ module TwitterDB = struct
                               "value"#:(mk_list_ty int_ty);
                             ]);
         "updateFollows"#:(record
-                            [ "tid"#:int_ty; "key"#:int_ty; "value"#:(mk_list_ty int_ty) ]);
-        "selectTweets"#:(record
                             [
                               "tid"#:int_ty;
                               "key"#:int_ty;
-                              "prev_tid"#:int_ty;
-                              "prev_cid"#:int_ty;
                               "value"#:(mk_list_ty int_ty);
                             ]);
+        "selectTweets"#:(record
+                           [
+                             "tid"#:int_ty;
+                             "key"#:int_ty;
+                             "prev_tid"#:int_ty;
+                             "prev_cid"#:int_ty;
+                             "value"#:(mk_list_ty int_ty);
+                           ]);
         "updateTweets"#:(record
-                            [ "tid"#:int_ty; "key"#:int_ty; "value"#:(mk_list_ty int_ty) ]);
+                           [
+                             "tid"#:int_ty;
+                             "key"#:int_ty;
+                             "value"#:(mk_list_ty int_ty);
+                           ]);
         "newUserReq"#:(record [ "user"#:int_ty ]);
         "newUserResp"#:(record []);
         "followReq"#:(record [ "user"#:int_ty; "follow_o"#:int_ty ]);

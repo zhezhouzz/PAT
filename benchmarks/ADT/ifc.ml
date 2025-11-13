@@ -58,7 +58,7 @@ module BasicIFC = struct
   let default_cell = { lvl = Public; vi = 0 }
 
   let init () =
-    let memory = IntMap.of_list (List.init 10 (fun i -> (i, default_cell))) in
+    let memory = IntMap.of_list (List.init 5 (fun i -> (i, default_cell))) in
     { stack = []; memory }
 
   let rule_noop (ctx : ifcCtx) = Some ctx
@@ -91,19 +91,23 @@ module BasicIFC = struct
     match stack with
     | [] | [ _ ] -> None
     | c1 :: c2 :: stack ->
-        let memory = IntMap.update c1.vi (fun _ -> Some c2) memory in
-        let () =
-          Pp.printf "@{<green>store:@} %s\n" (layout_ifcCtx { stack; memory })
-        in
-        Some { stack; memory }
+        if c1.vi > 5 then None
+        else
+          let memory = IntMap.update c1.vi (fun _ -> Some c2) memory in
+          let () =
+            Pp.printf "@{<green>store:@} %s\n" (layout_ifcCtx { stack; memory })
+          in
+          Some { stack; memory }
 
   let rule_store_star_b ({ stack; memory } : ifcCtx) =
     match stack with
     | [] | [ _ ] -> None
     | c1 :: c2 :: stack ->
-        let c = { lvl = lvl_or c1.lvl c2.lvl; vi = c2.vi } in
-        let memory = IntMap.update c1.vi (fun _ -> Some c) memory in
-        Some { stack; memory }
+        if c1.vi > 5 then None
+        else
+          let c = { lvl = lvl_or c1.lvl c2.lvl; vi = c2.vi } in
+          let memory = IntMap.update c1.vi (fun _ -> Some c) memory in
+          Some { stack; memory }
 
   let rule_store ({ stack; memory } : ifcCtx) =
     match stack with
@@ -112,7 +116,8 @@ module BasicIFC = struct
         match IntMap.find_opt memory c1.vi with
         | None -> None
         | Some orginal_c ->
-            if lvl_leq c1.lvl orginal_c.lvl then
+            if c1.vi > 5 then None
+            else if lvl_leq c1.lvl orginal_c.lvl then
               let c = { lvl = lvl_or c1.lvl c2.lvl; vi = c2.vi } in
               let memory = IntMap.update c1.vi (fun _ -> Some c) memory in
               Some { stack; memory }
@@ -326,6 +331,20 @@ let pushPrivateHandler (msg : msg) =
   let depth = _exec !_ruleset (Push (PrivateV (x, y))) in
   send ("stackDepth", [ mk_value_int depth ])
 
+let pushHandler (msg : msg) =
+  let lv, x, y =
+    match msg.ev.args with
+    | [ VConst (B lv); VConst (I x); VConst (I y) ] -> (lv, x, y)
+    | _ -> _die [%here]
+  in
+  let data =
+    if not lv then PrivateV (x, y)
+    else if x == y then PublicV x
+    else _die_with [%here] "runtime error: public values should be equal"
+  in
+  let depth = _exec !_ruleset (Push data) in
+  send ("stackDepth", [ mk_value_int depth ])
+
 let popHandler (_ : msg) =
   let depth = _exec !_ruleset Pop in
   send ("stackDepth", [ mk_value_int depth ])
@@ -358,6 +377,7 @@ let stackDepthHandler (_ : msg) = ()
 let enniRespHandler (_ : msg) = ()
 
 let init () =
+  register_handler "push" pushHandler;
   register_handler "pushPublic" pushPublicHandler;
   register_handler "pushPrivate" pushPrivateHandler;
   register_handler "pop" popHandler;
@@ -385,36 +405,42 @@ let trace_enni trace =
 type ifc_bench_config = { numOp : int }
 
 let parse_config config =
-  let numOp = get_config_value config "numOp" in
+  let numOp = get_config_value config "numOpGraph" in
   { numOp }
 
 let instrGen config =
   let { numOp } = parse_config config in
   let open QCheck.Gen in
-  let valueGen = small_int in
+  let valueGen = int_bound 10 in
   let random_push =
     oneof
       [
-        map (fun x -> Push (PublicV x)) valueGen;
-        map2 (fun x y -> Push (PrivateV (x, y))) valueGen valueGen;
+        map (fun x -> [ Push (PublicV x) ]) valueGen;
+        map2 (fun x y -> [ Push (PrivateV (x, y)) ]) valueGen valueGen;
       ]
   in
-  let random_pop = pure Pop in
-  let random_load = pure Load in
-  let random_store = pure Store in
-  let random_add = pure Add in
-  let random_noop = pure Noop in
-  let random_halt = pure Halt in
-  let random_instr =
+  let random_pop = pure [ Pop ] in
+  let random_load = pure [ Load ] in
+  let random_store =
     oneof
       [
-        random_push;
-        random_pop;
-        random_load;
-        random_store;
-        random_add;
-        random_noop;
-        random_halt;
+        map (fun x -> [ Push (PublicV x); Store ]) valueGen;
+        map2 (fun x y -> [ Push (PrivateV (x, y)); Store ]) valueGen valueGen;
+      ]
+  in
+  let random_add = pure [ Add ] in
+  let random_noop = pure [ Noop ] in
+  let random_halt = pure [ Halt ] in
+  let random_instr =
+    frequency
+      [
+        (1, random_push);
+        (1, random_pop);
+        (2, random_load);
+        (1, random_store);
+        (1, random_add);
+        (1, random_noop);
+        (4, random_halt);
       ]
   in
   sized_size (int_bound numOp)
@@ -424,8 +450,7 @@ let instrGen config =
          | n ->
              oneof
                [
-                 map (fun x -> [ x ]) random_halt;
-                 map2 (fun x y -> x :: y) random_instr (gen (n - 1));
+                 random_halt; map2 (fun x y -> x @ y) random_instr (gen (n - 1));
                ])
 
 let _store = ref []

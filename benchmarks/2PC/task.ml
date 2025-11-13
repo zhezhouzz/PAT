@@ -1,4 +1,4 @@
-val ( == ) : 'a -> 'a -> bool
+val ( == ) : 'a. 'a -> 'a -> bool
 val readReq : < key : tKey > [@@gen]
 val getReq : < key : tKey > [@@obs]
 val readRsp : < key : tKey ; va : int > [@@obsRecv]
@@ -28,13 +28,17 @@ let putReq ?l:(k = (true : [%v: tKey])) ?l:(x = (true : [%v: int])) =
 
 let putRsp =
   [|
-    (fun ?l:(k = (true : [%v: tKey])) ?l:(x = (true : [%v: int]))
-         ?l:(s = (v : [%v: bool])) ->
+    (fun ?l:(k = (true : [%v: tKey]))
+      ?l:(x = (true : [%v: int]))
+      ?l:(s = (v : [%v: bool]))
+    ->
       ( allA,
         PutRsp (key == k && va == x && stat),
         [| WriteRsp (key == k && va == x && stat == s); Commit (key == k) |] ));
-    (fun ?l:(k = (true : [%v: tKey])) ?l:(x = (true : [%v: int]))
-         ?l:(s = (not v : [%v: bool])) ->
+    (fun ?l:(k = (true : [%v: tKey]))
+      ?l:(x = (true : [%v: int]))
+      ?l:(s = (not v : [%v: bool]))
+    ->
       ( allA,
         PutRsp (key == k && va == x && stat == s),
         [| WriteRsp (key == k && va == x && not stat); Abort (key == k) |] ));
@@ -46,10 +50,10 @@ let abort ?l:(k = (true : [%v: tKey])) = (allA, Abort (key == k), [||])
 let writeRsp ?l:(x = (true : [%v: int])) ?l:(s = (v : [%v: bool])) =
   (allA, WriteRsp (va == x && stat == s), [||])
 
-let[@goal] readAfterWrite (x : int) (y : int) =
-  not
-    (allA;
-     WriteRsp (va == x && stat);
-     starA (anyA - WriteRsp stat);
-     ReadRsp (va == y && not (x == y));
-     starA (anyA - ReadRsp true - WriteRsp true))
+(* read after write *)
+let[@goal] task_2PC (x : int) (y : int) =
+  allA;
+  WriteRsp (va == x && stat);
+  starA (anyA - WriteRsp stat);
+  ReadRsp (va == y && not (x == y));
+  starA (anyA - ReadRsp true - WriteRsp true)

@@ -263,6 +263,19 @@ let initReqHandler (msg : msg) =
   let () = match msg.ev.args with [] -> () | _ -> _die [%here] in
   init _fs
 
+let createReqHandler (msg : msg) =
+  let path, isDir =
+    match msg.ev.args with
+    | [ VConst (S path); VConst (B isDir) ] -> (path, isDir)
+    | _ -> _die [%here]
+  in
+  if isDir then
+    let success = create_file _fs Directory path in
+    send ("createResp", [ mk_value_bool success ])
+  else
+    let success = create_file _fs File path in
+    send ("createResp", [ mk_value_bool success ])
+
 let createFileReqHandler (msg : msg) =
   let path =
     match msg.ev.args with [ VConst (S path) ] -> path | _ -> _die [%here]
@@ -277,12 +290,26 @@ let createDirReqHandler (msg : msg) =
   let success = create_file _fs Directory path in
   send ("createDirResp", [ mk_value_bool success ])
 
+let deleteReqHandler (msg : msg) =
+  let path =
+    match msg.ev.args with [ VConst (S path) ] -> path | _ -> _die [%here]
+  in
+  let success = delete_file _fs path in
+  send ("deleteResp", [ mk_value_bool success ])
+
 let deletePathReqHandler (msg : msg) =
   let path =
     match msg.ev.args with [ VConst (S path) ] -> path | _ -> _die [%here]
   in
   let success = delete_file _fs path in
   send ("deletePathResp", [ mk_value_bool success ])
+
+let existsReqHandler (msg : msg) =
+  let path =
+    match msg.ev.args with [ VConst (S path) ] -> path | _ -> _die [%here]
+  in
+  let success = exists_path _fs path in
+  send ("existsResp", [ mk_value_bool success ])
 
 let existsPathReqHandler (msg : msg) =
   let path =
@@ -296,13 +323,22 @@ let createFileRespHandler (_ : msg) = ()
 let createDirRespHandler (_ : msg) = ()
 let deletePathRespHandler (_ : msg) = ()
 let existsPathRespHandler (_ : msg) = ()
+let deleteRespHandler (_ : msg) = ()
+let existsRespHandler (_ : msg) = ()
+let createRespHandler (_ : msg) = ()
 
 let init () =
   register_handler "initReq" initReqHandler;
+  register_handler "createReq" createReqHandler;
+  register_handler "existsReq" existsReqHandler;
+  register_handler "deleteReq" deleteReqHandler;
   register_handler "createFileReq" createFileReqHandler;
   register_handler "createDirReq" createDirReqHandler;
   register_handler "deletePathReq" deletePathReqHandler;
   register_handler "existsPathReq" existsPathReqHandler;
+  register_handler "deleteResp" deleteRespHandler;
+  register_handler "existsResp" existsRespHandler;
+  register_handler "createResp" createRespHandler;
   register_handler "createFileResp" createFileRespHandler;
   register_handler "createDirResp" createDirRespHandler;
   register_handler "deletePathResp" deletePathRespHandler;
@@ -352,18 +388,24 @@ let filesystem_last_delete trace =
     | { ev = { op = "initReq"; args = [] }; _ } :: rest ->
         Filesystem.init fs;
         check rest
-    | { ev = { op = "createDirReq"; args = [ VConst (S path) ] }; _ }
-      :: { ev = { op = "createDirResp"; args = [ VConst (B success) ] }; _ }
+    | {
+        ev = { op = "createReq"; args = [ VConst (S path); VConst (B true) ] };
+        _;
+      }
+      :: { ev = { op = "createResp"; args = [ VConst (B success) ] }; _ }
       :: rest ->
         let success' = Filesystem.correct_create_file fs Directory path in
         if success != success' then false else check rest
-    | { ev = { op = "createFileReq"; args = [ VConst (S path) ] }; _ }
-      :: { ev = { op = "createFileResp"; args = [ VConst (B success) ] }; _ }
+    | {
+        ev = { op = "createReq"; args = [ VConst (S path); VConst (B false) ] };
+        _;
+      }
+      :: { ev = { op = "createResp"; args = [ VConst (B success) ] }; _ }
       :: rest ->
         let success' = Filesystem.create_file fs File path in
         if success != success' then false else check rest
-    | { ev = { op = "deletePathReq"; args = [ VConst (S path) ] }; _ }
-      :: { ev = { op = "deletePathResp"; args = [ VConst (B success) ] }; _ }
+    | { ev = { op = "deleteReq"; args = [ VConst (S path) ] }; _ }
+      :: { ev = { op = "deleteResp"; args = [ VConst (B success) ] }; _ }
       :: rest ->
         let success' = Filesystem.correct_delete_file fs path in
         if success != success' then false else check rest
@@ -400,11 +442,12 @@ let randomTest config =
   let { numOp } = parse_config config in
   let random_create_file () =
     let path = Sample.sample_by_ty (mk_p_abstract_ty "Path.t") in
-    send ("createFileReq", [ path ])
+    let b = Random.bool () in
+    send ("createReq", [ path; mk_value_bool b ])
   in
   let random_delete_file () =
     let path = Sample.sample_by_ty (mk_p_abstract_ty "Path.t") in
-    send ("deletePathReq", [ path ])
+    send ("deleteReq", [ path ])
   in
   let random_init () = send ("initReq", []) in
   let rec genOp restNum =

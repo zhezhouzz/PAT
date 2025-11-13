@@ -81,11 +81,12 @@ let rec wrong_subst (n, e) = function
   | StlcVar x -> if x == n then e else StlcVar x
   | StlcConst x -> StlcConst x
   | StlcAbs { absTy; absBody } ->
-      StlcAbs { absTy; absBody = wrong_subst (n, e) absBody }
+      StlcAbs
+        { absTy; absBody = wrong_subst (n + 1, shift_stlcTerm 0 1 e) absBody }
   | StlcApp { appFun; appArg } ->
       StlcApp
         {
-          appFun = wrong_subst (n, e) appFun;
+          appFun = wrong_subst (n + 1, e) appFun;
           appArg = wrong_subst (n, e) appArg;
         }
 

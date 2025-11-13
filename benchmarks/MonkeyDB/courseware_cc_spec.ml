@@ -1,5 +1,6 @@
 val ( == ) : 'a. 'a -> 'a -> bool
 val ( >= ) : int -> int -> bool
+val ( < ) : int -> int -> bool
 val insert : int -> int list -> int list
 val remove : int -> int list -> int list
 val emp : int list -> bool
@@ -72,7 +73,7 @@ let commit ?l:(i = (true : [%v: int])) ?l:(j = (true : [%v: int])) =
 
 let getStudents =
   [|
-    (* Read most recent committed transaction *)
+    (* Read one previous committed transaction *)
     (fun ?l:(i = (true : [%v: int]))
       ?l:(pi = (true : [%v: int]))
       ?l:(pj = (true : [%v: int]))
@@ -83,12 +84,12 @@ let getStudents =
          PutStudents (tid == i && key == k && value == z);
          starA (anyA - PutStudents (tid == i && key == k));
          Commit (tid == pi && cid == pj);
-         starA (anyA - Commit true - PutStudents (tid == i && key == k))),
+         starA (anyA - PutStudents (tid == i && key == k))),
         GetStudents
           (tid == i && key == k && prevTid == pi && prevCid == pj
           && (not (tid == prevTid))
           && value == z),
-        allA ));
+        starA (anyA - Commit (tid == i && cid < pj)) ));
   |]
 
 let putStudents ?l:(i = (true : [%v: int])) ?l:(k = (true : [%v: int]))
@@ -101,7 +102,7 @@ let putStudents ?l:(i = (true : [%v: int])) ?l:(k = (true : [%v: int]))
 
 let getCourses =
   [|
-    (* Read most recent committed transaction *)
+    (* Read one previous committed transaction *)
     (fun ?l:(i = (true : [%v: int]))
       ?l:(pi = (true : [%v: int]))
       ?l:(pj = (true : [%v: int]))
@@ -112,12 +113,12 @@ let getCourses =
          PutCourses (tid == i && key == k && value == z);
          starA (anyA - PutCourses (tid == i && key == k));
          Commit (tid == pi && cid == pj);
-         starA (anyA - Commit true - PutCourses (tid == i && key == k))),
+         starA (anyA - PutCourses (tid == i && key == k))),
         GetCourses
           (tid == i && key == k && prevTid == pi && prevCid == pj
           && (not (tid == prevTid))
           && value == z),
-        allA ));
+        starA (anyA - Commit (tid == i && cid < pj)) ));
   |]
 
 let putCourses ?l:(i = (true : [%v: int])) ?l:(k = (true : [%v: int]))
@@ -138,7 +139,7 @@ let putStudentEnrollments ?l:(i = (true : [%v: int]))
 
 let getStudentEnrollments =
   [|
-    (* Read most recent committed transaction *)
+    (* Read one previous committed transaction *)
     (fun ?l:(i = (true : [%v: int]))
       ?l:(pi = (true : [%v: int]))
       ?l:(pj = (true : [%v: int]))
@@ -149,13 +150,12 @@ let getStudentEnrollments =
          PutStudentEnrollments (tid == pi && key == k && value == z);
          starA (anyA - PutStudentEnrollments (tid == i && key == k));
          Commit (tid == pi && cid == pj);
-         starA
-           (anyA - Commit true - PutStudentEnrollments (tid == i && key == k))),
+         starA (anyA - PutStudentEnrollments (tid == i && key == k))),
         GetStudentEnrollments
           (tid == i && key == k && prevTid == pi && prevCid == pj
           && (not (tid == prevTid))
           && value == z),
-        allA ));
+        starA (anyA - Commit (tid == i && cid < pj)) ));
   |]
 
 (* Courseware operations *)
@@ -221,7 +221,7 @@ let unenrollStudentResp = (allA, UnenrollStudentResp true, allA)
 
 (* Goals *)
 
-let[@goal] courseware_rc (x : int) (y : int list) =
+let[@goal] courseware_cc (x : int) (y : int list) =
   allA;
   PutStudentEnrollments (key == x && value == y);
   starA (anyA - PutStudentEnrollments (key == x));

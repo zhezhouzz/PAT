@@ -27,7 +27,7 @@ let seq_random_test (init, main, checker) =
   List.filter (fun msg -> not (String.equal msg.ev.op "dummy")) his
 
 let once (init, main, checker) =
-  let main = List.nth main (Random.int (List.length main)) in
+  (* let main = List.nth main (Random.int (List.length main)) in *)
   Pool.init ();
   init ();
   run (fun () -> Eval.eval_to_unit main);
@@ -44,6 +44,53 @@ let once (init, main, checker) =
   in *)
   his
 
+let over_number_bound number_bound n =
+  match number_bound with
+  | Some number_bound -> n >= number_bound
+  | None -> false
+
+let over_time_bound time_bound exec_time =
+  match time_bound with
+  | Some time_bound ->
+      (* let () = Printf.printf "@{<red>Time bound: %i@}\n" time_bound in
+      let () = Printf.printf "@{<red>Exec time: %f@}\n" exec_time in
+      let _ = read_line () in *)
+      exec_time > float_of_int time_bound
+  | None -> false
+
+let eval_sample ~number_bound ~time_bound test =
+  let start_time = Sys.time () in
+  let rec aux (successed : int) (used : int) =
+    let exec_time = Sys.time () -. start_time in
+    if over_time_bound time_bound exec_time then (exec_time, successed, used)
+    else if over_number_bound number_bound used then (exec_time, successed, used)
+    else
+      try
+        let _ = test () in
+        aux (successed + 1) (used + 1)
+      with
+      | Sample.SampleTooManyTimes ->
+          Pp.printf "@{<red>Error:@} %s\n" "sample too many times";
+          aux successed used
+      | RuntimeInconsistent msg ->
+          Pp.printf "@{<red>Error:@} %s\n" msg;
+          aux successed (used + 1)
+      | IsolationViolation _ ->
+          Pp.printf "@{<red>Error:@} %s\n" "isolation violation";
+          aux successed (used + 1)
+      | NoBugDetected _ ->
+          Pp.printf "@{<red>Error:@} %s\n" "no bug detected";
+          aux successed (used + 1)
+      | e -> raise e
+  in
+  let exec_time, successed, total = aux 0 0 in
+  let rate = float_of_int total /. float_of_int successed in
+  let exec_time =
+    if successed > 0 then exec_time /. float_of_int successed else -1.0
+  in
+  let () = Pp.printf "@{<red>Success rate: %f@}\n" rate in
+  (successed, rate, exec_time)
+
 let eval_until_detect_bug converge_bound test =
   let rec aux (i : int) =
     let () = Pp.printf "@{<red>Repeat for %i times@}\n" i in
@@ -55,9 +102,9 @@ let eval_until_detect_bug converge_bound test =
         let his = test () in
         (i, his)
       with
-      (* | Sample.SampleTooManyTimes ->
+      | Sample.SampleTooManyTimes ->
           Pp.printf "@{<red>Error:@} %s\n" "sample too many times";
-          aux i *)
+          aux i
       | RuntimeInconsistent msg ->
           Pp.printf "@{<red>Error:@} %s\n" msg;
           aux i
@@ -69,7 +116,7 @@ let eval_until_detect_bug converge_bound test =
           aux i
       | e -> raise e
   in
-  let i, his = aux 0 in
+  let (i, his), _ = Stat.stat_function (fun () -> aux 0) in
   let () = Pp.printf "@{<red>Repeat for %i times@}\n" i in
   let () =
     Pp.printf "@{<red>Trace@}\n%s\n"
@@ -121,16 +168,3 @@ let eval_by_time time_bound test =
       (layout_time_to_detect time_to_detect)
   in
   (num_sampled, num_bug_detected, time_to_detect)
-
-let eval_sample test total =
-  let rec aux (successed : int) (used : int) =
-    if used >= total then successed
-    else
-      try
-        test ();
-        aux (successed + 1) (used + 1)
-      with
-      | RuntimeInconsistent _ -> aux successed (used + 1)
-      | e -> raise e
-  in
-  aux 0 0

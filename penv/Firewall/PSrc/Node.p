@@ -19,7 +19,6 @@ machine Firewall {
     var internal: machine;
     var external: machine;
     var lastNode: tNode;
-    var cache: seq[tsyn_eForwardReq];
     start state Init {
         entry (input: (internal: machine, external: machine)) {
             internal = input.internal;
@@ -30,17 +29,10 @@ machine Firewall {
     state Loop {
         entry {
             var i: int;
-            if (sizeof(cache) >= 2) {
-                i = sizeof(cache) - 1;
-                while (i >= 0) {
-                    do_send_forward(cache[i]);
-                    i = i - 1;
-                }
-            }
         }
         on syn_eInternalReq do (input: tsyn_eInternalReq) {
             lastNode = input.node;
-            cache += (sizeof(cache), (controller = input.controller, dst = external, node = input.node));
+            do_send_forward((controller = input.controller, dst = external, node = input.node));
             goto Loop;
         }
 

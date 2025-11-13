@@ -169,8 +169,8 @@ let sendTo (dest, ev) =
   let msg = { src = !_curTid; dest; ev } in
   Effect.perform (Send msg)
 
-let send (op, args) = let _ = Pp.printf "SeND: %s\n" op in sendTo (None, { op; args })
-let recv op = Effect.perform (Recv op)
+let send (op, args) = sendTo (None, { op; args })
+let recv op : msg = Effect.perform (Recv op)
 
 let announce (op, args) =
   sendTo (Some !_curTid, { op; args });
@@ -230,6 +230,7 @@ let eager_select_handler _ =
   | Some { k; _ } -> (hd, k, msg')
 
 let rec run main =
+  let () = Unix.sleepf 0.001 in
   match_with main ()
     {
       retc = (fun _ -> ());
@@ -317,6 +318,7 @@ let rec run main =
     }
 
 let rec random_scheduler main =
+  let () = Unix.sleepf 0.001 in
   let print_state loc =
     _log "eval" @@ fun _ ->
     Runtime.print ();
@@ -401,6 +403,7 @@ let rec random_scheduler main =
     }
 
 let rec eager_scheduler main =
+  let () = Unix.sleepf 0.001 in
   let print_state loc =
     _log "eval" @@ fun _ ->
     Runtime.print ();

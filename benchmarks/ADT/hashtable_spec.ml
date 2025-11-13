@@ -2,7 +2,7 @@ val ( == ) : 'a. 'a -> 'a -> bool
 val initTblReq : < > [@@gen]
 val addReq : < key : int ; value : int > [@@gen]
 val findReq : < key : int > [@@gen]
-val findResp : < value : int > [@@obs]
+val findResp : < key : int ; value : int > [@@obs]
 val removeReq : < key : int > [@@gen]
 val clearReq : < > [@@gen]
 val findAllReq : < key : int > [@@gen]
@@ -14,14 +14,34 @@ val lengthReq : < > [@@gen]
 val lengthResp : < len : int > [@@obs]
 
 let addReq ?l:(k = (true : [%v: int])) ?l:(v = (true : [%v: int])) =
-  (allA, AddReq (key == k && value == v), allA)
+  ( (InitTblReq true;
+     allA),
+    AddReq (key == k && value == v),
+    allA )
 
-let findReq ?l:(k = (true : [%v: int])) =
-  (allA, FindReq (key == k), (allA;
-  FindResp true;
-  allA))
+let findReq =
+  [|
+    (fun (v1 : int) ?l:(k = (true : [%v: int])) ->
+      ( (allA;
+         ReplaceReq (key == k && value == v1);
+         starA
+           (anyA
+           - RemoveReq (key == k)
+           - ClearReq true
+           - ReplaceReq (key == k)
+           - AddReq (key == k))),
+        FindReq (key == k),
+        (allA;
+         FindResp (key == k && value == v1);
+         allA) ));
+  |]
 
-let findResp ?l:(v = (true : [%v: int])) = (allA, FindResp (value == v), allA)
+let findResp =
+  [|
+    (fun ?l:(x = (true : [%v: int])) ?l:(v = (true : [%v: int])) ->
+      (allA, FindResp (key == x && value == v), allA));
+  |]
+
 let removeReq ?l:(k = (true : [%v: int])) = (allA, RemoveReq (key == k), allA)
 let clearReq = (allA, ClearReq true, allA)
 
@@ -40,10 +60,14 @@ let lengthReq =
      allA) )
 
 let lengthResp ?(l = (true : [%v: int])) = (allA, LengthResp (len == l), allA)
-let initTblReq = (allA, InitTblReq true, allA)
+let initTblReq = (epsilonA, InitTblReq true, allA)
 
 let replaceReq ?l:(k = (true : [%v: int])) ?l:(v = (true : [%v: int])) =
-  (allA, ReplaceReq (key == k && value == v), allA)
+  ( (allA;
+     AddReq (key == k);
+     starA (anyA - RemoveReq (key == k))),
+    ReplaceReq (key == k && value == v),
+    allA )
 
 let findAllReq ?l:(k = (true : [%v: int])) =
   ( allA,
@@ -65,14 +89,8 @@ let findAllResp ?l:(vs = (true : [%v: int list])) =
   FindResp ((value == v) == false) *)
 
 (* if we add (k, v1) and then replace it with (k, v2), a find operation for k must return v2 *)
-let[@goal] hashtable (k : int) (v1 : int) (v2 : int) =
-  InitTblReq true;
+let[@goal] hashtable (k : int) (v2 : int) =
   allA;
-  AddReq (key == k && value == v1);
-  starA (anyA - RemoveReq (key == k) - ClearReq true - InitTblReq true);
-  FindReq (key == k);
-  starA
-    (anyA - RemoveReq (key == k) - ClearReq true - AddReq true - InitTblReq true);
   ReplaceReq (key == k && value == v2);
-  starA (anyA - RemoveReq (key == k) - ClearReq true - InitTblReq true);
-  FindResp ((value == v2) == false)
+  starA (anyA - AddReq (key == k) - ReplaceReq (key == k));
+  FindResp (key == k && not (value == v2))

@@ -176,6 +176,7 @@ let rec layout_p_expr ctx n = function
         @@ layout_typed_p_expr ctx (n + 1) body)
         last
   | PRecieve { event_name; input; body } ->
+      let an_event_name = "an_" ^ event_name in
       let first =
         if Nt.equal_nt Nt.unit_ty input.ty then
           spf "receive { case %s: {\n" event_name
@@ -196,6 +197,11 @@ let rec layout_p_expr ctx n = function
           | _ ->
               spf "receive { case %s: (%s) {\n" event_name
                 (layout_pnt_typed_var input)
+      in
+      (* Add announce event for monitor *)
+      let first =
+        spf "%s%s" first
+          (mk_indent (n + 1) (spf "announce %s, input;\n" an_event_name))
       in
       let last = mk_indent n "}}" in
       spf "%s%s%s" first
@@ -231,12 +237,13 @@ let rec layout_p_expr ctx n = function
 
 and layout_typed_p_expr ctx n { x; ty } =
   match (x, ty) with
-  | PConst (PInt _), Nt.Ty_constructor (_, []) ->
-      _die_with [%here] "unimp"
-      (* match get_opt ctx.abstract_tyctx name with *)
-      (* | None -> layout_p_expr ctx n x *)
-      (* | Some (CEnumType { enum_elems; _ }) -> List.nth enum_elems i *)
-      (* | _ -> layout_p_expr ctx n x *)
+  (* | PConst (PInt _), Nt.Ty_constructor (_, []) ->
+      _die_with [%here] (spf "unimp (%s)" (Nt.layout ty)) *)
+  (* (
+      match get_opt ctx.abstract_tyctx name with
+      | None -> layout_p_expr ctx n x
+      | Some (CEnumType { enum_elems; _ }) -> List.nth enum_elems i
+      | _ -> layout_p_expr ctx n x) *)
   | _, _ -> layout_p_expr ctx n x
 
 let layout_p_func_ ctx if_omit n { params; local_vars; body } =

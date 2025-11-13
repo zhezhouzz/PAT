@@ -1,165 +1,175 @@
 machine SynClient {
   start state Syn {
-    entry (input: (setting: setting, domain_tVal: set[int], domain_tAcceptorNode: set[tAcceptorNode], domain_tProposerNode: set[tProposerNode])) {
+    entry (input: (setting: setting, domain_tAcceptorNode: set[tAcceptorNode], domain_tProposerNode: set[tProposerNode], domain_tVal: set[tVal])) {
       var setting: setting;
-      var domain_tVal: set[int];
       var domain_tAcceptorNode: set[tAcceptorNode];
       var domain_tProposerNode: set[tProposerNode];
-      var p_77: tProposerNode;
-      var ac_10: tAcceptorNode;
-      var ap_2: tProposerNode;
-      var ac_65: tAcceptorNode;
-      var y: tVal;
+      var domain_tVal: set[tVal];
+      var __x0: tProposerNode;
+      var __x1: tAcceptorNode;
+      var __x2: tVal;
       var input_ePrepareReq: (proposer: tProposerNode, acceptor: tAcceptorNode, va: tVal);
-      var tmp_25: tProposerNode;
-      var tmp_26: tAcceptorNode;
-      var tmp_27: tVal;
+      var __y3: tProposerNode;
+      var __y4: tAcceptorNode;
+      var __y5: tVal;
       var input_ePrepareRsp: (acceptor: tAcceptorNode, promised: tProposerNode, va: tVal, n_accepted: tProposerNode);
-      var tmp_22: tAcceptorNode;
-      var tmp_23: tProposerNode;
-      var tmp_24: tVal;
-      var ap_7: tProposerNode;
-      var x: tVal;
-      var tmp_19: tProposerNode;
-      var tmp_20: tAcceptorNode;
-      var tmp_21: tVal;
+      var __y6: tAcceptorNode;
+      var __y7: tProposerNode;
+      var __y8: tVal;
+      var __y9: tProposerNode;
+      var __x10: tProposerNode;
+      var __x11: tAcceptorNode;
+      var __x12: tVal;
+      var __y13: tProposerNode;
+      var __y14: tAcceptorNode;
+      var __y15: tVal;
       var input_eAcceptReq: (proposer: tProposerNode, acceptor: tAcceptorNode, va: tVal);
-      var tmp_16: tProposerNode;
-      var tmp_17: tAcceptorNode;
-      var tmp_18: tVal;
+      var __y16: tProposerNode;
+      var __y17: tAcceptorNode;
+      var __y18: tVal;
       var input_eAcceptRsp: (proposer: tProposerNode, acceptor: tAcceptorNode, accepted: tProposerNode, va: tVal);
-      var tmp_12: tProposerNode;
-      var tmp_13: tAcceptorNode;
-      var tmp_14: tProposerNode;
-      var tmp_15: tVal;
-      var tmp_9: tAcceptorNode;
-      var tmp_10: tProposerNode;
-      var tmp_11: tVal;
-      var ap_22: tProposerNode;
-      var tmp_6: tProposerNode;
-      var tmp_7: tAcceptorNode;
-      var tmp_8: tVal;
-      var tmp_2: tProposerNode;
-      var tmp_3: tAcceptorNode;
-      var tmp_4: tProposerNode;
-      var tmp_5: tVal;
+      var __y19: tProposerNode;
+      var __y20: tAcceptorNode;
+      var __y21: tProposerNode;
+      var __y22: tVal;
       var input_eLearn: (va: tVal);
-      var tmp_1: tVal;
-      var tmp_0: tVal;
+      var __y23: tVal;
+      var __y24: tAcceptorNode;
+      var __y25: tProposerNode;
+      var __y26: tVal;
+      var __y27: tProposerNode;
+      var __y28: tProposerNode;
+      var __y29: tAcceptorNode;
+      var __y30: tVal;
+      var __y31: tProposerNode;
+      var __y32: tAcceptorNode;
+      var __y33: tProposerNode;
+      var __y34: tVal;
+      var __y35: tVal;
       setting = input.setting;
-      domain_tVal = input.domain_tVal;
       domain_tAcceptorNode = input.domain_tAcceptorNode;
       domain_tProposerNode = input.domain_tProposerNode;
+      domain_tVal = input.domain_tVal;
       while(true){
-        p_77 = choose(domain_tProposerNode);
-        ac_10 = choose(domain_tAcceptorNode);
-        if (((ac_10 == Acceptor2) && !((ac_10 == Acceptor1)))) {
+        __x0 = choose(domain_tProposerNode);
+        __x1 = choose(domain_tAcceptorNode);
+        if ((acc2(__x1) && pr1(__x0))) {
           break;
         };
       };
-      send_eLostPrepareReq(this, setting, (proposer = p_77, acceptor = ac_10));
+      send_eLostPrepareReq(this, setting, (proposer = __x0, acceptor = __x1));
       while(true){
-        ap_2 = choose(domain_tProposerNode);
-        ac_65 = choose(domain_tAcceptorNode);
-        if ((((!((ac_65 == ac_10)) && !((ac_65 == Acceptor2))) && (ac_65 == Acceptor1)) && !((p_77 == ap_2)))) {
-          break;
-        };
-      };
-      send_eLostPrepareReq(this, setting, (proposer = ap_2, acceptor = ac_65));
-      while(true){
-        y = choose(domain_tVal);
+        __x2 = choose(domain_tVal);
         if (true) {
           break;
         };
       };
-      send_eStart(this, setting, (proposer = ap_2, va = y));
+      send_eStart(this, setting, (proposer = __x0, va = __x2));
       receive { case syn_ePrepareReq: (input: tsyn_ePrepareReq) {
+        announce an_syn_ePrepareReq, input;
         forward_syn_ePrepareReq(input);
         input_ePrepareReq = cast_syn_ePrepareReq(input);
-        tmp_25 = input_ePrepareReq.proposer;
-        tmp_26 = input_ePrepareReq.acceptor;
-        tmp_27 = input_ePrepareReq.va;
+        __y3 = input_ePrepareReq.proposer;
+        __y4 = input_ePrepareReq.acceptor;
+        __y5 = input_ePrepareReq.va;
       }};
-      assert (((tmp_25 == ap_2) && (tmp_26 == ac_10)) && (tmp_27 == y));
+      assert true;
       receive { case syn_ePrepareRsp: (input: tsyn_ePrepareRsp) {
+        announce an_syn_ePrepareRsp, input;
         forward_syn_ePrepareRsp(input);
         input_ePrepareRsp = cast_syn_ePrepareRsp(input);
-        tmp_22 = input_ePrepareRsp.acceptor;
-        tmp_23 = input_ePrepareRsp.promised;
-        tmp_24 = input_ePrepareRsp.va;
-        ap_7 = input_ePrepareRsp.n_accepted;
+        __y6 = input_ePrepareRsp.acceptor;
+        __y7 = input_ePrepareRsp.promised;
+        __y8 = input_ePrepareRsp.va;
+        __y9 = input_ePrepareRsp.n_accepted;
       }};
-      assert ((((tmp_22 == ac_10) && (tmp_23 == ap_2)) && (tmp_24 == y)) && (((p_77 == ap_7) && !((ap_7 == ap_2))) || (!((p_77 == ap_7)) && (ap_7 == ap_2))));
+      assert true;
       while(true){
-        x = choose(domain_tVal);
-        if (!((y == x))) {
+        __x10 = choose(domain_tProposerNode);
+        __x11 = choose(domain_tAcceptorNode);
+        if (((acc2(__x11) && !((__x0 == __x10))) && pr2(__x10))) {
           break;
         };
       };
-      send_eStart(this, setting, (proposer = p_77, va = x));
+      send_eLostPrepareReq(this, setting, (proposer = __x10, acceptor = __x11));
+      while(true){
+        __x12 = choose(domain_tVal);
+        if (!((__x2 == __x12))) {
+          break;
+        };
+      };
+      send_eStart(this, setting, (proposer = __x10, va = __x12));
       receive { case syn_ePrepareReq: (input: tsyn_ePrepareReq) {
+        announce an_syn_ePrepareReq, input;
         forward_syn_ePrepareReq(input);
         input_ePrepareReq = cast_syn_ePrepareReq(input);
-        tmp_19 = input_ePrepareReq.proposer;
-        tmp_20 = input_ePrepareReq.acceptor;
-        tmp_21 = input_ePrepareReq.va;
+        __y13 = input_ePrepareReq.proposer;
+        __y14 = input_ePrepareReq.acceptor;
+        __y15 = input_ePrepareReq.va;
       }};
-      assert (((tmp_19 == p_77) && (tmp_20 == ac_65)) && (tmp_21 == x));
+      assert true;
       receive { case syn_eAcceptReq: (input: tsyn_eAcceptReq) {
+        announce an_syn_eAcceptReq, input;
         forward_syn_eAcceptReq(input);
         input_eAcceptReq = cast_syn_eAcceptReq(input);
-        tmp_16 = input_eAcceptReq.proposer;
-        tmp_17 = input_eAcceptReq.acceptor;
-        tmp_18 = input_eAcceptReq.va;
+        __y16 = input_eAcceptReq.proposer;
+        __y17 = input_eAcceptReq.acceptor;
+        __y18 = input_eAcceptReq.va;
       }};
-      assert (((tmp_16 == ap_2) && (tmp_17 == ac_10)) && (tmp_18 == y));
+      assert true;
       receive { case syn_eAcceptRsp: (input: tsyn_eAcceptRsp) {
+        announce an_syn_eAcceptRsp, input;
         forward_syn_eAcceptRsp(input);
         input_eAcceptRsp = cast_syn_eAcceptRsp(input);
-        tmp_12 = input_eAcceptRsp.proposer;
-        tmp_13 = input_eAcceptRsp.acceptor;
-        tmp_14 = input_eAcceptRsp.accepted;
-        tmp_15 = input_eAcceptRsp.va;
+        __y19 = input_eAcceptRsp.proposer;
+        __y20 = input_eAcceptRsp.acceptor;
+        __y21 = input_eAcceptRsp.accepted;
+        __y22 = input_eAcceptRsp.va;
       }};
-      assert ((((tmp_12 == ap_2) && (tmp_13 == ac_10)) && (tmp_14 == ap_2)) && (tmp_15 == y));
+      assert true;
+      receive { case syn_eLearn: (input: tsyn_eLearn) {
+        announce an_syn_eLearn, input;
+        forward_syn_eLearn(input);
+        input_eLearn = cast_syn_eLearn(input);
+        __y23 = input_eLearn.va;
+      }};
+      assert true;
       receive { case syn_ePrepareRsp: (input: tsyn_ePrepareRsp) {
+        announce an_syn_ePrepareRsp, input;
         forward_syn_ePrepareRsp(input);
         input_ePrepareRsp = cast_syn_ePrepareRsp(input);
-        tmp_9 = input_ePrepareRsp.acceptor;
-        tmp_10 = input_ePrepareRsp.promised;
-        tmp_11 = input_ePrepareRsp.va;
-        ap_22 = input_ePrepareRsp.n_accepted;
+        __y24 = input_ePrepareRsp.acceptor;
+        __y25 = input_ePrepareRsp.promised;
+        __y26 = input_ePrepareRsp.va;
+        __y27 = input_ePrepareRsp.n_accepted;
       }};
-      assert ((((tmp_9 == ac_65) && (tmp_10 == p_77)) && (tmp_11 == x)) && ((((((p_77 == ap_22) && !((ap_7 == ap_22))) && !((ap_22 == ap_2))) || (((p_77 == ap_22) && (ap_7 == ap_22)) && !((ap_22 == ap_2)))) || ((!((p_77 == ap_22)) && !((ap_7 == ap_22))) && (ap_22 == ap_2))) || ((!((p_77 == ap_22)) && (ap_7 == ap_22)) && (ap_22 == ap_2))));
+      assert true;
       receive { case syn_eAcceptReq: (input: tsyn_eAcceptReq) {
+        announce an_syn_eAcceptReq, input;
         forward_syn_eAcceptReq(input);
         input_eAcceptReq = cast_syn_eAcceptReq(input);
-        tmp_6 = input_eAcceptReq.proposer;
-        tmp_7 = input_eAcceptReq.acceptor;
-        tmp_8 = input_eAcceptReq.va;
+        __y28 = input_eAcceptReq.proposer;
+        __y29 = input_eAcceptReq.acceptor;
+        __y30 = input_eAcceptReq.va;
       }};
-      assert (((tmp_6 == p_77) && (tmp_7 == ac_65)) && (tmp_8 == x));
+      assert true;
       receive { case syn_eAcceptRsp: (input: tsyn_eAcceptRsp) {
+        announce an_syn_eAcceptRsp, input;
         forward_syn_eAcceptRsp(input);
         input_eAcceptRsp = cast_syn_eAcceptRsp(input);
-        tmp_2 = input_eAcceptRsp.proposer;
-        tmp_3 = input_eAcceptRsp.acceptor;
-        tmp_4 = input_eAcceptRsp.accepted;
-        tmp_5 = input_eAcceptRsp.va;
+        __y31 = input_eAcceptRsp.proposer;
+        __y32 = input_eAcceptRsp.acceptor;
+        __y33 = input_eAcceptRsp.accepted;
+        __y34 = input_eAcceptRsp.va;
       }};
-      assert ((((tmp_2 == p_77) && (tmp_3 == ac_65)) && (tmp_4 == p_77)) && (tmp_5 == x));
+      assert true;
       receive { case syn_eLearn: (input: tsyn_eLearn) {
+        announce an_syn_eLearn, input;
         forward_syn_eLearn(input);
         input_eLearn = cast_syn_eLearn(input);
-        tmp_1 = input_eLearn.va;
+        __y35 = input_eLearn.va;
       }};
-      assert (tmp_1 == x);
-      receive { case syn_eLearn: (input: tsyn_eLearn) {
-        forward_syn_eLearn(input);
-        input_eLearn = cast_syn_eLearn(input);
-        tmp_0 = input_eLearn.va;
-      }};
-      assert (tmp_0 == y);
+      assert true;
     }
 
   }

@@ -36,15 +36,23 @@ def invoc_cmd(cmd, cwd=None):
     except subprocess.CalledProcessError as e:
         print(e.output)
 
+
 benchmarks = ["Database", "Firewall", "RingLeaderElection", "EspressoMachine", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Raft", "Kermit2PCModel"]
 # benchmarks = ["ChainReplication", "Paxos", "Raft"]
 # benchmarks = ["Raft"]
+# benchmarks = ["Firewall"]
+# benchmarks = ["Kermit2PCModel"]
+
+def task_name(name):
+    return "task" + "_" + name
 
 def syn_num_map(name):
     return 500
 
 def default_num_map(name):
     return 2000
+
+manual_baseline_benchmarks = ["EspressoMachine", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Kermit2PCModel"]
 
 dict = {"Database":10000,
         "EspressoMachine":10000,
@@ -77,6 +85,9 @@ def raw_safe_print_time(i):
 def safe_print_float(i):
     return "${:.2f}$".format(i)
 
+def scriptsize(content: str):
+    return "{" + "\\scriptsize" + content + "}"
+
 def textsf(content: str):
     return "\\textsf{" + content + "}"
 
@@ -87,7 +98,8 @@ def print_pat_col1(stat):
     stat = stat["task_complexity"]
     n_op = stat["n_op"]
     n_qualifier = stat["n_qualifier"]
-    return [safe_print_int(n_op), safe_print_int(n_qualifier)]
+    n_qualifier_avg = (int)(n_qualifier / n_op)
+    return [safe_print_int(n_op), safe_print_int(n_qualifier_avg)]
 
 def print_pat_col2(stat):
     stat = stat["result_complexity"]
@@ -96,23 +108,38 @@ def print_pat_col2(stat):
     n_gen = stat["n_gen"]
     n_assert = stat["n_assert"]
     return [safe_print_int(n_var),
-            "({}, {})".format(safe_print_int(n_gen),
-                              safe_print_int(n_obs)),
+            safe_print_int(n_gen),
+            safe_print_int(n_obs),
             safe_print_int(n_assert)]
 
 def print_tries(ratio):
     if ratio is None:
         return "-"
-    elif ratio == 0.0:
+    elif ratio < 0.1:
         return "{\\tiny Timeout}"
     else:
         return "${:.0f}$".format(100.0 / ratio)
 
+def print_tries_label(ratio, label):
+    if ratio is None:
+        if label == "":
+            return "-"
+        else:
+            return "-${}$".format(label)
+    elif ratio < 0.1:
+        if label == "":
+            return "{\\tiny Timeout}"
+        else:
+            return "{{\\tiny Timeout}}${}$".format(label)
+    else:
+        if label == "":
+            return "${:.0f}$".format(100.0 / ratio)
+        else:
+            return "${:.0f}{}$".format(100.0 / ratio, label)
+
 def print_pat_col3(stat):
-    # return [safe_print_float(stat["n_retry"])+ "\\%"]
-    # return ["${:.1f}$".format(stat["n_retry"])]
-    # return ["$({:.0f}\\%, {:.2f}\\%)$".format(stat["syn_ratio"], stat["random_ratio"])]
-    return [ print_tries(stat["syn_ratio"]), print_tries(stat["default_ratio"]), print_tries(stat["random_ratio"])]
+    return [ print_tries(stat["syn_ratio"]), print_tries(stat["random_ratio"]), print_tries(stat["default_ratio"])]
+    # return [ print_tries(stat["syn_ratio"]), print_tries(stat["random_ratio"])]
 
 def print_pat_col4(statA):
     stat = statA["algo_complexity"]
@@ -125,8 +152,7 @@ def print_pat_col4(statA):
             # safe_print_float(stat["t_refine"]),
         safe_print_int(stat["n_sat"]),
             # safe_print_int(stat["n_nonempty"]),
-            safe_print_int(stat["n_forward"]),
-            safe_print_int(stat["n_backward"])
+            safe_print_int(stat["n_forward"] + stat["n_backward"])
             ]
 
 plang = ["EspressoMachine", "Simplified2PC", "HeartBeat", "BankServer"]
@@ -134,27 +160,76 @@ message_chain = ["RingLeaderElection", "Firewall"]
 modP = ["ChainReplication", "Paxos"]
 aws = ["Kermit2PCModel"]
 
+
 def pp_benchname(name):
     postfix=""
     if name in plang:
-        postfix = "$^{\\dagger}$"
+        postfix = "\\cite{DGJ+13}"
     elif name in message_chain:
-        postfix = "$^{\\star}$"
+        postfix = "\\cite{MessageChain}"
     elif name in modP:
-        postfix = "$^{\\diamond}$"
+        postfix = "\\cite{ModP}"
     elif name in aws:
-        postfix = "$^{\\square}$"
-    return textsf(name) + postfix
+        postfix = ""
+    return scriptsize(textsf(name)) + postfix
 
 def print_pat_col(name, stat):
     col = print_pat_col1(stat) + print_pat_col2(stat) + print_pat_col3(stat) + print_pat_col4(stat)
     col = [pp_benchname(name)] + col
     print (" & ".join(col) + "\\\\")
 
+def print_table_complexity(stat):
+    stat = stat["task_complexity"]
+    n_op = stat["n_op"]
+    n_qualifier = stat["n_qualifier"]
+    n_qualifier_goal = stat["n_qualifier_goal"]
+    return [safe_print_int(n_op), safe_print_int(n_qualifier), safe_print_int(n_qualifier_goal)]
+
+def manual_label(name):
+    if name in manual_baseline_benchmarks:
+        return "^{\\dagger}"
+    else:
+        return ""
+
+def print_table_compare(name, stat):
+    return [ print_tries(stat["syn_ratio"]), print_tries_label(stat["random_ratio"], manual_label(name))]
+
+def print_table_algo(statA):
+    res_stat = statA["result_complexity"]
+    stat = statA["algo_complexity"]
+    return [
+        safe_print_float(stat["t_total"]),
+        safe_print_int(res_stat["n_obs"] + res_stat["n_gen"]),
+        safe_print_int(stat["n_forward"] + stat["n_backward"]),
+        safe_print_int(stat["n_sat"])]
+
+discription_dict = {
+    "Database": "Read-Your-Writes policy.",
+    "Firewall": "Internal requests in firewall eventually receive external responses.",
+    "RingLeaderElection": "Unique leader policy.",
+    "EspressoMachine": "Error states of coffee machine should be notified to user.",
+    "BankServer": "Prevents withdrawals exceeding balance.",
+    "Simplified2PC": "Read-Your-Writes policy.",
+    "HeartBeat": "If the node is alive, the detector will not report a false positive error.",
+    "ChainReplication": "Read-Your-Writes policy.",
+    "Paxos": "Unique leader policy.",
+    "Raft": "The leader’s view should align with committed data.",
+    "Kermit2PCModel": "The user and the database should have the same will view of stored data.",
+}
+
+def discription(name):
+    return "{\\scriptsize " + discription_dict[name] + "}"
+
+def print_tabel1_col(name, stat):
+    col = print_table_complexity(stat) + print_table_compare(name, stat) + print_table_algo(stat)
+    col = [pp_benchname(name), discription(name)] + col
+    print (" & ".join(col) + "\\\\")
+
+
 def load_stat():
     jmap = {}
     for name in benchmarks:
-        stat_file = "stat/.{}.json".format(name)
+        stat_file = "stat/.{}.json".format(task_name(name))
         with open (stat_file, "r") as f:
             jmap[name] = json.load(f)
     return jmap
@@ -162,7 +237,7 @@ def load_stat():
 def load_eval_stat(filename):
     if not os.path.exists(filename):
         with open(filename, 'w') as f:
-            f.write("")
+            f.write("{}")
     with open (filename, "r") as f:
         data = json.load(f)
     return data
@@ -173,16 +248,27 @@ def print_cols(benchnames, stat):
     default_stat = load_eval_stat(default_stat_file)
     for name in benchnames:
         if name == "Kermit2PCModel":
-            random_stat[name] = [0.0, None]
+            random_stat[name] = [1.887, 0.1]
             syn_stat[name] = [100.0, 0.1]
-            default_stat[name] = [None, None]
             stat[name]["n_retry"] = 1.0
-        stat[name]["random_ratio"] = random_stat[name][0]
-        stat[name]["random_time"] = random_stat[name][1]
-        stat[name]["syn_ratio"] = syn_stat[name][0]
-        stat[name]["syn_time"] = syn_stat[name][1]
-        stat[name]["default_ratio"] = default_stat[name][0]
-        stat[name]["default_time"] = default_stat[name][1]
+        if name in random_stat:
+            stat[name]["random_ratio"] = random_stat[name][0]
+            stat[name]["random_time"] = random_stat[name][1]
+        else:
+            stat[name]["random_ratio"] = None
+            stat[name]["random_time"] = None
+        if name in syn_stat:
+            stat[name]["syn_ratio"] = syn_stat[name][0]
+            stat[name]["syn_time"] = syn_stat[name][1]
+        else:
+            stat[name]["syn_ratio"] = None
+            stat[name]["syn_time"] = None
+        if name in default_stat:
+            stat[name]["default_ratio"] = default_stat[name][0]
+            stat[name]["default_time"] = default_stat[name][1]
+        else:
+            stat[name]["default_ratio"] = None
+            stat[name]["default_time"] = None
     i = len(benchnames)
     for name in benchnames:
         print_pat_col(name, stat[name])
@@ -192,30 +278,82 @@ def print_cols(benchnames, stat):
     print("\\bottomrule\n\\end{tabular}\n\n")
     return
 
+def table2(benchnames, stat):
+    random_stat = load_eval_stat(random_stat_file)
+    syn_stat = load_eval_stat(syn_stat_file)
+    default_stat = load_eval_stat(default_stat_file)
+    for name in benchnames:
+        if name == "Kermit2PCModel":
+            random_stat[name] = [1.887, 0.1]
+            syn_stat[name] = [100.0, 0.1]
+            stat[name]["n_retry"] = 1.0
+        if name in manual_baseline_benchmarks:
+            if name in default_stat:
+                stat[name]["random_ratio"] = default_stat[name][0]
+                stat[name]["random_time"] = default_stat[name][1]
+            else:
+                stat[name]["random_ratio"] = None
+                stat[name]["random_time"] = None
+        else:
+            if name in random_stat:
+                stat[name]["random_ratio"] = random_stat[name][0]
+                stat[name]["random_time"] = random_stat[name][1]
+            else:
+                stat[name]["random_ratio"] = None
+                stat[name]["random_time"] = None
+        if name in syn_stat:
+            stat[name]["syn_ratio"] = syn_stat[name][0]
+            stat[name]["syn_time"] = syn_stat[name][1]
+        else:
+            stat[name]["syn_ratio"] = None
+            stat[name]["syn_time"] = None
+    i = len(benchnames)
+    for name in benchnames:
+        print_tabel1_col(name, stat[name])
+        i = i - 1
+        if i > 0:
+            print("\\midrule")
+    print("\\bottomrule\n\\end{tabular}\n\n")
+    return
+
 def do_syn():
-    for name in benchmarks:
-        cmd = cmd_prefix + ["syn-benchmark", name]
+    for (bench_name, task_name) in benchmarks:
+        cmd = cmd_prefix + ["do-syn", task_name, "benchmarks/" + bench_name + "/task.ml"]
+        invoc_cmd(cmd)
+    return
+
+def do_parse():
+    for bench_name in benchmarks:
+        cmd = cmd_prefix + ["do-parse", task_name(bench_name), "benchmarks/" + bench_name + "/task.ml"]
+        invoc_cmd(cmd)
+    return
+
+def do_p_syn():
+    for bench_name in benchmarks:
+        cmd = cmd_prefix + ["do-syn", task_name(bench_name), "benchmarks/" + bench_name + "/task.ml"]
         invoc_cmd(cmd)
     return
 
 def do_eval():
-    for name in benchmarks:
-        cmd = cmd_prefix + ["eval-benchmark", name]
+    for bench_name in benchmarks:
+        cmd = cmd_prefix + ["eval-benchmark", task_name(bench_name), bench_name]
         invoc_cmd(cmd)
     return
 
 def do_compile():
-    for name in benchmarks:
-        cmd = cmd_prefix + ["compile-to-p", name]
+    for bench_name in benchmarks:
+        cmd = cmd_prefix + ["compile-to-p", task_name(bench_name), bench_name]
         invoc_cmd(cmd)
     return
 
 def run_syn_p_one(postfix, num, mode, kw):
     cur_dir = os.getcwd()
-    # print(cur_dir)
     new_dir = cur_dir + "/" + postfix
+    # print(new_dir)
     os.chdir(new_dir)
+    print(os.getcwd())
     start_time = time.time()
+    compile_result = subprocess.run("../../script/compile_p.sh {}".format(new_dir), shell=True, stdout=subprocess.PIPE, text=True, check=True)
     result = subprocess.run("../../script/run_p.sh {} {} {}".format(mode, str(num), kw), shell=True, stdout=subprocess.PIPE, text=True, check=True)
     end_time = time.time()
     elapsed_time = end_time - start_time
@@ -275,20 +413,44 @@ def run_default_p():
 
 def fix():
     for name in benchmarks:
-        stat_file = "stat/.{}.json".format(name)
+        stat_file = "stat/.{}.json".format(task_name(name))
         with open (stat_file, "r") as f:
             j = json.load(f)
-            j["n_retry"] = 0.0
+            j["task_complexity"]["n_qualifier"] = 0
+            j["task_complexity"]["n_qualifier_goal"] = 0
         with open (stat_file, "w") as f:
             j = json.dump(j, f)
 
+
+
 if __name__ == '__main__':
-    # do_syn()
-    # do_eval()
-    # do_compile()
-    # run_syn_p()
-    # run_random_p()
-    # run_default_p()
-    j = load_stat()
-    print_cols(benchmarks, j)
-    # fix()
+    if len(sys.argv) > 1:
+        arg = sys.argv[1]
+        if arg == "syn":
+            do_p_syn()
+            do_compile()
+        elif arg == "runsyn":
+            run_syn_p()
+            j = load_stat()
+            print_cols(benchmarks, j)
+        elif arg == "runrandom":
+            run_random_p()
+        elif arg == "parse":
+            do_parse()
+            j = load_stat()
+            print_cols(benchmarks, j)
+        elif arg == "show":
+            j = load_stat()
+            print_cols(benchmarks, j)
+        elif arg == "table2":
+            j = load_stat()
+            table2(benchmarks, j)
+    else:
+        # do_p_syn()
+        do_compile()
+        run_syn_p()
+        run_random_p()
+        run_default_p()
+        j = load_stat()
+        print_cols(benchmarks, j)
+        # fix()

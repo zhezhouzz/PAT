@@ -10,11 +10,11 @@ let[@axiom] emp_same (l1 : int list) (l2 : int list) =
 
 let[@axiom] cons_not_eq (x : int) (l : int list) = not (cons x l == l)
 
-let[@axiom] remove_cons1 (x : int) (l : int list) =
+(* let[@axiom] remove_cons1 (x : int) (l : int list) =
   implies (emp l) (remove x (cons x l) == l)
 
 let[@axiom] remove_cons2 (x : int) (l : int list) =
-  implies (emp l) (remove x (cons x (cons x l)) == cons x l)
+  implies (emp l) (remove x (cons x (cons x l)) == cons x l) *)
 
 let[@axiom] remove_emp (x : int) (l : int list) =
   implies (emp l) (remove x l == l)
@@ -24,22 +24,20 @@ let[@axiom] remove_emp (x : int) (l : int list) =
 val beginT : < tid : int > [@@obs]
 val commit : < tid : int ; cid : int > [@@obs]
 
-val selectFollows : 
-  < tid : int ; prevTid : int ; prevCid : int ; user : int ; follows : int list >
+val selectFollows :
+  < tid : int
+  ; prevTid : int
+  ; prevCid : int
+  ; user : int
+  ; follows : int list >
 [@@obs]
 
-val selectTweets : 
+val selectTweets :
   < tid : int ; prevTid : int ; prevCid : int ; user : int ; tweets : int list >
 [@@obs]
 
-val updateFollows :
-  < tid : int ; user : int ; follows : int list >
-[@@obs]
-
-val updateTweets :
-  < tid : int ; user : int ; tweets : int list >
-[@@obs]
-
+val updateFollows : < tid : int ; user : int ; follows : int list > [@@obs]
+val updateTweets : < tid : int ; user : int ; tweets : int list > [@@obs]
 val newUserReq : < user : int > [@@gen]
 val newUserResp : < > [@@obs]
 val followReq : < user : int ; follow_o : int > [@@gen]
@@ -50,7 +48,6 @@ val postTweetReq : < user : int ; tweet : int > [@@gen]
 val postTweetResp : < > [@@obs]
 val timelineReq : < user : int > [@@gen]
 val timelineResp : < tweets : int list > [@@obs]
-
 
 (* Read Committed *)
 (* Invariant: For any transaction with tid = i, there does not exist a previous transaction with tid > i. *)
@@ -63,7 +60,12 @@ let commit ?l:(i = (true : [%v: int])) ?l:(j = (true : [%v: int])) =
      BeginT (tid == i);
      starA (anyA - Commit (tid == i || cid >= j))),
     Commit (tid == i && cid == j),
-    starA (anyA - UpdateFollows (tid == i) - SelectFollows (tid == i) - UpdateTweets (tid == i) - SelectTweets (tid == i)) )
+    starA
+      (anyA
+      - UpdateFollows (tid == i)
+      - SelectFollows (tid == i)
+      - UpdateTweets (tid == i)
+      - SelectTweets (tid == i)) )
 
 (* updates *)
 
@@ -82,7 +84,6 @@ let updateTweets ?l:(i = (true : [%v: int])) ?l:(u = (true : [%v: int]))
      starA (anyA - Commit (tid == i))),
     UpdateTweets (tid == i && user == u && tweets == t),
     allA )
-
 
 (* selects *)
 
@@ -128,12 +129,15 @@ let selectTweets =
         allA ));
   |]
 
-
-
 (* Twitter *)
 
 let newUserReq (i : int) ?l:(u = (true : [%v: int])) =
-  ( starA (anyA - NewUserReq true - SelectFollows (user == u) - SelectTweets (user == u) - UpdateFollows (user == u) - SelectFollows (user == u)),
+  ( starA
+      (anyA - NewUserReq true
+      - SelectFollows (user == u)
+      - SelectTweets (user == u)
+      - UpdateFollows (user == u)
+      - SelectFollows (user == u)),
     NewUserReq (user == u),
     (BeginT (tid == i);
      UpdateFollows (tid == i && user == u && emp follows);
@@ -176,7 +180,7 @@ let unfollowReq (i : int) (l : int list) ?l:(u = (true : [%v: int]))
 
 let unfollowResp = (allA, UnfollowResp true, allA)
 
-let postTweetReq (i : int) (l : int list) ?l:(u = (true : [%v: int])) 
+let postTweetReq (i : int) (l : int list) ?l:(u = (true : [%v: int]))
     ?l:(t = (true : [%v: int])) =
   ( allA,
     PostTweetReq (user == u && tweet == t),

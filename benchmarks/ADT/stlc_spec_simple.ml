@@ -172,8 +172,6 @@ let abs =
         (Depth (d == d1 + 1);
          TyOpen (sid == j);
          allA;
-         Var true;
-         allA;
          TyClose (sid == j && sndTy (tp, ty));
          EndAbs true;
          Depth (d == d1);
@@ -206,7 +204,7 @@ let var =
          allA) ));
   |]
 
-let[@goal] stlc2 (i : int) =
+let[@goal] stlc1 (i : int) =
   Depth (d == 0);
   TyOpen (sid == i);
   allA;

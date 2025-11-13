@@ -61,7 +61,10 @@ let compile_prop p =
 
 let compile_value x =
   let res =
-    match x.x with VConst c -> PConst (compile_const c) | VVar x -> Pid x
+    match x.x with
+    | VConst c -> PConst (compile_const c)
+    | VVar x -> Pid x
+    | _ -> _die_with [%here] "unimp"
   in
   res#:x.ty
 (* let assume_function_name = "assume_loop" *)
@@ -74,11 +77,10 @@ let mk_p_while body = (PWhile { body })#:Nt.int_ty
 
 let mk_sample_space_decl nt =
   let actual_type =
-    if Nt.equal_nt Nt.bool_ty nt then Nt.bool_ty
-    else
-      match nt with
+    if Nt.equal_nt Nt.bool_ty nt then Nt.bool_ty else nt
+    (* match nt with
       (* | Nt.Ty { enum_name; _ } -> mk_p_abstract_ty enum_name *)
-      | _ -> Nt.int_ty
+      | _ -> Nt.int_ty *)
   in
   let name = spf "domain_%s" (Nt.layout nt) in
   let decl = name#:(mk_p_set_ty actual_type) in
@@ -98,6 +100,11 @@ let handle_assume vars prop =
   mk_p_while body
 
 (* module TVSet = Rawdesym.TVSet *)
+module TVSet = Set.Make (struct
+  type t = (Nt.nt, string) typed
+
+  let compare = compare_typed Nt.compare_nt String.compare
+end)
 
 let get_vars_from_term e =
   let rec aux set e =
@@ -170,7 +177,7 @@ let mk_wrapper_send_imp op =
   let fs =
     match op.ty with
     | Nt.Ty_record l ->
-        prefix @ List.map (fun x -> (x.x, mk_p_field (mk_pid input) x.x)) l
+        prefix @ List.map (fun x -> (x.x, mk_p_field (mk_pid input) x.x)) l.fds
     | _ -> _die [%here]
   in
   ( send_function_decl op.x,
@@ -185,7 +192,9 @@ let print_send_wrapper env =
   let l =
     List.map
       (fun (x, ty) ->
-        let name, imp = mk_wrapper_send_imp x#:(Nt.Ty_record ty) in
+        let name, imp =
+          mk_wrapper_send_imp x#:(Nt.Ty_record { alias = None; fds = ty })
+        in
         Toplang.layout_p_local_func env (name, imp))
       sends
   in
@@ -193,10 +202,10 @@ let print_send_wrapper env =
   @@ List.split_by "\n" (fun x -> x) l
 
 let mk_wrapper_cast_imp (op, fs) =
-  let input = "input"#:(Nt.Ty_record fs) in
+  let input = "input"#:(Nt.Ty_record { alias = None; fds = fs }) in
   let fields = List.map (fun f -> (f.x, mk_p_field (mk_pid input) f.x)) fs in
   let res = mk_p_return @@ mk_p_record fields in
-  ( cast_decl (event_rename op) (Nt.Ty_record fs),
+  ( cast_decl (event_rename op) (Nt.Ty_record { alias = None; fds = fs }),
     mk_p_function_decl [ input.x#:(mk_input_op_type @@ event_rename op) ] [] res
   )
 
@@ -296,7 +305,7 @@ let compile_term env e =
                  recv_body
         in
         match original_op.ty with
-        | Nt.Ty_record [] ->
+        | Nt.Ty_record { fds = []; _ } ->
             let recv_stmt = recv_add_tail_forward raw_input mk_p_break in
             mk_p_seq recv_stmt
               (mk_p_seq (mk_p_assert (compile_prop prop)) (aux body))
@@ -313,7 +322,15 @@ let compile_term env e =
             let recv_stmt = recv_add_tail_forward raw_input recv_body in
             mk_p_seq recv_stmt
               (mk_p_seq (mk_p_assert (compile_prop prop)) (aux body)))
-    | _ -> _die_with [%here] "unimp"
+    | CUnion [ e ] -> aux e
+    | _ -> (
+        match e.x with
+        | CUnion _ ->
+            let () = Pp.printf "@{<bold>Unimp Union:@}\n" in
+            _die_with [%here] "unimp"
+        | _ ->
+            let () = Pp.printf "@{<bold>Unimp:@}:\n%s\n" (show_term e.x) in
+            _die_with [%here] "unimp")
   in
   (* let vars = get_vars_from_term e in *)
   (* let () = Pp.printf "@{<bold>Vars:@}:\n%s\n" (layout_qvs vars) in *)
@@ -375,11 +392,29 @@ let compile_syn_result (env : syn_env) e =
   (*       NtMap.add nt (mk_pid name #: (mk_p_set_ty nt))) *)
   (*     types NtMap.empty *)
   (* in *)
+  let gen_ctx, obs_ctx =
+    List.fold_right
+      (fun x (gen_ctx, obs_ctx) ->
+        match x.ty with
+        | Gen ->
+            (add_to_right gen_ctx x.x#:true, add_to_right obs_ctx x.x#:false)
+        | Obs ->
+            (add_to_right gen_ctx x.x#:false, add_to_right obs_ctx x.x#:false)
+        | ObsRecv ->
+            (add_to_right gen_ctx x.x#:false, add_to_right obs_ctx x.x#:true))
+      (ctx_to_list env.msgkind_ctx)
+      (emp, emp)
+  in
+  let raw_event_tyctx =
+    StrMap.map (fun ty ->
+        match ty with Nt.Ty_record { fds; _ } -> fds | _ -> _die [%here])
+    @@ ctx_to_map env.event_tyctx
+  in
   let env =
     {
-      gen_ctx = env.gen_ctx;
-      recvable_ctx = env.recvable_ctx;
-      event_tyctx = ctx_to_map env.event_tyctx;
+      gen_ctx;
+      recvable_ctx = obs_ctx;
+      event_tyctx = raw_event_tyctx;
       (* p_tyctx; *)
       (* component_table; *)
       (* sampling_space; *)

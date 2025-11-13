@@ -10,23 +10,14 @@ let obs name k = mk_term_obs_fresh testCtx name (fun _ -> k)
 let obsRegisterStudentResp e =
   mk_term_obs_fresh testCtx "registerStudentResp" (fun _ -> e)
 
-let obsDeregisterStudentResp e =
-  mk_term_obs_fresh testCtx "deregisterStudentResp" (fun _ -> e)
-
 let obsCreateCourseResp e =
   mk_term_obs_fresh testCtx "createCourseResp" (fun _ -> e)
-
-let obsDeleteCourseResp e =
-  mk_term_obs_fresh testCtx "deleteCourseResp" (fun _ -> e)
 
 let obsEnrollStudentResp e =
   mk_term_obs_fresh testCtx "enrollStudentResp" (fun _ -> e)
 
-let obsGetStudentEnrollmentsResp e =
-  mk_term_obs_fresh testCtx "getStudentEnrollmentsResp" (fun _ -> e)
-
-let obsGetCourseEnrollmentsResp e =
-  mk_term_obs_fresh testCtx "getCourseEnrollmentsResp" (fun _ -> e)
+let obsUnenrollStudentResp e =
+  mk_term_obs_fresh testCtx "unenrollStudentResp" (fun _ -> e)
 
 let obsBegin k =
   mk_term_obs_fresh testCtx "beginT" (function
@@ -76,9 +67,6 @@ let obsGetCoursesPrev tid prev_tid k =
 let obsGetStudentEnrollmentsPrev tid prev_tid k =
   mk_obs_prev "getStudentEnrollments" testCtx tid prev_tid k
 
-let obsGetCourseEnrollmentsPrev tid prev_tid k =
-  mk_obs_prev "getCourseEnrollments" testCtx tid prev_tid k
-
 (* let main =
   mk_term_assume_fresh_true int_ty (fun user ->
       mk_term_assume_fresh_true int_ty (fun course1 ->
@@ -126,21 +114,9 @@ let random_operations config =
     Lwt.return_unit
   in
 
-  let random_deregister_student ~thread_id () =
-    let student = List.nth students (Random.int numStudent) in
-    let* _ = async_deregister_student ~thread_id student () in
-    Lwt.return_unit
-  in
-
   let random_create_course ~thread_id () =
     let course = List.nth courses (Random.int numCourse) in
     let* _ = async_create_course ~thread_id course () in
-    Lwt.return_unit
-  in
-
-  let random_delete_course ~thread_id () =
-    let course = List.nth courses (Random.int numCourse) in
-    let* _ = async_delete_course ~thread_id course () in
     Lwt.return_unit
   in
 
@@ -151,27 +127,19 @@ let random_operations config =
     Lwt.return_unit
   in
 
-  let random_get_student_enrollments ~thread_id () =
+  let random_unenroll_student ~thread_id () =
     let student = List.nth students (Random.int numStudent) in
-    let* _ = async_get_student_enrollments ~thread_id student () in
-    Lwt.return_unit
-  in
-
-  let random_get_course_enrollments ~thread_id () =
     let course = List.nth courses (Random.int numCourse) in
-    let* _ = async_get_course_enrollments ~thread_id course () in
+    let* _ = async_unenroll_student ~thread_id student course () in
     Lwt.return_unit
   in
 
   let random_option ~thread_id () =
-    match Random.int 7 with
+    match Random.int 4 with
     | 0 -> random_register_student ~thread_id ()
-    | 1 -> random_deregister_student ~thread_id ()
-    | 2 -> random_create_course ~thread_id ()
-    | 3 -> random_delete_course ~thread_id ()
-    | 4 -> random_enroll_student ~thread_id ()
-    | 5 -> random_get_student_enrollments ~thread_id ()
-    | _ -> random_get_course_enrollments ~thread_id ()
+    | 1 -> random_create_course ~thread_id ()
+    | 2 -> random_enroll_student ~thread_id ()
+    | _ -> random_unenroll_student ~thread_id ()
   in
 
   let rec genOp ~thread_id restNum =
@@ -184,6 +152,7 @@ let random_operations config =
       let () =
         Pp.printf "@{<yellow>[thread: %i] restNum@}: %i\n" thread_id restNum
       in
+      let* () = Lwt_unix.sleep 0.001 in
       let* _ = random_option ~thread_id () in
       genOp ~thread_id (restNum - 1)
   in

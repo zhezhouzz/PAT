@@ -29,6 +29,7 @@ type strategy = {
   search_new_goals : bool;
   pause : bool;
   addKstar : bool;
+  expected_end_time : float option;
 }
 
 let _strategy =
@@ -36,14 +37,22 @@ let _strategy =
     {
       search = DFS;
       layout_bound = 10;
-      result_expection = 3;
+      result_expection = 1;
       pause = Myconfig.get_bool_option "pause_during_synthesis";
       search_new_goals = false;
       addKstar = Myconfig.get_bool_option "add_kstar_during_synthesis";
+      expected_end_time = None;
     }
 
 let database_related env =
   List.exists (fun x -> String.equal x.x "commit") (ctx_to_list env.event_tyctx)
+
+let p_related env =
+  StrMap.exists
+    (fun x _ ->
+      let ss = String.split_on_char '_' x in
+      List.exists (String.equal "task") ss)
+    env.goals
 
 let init_strategy env =
   let num_gen =
@@ -61,7 +70,14 @@ let init_strategy env =
         !_strategy with
         search = UnSortedDFS 1;
         search_new_goals = false;
-        result_expection = 1;
+        addKstar = false;
+      }
+  else if p_related env then
+    _strategy :=
+      {
+        !_strategy with
+        search = UnSortedDFS 1;
+        search_new_goals = false;
         addKstar = false;
       }
   else if StrMap.cardinal env.axioms > 3 || num_obs > num_gen + 3 then
@@ -70,7 +86,6 @@ let init_strategy env =
         !_strategy with
         search = UnSortedDFS 1;
         search_new_goals = false;
-        result_expection = 1;
         addKstar = true;
       }
   else if num_gen <= 4 && StrMap.cardinal env.axioms == 0 then
@@ -79,17 +94,11 @@ let init_strategy env =
         !_strategy with
         search = UnSortedDFS 1;
         search_new_goals = false;
-        result_expection = 1;
         addKstar = true;
       }
   else
     _strategy :=
-      {
-        !_strategy with
-        search = UnSortedDFS 1;
-        result_expection = 2;
-        search_new_goals = false;
-      }
+      { !_strategy with search = UnSortedDFS 1; search_new_goals = false }
 
 let search_strategy_to_string = function
   | DFS -> "DFS"
@@ -105,6 +114,7 @@ let layout_strategy
       search_new_goals;
       pause;
       addKstar;
+      expected_end_time;
     } =
   spf
     "search: %s\n\
@@ -112,9 +122,13 @@ let layout_strategy
      result_expection: %i\n\
      search_new_goals: %b\n\
      pause: %b\n\
-     addKstar: %b"
+     addKstar: %b\n\
+     expected_end_time: %s"
     (search_strategy_to_string search)
     layout_bound result_expection search_new_goals pause addKstar
+    (match expected_end_time with
+    | Some t -> string_of_float t
+    | None -> "None")
 
 let merge_new_goals old_goals new_goals =
   if !_strategy.search_new_goals then
@@ -129,7 +143,15 @@ let merge_new_goals old_goals new_goals =
 
 let pause_counter = ref 0
 
+exception SynthesisTimeout
+
 let try_pause () =
+  let () =
+    match !_strategy.expected_end_time with
+    | Some end_time ->
+        if Sys.time () -. end_time > 0.1 then raise SynthesisTimeout else ()
+    | None -> ()
+  in
   let () = pause_counter := !pause_counter + 1 in
   let () = Pp.printf "@{<bold>@{<red>pause_counter@}: %i@}\n" !pause_counter in
   if !_strategy.pause then
@@ -145,7 +167,6 @@ let first_n_list n list =
 
 let rec search_on_strategy (f : 'a -> 'a list) plans =
   (* For efficienct, we should unify the plans first *)
-  (* let plans = unify_lines plans in *)
   match plans with
   | [] -> _die_with [%here] "no more plans"
   | plan :: plans' -> (
@@ -166,6 +187,8 @@ let rec search_on_strategy (f : 'a -> 'a list) plans =
           let plan1, _ = first_n_list i plans in
           let plan1 = List.concat_map f plan1 in
           plan1)
+
+let num_recursion = ref 3
 
 let simp_print_syn_judgement plan =
   let () = Pp.printf "@{<bold>@{<red>Synthesis plan:@}@}\n" in
@@ -219,7 +242,8 @@ let load_line name () =
   let sexp = Sexplib.Sexp.load_sexp output_file in
   line_of_sexp sexp
 
-let rec deductive_synthesis env r : synMidResult list =
+let rec deductive_synthesis env r num_expected : synMidResult list =
+  let () = _strategy := { !_strategy with result_expection = num_expected } in
   let () = init_unreusable_core_acts () in
   let plans = regex_to_lines r in
   let plans =
@@ -257,11 +281,9 @@ and refinement_loop env (res, plans) =
     (* let () = layout_candidate_res_and_plans res plans in *)
     (* let _ = try_pause () in *)
     (* let plans = List.map LineOpt.optimize_line plans in *)
-    (* let plans = unify_lines plans in *)
     let () = layout_candidate_res_and_plans res plans in
     let _ = try_pause () in
     let wf_plans, plans = List.partition finished_plan plans in
-    (* let wf_plans = unify_lines wf_plans in *)
     let new_goals = List.concat_map (gen_new_act env) wf_plans in
     refinement_loop env (res @ wf_plans, merge_new_goals plans new_goals)
 
@@ -271,7 +293,9 @@ and syn_loop env init_r (goal : line) : synMidResult list =
     | None -> [ SynMidPlan goal ]
     | Some ((old_goal, pre_len), line_b1, line_b2, match_back, v) ->
         (* let () = _strategy := { !_strategy with pause = true } in *)
-        let () = _strategy := { !_strategy with result_expection = 3 } in
+        let () =
+          _strategy := { !_strategy with result_expection = !num_recursion }
+        in
         (* let () =
           Pp.printf "@{<bold>@{<red>line_b2@}@}\n%s\n" (layout_line line_b2)
         in *)
@@ -384,6 +408,7 @@ and gen_new_kstar env (goal : line) : (int * line * int) list =
       goals
 
 and backward env (goal : line) mid : line list =
+  let () = Language.Stat.incr_backward () in
   let _, (_, midAct, _) = line_divide_by_task_id goal mid in
   let op = midAct.aop in
   let rules = select_rule_by_future env op in
@@ -422,8 +447,10 @@ and backward env (goal : line) mid : line list =
   goals
 
 and forward env (goal : line) mid : line list =
+  let () = Language.Stat.incr_forward () in
   let _, (_, midAct, _) = line_divide_by_task_id goal mid in
   let op = midAct.aop in
+  let () = Pp.printf "forward on op: %s\n" op in
   let rules = select_rule_by_op env op in
   let handle pat =
     let _, (args, retrty) = destruct_pat [%here] pat in
@@ -443,3 +470,51 @@ and forward env (goal : line) mid : line list =
       goals
   in *)
   goals
+
+open QCheck.Gen
+
+let scratch_gen env size_bound =
+  let l = ctx_to_list env.event_tyctx in
+  let elem_gen =
+    map
+      (fun x ->
+        let se = Plan.mk_se env.event_tyctx x.x (fun _ -> mk_true) in
+        let _, act = se_to_dummy_act se in
+        LineAct act)
+      (oneofl l)
+  in
+  let elem_list_gen = list_repeat size_bound elem_gen in
+  map
+    (fun acts ->
+      let _, elems, _ = register_elems_under_plan [] acts in
+      { gprop = mk_true; elems })
+    elem_list_gen
+
+let naive_searching ~timebound env r size =
+  let gen = scratch_gen env size in
+  let () = init_strategy env in
+  let () =
+    _strategy :=
+      { !_strategy with expected_end_time = Some (Sys.time () +. timebound) }
+  in
+  let valid_init_plans = ref 0 in
+  let rec loop () =
+    let plans = generate ~n:10 gen in
+    let plans =
+      List.concat_map
+        (fun line ->
+          List.map snd @@ inter_line_with_regex (fun _ -> true) line r)
+        plans
+    in
+    let () = _strategy := { !_strategy with result_expection = 1 } in
+    (* let () = layout_candidate_plans plans in *)
+    let () = try_pause () in
+    let () = valid_init_plans := !valid_init_plans + List.length plans in
+    let res = refinement_loop env ([], plans) in
+    if List.length res == 0 then loop () else res
+  in
+  let res = try loop () with SynthesisTimeout -> [] in
+  let () =
+    Pp.printf "@{<bold>@{<red>valid_init_plans@}@}\n%i\n" !valid_init_plans
+  in
+  res

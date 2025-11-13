@@ -176,7 +176,9 @@ let select_rule_by_future env op =
 
 let select_rule_by_op env op =
   match Typectx.get_opt env.event_rtyctx op with
-  | None -> _die [%here]
+  | None ->
+      Printf.printf "No rule found for op: %s\n" op;
+      _die [%here]
   | Some pat ->
       let pat = fresh_srl_pat pat in
       deinter_pat pat

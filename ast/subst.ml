@@ -66,7 +66,7 @@ and typed_subst_term (string_x : string) f (term_e : (Nt.nt, term) typed) =
 open Prop
 
 let subst_cty (string_x : string) f (cty_e : cty) =
-  match cty_e with { phi; nty; _ } -> { phi; nty }
+  match cty_e with { phi; nty } -> { phi = subst_prop string_x f phi; nty }
 
 let rec subst_pat_ subst_srl (string_x : string) f (rty_e : 'a pat) =
   match rty_e with

@@ -39,6 +39,9 @@ let eval_app_op op cs =
         match ty1 with
         | StlcArrow (_, ty12) -> B (equal_stlcTy ty12 ty2)
         | _ -> B false)
+    | "isAddr", [ VConst (I a) ] -> B (a > -1 && a < 2)
+    | "isDir", [ VConst (B a) ] -> B a
+    | "isFile", [ VConst (B a) ] -> B (not a)
     | _ ->
         let () =
           Pp.printf "@{<red>%s(%s)@} --> ?\n" op.x

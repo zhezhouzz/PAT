@@ -5,8 +5,8 @@
     "max_printing_size": 300,
     "log_tags": [
         "eval",
-        "unification",
-        "ntypecheck",
+        // "unification",
+        // "ntypecheck",
         // "line_merge_results",
         // "line_merge_related",
         // "plan",
@@ -54,7 +54,7 @@
         ],
         [
             "show_record_type_feilds",
-            true
+            false
         ],
         [
             "show_sevent_fds",
@@ -69,7 +69,7 @@
             false
         ]
     ],
-    "prover_timeout_bound": 999,
+    "prover_timeout_bound": 1999,
     "prim_path": {
         "predefined_path": "synRuntime/automata/builtin.s",
         "axioms_path": "",

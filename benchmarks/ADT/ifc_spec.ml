@@ -2,11 +2,13 @@ val ( == ) : 'a. 'a -> 'a -> bool
 val ( > ) : int -> int -> bool
 val ( + ) : int -> int -> int
 val ( - ) : int -> int -> int
+val isAddr : int -> bool
+
+let[@axiom] isAddr (x : int) = iff (isAddr x) (2 > x && x > -1)
 
 (* Basic Typing *)
 
-val pushPublic : < elem : int > [@@gen]
-val pushPrivate : < lelem : int ; relem : int > [@@gen]
+val push : < low : bool ; lelem : int ; relem : int > [@@gen]
 val pop : < > [@@gen]
 val load : < > [@@gen]
 val store : < > [@@gen]
@@ -16,38 +18,27 @@ val stackDepth : < depth : int > [@@obs]
 val enniResp : < enni : bool > [@@obs]
 
 (* PATs *)
-let pushPublic =
-  [|
-    (fun ?l:(x = (true : [%v: int])) ->
-      ( starA (anyA - StackDepth true),
-        PushPublic (elem == x && 2 > elem && elem > -1),
-        (StackDepth (depth == 1);
-         allA) ));
-    (fun (d : int) ?l:(x = (true : [%v: int])) ->
-      ( (allA;
-         StackDepth (depth == d)),
-        PushPublic (elem == x && 2 > elem && elem > -1),
-        (StackDepth (depth == d + 1);
-         allA) ));
-  |]
 
-let pushPrivate =
+let push =
   [|
-    (fun ?l:(x = (true : [%v: int])) ?l:(y = (true : [%v: int])) ->
+    (fun ?l:(lv = (true : [%v: bool]))
+      ?l:(x = (true : [%v: int]))
+      ?l:(y = (lv == (v == x) : [%v: int]))
+    ->
       ( starA (anyA - StackDepth true),
-        PushPrivate
-          (lelem == x && relem == y
-          && (not (lelem == relem))
-          && 2 > lelem && 2 > relem && lelem > -1 && relem > -1),
+        Push
+          (low == lv && lelem == x && relem == y && isAddr lelem && isAddr relem),
         (StackDepth (depth == 1);
          allA) ));
-    (fun (d : int) ?l:(x = (true : [%v: int])) ?l:(y = (true : [%v: int])) ->
+    (fun (d : int)
+      ?l:(lv = (true : [%v: bool]))
+      ?l:(x = (true : [%v: int]))
+      ?l:(y = (lv == (v == x) : [%v: int]))
+    ->
       ( (allA;
          StackDepth (depth == d)),
-        PushPrivate
-          (lelem == x && relem == y
-          && (not (lelem == relem))
-          && 2 > lelem && 2 > relem && lelem > -1 && relem > -1),
+        Push
+          (low == lv && lelem == x && relem == y && isAddr lelem && isAddr relem),
         (StackDepth (depth == d + 1);
          allA) ));
   |]
@@ -59,24 +50,37 @@ let pop (d : int) =
     (StackDepth (depth == d - 1);
      allA) )
 
-let load (d : int) =
-  ( (allA;
-     Store true;
-     allA;
-     PushPrivate (lelem == 0 && relem == 1);
-     StackDepth (depth == d && depth > 0)),
-    Load true,
-    (StackDepth (depth == d);
-     Store true;
-     allA;
-     allA) )
+let load =
+  [|
+    (fun (d : int) ->
+      ( (allA;
+         Store true;
+         allA;
+         Push true;
+         StackDepth (depth == d && depth > 0)),
+        Load true,
+        (StackDepth (depth == d);
+         allA;
+         Store true;
+         allA) ));
+  |]
 
-let store (d : int) =
-  ( (allA;
-     StackDepth (depth == d && depth > 1)),
-    Store true,
-    (StackDepth (depth == d - 2);
-     allA) )
+let store =
+  [|
+    (fun (d : int) ->
+      ( (allA;
+         Push true;
+         StackDepth (depth == d && depth > 1)),
+        Store true,
+        (StackDepth (depth == d - 2);
+         allA) ));
+    (fun (d : int) ->
+      ( (allA;
+         StackDepth (depth == d && depth > 1)),
+        Store true,
+        (StackDepth (depth == d - 2);
+         allA) ));
+  |]
 
 let add (d : int) =
   ( (allA;
