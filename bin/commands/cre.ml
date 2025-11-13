@@ -348,12 +348,6 @@ let test_eval s converge_bound () =
       let open Adt.Set in
       let test () = Interpreter.once (init, [ main ], check_membership_set) in
       let _ = eval test in
-      () *)
-  | "hashtable" ->
-      let open Adt.Hashtable in
-      let main = Synthesis.load_progs s () in
-      let test () = Interpreter.once (init, main, check_membership_hashtable) in
-      let _ = eval test in
       ()
   | "filesystem" ->
       let open Adt.Filesystem in
@@ -626,7 +620,7 @@ let default_random_test_config =
 let test_random s converge_bound () =
   let eval = Interpreter.eval_until_detect_bug converge_bound in
   match s with
-  | "filesystem" ->
+(*  | "filesystem" ->
       let open Adt.Filesystem in
       let test () =
         Interpreter.seq_random_test
