@@ -7,7 +7,9 @@ open Zdatatype
 let parse = Oparse.parse_imp_from_file
 
 let read_ocaml_file source_file () =
+let _ = Pp.printf "@{<yellow>cre.ml:@}  10\n" in
   let code = Oparse.parse_imp_from_file ~sourcefile:source_file in
+let _ = Pp.printf "@{<yellow>cre.ml:@}  12\n" in
   let code = ocaml_structure_to_items code in
   code
 
@@ -40,12 +42,9 @@ let read_syn source_file () =
   ()
 
 let do_syn name source_file () =
-let _ = Pp.printf "@{<yellow>cre.ml:@}  43 (%s)\n" source_file in
   let code = read_source_file source_file () in
-let _ = Pp.printf "@{<yellow>cre.ml:@}  45\n" in
   (* let () = Printf.printf "%s\n" (layout_structure code) in *)
   let env = Ntypecheck.(struct_check init_env code) in
-let _ = Pp.printf "@{<yellow>cre.ml:@}  48\n" in
   let () = Printf.printf "%s\n" (layout_syn_env env) in
   let () = Stat.init_algo_complexity () in
   let progs = Synthesis.synthesize env name in
@@ -350,6 +349,12 @@ let test_eval s converge_bound () =
       let test () = Interpreter.once (init, [ main ], check_membership_set) in
       let _ = eval test in
       () *)
+  | "hashtable" ->
+      let open Adt.Hashtable in
+      let main = Synthesis.load_progs s () in
+      let test () = Interpreter.once (init, main, check_membership_hashtable) in
+      let _ = eval test in
+      ()
   | "filesystem" ->
       let open Adt.Filesystem in
       let main = Synthesis.load_progs s () in

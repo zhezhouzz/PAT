@@ -46,6 +46,29 @@ module MyDB (C : Config) = struct
     }
 
 
+
+  let _getAsyncTable db table (ev : ev) =
+    let tid, key =
+      match ev.args with
+      | [ VConst (I tid); VConst key ] -> (tid, key)
+      | _ -> _die [%here]
+    in
+    let prev_tid, prev_cid, value =
+      DB.table_raw_get ~tid ~db ~table ~key:(key_to_string key)
+    in
+    {
+      ev with
+      args =
+        [
+          mk_value_int tid;
+          VConst key;
+          mk_value_int prev_tid;
+          mk_value_int prev_cid;
+        ]
+        @ json_to_values value;
+    }
+
+
   let _getAsync table (ev : ev) =
     let tid, key =
       match ev.args with
@@ -79,6 +102,21 @@ module MyDB (C : Config) = struct
     in
     let () =
       DB.raw_put ~tid ~table ~key:(key_to_string key) ~json:(values_to_json v)
+    in
+    ()
+
+  let _putAsyncTable db table (ev : ev) =
+    let () =
+      Printf.printf "start _putAsync %s : %s\n" table
+        (Yojson.Basic.to_string (values_to_json ev.args))
+    in
+    let tid, key, v =
+      match ev.args with
+      | VConst (I tid) :: VConst key :: v -> (tid, key, v)
+      | _ -> _die [%here]
+    in
+    let () =
+      DB.table_raw_put ~tid ~db ~table ~key:(key_to_string key) ~json:(values_to_json v)
     in
     ()
 
@@ -132,6 +170,8 @@ module Config = struct
   let string_to_key s =
     match int_of_string_opt s with Some i -> I i | None -> S s
 end
+
+
 
 
 

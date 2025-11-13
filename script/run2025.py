@@ -60,6 +60,6 @@ if __name__ == "__main__":
     print("Running evaluation for", name, testNum)
     run_eval(name, testNum)
     #input()
-    print("Running random for", name, testNum)
+    #print("Running random for", name, testNum)
     #input()
-    run_random(name, testNum)
+    #run_random(name, testNum)
