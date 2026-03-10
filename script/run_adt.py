@@ -43,10 +43,10 @@ benchmarks = ["Stack", "HashTable", "Filesystem", "Graph", "NFA", "IFCAdd", "IFC
 # benchmarks = ["Shopping", "Courseware", "Twitter", "Smallbank"]
 # benchmarks  = ["Filesystem", "Graph",  "NFA", "IFCAdd", "IFCStore",  "IFCLoad"]
 # benchmarks  = ["DeBruijn1"]
-benchmarks = ["IFCStore", "IFCAdd", "IFCLoad"]
-benchmarks = ["Set", "ReaderWriter"]
-benchmarks = ["ReaderWriter"]
-benchmarks = ["HashTable"]
+benchmarks = ["Stack", "HashTable", "Filesystem", "Graph", "NFA",
+              "IFCStore", "IFCAdd", "IFCLoad",
+              "DeBruijn1", "DeBruijn2",
+              "Shopping", "Courseware", "Twitter", "Smallbank"]
 
 discription_dict = {
     "Set": "Missing inserted value.",
