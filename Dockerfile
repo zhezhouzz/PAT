@@ -1,4 +1,9 @@
-FROM ubuntu:22.04
+# syntax=docker/dockerfile:1
+# Base image: Ubuntu 25.04 with OCaml 5.2 + opam pre-installed
+# Avoids rebuilding the OCaml compiler from scratch
+FROM ocaml/opam:ubuntu-25.04-ocaml-5.2
+
+USER root
 ENV DEBIAN_FRONTEND=noninteractive
 
 # System dependencies
@@ -6,7 +11,7 @@ RUN apt-get update && apt-get install -y \
     build-essential gcc g++ make git curl wget \
     python3 python3-pip libgmp-dev pkg-config \
     bubblewrap unzip rsync apt-transport-https \
-    ca-certificates gnupg \
+    ca-certificates gnupg openssh-client \
   && rm -rf /var/lib/apt/lists/*
 
 # Install .NET SDK 8.0 (required by the P language toolchain)
@@ -14,40 +19,46 @@ RUN curl -fsSL https://dot.net/v1/dotnet-install.sh \
     | bash -s -- --channel 8.0 --install-dir /usr/local/dotnet
 ENV PATH="/usr/local/dotnet:${PATH}"
 ENV DOTNET_ROOT="/usr/local/dotnet"
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
 
 # Install the P language tool
 RUN dotnet tool install --global P
 ENV PATH="/root/.dotnet/tools:${PATH}"
 
-# Install opam
-RUN curl -fsSL https://raw.githubusercontent.com/ocaml/opam/master/shell/install.sh \
-    | bash -s -- --no-backup
-RUN opam init --disable-sandboxing --auto-setup -y
-
-# Create OCaml 5.2.0 switch
-RUN opam switch create 5.2.0 ocaml-base-compiler.5.2.0 -y
+# Switch to opam user for all OCaml/opam operations
+USER opam
+WORKDIR /home/opam
 
 # Install OCaml dependencies
-RUN eval $(opam env) && opam install -y \
-    dune core core_unix yojson conf-c++ conf-python qcheck \
-    ocolor dolog ocamlbuild z3 ppx_deriving_yojson \
+# Note: conf-python was removed (no longer in opam; python3 already installed via apt)
+RUN opam install -y \
+    dune core core_unix yojson conf-c++ qcheck \
+    ocolor dolog ocamlbuild ppx_deriving_yojson \
     menhirLib menhir spectrum ppx_jane
 
-# Install zutils
-RUN eval $(opam env) && \
-    git clone https://github.com/zhezhouzz/zutils.git /tmp/zutils && \
-    cd /tmp/zutils && opam install . -y
+# Install z3 separately (compiles from source; may be slow, ~400s)
+RUN opam install -y z3
 
-# Install AutomataLibrary
-RUN eval $(opam env) && \
-    git clone https://github.com/zhezhouzz/AutomataLibrary.git /tmp/AutomataLibrary && \
-    cd /tmp/AutomataLibrary && opam install . -y
+# Install zutils (pinned to commit 4b0e5cad, OCamlRefinementType org)
+RUN --mount=type=ssh \
+    mkdir -p -m 0700 ~/.ssh && ssh-keyscan github.com >> ~/.ssh/known_hosts && \
+    git clone git@github.com:OCamlRefinementType/zutils.git /tmp/zutils && \
+    cd /tmp/zutils && git checkout 4b0e5cad8c6a1591601e3f9a45a6da33fbb54657 && \
+    opam install . -y
+
+# Install AutomataLibrary (pinned to commit 48a2a231, v1.0 branch)
+RUN --mount=type=ssh \
+    git clone git@github.com:OCamlRefinementType/AutomataLibrary.git /tmp/AutomataLibrary && \
+    cd /tmp/AutomataLibrary && git checkout 48a2a23152b4f5a6253b673d30d99ed5f69f6b28 && \
+    opam install . -y
 
 # Copy repository and build Clouseau
-COPY . /home/clouseau
+USER root
+COPY --chown=opam:opam . /home/clouseau
 WORKDIR /home/clouseau
-RUN mkdir -p stat output
-RUN eval $(opam env) && \
+USER opam
+RUN mkdir -p stat output && \
+    eval $(opam env) && \
     dune build --profile release && \
     cp _build/default/bin/main.exe main.exe
 
