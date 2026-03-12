@@ -64,7 +64,8 @@ You should see the Clouseau help message listing available commands.
 The MonkeyDB benchmarks (Shopping, Courseware, Twitter, Smallbank) require a
 three-node MariaDB Galera cluster. A `compose.yaml` at the root of this repository
 sets up everything — the Galera cluster and the Clouseau container — with a single
-command.
+command. The Galera nodes use the `bitnamilegacy/mariadb-galera:latest` image
+(AMD64, legacy Bitnami build).
 
 **Step 1 — Start the first Galera node and wait for it to be ready:**
 

@@ -1,8 +1,6 @@
-version: '3.9'
-
 services:
   galera1:
-    image: bitnami/mariadb-galera:latest
+    image: bitnamilegacy/mariadb-galera:latest
     container_name: galera1
     environment:
       - MARIADB_ROOT_PASSWORD=rootpass
@@ -21,7 +19,7 @@ services:
       - galera
 
   galera2:
-    image: bitnami/mariadb-galera:latest
+    image: bitnamilegacy/mariadb-galera:latest
     container_name: galera2
     environment:
       - MARIADB_ROOT_PASSWORD=rootpass
@@ -39,7 +37,7 @@ services:
       - galera
 
   galera3:
-    image: bitnami/mariadb-galera:latest
+    image: bitnamilegacy/mariadb-galera:latest
     container_name: galera3
     environment:
       - MARIADB_ROOT_PASSWORD=rootpass
