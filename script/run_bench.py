@@ -26,7 +26,7 @@ def mk_output_path(pname):
 
 verbose = False
 
-cmd_prefix = ["dune", "exec", "--", "bin/main.exe"]
+cmd_prefix = ["./main.exe"]
 
 def invoc_cmd(cmd, cwd=None):
     if (verbose):
