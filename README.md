@@ -113,6 +113,22 @@ $ docker compose down -v
 
 The `-v` flag removes the Galera data volumes for a clean restart.
 
+**Cluster initialization (required before first MonkeyDB benchmark run):**
+
+On a freshly started cluster, the very first `sample-syn` call for a MonkeyDB
+benchmark may fail with a Galera write-set certification error (error 1020).
+This is a one-time cold-start issue: the Galera nodes need one initial write
+cycle to fully synchronize their certification state.
+
+Run this warm-up command once after starting the cluster (the error output, if
+any, can be ignored):
+
+```
+$ ./main.exe sample-syn cart_cc 1 || true
+```
+
+After this single warm-up run, all subsequent benchmark runs will succeed reliably.
+
 ---
 
 ## Step-by-Step Instructions
@@ -146,7 +162,8 @@ DeBruijn1, DeBruijn2, Shopping, Courseware, Twitter, Smallbank
 
 > **Note:** Shopping, Courseware, Twitter, and Smallbank are MonkeyDB benchmarks that
 > connect to the MariaDB Galera cluster during the `runsyn` step. Start the cluster
-> (see above) before running Steps 2–3 for those benchmarks.
+> and run the **cluster initialization warm-up** (see above) before running Steps 2–3
+> for those benchmarks.
 
 All steps are run from `/home/clouseau` inside the container.
 
