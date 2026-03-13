@@ -1,9 +1,6 @@
-import subprocess
-import json
-import os
+from common import *
+import argparse
 import sys
-import time
-import math
 
 bench_json = []
 
@@ -24,19 +21,6 @@ def mk_spec_path(name, specname):
 
 def mk_output_path(pname):
     return p_repo + "/" + pname + "/PSyn/SynClient.p"
-
-verbose = False
-
-cmd_prefix = ["dune", "exec", "--", "bin/main.exe"]
-
-def invoc_cmd(cmd, cwd=None):
-    if (verbose):
-        print(" ".join(cmd))
-    try:
-        subprocess.run(cmd, cwd=cwd)
-    except subprocess.CalledProcessError as e:
-        print(e.output)
-
 
 benchmarks = ["Stack", "HashTable", "Filesystem", "Graph", "NFA", "IFCAdd", "IFCStore",  "IFCLoad", "DeBruijn1", "DeBruijn2", "Shopping", "Courseware", "Twitter", "Smallbank"]
 
@@ -234,34 +218,6 @@ dict = {
 def random_num_map(name):
     return dict[name]
 
-# import re
-# def safe_print(s):
-#     return re.sub(r"_", "\_", s)
-
-def safe_print_int(i):
-    if i is None:
-        return "-"
-    else:
-        return "${}$".format(i)
-
-def raw_safe_print_time(i):
-    if i is None:
-        return "-"
-    else:
-        return "{:.2f}".format(i)
-
-def safe_print_float(i):
-    if i is None:
-        return "-"
-    else:
-        return "${:.2f}$".format(i)
-
-def textsf(content: str):
-    return "\\textsf{" + content + "}"
-
-def textbf(content: str):
-    return "\\textbf{" + content + "}"
-
 def print_pat_col1(stat):
     stat = stat["task_complexity"]
     n_op = stat["n_op"]
@@ -279,31 +235,6 @@ def print_pat_col2(stat):
     return [safe_print_int(n_var),
             safe_print_int(n_gen + n_obs),
             safe_print_int(n_assert)]
-
-def print_tries(ratio):
-    if ratio is None:
-        return "-"
-    elif not math.isfinite(ratio) or ratio < 0.1:
-        return "{\\tiny Timeout}"
-    else:
-        return "${:.1f}$".format(ratio)
-
-def print_tries_label(ratio, label):
-    if ratio is None:
-        if label == "":
-            return "-"
-        else:
-            return "-${}$".format(label)
-    elif not math.isfinite(ratio) or ratio < 0.1:
-        if label == "":
-            return "{\\tiny Timeout}"
-        else:
-            return "{{\\tiny Timeout}}${}$".format(label)
-    else:
-        if label == "":
-            return "${:.1f}$".format(ratio)
-        else:
-            return "${:.1f}{}$".format(ratio, label)
 
 def print_pat_col3(stat):
     return [ print_tries(stat["syn_ratio"]), print_tries(stat["random_ratio"]), 
@@ -415,14 +346,6 @@ def load_stat():
             }
     return jmap
 
-def load_eval_stat(filename):
-    if not os.path.exists(filename):
-        with open(filename, 'w') as f:
-            f.write("{}")
-    with open (filename, "r") as f:
-        data = json.load(f)
-    return data
-
 def print_cols(benchnames, stat):
     random_stat = load_eval_stat(random_stat_file)
     syn_stat = load_eval_stat(syn_stat_file)
@@ -528,13 +451,6 @@ def fix():
         with open (stat_file, "w") as f:
             j = json.dump(j, f)
 
-
-import argparse
-
-def parse_benchmarks(names_str):
-    if not names_str:
-        return []
-    return [x.strip() for x in names_str.split(',') if x.strip()]
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run ADT benchmarks')

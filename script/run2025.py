@@ -1,22 +1,7 @@
-import subprocess
-import json
-import os
-import sys
-import time
+from common import *
+import argparse
 
 bench_json = []
-
-verbose = False
-
-cmd_prefix = ["dune", "exec", "--", "bin/main.exe"]
-
-def invoc_cmd(cmd, cwd=None):
-    if (verbose):
-        print(" ".join(cmd))
-    try:
-        subprocess.run(cmd, cwd=cwd)
-    except subprocess.CalledProcessError as e:
-        print(e.output)
 
 benchmarks = ["graph", "nfa", "stlc", "stack", "filesystem", "ifc_store", "ifc_add", "ifc_load"]
 
@@ -53,8 +38,6 @@ def run_random(name, testNum):
     cmd = cmd_prefix + ["test-random", name, str(testNum)]
     invoc_cmd(cmd)
 
-import argparse
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run 2025 benchmarks')
     parser.add_argument('name', type=str, help='Benchmark name')
@@ -68,11 +51,3 @@ if __name__ == "__main__":
     input()
     print("Running evaluation for", name, testNum)
     run_eval(name, testNum)
-    #input()
-    #print("Running random for", name, testNum)
-    #input()
-    #run_random(name, testNum)
-    #input()
-    #print("Running random for", name, testNum)
-    #input()
-    #run_random(name, testNum)

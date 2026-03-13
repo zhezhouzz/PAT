@@ -1,7 +1,5 @@
-import subprocess
-import json
-import os
-import sys
+from common import *
+import argparse
 import time
 
 bench_json = []
@@ -23,19 +21,6 @@ def mk_spec_path(name, specname):
 
 def mk_output_path(pname):
     return p_repo + "/" + pname + "/PSyn/SynClient.p"
-
-verbose = False
-
-cmd_prefix = ["dune", "exec", "--", "bin/main.exe"]
-
-def invoc_cmd(cmd, cwd=None):
-    if (verbose):
-        print(" ".join(cmd))
-    try:
-        subprocess.run(cmd, cwd=cwd)
-    except subprocess.CalledProcessError as e:
-        print(e.output)
-
 
 benchmarks = ["Database", "Firewall", "RingLeaderElection",  "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Raft", "Kermit2PCModel"]
 # benchmarks = ["ChainReplication", "Paxos", "Raft"]
@@ -69,30 +54,8 @@ dict = {"Database":10000,
 def random_num_map(name):
     return dict[name]
 
-# import re
-# def safe_print(s):
-#     return re.sub(r"_", "\_", s)
-
-def safe_print_int(i):
-    return "${}$".format(i)
-
-def raw_safe_print_time(i):
-    if i is None:
-        return "-"
-    else:
-        return "{:.2f}".format(i)
-
-def safe_print_float(i):
-    return "${:.2f}$".format(i)
-
 def scriptsize(content: str):
     return "{" + "\\scriptsize" + content + "}"
-
-def textsf(content: str):
-    return "\\textsf{" + content + "}"
-
-def textbf(content: str):
-    return "\\textbf{" + content + "}"
 
 def print_pat_col1(stat):
     stat = stat["task_complexity"]
@@ -233,14 +196,6 @@ def load_stat():
         with open (stat_file, "r") as f:
             jmap[name] = json.load(f)
     return jmap
-
-def load_eval_stat(filename):
-    if not os.path.exists(filename):
-        with open(filename, 'w') as f:
-            f.write("{}")
-    with open (filename, "r") as f:
-        data = json.load(f)
-    return data
 
 def print_cols(benchnames, stat):
     random_stat = load_eval_stat(random_stat_file)
@@ -421,14 +376,6 @@ def fix():
         with open (stat_file, "w") as f:
             j = json.dump(j, f)
 
-
-
-import argparse
-
-def parse_benchmarks(names_str):
-    if not names_str:
-        return []
-    return [x.strip() for x in names_str.split(',') if x.strip()]
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run P benchmarks')
