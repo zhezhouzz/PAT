@@ -58,6 +58,19 @@ let over_time_bound time_bound exec_time =
       exec_time > float_of_int time_bound
   | None -> false
 
+let string_contains sub s =
+  let nl = String.length sub and n = String.length s in
+  let rec go i = i + nl <= n && (String.sub s i nl = sub || go (i + 1)) in
+  go 0
+
+(* Error 1020: Galera write-set certification conflict (cold first-run).
+   Error 2000: MySQL client CR_UNKNOWN_ERROR — connection in bad state.
+   Both are transient and should be handled by reconnecting + retrying. *)
+let is_db_transient_error msg =
+  string_contains "1020" msg || string_contains "(2000)" msg
+
+let string_contains_1020 = is_db_transient_error
+
 let eval_sample ~number_bound ~time_bound test =
   let start_time = Sys.time () in
   let rec aux (successed : int) (used : int) =
@@ -81,6 +94,10 @@ let eval_sample ~number_bound ~time_bound test =
       | NoBugDetected _ ->
           Pp.printf "@{<red>Error:@} %s\n" "no bug detected";
           aux successed (used + 1)
+      | Failure msg when string_contains_1020 msg ->
+          (* Transient DB connection error (Galera 1020 or client 2000);
+             with_reconnect has already reset connections — silently retry. *)
+          aux successed used
       | e -> raise e
   in
   let exec_time, successed, total = aux 0 0 in
@@ -114,6 +131,7 @@ let eval_until_detect_bug converge_bound test =
       | NoBugDetected _ ->
           Pp.printf "@{<red>Error:@} %s\n" "no bug detected";
           aux i
+      | Failure msg when string_contains_1020 msg -> aux i
       | e -> raise e
   in
   let (i, his), _ = Stat.stat_function (fun () -> aux 0) in
@@ -153,6 +171,8 @@ let eval_by_time time_bound test =
           aux num_sampled num_bug_detected
       | NoBugDetected _ ->
           Pp.printf "@{<red>Error:@} %s\n" "no bug detected";
+          aux num_sampled num_bug_detected
+      | Failure msg when string_contains_1020 msg ->
           aux num_sampled num_bug_detected
       | e -> raise e
   in

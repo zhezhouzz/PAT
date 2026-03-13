@@ -40,6 +40,23 @@ let read_prop_from_ml source_file () =
   in
   prop
 
+(* Wrap a MonkeyDB test to close/reopen DB connections on Galera error 1020
+   (write-set certification conflict on cold first-run connections) before
+   re-raising, so eval_sample can silently retry with clean connections.
+   reset_connections itself can transiently fail (e.g. 2013 during node
+   startup), so we retry it a few times before giving up. *)
+let with_reconnect test () =
+  try test ()
+  with Failure msg when Interpreter.is_db_transient_error msg ->
+    let rec try_reset n =
+      (try BackendMariaDB.MyMariaDB.reset_connections ()
+       with Failure _ when n > 0 ->
+         Unix.sleepf 2.0;
+         try_reset (n - 1))
+    in
+    try_reset 5;
+    raise (Failure msg)
+
 let test_prop env name () =
   let open Language in
   let () = Printf.printf "z3: %s\n" Z3.Version.to_string in
@@ -575,7 +592,7 @@ let test_eval mode s (converge_bound : int) () =
               Interpreter.once
                 (ReadWriteDB.init, main, Read.check_read_atomicity)
             in
-            eval test)
+            eval (with_reconnect test))
     | "cart_rc" ->
         let open MonkeyBD in
         let open Common in
@@ -586,7 +603,7 @@ let test_eval mode s (converge_bound : int) () =
               Interpreter.once
                 (CartDB.init, main, CartDB.check_isolation_level Serializable)
             in
-            eval test)
+            eval (with_reconnect test))
     | "cart_cc" ->
         let open MonkeyBD in
         let open Common in
@@ -597,7 +614,7 @@ let test_eval mode s (converge_bound : int) () =
               Interpreter.once
                 (CartDB.init, main, CartDB.check_isolation_level Serializable)
             in
-            eval test)
+            eval (with_reconnect test))
     | "twitter_rc" ->
         let open MonkeyBD in
         let open Common in
@@ -611,7 +628,7 @@ let test_eval mode s (converge_bound : int) () =
                   main,
                   TwitterDB.check_isolation_level Serializable )
             in
-            eval test)
+            eval (with_reconnect test))
     | "twitter_cc" ->
         let open MonkeyBD in
         let open Common in
@@ -624,7 +641,7 @@ let test_eval mode s (converge_bound : int) () =
                   main,
                   TwitterDB.check_isolation_level Serializable )
             in
-            eval test)
+            eval (with_reconnect test))
     | "courseware_rc" ->
         let open MonkeyBD in
         let open Common in
@@ -638,7 +655,7 @@ let test_eval mode s (converge_bound : int) () =
                   main,
                   CoursewareDB.check_isolation_level Serializable )
             in
-            eval test)
+            eval (with_reconnect test))
     | "courseware_cc" ->
         let open MonkeyBD in
         let open Common in
@@ -651,7 +668,7 @@ let test_eval mode s (converge_bound : int) () =
                   main,
                   CoursewareDB.check_isolation_level Serializable )
             in
-            eval test)
+            eval (with_reconnect test))
     | "smallbank_rc" ->
         let open MonkeyBD in
         let open Common in
@@ -665,7 +682,7 @@ let test_eval mode s (converge_bound : int) () =
                   main,
                   SmallBankDB.check_isolation_level Serializable )
             in
-            eval test)
+            eval (with_reconnect test))
     | "smallbank_cc" ->
         let open MonkeyBD in
         let open Common in
@@ -678,7 +695,7 @@ let test_eval mode s (converge_bound : int) () =
                   main,
                   SmallBankDB.check_isolation_level Serializable )
             in
-            eval test)
+            eval (with_reconnect test))
     | "cart" ->
         let open MonkeyBD in
         let open Common in
@@ -688,7 +705,7 @@ let test_eval mode s (converge_bound : int) () =
               Interpreter.once
                 (CartDB.init, main, CartDB.check_isolation_level Serializable)
             in
-            eval test)
+            eval (with_reconnect test))
     (* | "treiber-stack" ->
         let open MonkeyBD in
         let open Common in
@@ -708,7 +725,7 @@ let test_eval mode s (converge_bound : int) () =
               Interpreter.once
                 (CartDB.init, main, CartDB.check_isolation_level Serializable)
             in
-            eval test)
+            eval (with_reconnect test))
     | _ -> _die_with [%here] "unknown benchmark"
   in
   let () = update_eval_stat syn_stat_file (s, "syn", res) in
@@ -805,7 +822,7 @@ let test_random mode s converge_bound time_bound () =
                               env.random_test_gen default_random_test_config),
                             env.property )
                       in
-                      eval test)
+                      eval (with_reconnect test))
             else
               let test () =
                 Interpreter.seq_random_test

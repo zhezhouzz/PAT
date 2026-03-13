@@ -40,14 +40,14 @@ def start_service(compose_file, *services):
     run(compose_cmd(compose_file) + ["up", "-d"] + list(services))
 
 
-def wait_for_galera1(compose_file, timeout):
-    """Stream galera1 logs until the sync marker appears or timeout is reached."""
-    print(f"\n[*] Waiting for galera1 to sync (timeout={timeout}s) ...")
+def wait_for_node(compose_file, service, timeout):
+    """Stream service logs until the sync marker appears or timeout is reached."""
+    print(f"\n[*] Waiting for {service} to sync (timeout={timeout}s) ...")
     print(f"    Looking for: '{READY_MARKER}'\n")
 
     deadline = time.time() + timeout
     proc = subprocess.Popen(
-        compose_cmd(compose_file) + ["logs", "-f", "galera1"],
+        compose_cmd(compose_file) + ["logs", "-f", service],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -55,12 +55,12 @@ def wait_for_galera1(compose_file, timeout):
 
     try:
         for line in proc.stdout:
-            print(f"    galera1 | {line}", end="")
+            print(f"    {service} | {line}", end="")
             if READY_MARKER in line:
-                print("\n[+] galera1 is ready!")
+                print(f"\n[+] {service} is ready!")
                 return True
             if time.time() > deadline:
-                print(f"\n[!] Timed out waiting for galera1 after {timeout}s.")
+                print(f"\n[!] Timed out waiting for {service} after {timeout}s.")
                 return False
     finally:
         proc.terminate()
@@ -94,7 +94,7 @@ def main():
     start_service(compose_file, "galera1")
 
     # Step 2 — wait for galera1
-    ready = wait_for_galera1(compose_file, args.timeout)
+    ready = wait_for_node(compose_file, "galera1", args.timeout)
     if not ready:
         print("[!] galera1 did not reach ready state. Check logs with: docker logs galera1", file=sys.stderr)
         sys.exit(1)
@@ -102,6 +102,12 @@ def main():
     # Step 3 — remaining Galera nodes
     print("\n[*] Starting galera2 and galera3 ...")
     start_service(compose_file, "galera2", "galera3")
+
+    for node in ("galera2", "galera3"):
+        ready = wait_for_node(compose_file, node, args.timeout)
+        if not ready:
+            print(f"[!] {node} did not reach ready state. Check logs with: docker logs {node}", file=sys.stderr)
+            sys.exit(1)
 
     if args.db_only:
         print("\n[+] DB-only mode: skipping clouseau and adminer.")
