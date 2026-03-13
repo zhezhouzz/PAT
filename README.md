@@ -115,19 +115,11 @@ The `-v` flag removes the Galera data volumes for a clean restart.
 
 **Cluster initialization (required before first MonkeyDB benchmark run):**
 
-On a freshly started cluster, the very first `sample-syn` call for a MonkeyDB
-benchmark may fail with a Galera write-set certification error (error 1020).
-This is a one-time cold-start issue: the Galera nodes need one initial write
-cycle to fully synchronize their certification state.
-
-Run this warm-up command once after starting the cluster (the error output, if
-any, can be ignored):
+After starting the cluster, run the initialization script once:
 
 ```
-$ ./main.exe sample-syn cart_cc 1 || true
+$ python3 scripts/init_cluster.py
 ```
-
-After this single warm-up run, all subsequent benchmark runs will succeed reliably.
 
 ---
 

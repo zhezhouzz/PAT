@@ -698,6 +698,17 @@ let test_eval mode s (converge_bound : int) () =
             (init Causal, [ main ], StackDB.serializable_trace_checker)
         in
         eval test *)
+    | "warmup" ->
+        let open MonkeyBD in
+        let open Common in
+        let open Cart in
+        BackendMariaDB.MyMariaDB.maria_context "cart" Causal (fun () ->
+            let main = Synthesis.load_prog s () in
+            let test () =
+              Interpreter.once
+                (CartDB.init, main, CartDB.check_isolation_level Serializable)
+            in
+            eval test)
     | _ -> _die_with [%here] "unknown benchmark"
   in
   let () = update_eval_stat syn_stat_file (s, "syn", res) in
