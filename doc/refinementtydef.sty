@@ -1,0 +1,722 @@
+% \ProvidesPackage{refinementtydef}[by Zhe Zhou, 2023/04/9 v1.0]
+% ZZ's Macro
+% \setmathfont{STIX Two Math}
+% \newcommand{\ltortoise}{ {\boldsymbol{\textcolor{DeepGreen}{\langle}}} }
+% \newcommand{\rtortoise}{ {\boldsymbol{\textcolor{DeepGreen}{\rangle}}} }
+% \newcommand{\ltortoise}{ {\boldsymbol{\langle}} }
+% \newcommand{\rtortoise}{ {\boldsymbol{\rangle}} }
+% \newcommand{\ltortoise}{ {\textcolor{DeepGreen}{{\langle}}} }
+% \newcommand{\rtortoise}{ {\textcolor{DeepGreen}{{\rangle}}} }
+
+% \DeclareUnicodeCharacter{2190}{$\Rightarrow$}
+% \DeclareUnicodeCharacter{2997}{\ensuremath{\llparenthesis}}
+
+\newcommand{\ltortoise}{ {\langle} }
+\newcommand{\rtortoise}{ {\rangle} }
+% \newcommand{\ltortoise}{ {\text{\textlquill}} }
+% \newcommand{\rtortoise}{ {\text{\textrquill}} }
+
+% font
+% \newcommand\inlineocaml[1]{\mintinline[fontsize =\small, escapeinside=&&]{ocaml}{#1}}
+\newcommand\Code[1]{{\tt #1}}
+% \renewcommand\S[1]{\mathsf{#1}}
+% \newcommand\I[1]{\mathit{#1}}
+% color map
+\definecolor{codeblue}{RGB}{8, 1, 117}
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{1.00,1.00,1.00}
+\definecolor{CBOrange}{RGB}{210, 77, 0}
+\definecolor{CBLightOrange}{RGB}{255, 147, 60}
+\definecolor{CBPurple}{RGB}{93, 58, 155}
+% primitives
+% \newcommand\ldot{.\,}
+\newcommand{\cmark}{\text{\ding{51}}\,}
+\newcommand{\xmark}{\text{\ding{55}}\,}
+\makeatletter
+\newcommand{\concat}{\mathbin{\mathpalette\conc@t\relax}}
+\newcommand{\conc@t}[2]{%
+  \vcenter{\hbox{%
+    \sbox\z@{$\m@th#1-$}%
+    \setlength{\unitlength}{\wd\z@}%
+    \begin{picture}(1,1)
+    \roundcap
+    \put(0.1,0.5){\line(1,0){0.8}}
+    \put(0.35,0.1){\line(0,1){0.8}}
+    \put(0.65,0.1){\line(0,1){0.8}}
+    \end{picture}%
+  }}%
+}
+\makeatother
+% \newcommand\listconcat{+\!\!\!+\,}
+% \newcommand{\listconcat}{%
+%   \mathbin{{+}\mspace{-8mu}{+}}%
+% }
+\newcommand\listconcat{{\concat}}
+\newcommand{\impl}{{\implies}}
+\newcommand{\notiff}{%
+  \mathrel{{\ooalign{\hidewidth$\not\phantom{"}$\hidewidth\cr$\iff$}}}}
+\newcommand{\tpi}{\S{int}}
+\newcommand{\tpil}{\S{int\ list}}
+\newcommand{\uqvs}[1]{\overline{\forall {#1}}}
+\newcommand{\eqvs}[1]{\overline{\exists {#1}}}
+\newcommand{\randomnat}{\Code{NatGen}}
+\newcommand{\opmod}{\,\Code{mod}\,}
+% \newcommand{\ev}{\epsilon}
+% operators
+\newcommand{\ocamllab}{\textcolor{codeblue}{\boldsymbol{\sim}}}
+% syntax
+\newcommand{\mykw}[1]{{\boldsymbol{\Code{\textcolor{codeblue}{{#1}}}}}}
+\newcommand{\mykwCmt}[1]{{\boldsymbol{\Code{\textcolor{codegreen}{{#1}}}}}}
+\newcommand{\handler}[2]{ \mathtt{handler} \{ {#1} ; {#2} \}}
+\newcommand{\handle}[3]{ \mathtt{handle}\ {#1}\ \mathtt{with} \{ {#2} ; {#3} \} }
+\newcommand{\ite}[3]{\mykw{if}\ {#1}\ \mykw{then}\ {#2}\ \mykw{else}\ {#3}}
+\newcommand{\match}[1]{\mykw{match}\ {#1}\ \mykw{with}\ }
+% Lambda Calculus
+\newcommand{\cond}{ret}
+\newcommand{\capTau}[1]{\langle {#1} \rangle}
+\newcommand{\zlet}[3]{\mykw{let}\ {#1}\ {=}\ {#2} \  \mykw{in}\ {#3}}
+\newcommand{\zrandom}[1]{\mykw{random}\ {#1}}
+\newcommand{\sgen}[2]{\mykw{gen}\ \eff{#1} \ {#2}}
+\newcommand{\sobs}[1]{\mykw{obs}\ \eff{#1}}
+\newcommand{\sassume}[1]{\mykw{assume}\ {#1}}
+\newcommand{\sassert}[1]{\mykw{assert}\ {#1}}
+\newcommand{\sloop}{\mykw{loop}}
+\newcommand{\zassume}[3]{\mykw{let}\ {#1} = \mykw{assume}\ {#2} \  \mykw{in}\ {#3}}
+\newcommand{\zassert}[2]{\mykw{let}\ \mykw{assert}\ {#1} \  \mykw{in}\ {#2}}
+\newcommand{\zwhile}[2]{\mykw{let}\ \mykw{while}(*)\{{#1}\}\
+  \mykw{in}\ {#2}}
+\newcommand{\ranint}{\underline{\Code{int\_gen\;()}}}
+% \newcommand{\zwhile}[3]{\mykw{let}\ \mykw{while}({#1})\{{#2}\}\ \mykw{in}\ {#3}}
+% \newcommand{\zwhile}[3]{\mykw{let}\ \mykw{do}\{{#2}\}\ \mykw{while}({#1})\ \mykw{in}\ {#3}}
+\newcommand{\zloop}[2]{\mykw{let}\ \mykw{loop}\{{#1}\} \ \mykw{in}\ {#2}}
+\newcommand{\egen}[2]{\mykw{gen}\ \eff{#1} \ {#2}}
+\newcommand{\zgen}[3]{\mykw{let}\ \mykw{gen}\ \eff{#1} \ {#2} \ \mykw{in}\ {#3}}
+\newcommand{\zobs}[4]{\mykw{let}\ {#1}\ {=}\ \mykw{obs}\ \eff{#2}\ {#3} \ \mykw{in}\ {#4}}
+\newcommand{\zobsPhi}[4]{\mykw{let}\ {#1}\ {=}\ \mykw{obs}\ \eff{#2}\ {#3}\ \mykw{in}\ {#4}}
+\newcommand{\zevent}[2]{\eff{#1}({#2})}
+\newcommand{\zeventGray}[2]{\eff{\textcolor{gray}{#1}}({#2})}
+\newcommand{\zrecv}[3]{\mykw{receive}\ {#1}\ {#2} \ \mykw{in}\ {#3}}
+\newcommand{\perform}[4]{\mykw{let}\ {#1}\ {=}\ \Code{#2}\ {#3}\ \mykw{in}\ {#4}}
+\newcommand{\zlam}[3]{\lambda {#1}{:}{#2}.{#3} }
+\newcommand{\zif}[3]{\mykw{if}\ {#1}\ \mykw{then}\ {#2} \ \mykw{else}\ {#3}}
+\newcommand{\zzlam}[2]{\lambda {#1}.{#2} }
+\newcommand{\zfix}[5]{\mykw{fix}{#1}{:}{#2}.\zlam{#3}{#4}{#5}}
+\newcommand{\zzfix}[3]{\mykw{fix}{#1}.\zzlam{#2}{#3}}
+\newcommand{\zrec}[3]{\mykw{fix}\;{#1}{:}{#2}.{#3}}
+\newcommand{\zletappU}[2]{\mykw{let}\;{#1}\;\mykw{in}\;{#2}}
+% \newcommand{\zloop}[1]{\mykw{loop}\;{#1}}
+\newcommand{\exnc}{\Code{crash}}
+% Impertive Language
+\newcommand{\ilet}[2]{\mykw{let}\ {#1}\ {=}\ {#2}}
+\newcommand{\iobs}[2]{\mykw{let}\ {#1}\ {=}\ \mykw{observe}\ \eff{#2}}
+\newcommand{\igen}[2]{\mykw{gen}\ \eff{#1} \ {#2}}
+\newcommand{\iassume}[1]{\mykw{assume}\ {#1}}
+\newcommand{\zletassume}[3]{\mykw{let}\ {#1}\ \mykw{assume}\ {#2}\ \mykw{in}\ {#3}}
+\newcommand{\iassert}[1]{\mykw{assert}\ {#1}}
+\newcommand{\iadmit}[1]{\mykw{admit}\ {#1}}
+% Constant
+\newcommand{\ct}{\Code{true}}
+\newcommand{\cf}{\Code{false}}
+\newcommand{\err}{\Code{err}}
+\newcommand{\primop}{\I{op}}
+\newcommand{\mpred}{\I{mp}}
+% \newcommand{\effop}{\Code{OP}}
+\newcommand{\effop}{\S{ev}}
+\newcommand{\efont}[1]{\mathbf{#1}}
+% reduction
+\newcommand{\harr}{{\,\hookrightarrow\,}}
+\newcommand{\step}[2]{{#1}{\harr}{#2}}
+\newcommand{\mstep}[2]{{#1}{\harr^*\,}{#2}}
+% \newcommand{\steptrpure}[3]{{#1}\vDash{#2}{\harr\,}{#3}}
+\newcommand{\steptr}[4]{{#1}\vDash{#2}{\xhookrightarrow{#3}\,}{#4}}
+\newcommand{\mharr}[1]{{\,\xhookrightarrow{#1}\,\hspace{-5pt}^*\,}}
+\newcommand{\msteptr}[4]{{#1}\vDash{#2}\mharr{#3}{#4}}
+% \newcommand{\mmsteptr}[4]{{#1}\vDash{#2}\mharr{#4}}
+\newcommand{\xarr}[1]{{\,\xrightarrow{#1}\,}}
+\newcommand{\action}[3]{{#1}{\xarr{#2}}{#3}}
+\newcommand{\maction}[3]{{#1}{\,\xRightarrow{#2}\,}{#3}}
+\newcommand{\sarr}{{\,\shortrightarrow\,}}
+\newcommand{\ghostarr}{{\,\dashrightarrow\,}}
+\newcommand{\effarr}{{\textcolor{DeepGreen}{\,\blacktriangleright}}}
+\newcommand{\increffarr}{{\textcolor{DeepGreen}{\,\blacktriangleright\mspace{-5mu}\blacktriangleright}}}
+\newcommand{\effstar}{{\textcolor{DeepGreen}{\bigstar}}}
+% \vartriangleright
+% type
+%% type parenthesis
+\newcommand{\qfa}{\textcolor{magenta}{\boldsymbol{\forall}}}
+\newcommand{\qex}{\textcolor{CobaltBlue}{\boldsymbol{\exists}}}
+\newcommand{\faarr}{{\,\xrightarrow{\qfa}\,}}
+\newcommand{\exarr}{{\,\xrightarrow{\qex}\,}}
+\newcommand{\qarr}{{\,\xrightarrow{Q}\,}}
+\newcommand{\fagarr}{{\,\dashrightarrow^{\qfa}\,}}
+\newcommand{\exgarr}{{\,\dashrightarrow^{\qex}\,}}
+\newcommand{\qgarr}{{\,\dashrightarrow^{Q}\,}}
+\newcommand{\effprenthL}{\textcolor{DeepGreen}{\mbox{\rm\textbf{\{}}}}
+\newcommand{\effprenthR}{\textcolor{DeepGreen}{\mbox{\rm\textbf{\}}}}}
+% \newcommand{\utparenthL}{ \textcolor{CobaltBlue}{\mbox{\rm\textbf{[}}} }
+% \newcommand{\utparenthR}{ \textcolor{CobaltBlue}{\mbox{\rm\textbf{]}}} }
+\newcommand{\utparenthL}{ \textcolor{DeepGreen}{\mbox{\rm\textbf{\{}}} }
+\newcommand{\utparenthR}{ \textcolor{DeepGreen}{\mbox{\rm\textbf{\}}}^{u}} }
+\newcommand{\etparenthL}{ \textcolor{CobaltBlue}{{\text{\textbf{\textlquill}}} }}
+\newcommand{\etparenthR}{ \textcolor{CobaltBlue}{{\text{\textbf{\textrquill}}} }}
+
+\newcommand{\etparenth}[1]{ \etparenthL{} {#1} \etparenthR{}}
+\newcommand{\utparenth}[1]{ \utparenthL{} {#1} \utparenthR{}}
+\newcommand{\otparenth}[1]{
+\textcolor{magenta}{\mbox{\rm\textbf{\{}}}
+{#1}
+\textcolor{magenta}{\mbox{\rm\textbf{\}}}^{o}}}
+\newcommand{\effprenth}[1]{\effprenthL {#1} \effprenthR }
+%% base type
+\newcommand{\nut}[2]{\{ \vnu{:}{\Code{#1}}\, |\, {#2} \}}
+\newcommand{\rawnut}[2]{\{ \vnu{:}{#1}\, |\, {#2} \}}
+\newcommand{\vnu}{\nu}
+\newcommand{\ut}[3]{\utparenth{ {#1}{:}{#2}\, |\, {#3} }}
+\newcommand{\nuut}[2]{\ut{\vnu}{\Code{#1}}{#2}}
+\newcommand{\rawnuut}[2]{\ut{\vnu}{#1}{#2}}
+\newcommand{\varnuut}[3]{{#1}{:}\nuut{#2}{#3}}
+\newcommand{\et}[3]{\etparenth{ {#1}{:}{#2}\, |\, {#3} }}
+\newcommand{\nuet}[2]{\et{\vnu}{\Code{#1}}{#2}}
+\newcommand{\rawnuet}[2]{\et{\vnu}{#1}{#2}}
+%\newcommand{\ot}[3]{\otparenth{ {#1}{:}{#2}\, |\, {#3} }}
+\newcommand{\ot}[3]{\otparenth{ {#1}{:}{#2}\,  }}
+\newcommand{\nuot}[2]{\ot{\vnu}{\Code{#1}}{#2}}
+\newcommand{\rawnuot}[2]{\otparenth{ \vnu{:}{#1}\, |\, {#2} }}
+\newcommand{\varnuot}[3]{{#1}{:}\nuot{#2}{#3}}
+\newcommand{\ic}[4]{\otparenth{ {#1}{:}{#2}\, |\, {#3}\rhd {#4} }}
+\newcommand{\rawnuic}[3]{\ic{\vnu}{#1}{#2}{#3}}
+\newcommand{\nuic}[3]{\rawnuic{\Code{#1}}{#2}{#3}}
+%% bcol
+\newcommand{\bcol}[1]{\Code{#1}{:}}
+%% arrow type
+\newcommand{\nuutxarr}[3]{\bcol{#1}\nuut{#2}{#3}\sarr}
+\newcommand{\nuutarr}[2]{\nuut{#1}{#2} \sarr}
+\newcommand{\nuotxarr}[3]{\bcol{#1}\nuot{#2}{#3} \sarr}
+\newcommand{\nuotarr}[2]{\nuot{#1}{#2} \sarr}
+%%product type
+\newcommand{\tprod}{{\times}}
+%% under trace type
+% type judgement
+\newcommand{\tyctxcheck}{\textcolor{violet}{~\Rightarrow~}}
+\newcommand{\tyctxinfer}{\textcolor{DarkOrange}{~\Leftarrow~}}
+\newcommand{\typecheck}{\textcolor{violet}{~\Leftarrow~}}
+\newcommand{\nottypecheck}{\textcolor{violet}{~\not\Leftarrow~}}
+% \newcommand{\typeinfer}{\textcolor{DarkOrange}{~\Rightarrow\mspace{-12mu}\Rightarrow~}}
+\newcommand{\typeinfer}{\textcolor{DarkOrange}{~\Rightarrow~}}
+\newcommand{\terminfer}{{~\Rightarrow~}}
+\newcommand{\inferFW}{{~\textcolor{CobaltBlue}{\Rightarrow^\S{FW}}~}}
+\newcommand{\inferBW}{{~\textcolor{CobaltBlue}{\Rightarrow^\S{BW}}~}}
+\newcommand{\ainfer}[1]{\textcolor{DarkOrange}{\{}{#1}\textcolor{DarkOrange}{\}}}
+\newcommand{\effinfer}{\textcolor{DarkOrange}{~\approx\hspace{-.6em}\text{\Large\guilsinglright}}}
+\newcommand{\subsetinfer}{\textcolor{DarkOrange}{~\boldsymbol{\subseteq}~}}
+\newcommand{\covervdash}{\vdash}
+
+\newcommand{\CurL}{\,\textcolor{violet}{\vdash\!\!\Biggl[}}
+\newcommand{\CurR}{\textcolor{violet}{\Biggl]}}
+\newcommand{\InferCurL}{\,\textcolor{DarkOrange}{\vdash\!\!\Biggl[}}
+\newcommand{\InferCurR}{\textcolor{DarkOrange}{\Biggl]}}
+
+\newcommand{\infervdash}[1]{~\textcolor{DarkOrange}{\vdash\!\![}{#1}\textcolor{DarkOrange}{]}~}
+% \newcommand{\checkvdash}[2]{~\textcolor{violet}{\vdash\!\![}{#1}\textcolor{violet}{][}{#2}\textcolor{violet}{]}~}
+\newcommand{\checkvdash}[1]{~\textcolor{violet}{\vdash\!\![}{#1}\textcolor{violet}{]}~}
+\newcommand{\checkseq}{\,\textcolor{violet}{{;\!;}}\,}
+\newcommand{\purevdash}{\,\textcolor{magenta}{\vdash\,}}
+\newcommand{\effvdash}[1]{\,\textcolor{DeepGreen}{\vdash^{#1}\,}}
+\newcommand{\basicvdash}{\vdash_{\Code{s}}}
+\newcommand{\wellfoundedvdash}{\vdash^{\textbf{WF}}}
+% aux functions
+\newcommand{\validationfilter}{\textcolor{CobaltBlue}{\S{ValidationFilter}}}
+\newcommand{\abudctiveinfer}{\textcolor{CobaltBlue}{\Code{AbductiveSyn}}}
+\newcommand{\effopsyn}{\textcolor{CobaltBlue}{\Code{EffectOperatorTypeSyn}}}
+\newcommand{\normalizeA}{\textcolor{CobaltBlue}{\Code{Normalize}}}
+\newcommand{\normalizePost}{\textcolor{CobaltBlue}{\Code{NormalizePost}}}
+\newcommand{\tyexists}{\textcolor{DarkOrange}{\hat{\exists}}}
+\newcommand{\tylor}{\textcolor{DarkOrange}{\hat{\lor}}}
+\newcommand{\tybigvee}{\textcolor{DarkOrange}{\hat{\bigvee}}}
+\newcommand{\tybigwedge}{\textcolor{DarkOrange}{\hat{\bigwedge}}}
+\newcommand{\tyaddto}{\textcolor{DarkOrange}{\triangleright}}
+\newcommand{\ldenotation}{\llbracket}
+\newcommand{\rdenotation}{\rrbracket}
+\newcommand{\denotation}[1]{\ldenotation {#1} \rdenotation}
+\newcommand{\eraserf}[1]{\lfloor {#1} \rfloor}
+\newcommand{\eraseGhost}[1]{\lceil {#1} \rceil}
+\newcommand{\FV}{\textcolor{CobaltBlue}{\S{FV}}}
+\newcommand{\predicate}{\textcolor{CobaltBlue}{\S{Predicate}}}
+\newcommand{\getlits}{\textcolor{CobaltBlue}{\Code{GetLits}}}
+\newcommand{\getptys}{\textcolor{CobaltBlue}{\Code{GetRefinementTypes}}}
+\newcommand{\gatherevent}{\textcolor{CobaltBlue}{\S{GatherEvent}}}
+\newcommand{\minterm}{\textcolor{CobaltBlue}{\S{Minterm}}}
+\newcommand{\mintermgen}{\textcolor{CobaltBlue}{\Code{MintermGen}}}
+\newcommand{\instantiate}{\textcolor{CobaltBlue}{\Code{Instantiate}}}
+\newcommand{\mintermret}{\textcolor{CobaltBlue}{\Code{MintermRet}}}
+\newcommand{\boolcombine}{\textcolor{CobaltBlue}{\Code{BooleanCombination}}}
+\newcommand{\synthesizer}{\textcolor{CobaltBlue}{\Code{Synthesizer}}}
+\newcommand{\mintermReplace}{\textcolor{CobaltBlue}{\Code{AlphabetTransfer}}}
+\newcommand{\automataUnion}{\textcolor{CobaltBlue}{\S{AutomataUnion}}}
+\newcommand{\existsopA}{\textcolor{CobaltBlue}{\S{AutomataEx}}}
+\newcommand{\inclusionquery}{\textcolor{CobaltBlue}{\S{Inclusion}}}
+\newcommand{\subquery}{\textcolor{CobaltBlue}{\S{Query}}}
+\newcommand{\subqueryA}{\textcolor{CobaltBlue}{\Code{InclusionQuery}}}
+\newcommand{\inclusionqueryA}{\textcolor{CobaltBlue}{\Code{InclusionQuery}}}
+\newcommand{\closectx}{\textcolor{CobaltBlue}{\S{Close}}}
+\newcommand{\existsop}{\textcolor{CobaltBlue}{\S{Ex}}}
+\newcommand{\disjop}{\textcolor{CobaltBlue}{\Code{Disj}}}
+\newcommand{\conjop}{\textcolor{CobaltBlue}{\Code{Conj}}}
+\newcommand{\existstype}{\textcolor{CobaltBlue}{\boldsymbol{\S{\exists}}}}
+\newcommand{\foralltype}{\textcolor{CobaltBlue}{\boldsymbol{\S{\forall}}}}
+\newcommand{\disjtype}{\textcolor{CobaltBlue}{\boldsymbol{\bigvee}}}
+\newcommand{\conjtype}{\textcolor{CobaltBlue}{\boldsymbol{\bigwedge}}}
+\newcommand{\optionalctx}[1]{\langle{#1}\rangle}
+\newcommand{\ctxreach}[1]{\covervdash\leadsto{#1}}
+% State/Trace
+\newcommand{\seq}{\simeq}
+
+% Events and Symbolic automata
+\newcommand{\toptr}{\evappret{\top}}
+\newcommand{\bottr}{\evappret{\bot}}
+\newcommand{\rawdf}[2]{{\sim}{#2}}
+% \newcommand{\rawdf}[2]{{\sim}{#1}{:}{#2}}
+\newcommand{\df}[2]{{\sim}\Code{#2}}
+\newcommand{\dd}[1]{{\sim}\Code{#1}}
+% \newcommand{\df}[2]{{\sim}{#1}{:}\Code{#2}}
+\newcommand{\mthen}[2]{{#1}\boxminus{#2}}
+% \newcommand{\mfinal}{\mathbf{F}\,}
+\newcommand{\mfinal}{\diamond}
+\newcommand{\parAL}{ \textcolor{CobaltBlue}{\boldsymbol{\llparenthesis}} }
+\newcommand{\parAR}{ \textcolor{CobaltBlue}{\boldsymbol{\rrparenthesis}} }
+\newcommand{\parA}[1]{ \parAL{} {#1} \parAR{}}
+
+\newcommand{\synL}{\llparenthesis}
+\newcommand{\synR}{\rrparenthesis}
+\newcommand{\parSyn}[1]{ \synL {#1} \synR}
+
+
+\newcommand{\effL}{ \textcolor{DeepGreen}{\mbox{\rm\textbf{[}}} }
+\newcommand{\effR}{ \textcolor{DeepGreen}{\mbox{\rm\textbf{]}}} }
+\newcommand{\effLR}[1]{ \effL{} {#1} \effR{} }
+\newcommand{\ueffLR}[1]{ \effL{} {#1} \effR{} }
+
+\newcommand{\oeffL}{ \textcolor{DeepGreen}{\mbox{\rm\textbf{\{}}} }
+\newcommand{\oeffR}{ \textcolor{DeepGreen}{\mbox{\rm\textbf{\}}}} }
+\newcommand{\oeffLR}[1]{ \oeffL{}\;\! {#1}\;\! \oeffR{} }
+
+\newcommand{\bufL}{ \textcolor{DeepGreen}{\mbox{\rm\textbf{\{}}} }
+\newcommand{\bufR}{ \textcolor{DeepGreen}{\mbox{\rm\textbf{\}}}} }
+\newcommand{\bufLR}[1]{ \bufL\, {#1}\, \bufR{} }
+
+% \newcommand{\ueffL}{ \textcolor{DeepGreen}{\mbox{\rm\textbf{\{}}} }
+% \newcommand{\ueffR}{ \textcolor{DeepGreen}{\mbox{\rm\textbf{\}}}} }
+% \newcommand{\ueffLR}[1]{ \ueffL{} {#1} \ueffR{} }
+
+\newcommand{\minus}{\scalebox{0.65}[1.0]{$-$}}
+\makeatletter
+\newcommand{\shorteq}{%
+  \settowidth{\@tempdima}{-}% Width of hyphen
+  \resizebox{\@tempdima}{\height}{=}%
+}
+\makeatother
+\newcommand{\eveq}{\,\shorteq\,}
+\newcommand{\evapp}[3]{\S{#1}\,\Code{#2} \eveq \Code{#3}}
+\newcommand{\evappret}[1]{\S{ret}\, \Code{#1}}
+\newcommand{\pevapp}[3]{\S{#1}\,{#2} \eveq{} {#3} }
+\newcommand{\pevappret}[1]{\S{ret}\, {#1}}
+
+\newcommand{\evparenth}[1]{ \ltortoise {#1} \rtortoise }
+
+\newcommand{\synRecv}[1]{\evparenth{#1}^{\Code{recv}}}
+\newcommand{\synSent}[1]{\evparenth{#1}^{\Code{sent}}}
+\newcommand{\synDone}[1]{\evparenth{#1}^{\Code{done}}}
+
+\newcommand{\evinclude}[2]{\evparenth{{#1} \in {#2} }}
+\newcommand{\ev}[2]{ \evparenth{ \I{#1} \eveq \vnu \,|\, {#2} }}
+% \newcommand{\evp}[5]{ \evparenth{ \I{#1^{#2}_\Code{#3}\;{#4}} \,|\, {#5} }}
+\newcommand{\evapalltop}[1]{ \evparenth{ \mathbf{#1}}}
+\newcommand{\evaptop}[2]{ \evparenth{ \mathbf{#1}\;\I{#2}}}
+\newcommand{\evap}[3]{ \evparenth{ \mathbf{#1}\;\I{#2} \,|\, {#3} }}
+\newcommand{\evp}[4]{ \evparenth{ \mathbf{#1}^\Code{#2}\;\I{#3} \,|\, {#4} }}
+\newcommand{\evpc}[3]{ \evparenth{ \mathbf{#1}^\Code{#2}\;\I{\Code{#3}} }}
+\newcommand{\evop}[3]{ \ev{\S{#1}\,{#2}}{#3} }
+
+\newcommand{\effGray}[1]{ \eff{\textcolor{gray}{#1}} }
+
+\newcommand{\msgAT}[4]{ \evparenth{{#1}\textcolor{#2}{\eff{#3}}\;{#4}}}
+\newcommand{\msgAColor}[3]{\evparenth{\textcolor{#1}{\eff{#2}}\;{#3}}}
+\newcommand{\msgBColor}[4]{\evparenth{\textcolor{#1}{\eff{#2}}\;{#3} ~|~ {#4}}}
+\newcommand{\msgA}[2]{\evparenth{\eff{#1}\;{#2}}}
+\newcommand{\msgB}[3]{\evparenth{\eff{#1}\;{#2} ~|~ {#3}}}
+\newcommand{\msgAGray}[2]{\msgAColor{gray}{#1}{#2} }
+\newcommand{\msgAGreen}[2]{\msgAColor{DeepGreen}{#1}{#2}}
+\newcommand{\msgABlue}[2]{\msgAColor{CobaltBlue}{#1}{#2}}
+\newcommand{\msgAAmber}[2]{\msgAColor{Amber}{#1}{#2}}
+\newcommand{\msgAGolden}[2]{\msgAColor{DarkGolden}{#1}{#2}}
+\newcommand{\msgBGray}[3]{\msgBColor{gray}{#1}{#2}{#3} }
+
+%\newcommand{\msgB}[3]{\evparenth{\eff{#1}\;{#2}~|~{#3}} }
+\newcommand{\msgBT}[5]{\evparenth{{#1}\textcolor{#2}{\eff{#3}}\;{#4}~|~{#5}} }
+
+\newcommand{\msgCT}[3]{\evparenth{{#1}\textcolor{#2}{\eff{#3}}} }
+\newcommand{\msgC}[1]{\evparenth{\eff{#1}}}
+\newcommand{\msgCGray}[1]{\evparenth{\effGray{#1}}}
+
+\newcommand{\msg}[2]{ \evparenth{\eff{#1}~|~{#2}} }
+\newcommand{\msgGray}[2]{ \evparenth{\effGray{#1}~|~{#2}} }
+% \newcommand{\acSe}[2]{ \evparenth{\mykw{app}\;\eff{#1}({#2})} }
+\newcommand{\acSe}[2]{\eff{#1}({#2}) }
+% \newcommand{\acGen}[2]{ \evparenth{\mykw{gen}\;\eff{#1}({#2})} }
+\newcommand{\acStar}{{\star}}
+\newcommand{\normPlan}{\S{Norm}}
+\newcommand{\termDerive}{\S{TermDerive}}
+\newcommand{\planBar}{\textcolor{CobaltBlue}{\;\fcmp\;}}
+\newcommand{\planSimpBar}{\textcolor{CobaltBlue}{\;\boldsymbol{|}\;}}
+\newcommand{\planTri}[3]{{#1} \planBar {#2} \planSimpBar {#3} }
+\newcommand{\planPair}[2]{{#1} \planBar {#2}}
+
+\newcommand{\synmsgB}[3]{ \parSyn{\eff{#1}\;{#2}~|~{#3}} }
+\newcommand{\synmsg}[2]{ \parSyn{\eff{#1}~|~{#2}} }
+\newcommand{\synmsgC}[1]{ \parSyn{#1}}
+
+\newcommand{\recvmsgB}[3]{ \synRecv{\eff{#1}\;{#2}~|~{#3}} }
+\newcommand{\recvmsg}[2]{ \synRecv{\eff{#1}~|~{#2}} }
+\newcommand{\recvmsgC}[1]{ \synRecv{#1}}
+
+\newcommand{\sentmsgB}[3]{ \synSent{\eff{#1}\;{#2}~|~{#3}} }
+\newcommand{\sentmsg}[2]{ \synSent{\eff{#1}~|~{#2}} }
+\newcommand{\sentmsgC}[1]{ \synSent{#1}}
+
+\newcommand{\donemsgB}[3]{ \synDone{\eff{#1}\;{#2}~|~{#3}} }
+\newcommand{\donemsg}[2]{ \synDone{\eff{#1}~|~{#2}} }
+\newcommand{\donemsgC}[1]{ \synDone{#1}}
+
+\newcommand{\evopa}[4]{ \ev{\S{#1}\,\Code{#2}\,{#3}}{#4} }
+\newcommand{\evoponly}[1]{ \evparenth{\S{#1} }}
+% \newcommand{\evoponlya}[2]{ \evparenth{\S{#1}\,\Code{#2}}}
+\newcommand{\evoponlyeq}[3]{ \evparenth{\S{#1}\,{#2} \eveq{} {#3}}}
+\newcommand{\evoponlyaeq}[3]{ \evparenth{\S{#1}\,\Code{#2} \eveq{} \Code{#3}}}
+\newcommand{\evoponlyatop}[3]{ \evparenth{\S{#1}\,\Code{#2} \eveq{} \Code{#3} \,|\, \top}}
+\newcommand{\minusevop}[3]{ \ev{\setminus\, \S{#1}\,{#2}}{#3} }
+\newcommand{\minusevopa}[4]{ \ev{\setminus\, \S{#1}\,\Code{#2}\,{#3}}{#4} }
+\newcommand{\minusevoponly}[1]{\evparenth{\setminus\, \S{#1} }}
+% \newcommand{\evoptop}[3]{ \evparenth{\S{#1}\,{#2}\, {#3}} }
+\newcommand{\evret}[1]{ \evparenth{\S{ret}\, {#1} } }
+\newcommand{\evopret}[1]{ \evret{#1} }
+\newcommand{\evone}[2]{ \ev{\evapp{#1}{x_0}}{#2} }
+\newcommand{\evretb}[2]{ \ev{\evapp{ret}{\vnu{:}{#1}}}{#2} }
+\newcommand{\evtwo}[2]{ \ev{\evapp{#1}{x_0, x_1}}{#2} }
+
+\newcommand{\evretR}[2]{ \evparenth{\S{ret}\, \nuot{#1}{#2}}}
+
+\newcommand{\dedep}[1]{\Code{DeDep}({#1})}
+\newcommand{\langATr}[1]{\mathcal{L}^{Tr}({#1})}
+\newcommand{\langA}[1]{\mathcal{L}({#1})}
+\newcommand{\langB}[1]{\mathcal{L_{H}}({#1})}
+\newcommand{\tpA}[2]{ \parA{ \,{#1} \,|\, {#2}\, } }
+\newcommand{\anyA}{\bullet}
+\newcommand{\obvA}{\odot}
+% \newcommand{\lorA}{ \,\lVert\, }
+\newcommand{\predA}[2]{P_{\Code{#1}}^{\Code{#2}}}
+\newcommand{\riA}[1]{I_{\Code{#1}}}
+\newcommand{\existsA}{ \boldsymbol{\textcolor{DeepGreen}{\exists}} }
+\newcommand{\compA}[1]{ (\anyA \setminus {#1}) }
+\newcommand{\empA}{\epsilon}
+% \newcommand{\finalA}{{\diamond}}
+\newcommand{\finalA}{{\lozenge}}
+\newcommand{\globalA}{{\square}}
+\newcommand{\nextA}{{\bigcirc}}
+% \newcommand{\lastA}{{\mathbf{LAST}}}
+%\newcommand{\lastA}{{\mbox{$\mathbf{SINGLE}$}}}
+% \newcommand{\lastA}{{\mathbf{SINGLE}}}
+\newcommand{\lastA}{{\mathcal{S}}}
+\newcommand{\allA}{{\anyA^*}}
+\newcommand{\singletonA}{{\mathbf{Single}}}
+\newcommand{\untilA}{\,\mathcal{U}\,}
+\newcommand{\weakUntilA}{\,\mathcal{W}\,}
+\newcommand{\seqA}{{\cdot}}
+\newcommand{\negA}{\neg}
+\newcommand{\landA}{\land}
+\newcommand{\lorA}{\lor}
+\newcommand{\topA}{\evparenth{\top}}
+\newcommand{\botA}{\evparenth{\bot}}
+\newcommand{\implA}{{\implies}}
+\newcommand{\iffA}{{\iff}}
+% \newcommand{\finalA}{\textcolor{DeepGreen}{\mathbf{F}}}
+% \newcommand{\globalA}{\textcolor{DeepGreen}{\mathbf{G}}}
+% \newcommand{\nextA}{\textcolor{DeepGreen}{\,\mathbf{X}}}
+% \newcommand{\untilA}{\textcolor{DeepGreen}{\,\mathbf{U}\,}}
+% \newcommand{\seqA}{\textcolor{DeepGreen}{\mathbf{;}}}
+% \newcommand{\negA}{\boldsymbol{\textcolor{DeepGreen}{\neg}}}
+% \newcommand{\landA}{\boldsymbol{\textcolor{DeepGreen}{\land}}}
+% \newcommand{\lorA}{\boldsymbol{\textcolor{DeepGreen}{\lor}}}
+% \newcommand{\topA}{\boldsymbol{\textcolor{DeepGreen}{\top}}}
+% \newcommand{\botA}{\boldsymbol{\textcolor{DeepGreen}{\bot}}}
+% \newcommand{\implA}{\boldsymbol{\textcolor{DeepGreen}{{\implies}}}}
+% \newcommand{\iffA}{\boldsymbol{\textcolor{DeepGreen}{{\iff}}}}
+\newcommand{\negB}{\boldsymbol{\textcolor{DeepGreen}{\neg}}}
+\newcommand{\landB}{\,\boldsymbol{\textcolor{DeepGreen}{\land}}\,}
+\newcommand{\interty}{\,\boldsymbol{\textcolor{DeepGreen}{\sqcap}}\,}
+\newcommand{\unionty}{\,\boldsymbol{\textcolor{DeepGreen}{\sqcup}}\,}
+% \newcommand{\biginterty}{\boldsymbol{\textcolor{DeepGreen}{\bigsqcap}}}
+\newcommand{\biginterty}{\boldsymbol{\textcolor{DeepGreen}{\bigsqcap}}}
+\newcommand{\bigunionty}{\boldsymbol{\textcolor{DeepGreen}{\bigsqcup}}}
+\newcommand{\lorB}{\,\boldsymbol{\textcolor{DeepGreen}{\lor}}\,}
+\newcommand{\biglorB}{\,\boldsymbol{\textcolor{DeepGreen}{\bigvee}}\,}
+\newcommand{\biglandB}{\,\boldsymbol{\textcolor{DeepGreen}{\bigwedge}}\,}
+\newcommand{\mustAfter}{\textcolor{DeepGreen}{\Rrightarrow}}
+\newcommand{\mustBefore}{\textcolor{DeepGreen}{\Lleftarrow}}
+\newcommand{\emptr}{[\, ]}
+\newcommand{\foldA}[1]{\Code{Fold}\,{#1},}
+\newcommand{\ctxA}[1]{\Sigma{#1}.}
+\newcommand{\evPut}[1]{\evtwo{Put}{int}{int}{#1}}
+\newcommand{\evGet}[1]{\evone{Get}{int}{#1}}
+\newcommand{\evPi}[2]{\ev{(\iota,\overline{\vnu_i})}{\iota= {#1} \land {#2}}}
+\newcommand{\recA}[4]{(\mu{#1}.\mu{#2}.{#4}\ {#3})}
+\newcommand{\eefftp}[1]{{#1}}
+\newcommand{\rawgatLR}[2]{ \effLR{ {#1} \,|\,{#2}} }
+\newcommand{\gatLR}[2]{ \rawgatLR{\Code{#1}}{#2} }
+%\DeclareMathSymbol{\fcmp}{\mathrel}{bbold}{\lq\;}
+\newcommand{\gatbar}{ \textcolor{DeepGreen}{\,\fcmp\,} }
+\newcommand{\htriple}[3]{ \effLR{#1}\,{#2}\,\effLR{#3} }
+\newcommand{\hfive}[5]{ \effLR{#1}\,\bufLR{#2}\,{#3}\,\bufLR{#4}\,\effLR{#5} }
+\newcommand{\astate}[2]{ \bufLR{#1}\times{#2}}
+\newcommand{\atriple}[3]{ {#1}{\times}\bufLR{#2}{\times}\effLR{#3}}
+\newcommand{\relyg}[3]{ \bufLR{#1}{#2}\effLR{#3}}
+% \newcommand{\rg}[3]{ \oeffLR{#1}\oeffLR{#2}\ueffLR{#3}}
+\newcommand{\rg}[3]{ \ueffLR{#1}\ueffLR{#2}\ueffLR{#3}}
+% \newcommand{\pret}[2]{ \ueffLR{#1}\ueffLR{#2}}
+\newcommand{\uhat}[3]{ \ueffLR{#1}{\,#2\,}\ueffLR{#3}}
+\newcommand{\ohat}[2]{ \oeffLR{#1}\ueffLR{#2}}
+\newcommand{\rgOver}[3]{ \oeffLR{#1}\oeffLR{#2}\oeffLR{#3}}
+\newcommand{\ha}[2]{\effLR{#1}\effLR{#2}}
+\newcommand{\rgB}[4]{ \effLR{#1}\effLR{#2}\effLR{#3}\bufLR{#4}}
+\newcommand{\rgbuf}[3]{ \effLR{#1}\effLR{#2}\bufLR{#3}}
+\newcommand{\traceDelta}[2]{{#1}\vDash{#2}}
+\newcommand{\hfour}[4]{ \effLR{#1}\,\bufLR{#2}\,{#3}\,\bufLR{#4}}
+\newcommand{\hpair}[2]{ \effLR{#1}\effLR{#2} }
+\newcommand{\uhtriple}[3]{ \ueffLR{#1}\,{#2}\,\effLR{#3} }
+\newcommand{\incrhtriple}[3]{ \htriple{#1}{#2}{{#1};{#3}} }
+\newcommand{\gtriple}[3]{ {#1} \effarr {#2} \gatbar {#3} }
+\newcommand{\incrgtriple}[3]{ {#1} \increffarr {#2} \gatbar {#3} }
+\newcommand{\rawgat}[2]{ \effLR{ {#1} \,|\,{#2}} }
+\newcommand{\rawsinglegat}[4]{ \rawgat{#1}{\gtriple{#2}{#3}{#4}} }
+\newcommand{\gat}[2]{ \effLR{ \Code{#1} \,|\,{#2}} }
+\newcommand{\singlegat}[4]{ \gat{#1}{\gtriple{#2}{#3}{#4}} }
+\newcommand{\fullnormalgat}[4]{ \basegat{#1}{\bigwedge\overline{{#2} \effarr \bigvee \overline{{#3}\seqA\evopret{#4}}}} }
+% \newcommand{\gat}[3]{ {#1}\textcolor{DeepGreen}{?}{#2}\textcolor{DeepGreen}{:}{#3} }
+% \newcommand{\nonrawdat}[3]{ {#1}\effarr\effLR{ {#2} \,|\,{#3}} }
+% \newcommand{\rawdat}[3]{ X{:}{#1}\effarr\effLR{ {#2} \,|\,{#3}} }
+% \newcommand{\dat}[3]{ \rawdat{#1}{\Code{#2}}{#3} }
+% \newcommand{\rawincrgat}[3]{ \effLR{ {#1} \,|\, {#2}\, \increffarr\, {#3}} }
+% \newcommand{\incrgat}[3]{ \rawincrgat{\Code{#1}}{#2}{#3} }
+% \newcommand{\normalgat}[3]{ \basegat{#1}{\overline{{#2} \effarr {#3}\gatbar}} }
+% \newcommand{\rawgat}[3]{ \effLR{ {#1} \,|\, {#2}\, \effarr\, {#3}} }
+% \newcommand{\gat}[3]{ \rawgat{\Code{#1}}{#2}{#3} }
+\newcommand{\efftp}[3]{ \rawgat{\Code{#3}}{#1}{#2} }
+\newcommand{\mefftp}[2]{ \effLR{ \Code{#2} \,|\, {#1} }}
+\newcommand{\garr}{{\,\dashrightarrow\,}}
+\newcommand{\uarr}{{\,\twoheadrightarrow\,}}
+\newcommand{\gvr}[3]{{\Code{#1}}{:}{\nuot{#2}{#3}}\garr}
+\newcommand{\gvn}[2]{{\Code{#1}}{:}{\Code{#2}}\garr}
+\newcommand{\gv}[2]{{\Code{#1}}{:}{#2}\garr}
+\newcommand{\normalv}[2]{{\Code{#1}}{:}{#2}\sarr}
+\newcommand{\normalvn}[2]{{\Code{#1}}{:}\Code{#2}\sarr}
+% algo
+\newcommand{\arrangegamma}{\textcolor{CobaltBlue}{\S{Predicate}}}
+\newcommand{\quotientByEq}{\textcolor{CobaltBlue}{\S{Quotient}}}
+% equations
+\definecolor{myblue}{rgb}{.9, .9, 1}
+\newcommand*\mybluebox[1]{%
+\colorbox{myblue}{\hspace{-0.2em}#1\hspace{-0.2em}}}
+\newcommand*\mygraybox[1]{%
+\definecolor{mygray}{rgb}{0.95,0.95,0.95}
+\colorbox{mygray}{\hspace{-0.2em}#1\hspace{-0.2em}}}
+\definecolor{mypurple}{rgb}{0.58,0,0.82}
+\newcommand*\mypurplebox[1]{%
+\colorbox{mypurple}{\hspace{-0.2em}#1\hspace{-0.2em}}}
+
+% alias in paper
+\newcommand{\tauadd}{\tau_{\Code{add}}}
+\newcommand{\taudel}{\tau_{\Code{delete}}}
+\newcommand{\motiinv}{{\small\textbf{Invariant$_{FS}$}}}
+\newcommand{\motidir}{{\small \Code{kwDir}}}
+\newcommand{\motideleted}{{\small \Code{kwDeleted}}}
+\newcommand{\motidt}{{\small \Code{FileSystem}}}
+\newcommand{\motiadd}{{\small \Code{add}}}
+\newcommand{\motiinit}{{\small \Code{init}}}
+\newcommand{\motiread}{{\small \Code{read\_file\_or\_dir}}}
+\newcommand{\motidel}{{\small \Code{delete}}}
+\newcommand{\motifunc}{{\small \Code{add\_file\_or\_dir}}}
+\newcommand{\zput}{{\small\textbf{put}}}
+\newcommand{\zlog}{{\small\textbf{log}}}
+\newcommand{\zget}{{\small\textbf{get}}}
+\newcommand{\zexist}{{\small\textbf{exists}}}
+\newcommand{\zmem}{{\small\textbf{mem}}}
+\newcommand{\zinsert}{{\small\textbf{insert}}}
+\newcommand{\zinitialize}{{\small\textbf{initialize}}}
+
+\newcommand{\zaddnode}{{\small\textbf{add\_node}}}
+\newcommand{\zrmnode}{{\small\textbf{remove\_node}}}
+\newcommand{\zconnect}{{\small\textbf{connect}}}
+\newcommand{\zdisconnect}{{\small\textbf{disconnect}}}
+
+\newcommand{\zgetS}{{\small\textbf{get$_\text{S}$}}}
+\newcommand{\zgetT}{{\small\textbf{get$_\text{T}$}}}
+\newcommand{\zputS}{{\small\textbf{put$_\text{S}$}}}
+\newcommand{\zputT}{{\small\textbf{put$_\text{T}$}}}
+
+% \newcommand{\zsend}{{\small\textbf{send}}}
+% \newcommand{\zreceive}{{\small\textbf{receive}}}
+\newcommand{\zboolgen}{{\small\textbf{boolGen}}}
+
+% synthesis
+\newcommand{\eff}[1]{\boldsymbol{\Code{#1}}}
+\newcommand{\genint}{\Code{genInt}}
+\newcommand{\genbool}{\Code{genBool}}
+\newcommand{\se}{se}
+\newcommand{\scope}[1]{\mathcal{E}_{#1}}
+\newcommand*\fid[1]{\tikz[baseline=(char.base)]{
+            \node[shape=rectangle,fill,inner sep=2pt] (char) {\textcolor{white}{#1}};}}
+\newcommand*\femp{\tikz[baseline=(char.base)]{
+            \node[shape=rectangle,fill,inner sep=2pt] (char) {\textcolor{black}{$*$}};}}
+
+\newcommand{\cons}{\;{::}\;}
+\newcommand{\trjoin}{\bowtie}
+\newcommand{\inj}{\rhd}
+\newcommand{\footp}[1]{\I{fp}({#1})}
+\newcommand{\pset}[1]{\mathcal{P}({#1})}
+\newcommand{\msgG}[1]{\evparenth{{#1}}}
+
+% \newcommand\hmmax{0}
+% \newcommand\bmmax{0}
+\newcommand{\denot}[1]{\denotation{#1}}
+\newcommand{\wfvdash}{\wellfoundedvdash}
+
+\newcommand{\vdashA}[1]{~\textcolor{violet}{\vdash\!\![}{#1}\textcolor{violet}{]}~}
+\newcommand{\true}{\Code{true}}
+\newcommand{\false}{\Code{false}}
+
+\newcommand{\envI}{\iota_{\Code{env}}}
+\newcommand{\srcI}{\iota_{\I{s}}}
+\newcommand{\dstI}{\iota_{\I{d}}}
+\newcommand{\pushQ}[3]{\Code{update}(#1,#2,#3)}
+\newcommand{\dst}[1]{\Code{dst}(#1)}
+\newcommand{\src}[1]{\Code{src}(#1)}
+\newcommand{\mapOn}[1]{\Code{mapOn}(#1)}
+\newcommand{\select}[1]{\Code{select}(#1)}
+\newcommand{\enqueue}[1]{\Code{enqueue}(#1)}
+\newcommand{\dequeue}[1]{\Code{dequeue}(#1)}
+\newcommand{\empQ}{\epsilon}
+\newcommand{\buf}{\beta}
+\newcommand{\mhypo}[2]{\hypo{\parbox{#1}{\center{#2}}}}
+\newcommand{\mprooftr}[4]{
+    \begin{prooftree}
+    \mhypo{#1}{#2}
+    \infer1[{\small \textsc{#3}}]{\parbox{#1}{\center{#4}}}
+    \end{prooftree}}
+% \newcommand{\termsyn}{\ddagger}
+\newcommand{\termsyn}{\Rightarrow}
+\newcommand{\mix}{{\parallel}}
+\newcommand{\mixA}[1]{\anyA^* \seqA {#1} \seqA \anyA^*}
+\newcommand{\mixAA}[2]{\anyA^* \seqA {#1} \seqA \anyA^* {#2} \seqA \anyA^*}
+\newcommand{\fld}[1][]{\Code{\#{#1}}}
+\newcommand{\hasnty}[1]{\Code{{:}{#1}}}
+\newcommand{\hasoty}[2]{{:}\nuot{#1}{#2}}
+\newcommand{\hasuty}[2]{{:}\nuut{#1}{#2}}
+
+%% example
+\newcommand{\exCommit}{\msg{Commit}{\top}}
+\newcommand{\exGetReq}{\msg{GetReq}{\top}}
+\newcommand{\exReadReq}{\msg{ReadReq}{\top}}
+\newcommand{\exReadRsp}[1]{\msg{ReadRsp}{#1}}
+\newcommand{\exArw}{A_\Code{WR}}
+\newcommand{\effBlue}[1]{\eff{#1}}%{\textcolor{CobaltBlue}{\eff{#1}}}
+\newcommand{\effRed}[1]{\eff{#1}}% {\textcolor{red}{\eff{#1}}}
+\newcommand{\effGreen}[1]{\eff{#1}}%{\textcolor{DeepGreen}{\eff{#1}}}
+
+\newcommand{\efBlue}[1]{\textcolor{CobaltBlue}{\eff{#1}}}
+\newcommand{\efRed}[1]{\textcolor{red}{\eff{#1}}}
+\newcommand{\efGreen}[1]{\textcolor{DeepGreen}{\eff{#1}}}
+
+\newcommand{\allTL}{\globalA\evparenth{\top}}
+\newcommand{\epsTL}{\globalA\evparenth{\bot}}
+\newcommand{\empTL}{\neg\globalA\evparenth{\top}}
+\newcommand{\negSCA}{A_\Code{violateRYW}}
+\newcommand{\negSCAPi}{\Pi_\Code{violateRYW}}
+
+\newcommand{\PAT}{\mbox{{\sc Pret}}\xspace}
+\newcommand{\DSL}{\ensuremath{\boldsymbol{\lambda}^{C}}}
+% \newcommand{\Gchecked}{M_\Code{checked}}
+% \newcommand{\Gsender}{M_\Code{hasSender}}
+\newcommand{\Gchecked}{M}
+\newcommand{\Gsender}{B}
+\newcommand{\biSyn}{\S{BidirectionalSyn}}
+\newcommand{\forward}{\textcolor{CobaltBlue}{\Code{Forward}}}
+\newcommand{\backward}{\textcolor{CobaltBlue}{\Code{Backward}}}
+\newcommand{\refine}{\textcolor{CobaltBlue}{\Code{Refine}}}
+\newcommand{\refineLoop}{\textcolor{CobaltBlue}{\Code{RefineLoop}}}
+\newcommand{\synRec}{\textcolor{CobaltBlue}{\Code{SynRecursion}}}
+\newcommand{\derive}{\textcolor{CobaltBlue}{\Code{DeriveTerm}}}
+\newcommand{\deriveTrace}{\textcolor{CobaltBlue}{\Code{DeriveTrace}}}
+\newcommand{\compile}{\textcolor{CobaltBlue}{\Code{Compile}}}
+\newcommand{\Mfw}{\Theta_\Code{fw}}
+\newcommand{\Mbw}{\Theta_\Code{bw}}
+\newcommand{\GEN}{\Code{Gen}}
+\newcommand{\OBS}{\Code{Obs}}
+
+\newcommand{\msubst}[2]{[\overline{{#1}\mapsto {#2}}]}
+\newcommand{\subst}[2]{[{#1}\mapsto {#2}]}
+\newcommand{\mathEnv}[1]{{\small\begin{align*}{#1}
+\end{align*}}\noindet}
+\newcommand{\ptag}[1]{ &\quad& \text{(#1)}}
+
+% JFP
+\newcommand{\tvar}[1]{\text{\textquotesingle}\Code{#1}}
+
+% monad
+% \newcommand{\ot}[3]{\otparenth{ {#1}{:}\;{#2}\, |\, {#3} }}
+\newcommand{\ort}[2]{\ot{\vnu}{#1}{#2}}
+% \newcommand{\ut}[3]{\utparenth{ {#1}{:}\;{#2}\;|\;{#3} }}
+\newcommand{\urt}[2]{\ut{\vnu}{#1}{#2}}
+
+\newcommand{\M}[1]{\mathcal{M}\;{#1}}
+\newcommand{\Murt}[2]{\M{\urt{#1}{#2}}}
+% \newcommand{\TM}{\;\Code{Gen.t}}
+\newcommand{\returnC}{\mathcal{M}\;}
+%\newcommand{\returnC}{\Code{ret^C}}
+\newcommand{\bindC}{\Code{bind^C}}
+\newcommand{\CM}[2]{\mathcal{M}\;{#1}\;{#2}}
+\newcommand{\CInt}{\Code{Int}}
+\newcommand{\Int}{\Code{int}}
+\newcommand{\Bool}{\Code{bool}}
+\newcommand{\Unit}{\Code{unit}}
+\newcommand{\Nat}{\Code{nat}}
+\newcommand{\Char}{\Code{char}}
+\newcommand{\String}{\Code{string}}
+\newcommand{\Byte}{\Code{Byte.t}}
+\newcommand{\Tree}[1][]{{#1}\;\Code{tree}}
+\newcommand{\List}[1][]{{#1}\;\Code{list}}
+\newcommand{\Option}[1][]{{#1}\;\Code{option}}
+% \newcommand{\None}{\Code{None}}
+\newcommand{\Some}[1][]{\Code{Some}({#1})}
+\newcommand{\fst}{\I{fst}}
+\newcommand{\snd}{\I{snd}}
+\newcommand{\emp}{\I{emp}}
+\newcommand{\mem}{\I{mem}}
+\newcommand{\len}{\I{len}}
+\newcommand{\hd}{\I{hd}}
+\newcommand{\ord}{\I{ord}}
+\newcommand{\measure}{\I{measure}}
+\newcommand{\uniq}{\I{uniq}}
+\newcommand{\minP}{\I{min}}
+\newcommand{\maxP}{\I{max}}
+
+% New Trace
+\newcommand{\Key}{\Code{Key.t}}
+\newcommand{\Value}{\Code{Value.t}}
+\newcommand{\event}[3]{\evparenth{\eff{#1}({#2}) \eveq {#3}}}
+\newcommand{\mess}[2]{\eff{#1}({#2})}
+\newcommand{\pat}[3]{ \effLR{#1}\effLR{#2}\effLR{#3}}
+\newcommand{\cgreen}[1]{\textcolor{DeepGreen}{#1}}
+\newcommand{\cred}[1]{\textcolor{red}{#1}}
+\newcommand{\cblue}[1]{\textcolor{CobaltBlue}{#1}}
+\newcommand{\sev}[2]{ \evparenth{ \Code{#1}\;{#2} \eveq \vnu \,|\, {#2} }}

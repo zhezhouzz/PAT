@@ -37,7 +37,7 @@ def invoc_cmd(cmd, cwd=None):
         print(e.output)
 
 
-benchmarks = ["Database", "Firewall", "RingLeaderElection", "EspressoMachine", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Raft", "Kermit2PCModel"]
+benchmarks = ["Database", "Firewall", "RingLeaderElection",  "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Raft", "Kermit2PCModel"]
 # benchmarks = ["ChainReplication", "Paxos", "Raft"]
 # benchmarks = ["Raft"]
 # benchmarks = ["Firewall"]
@@ -330,7 +330,7 @@ def do_parse():
 
 def do_p_syn():
     for bench_name in benchmarks:
-        cmd = cmd_prefix + ["do-syn", task_name(bench_name), "benchmarks/" + bench_name + "/task.ml"]
+        cmd = cmd_prefix + ["do-syn", task_name(bench_name), "benchmarks/" + bench_name + "/task.ml", "1"]
         invoc_cmd(cmd)
     return
 

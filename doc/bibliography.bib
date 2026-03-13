@@ -1,0 +1,2226 @@
+@inproceedings{Quickstrom,
+  author    = {O'Connor, Liam and Wickstr\"{o}m, Oskar},
+  title     = {Quickstrom: property-based acceptance testing with LTL specifications},
+  year      = {2022},
+  isbn      = {9781450392655},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/3519939.3523728},
+  doi       = {10.1145/3519939.3523728},
+  abstract  = {We present Quickstrom, a property-based testing system for acceptance testing of interactive applications. Using Quickstrom, programmers can specify the behaviour of web applications as properties in our testing-oriented dialect of Linear Temporal Logic (LTL) called QuickLTL, and then automatically test their application against the given specification with hundreds of automatically generated interactions. QuickLTL extends existing finite variants of LTL for the testing use-case, determining likely outcomes from partial traces whose minimum length is itself determined by the LTL formula. This temporal logic is embedded in our specification language, Specstrom, which is designed to be approachable to web programmers, expressive for writing specifications, and easy to analyse. Because Quickstrom tests only user-facing behaviour, it is agnostic to the implementation language of the system under test. We therefore formally specify and test many implementations of the popular TodoMVC benchmark, used for evaluation and comparison across various web frontend frameworks and languages. Our tests uncovered bugs in almost half of the available implementations.},
+  booktitle = {Proceedings of the 43rd ACM SIGPLAN International Conference on Programming Language Design and Implementation},
+  pages     = {1025–1038},
+  numpages  = {14},
+  keywords  = {linear temporal logic, property-based testing, web applications},
+  location  = {San Diego, CA, USA},
+  series    = {PLDI 2022}
+}
+
+@inproceedings{BeginnerLuck,
+  author    = {Lampropoulos, Leonidas and Gallois-Wong, Diane and Hri\c{t}cu, C\u{a}t\u{a}lin and Hughes, John and Pierce, Benjamin C. and Xia, Li-yao},
+  title     = {Beginner's luck: a language for property-based generators},
+  year      = {2017},
+  isbn      = {9781450346603},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/3009837.3009868},
+  doi       = {10.1145/3009837.3009868},
+  abstract  = {Property-based random testing \`{a} la QuickCheck requires building efficient generators for well-distributed random data satisfying complex logical predicates, but writing these generators can be difficult and error prone. We propose a domain-specific language in which generators are conveniently expressed by decorating predicates with lightweight annotations to control both the distribution of generated values and the amount of constraint solving that happens before each variable is instantiated. This language, called Luck, makes generators easier to write, read, and maintain. We give Luck a formal semantics and prove several fundamental properties, including the soundness and completeness of random generation with respect to a standard predicate semantics. We evaluate Luck on common examples from the property-based testing literature and on two significant case studies, showing that it can be used in complex domains with comparable bug-finding effectiveness and a significant reduction in testing code size compared to handwritten generators.},
+  booktitle = {Proceedings of the 44th ACM SIGPLAN Symposium on Principles of Programming Languages},
+  pages     = {114–129},
+  numpages  = {16},
+  keywords  = {random testing, property-based testing, narrowing, domain specific language, constraint solving},
+  location  = {Paris, France},
+  series    = {POPL '17}
+}
+
+
+@inbook{OldSurveyOfReactiveSystem,
+  author    = {Pnueli, A.},
+  editor    = {de Bakker, J. W.
+               and de Roever, W. -P.
+               and Rozenberg, G.},
+  title     = {Applications of temporal logic to the specification and verification of reactive systems: A survey of current trends},
+  booktitle = {Current Trends in Concurrency: Overviews and Tutorials},
+  year      = {1986},
+  publisher = {Springer Berlin Heidelberg},
+  address   = {Berlin, Heidelberg},
+  pages     = {510--584},
+  isbn      = {978-3-540-39827-1},
+  doi       = {10.1007/BFb0027047},
+  url       = {https://doi.org/10.1007/BFb0027047}
+}
+
+@article{ModP,
+  author     = {Desai, Ankush and Phanishayee, Amar and Qadeer, Shaz and Seshia, Sanjit A.},
+  title      = {Compositional programming and testing of dynamic distributed systems},
+  year       = {2018},
+  issue_date = {November 2018},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {2},
+  number     = {OOPSLA},
+  url        = {https://doi.org/10.1145/3276529},
+  doi        = {10.1145/3276529},
+  abstract   = {A real-world distributed system is rarely implemented as a standalone monolithic system. Instead, it is composed of multiple independent interacting components that together ensure the desired system-level specification. One can scale systematic testing to large, industrial-scale implementations by decomposing the system-level testing problem into a collection of simpler component-level testing problems.  This paper proposes techniques for compositional programming and testing of distributed systems with two central contributions: (1) We propose a module system based on the theory of compositional trace refinement for dynamic systems consisting of asynchronously-communicating state machines, where state machines can be dynamically created, and communication topology of the existing state machines can change at runtime; (2) We present ModP, a programming system that implements our module system to enable compositional reasoning (assume-guarantee) of distributed systems.  We demonstrate the efficacy of our framework by building two practical fault-tolerant distributed systems, a transaction-commit service and a replicated hash-table. ModP helps implement these systems modularly and validate them via compositional testing. We empirically demonstrate that the abstraction-based compositional reasoning approach helps amplify the coverage during testing and scale it to real-world distributed systems. The distributed services built using ModP achieve performance comparable to open-source equivalents.},
+  journal    = {Proc. ACM Program. Lang.},
+  month      = oct,
+  articleno  = {159},
+  numpages   = {30},
+  keywords   = {systematic testing, module system, event-driven programming, domain-specific language, distributed systems, compositional verification, actors}
+}
+
+@article{MessageChain,
+  author     = {Mora, Federico and Desai, Ankush and Polgreen, Elizabeth and Seshia, Sanjit A.},
+  title      = {Message Chains for Distributed System Verification},
+  year       = {2023},
+  issue_date = {October 2023},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {7},
+  number     = {OOPSLA2},
+  url        = {https://doi.org/10.1145/3622876},
+  doi        = {10.1145/3622876},
+  abstract   = {Verification of asynchronous distributed programs is challenging due to the need to reason about numerous control paths resulting from the myriad interleaving of messages and failures. In this paper, we propose an automated bookkeeping method based on message chains. Message chains reveal structure in asynchronous distributed system executions and can help programmers verify their systems at the message passing level of abstraction. To evaluate our contributions empirically we build a verification prototype for the P programming language that integrates message chains. We use it to verify 16 benchmarks from related work, one new benchmark that exemplifies the kinds of systems our method focuses on, and two industrial benchmarks. We find that message chains are able to simplify existing proofs and our prototype performs comparably to existing work in terms of runtime. We extend our work with support for specification mining and find that message chains provide enough structure to allow existing learning and program synthesis tools to automatically infer meaningful specifications using only execution examples.},
+  journal    = {Proc. ACM Program. Lang.},
+  month      = oct,
+  articleno  = {300},
+  numpages   = {27},
+  keywords   = {Formal verification, distributed systems, message passing}
+}
+
+@incollection{ReactiveSynthesis,
+  title     = {Synthesis of reactive systems},
+  author    = {Finkbeiner, Bernd},
+  booktitle = {Dependable Software Systems Engineering},
+  pages     = {72--98},
+  year      = {2016},
+  publisher = {IOS Press}
+}
+
+
+@inproceedings{SRA,
+  author    = {D'Antoni, Loris
+               and Ferreira, Tiago
+               and Sammartino, Matteo
+               and Silva, Alexandra},
+  editor    = {Dillig, Isil
+               and Tasiran, Serdar},
+  title     = {Symbolic Register Automata},
+  booktitle = {Computer Aided Verification},
+  year      = {2019},
+  publisher = {Springer International Publishing},
+  address   = {Cham},
+  pages     = {3--21},
+  abstract  = {Symbolic Finite Automata and Register Automata are two orthogonal extensions of finite automata motivated by real-world problems where data may have unbounded domains. These automata address a demand for a model over large or infinite alphabets, respectively. Both automata models have interesting applications and have been successful in their own right. In this paper, we introduce Symbolic Register Automata, a new model that combines features from both symbolic and register automata, with a view on applications that were previously out of reach. We study their properties and provide algorithms for emptiness, inclusion and equivalence checking, together with experimental results.},
+  isbn      = {978-3-030-25540-4}
+}
+
+@misc{SREM,
+  title         = {Symbolic Register Automata for Complex Event Recognition and Forecasting},
+  author        = {Elias Alevizos and Alexander Artikis and Georgios Paliouras},
+  year          = {2021},
+  eprint        = {2110.04032},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.FL},
+  url           = {https://arxiv.org/abs/2110.04032}
+}
+
+
+
+@inproceedings{JO94,
+  author    = {Hatcliff, John and Danvy, Olivier},
+  title     = {{A Generic Account of Continuation-Passing Styles}},
+  year      = {1994},
+  isbn      = {0897916360},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/174675.178053},
+  doi       = {10.1145/174675.178053},
+  booktitle = {Proceedings of the 21st ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages},
+  pages     = {458–471},
+  numpages  = {14},
+  location  = {Portland, Oregon, USA},
+  series    = {POPL '94}
+}
+
+@inproceedings{10.1145/1706299.1706331,
+  author    = {Nanevski, Aleksandar and Vafeiadis, Viktor and Berdine, Josh},
+  title     = {{Structuring the Verification of Heap-Manipulating Programs}},
+  year      = {2010},
+  isbn      = {9781605584799},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/1706299.1706331},
+  doi       = {10.1145/1706299.1706331},
+  abstract  = {Most systems based on separation logic consider only restricted forms of implication or non-separating conjunction, as full support for these connectives requires a non-trivial notion of variable context, inherited from the logic of bunched implications (BI). We show that in an expressive type theory such as Coq, one can avoid the intricacies of BI, and support full separation logic very efficiently, using the native structuring primitives of the type theory.Our proposal uses reflection to enable equational reasoning about heaps, and Hoare triples with binary postconditions to further facilitate it. We apply these ideas to Hoare Type Theory, to obtain a new proof technique for verification of higher-order imperative programs that is general, extendable, and supports very short proofs, even without significant use of automation by tactics. We demonstrate the usability of the technique by verifying the fast congruence closure algorithm of Nieuwenhuis and Oliveras, employed in the state-of-the-art Barcelogic SAT solver.},
+  booktitle = {Proceedings of the 37th Annual ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages},
+  pages     = {261–274},
+  numpages  = {14},
+  keywords  = {monads, type theory, separation logic, hoare logic},
+  location  = {Madrid, Spain},
+  series    = {POPL '10}
+}
+
+@article{SFA-minimization,
+  author     = {D'Antoni, Loris and Veanes, Margus},
+  title      = {{Minimization of Symbolic Automata}},
+  year       = {2014},
+  issue_date = {January 2014},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {49},
+  number     = {1},
+  issn       = {0362-1340},
+  url        = {https://doi.org/10.1145/2578855.2535849},
+  doi        = {10.1145/2578855.2535849},
+  abstract   = {Symbolic Automata extend classical automata by using symbolic alphabets instead of finite ones. Most of the classical automata algorithms rely on the alphabet being finite, and generalizing them to the symbolic setting is not a trivial task. In this paper we study the problem of minimizing symbolic automata. We formally define and prove the basic properties of minimality in the symbolic setting, and lift classical minimization algorithms (Huffman-Moore's and Hopcroft's algorithms) to symbolic automata. While Hopcroft's algorithm is the fastest known algorithm for DFA minimization, we show how, in the presence of symbolic alphabets, it can incur an exponential blowup. To address this issue, we introduce a new algorithm that fully benefits from the symbolic representation of the alphabet and does not suffer from the exponential blowup. We provide comprehensive performance evaluation of all the algorithms over large benchmarks and against existing state-of-the-art implementations. The experiments show how the new symbolic algorithm is faster than previous implementations.},
+  journal    = {SIGPLAN Not.},
+  month      = {Jan},
+  pages      = {541–553},
+  numpages   = {13},
+  keywords   = {minimization, symbolic automata}
+}
+
+
+
+@inproceedings{SFA-Transducers,
+  title        = {{The Power of Symbolic Automata and Transducers}},
+  author       = {D’Antoni, Loris and Veanes, Margus},
+  booktitle    = {Computer Aided Verification},
+  pages        = {47--67},
+  year         = {2017},
+  organization = {Springer}
+}
+
+@article{Temporal-Verification,
+  author     = {Sekiyama, Taro and Unno, Hiroshi},
+  title      = {{Temporal Verification with Answer-Effect Modification: Dependent Temporal Type-and-Effect System with Delimited Continuations}},
+  year       = {2023},
+  issue_date = {January 2023},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {7},
+  number     = {POPL},
+  url        = {https://doi.org/10.1145/3571264},
+  doi        = {10.1145/3571264},
+  abstract   = {Type-and-effect systems are a widely used approach to program verification, verifying the result of a computation using types, and its behavior using effects. This paper extends an effect system for verifying temporal, value-dependent properties on event sequences yielded by programs, to the delimited control operators shift0/reset0. While these delimited control operators enable useful and powerful programming techniques, they hinder reasoning about the behavior of programs because of their ability to suspend, resume, discard, and duplicate delimited continuations. This problem is more serious in effect systems for temporal properties because these systems must be capable of identifying what event sequences are yielded by captured continuations. Our key observation for achieving effective reasoning in the presence of the delimited control operators is that their use modifies answer effects, which are temporal effects of the continuations. Based on this observation, we extend an effect system for temporal verification to accommodate answer-effect modification. Allowing answer-effect modification enables easily reasoning about traces that captured continuations yield. Another novel feature of our effect system is the support for dependently typed continuations, which allows us to reason about programs more precisely. We prove soundness of the effect system for finite event sequences via type safety and that for infinite event sequences using a logical relation.},
+  journal    = {Proc. ACM Program. Lang.},
+  month      = {jan},
+  articleno  = {71},
+  numpages   = {32},
+  keywords   = {type-and-effect system, delimited continuations, temporal verification, answer-effect modification}
+}
+
+@article{Quantales,
+  author     = {Gordon, Colin S.},
+  title      = {{Polymorphic Iterable Sequential Effect Systems}},
+  year       = {2021},
+  issue_date = {March 2021},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {43},
+  number     = {1},
+  issn       = {0164-0925},
+  url        = {https://doi.org/10.1145/3450272},
+  doi        = {10.1145/3450272},
+  abstract   = {Effect systems are lightweight extensions to type systems that can verify a wide range of important properties with modest developer burden. But our general understanding of effect systems is limited primarily to systems where the order of effects is irrelevant. Understanding such systems in terms of a semilattice of effects grounds understanding of the essential issues and provides guidance when designing new effect systems. By contrast, sequential effect systems—where the order of effects is important—lack an established algebraic structure on effects.We present an abstract polymorphic effect system parameterized by an effect quantale—an algebraic structure with well-defined properties that can model the effects of a range of existing sequential effect systems. We define effect quantales, derive useful properties, and show how they cleanly model a variety of known sequential effect systems.We show that for most effect quantales, there is an induced notion of iterating a sequential effect; that for systems we consider the derived iteration agrees with the manually designed iteration operators in prior work; and that this induced notion of iteration is as precise as possible when defined. We also position effect quantales with respect to work on categorical semantics for sequential effect systems, clarifying the distinctions between these systems and our own in the course of giving a thorough survey of these frameworks. Our derived iteration construct should generalize to these semantic structures, addressing limitations of that work. Finally, we consider the relationship between sequential effects and Kleene Algebras, where the latter may be used as instances of the former.},
+  journal    = {ACM Trans. Program. Lang. Syst.},
+  month      = {apr},
+  articleno  = {4},
+  numpages   = {79},
+  keywords   = {polymorphism, effect systems, quantales, Type systems}
+}
+
+
+
+@article{HTT-2010,
+  author     = {Nanevski, Aleksandar and Vafeiadis, Viktor and Berdine, Josh},
+  title      = {{Structuring the Verification of Heap-Manipulating Programs}},
+  year       = {2010},
+  issue_date = {January 2010},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {45},
+  number     = {1},
+  issn       = {0362-1340},
+  url        = {https://doi.org/10.1145/1707801.1706331},
+  doi        = {10.1145/1707801.1706331},
+  abstract   = {Most systems based on separation logic consider only restricted forms of implication or non-separating conjunction, as full support for these connectives requires a non-trivial notion of variable context, inherited from the logic of bunched implications (BI). We show that in an expressive type theory such as Coq, one can avoid the intricacies of BI, and support full separation logic very efficiently, using the native structuring primitives of the type theory.Our proposal uses reflection to enable equational reasoning about heaps, and Hoare triples with binary postconditions to further facilitate it. We apply these ideas to Hoare Type Theory, to obtain a new proof technique for verification of higher-order imperative programs that is general, extendable, and supports very short proofs, even without significant use of automation by tactics. We demonstrate the usability of the technique by verifying the fast congruence closure algorithm of Nieuwenhuis and Oliveras, employed in the state-of-the-art Barcelogic SAT solver.},
+  journal    = {SIGPLAN Not.},
+  month      = {jan},
+  pages      = {261–274},
+  numpages   = {14},
+  keywords   = {separation logic, monads, type theory, hoare logic}
+}
+
+
+
+@inproceedings{Dijkstra-Monads-for-Free,
+  author    = {Ahman, Danel and Hri\c{t}cu, C\u{a}t\u{a}lin and Maillard, Kenji and Mart\'{\i}nez, Guido and Plotkin, Gordon and Protzenko, Jonathan and Rastogi, Aseem and Swamy, Nikhil},
+  title     = {{Dijkstra Monads for Free}},
+  year      = {2017},
+  isbn      = {9781450346603},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/3009837.3009878},
+  doi       = {10.1145/3009837.3009878},
+  abstract  = {Dijkstra monads enable a dependent type theory to be enhanced with support for specifying and verifying effectful code via weakest preconditions. Together with their closely related counterparts, Hoare monads, they provide the basis on which verification tools like F*, Hoare Type Theory (HTT), and Ynot are built. We show that Dijkstra monads can be derived "for free" by applying a continuation-passing style (CPS) translation to the standard monadic definitions of the underlying computational effects. Automatically deriving Dijkstra monads in this way provides a correct-by-construction and efficient way of reasoning about user-defined effects in dependent type theories. We demonstrate these ideas in EMF*, a new dependently typed calculus, validating it via both formal proof and a prototype implementation within F*. Besides equipping F* with a more uniform and extensible effect system, EMF* enables a novel mixture of intrinsic and extrinsic proofs within F*.},
+  booktitle = {Proceedings of the 44th ACM SIGPLAN Symposium on Principles of Programming Languages},
+  pages     = {515–529},
+  numpages  = {15},
+  keywords  = {dependent types, verification, proof assistants, effectful programming},
+  location  = {Paris, France},
+  series    = {POPL '17}
+}
+
+
+
+@inproceedings{FSDF93,
+  author    = {Flanagan, Cormac and Sabry, Amr and Duba, Bruce F. and Felleisen, Matthias},
+  title     = {{The Essence of Compiling with Continuations}},
+  year      = {1993},
+  isbn      = {0897915984},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/155090.155113},
+  doi       = {10.1145/155090.155113},
+  booktitle = {Proceedings of the ACM SIGPLAN 1993 Conference on Programming Language Design and Implementation},
+  pages     = {237–247},
+  numpages  = {11},
+  location  = {Albuquerque, New Mexico, USA},
+  series    = {PLDI '93}
+}
+
+@inproceedings{deline2004typestates,
+  title        = {{Typestates for Objects}},
+  author       = {DeLine, Robert and F{\"a}hndrich, Manuel},
+  booktitle    = {ECOOP 2004--Object-Oriented Programming: 18th European Conference, Oslo, Norway, June 14-18, 2004. Proceedings 18},
+  pages        = {465--490},
+  year         = {2004},
+  doi          = {https://doi.org/10.1007/978-3-540-24851-4_21},
+  organization = {Springer}
+}
+
+@article{bodden2012clara,
+  title     = {{The Clara framework for hybrid typestate analysis}},
+  author    = {Bodden, Eric and Hendren, Laurie},
+  journal   = {International Journal on Software Tools for Technology Transfer},
+  volume    = {14},
+  pages     = {307--326},
+  year      = {2012},
+  dot       = {https://doi.org/10.1007/s10009-010-0183-5},
+  publisher = {Springer}
+}
+
+@book{okasaki1999purely,
+  author    = {Okasaki, Chris},
+  title     = {{Purely Functional Data Structures}},
+  year      = {1999},
+  isbn      = {0521663504},
+  publisher = {Cambridge University Press},
+  address   = {USA},
+  abstract  = {From the Publisher:Most books on data structures assume an imperative language like
+               C or C++. However, data structures for these languages do not always translate well
+               to functional languages such as Standard ML, Haskell, or Scheme. This book describes
+               data structures from the point of view of functional languages, with examples, and
+               presents design techniques so that programmers can develop their own functional data
+               structures. It includes both classical data structures, such as red-black trees and
+               binomial queues, and a host of new data structures developed exclusively for functional
+               languages. All source code is given in Standard ML and Haskell, and most of the programs
+               can easily be adapted to other functional languages. This handy reference for professional
+               programmers working with functional languages can also be used as a tutorial or for
+               self-study.}
+}
+
+@inproceedings{DependentWebProgramming,
+  author    = {Fowler, Simon and Brady, Edwin},
+  title     = {{Dependent Types for Safe and Secure Web Programming}},
+  year      = {2013},
+  isbn      = {9781450329880},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/2620678.2620683},
+  doi       = {10.1145/2620678.2620683},
+  abstract  = {Dependently-typed languages allow precise types to be used during development, facilitating static reasoning about program behaviour. However, with the use of more specific types comes the disadvantage that it becomes increasingly difficult to write programs that are accepted by a type checker, meaning additional proofs may have to be specified manually.Embedded domain-specific languages (EDSLs) can help address this problem by introducing a layer of abstraction over more precise underlying types, allowing domain-specific code to be written in a verified high-level language without imposing additional proof obligations on an application developer.In this paper, we apply this technique to web programming. Using the dependently typed programming language Idris, we show how to use EDSLs to enforce resource usage protocols associated with common web operations such as CGI, database access and session handling. We also introduce an EDSL which uses dependent types to facilitate the creation and handling of web forms, reducing the scope for programmer error and possible security implications.},
+  booktitle = {Proceedings of the 25th Symposium on Implementation and Application of Functional Languages},
+  pages     = {49–60},
+  numpages  = {12},
+  keywords  = {Dependent Types, Verification, Web Applications},
+  location  = {Nijmegen, Netherlands},
+  series    = {IFL '13}
+}
+
+@inproceedings{DatabaseBenchmarksFromAshish,
+  title     = {{On the Automated Verification of Web Applications with Embedded SQL}},
+  author    = {Shachar Itzhaky and Tomer Kotek and Noam Rinetzky and Mooly Sagiv and Orr Tamir and Helmut Veith and Florian Zuleger},
+  year      = {2017},
+  month     = mar,
+  day       = {1},
+  doi       = {10.4230/LIPIcs.ICDT.2017.16},
+  series    = {Leibniz International Proceedings in Informatics, LIPIcs},
+  publisher = {Schloss Dagstuhl- Leibniz-Zentrum fur Informatik GmbH, Dagstuhl Publishing},
+  editor    = {Giorgio Orsi and Michael Benedikt},
+  booktitle = {20th International Conference on Database Theory, ICDT 2017}
+}
+
+@phdthesis{Matija-Pretnar-Thesis,
+  author    = {Matija Pretnar},
+  title     = {{Logic and Handling of Algebraic Effects}},
+  school    = {University of Edinburgh, {UK}},
+  year      = {2010},
+  url       = {https://hdl.handle.net/1842/4611},
+  timestamp = {Wed, 04 May 2022 12:59:07 +0200},
+  biburl    = {https://dblp.org/rec/phd/ethos/Pretnar10.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@article{JV21,
+  author    = {Ranjit Jhala and
+               Niki Vazou},
+  title     = {{Refinement Types: {A} Tutorial}},
+  journal   = {Found. Trends Program. Lang.},
+  volume    = {6},
+  number    = {3-4},
+  pages     = {159--317},
+  year      = {2021},
+  url       = {https://doi.org/10.1561/2500000032},
+  doi       = {10.1561/2500000032},
+  timestamp = {Fri, 15 Oct 2021 14:43:06 +0200},
+  biburl    = {https://dblp.org/rec/journals/ftpl/JhalaV21.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+
+@article{epr,
+  author  = { Rusika Piskac, Leonardo de Moura, Nikolaj Bjørner},
+  title   = {{Deciding Effectively Propositional Logic Using DPLL and Substitution Sets}},
+  journal = {Journal of  Automated Reasoning},
+  volume  = 44,
+  pages   = {401–424},
+  year    = 2010
+}
+
+
+@article{JPB+19,
+  author     = {Jangda, Abhinav and Pinckney, Donald and Brun, Yuriy and Guha, Arjun},
+  title      = {{Formal Foundations of Serverless Computing}},
+  year       = {2019},
+  issue_date = {October 2019},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {3},
+  number     = {OOPSLA},
+  url        = {https://doi.org/10.1145/3360575},
+  doi        = {10.1145/3360575},
+  journal    = {Proc. ACM Program. Lang.},
+  month      = {oct},
+  articleno  = {149},
+  numpages   = {26}
+}
+
+@inproceedings{VBM10,
+  author    = {Veanes, Margus and Bj{\o}rner, Nikolaj and de Moura, Leonardo},
+  editor    = {Ferm{\"u}ller, Christian G.and Voronkov, Andrei},
+  title     = {{Symbolic Automata Constraint Solving}},
+  booktitle = {Logic for Programming, Artificial Intelligence, and Reasoning},
+  year      = {2010},
+  publisher = {Springer Berlin Heidelberg},
+  address   = {Berlin, Heidelberg},
+  pages     = {640--654}
+}
+
+@article{LiquidHaskell,
+  author     = {Vazou, Niki and Seidel, Eric L. and Jhala, Ranjit and Vytiniotis, Dimitrios and Peyton-Jones, Simon},
+  title      = {{Refinement Types for Haskell}},
+  year       = {2014},
+  issue_date = {September 2014},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {49},
+  number     = {9},
+  issn       = {0362-1340},
+  url        = {https://doi.org/10.1145/2692915.2628161},
+  doi        = {10.1145/2692915.2628161},
+  journal    = {SIGPLAN Not.},
+  month      = {aug},
+  pages      = {269–282},
+  numpages   = {14}
+}
+
+@book{FStar,
+  title  = {{Proof-Oriented Programming in F*}},
+  author = {Nikhil Swamy and Guido Martinez and Aseem Rastogi},
+  year   = 2023,
+  url    = {https://fstar-lang.org/tutorial/proof-oriented-programming-in-fstar.pdf}
+}
+
+@article{NMB08,
+  author    = {Aleksandar Nanevski and
+               J. Gregory Morrisett and
+               Lars Birkedal},
+  title     = {{Hoare Type Theory, Polymorphism and Separation}},
+  journal   = {J. Funct. Program.},
+  volume    = {18},
+  number    = {5-6},
+  pages     = {865--911},
+  year      = {2008},
+  url       = {https://doi.org/10.1017/S0956796808006953},
+  doi       = {10.1017/S0956796808006953},
+  timestamp = {Wed, 14 Nov 2018 10:38:38 +0100},
+  biburl    = {https://dblp.org/rec/journals/jfp/NanevskiMB08.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@inproceedings{NMS+08,
+  author    = {Aleksandar Nanevski and
+               Greg Morrisett and
+               Avraham Shinnar and
+               Paul Govereau and
+               Lars Birkedal},
+  editor    = {James Hook and
+               Peter Thiemann},
+  title     = {{Ynot: Dependent Types for Imperative Programs}},
+  booktitle = {Proceeding of the 13th {ACM} {SIGPLAN} international conference on
+               Functional programming, {ICFP} 2008, Victoria, BC, Canada, September
+               20-28, 2008},
+  pages     = {229--240},
+  publisher = {{ACM}},
+  year      = {2008},
+  url       = {https://doi.org/10.1145/1411204.1411237},
+  doi       = {10.1145/1411204.1411237},
+  timestamp = {Fri, 25 Jun 2021 14:48:54 +0200},
+  biburl    = {https://dblp.org/rec/conf/icfp/NanevskiMSGB08.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@article{MAA+19,
+  author     = {Maillard, Kenji and Ahman, Danel and Atkey, Robert
+                and Mart\'{\i}nez, Guido and Hri\c{t}cu, C\u{a}t\u{a}lin and Rivas,
+                Exequiel and Tanter, \'{E}ric},
+  title      = {{Dijkstra Monads for All}},
+  year       = {2019},
+  issue_date = {August 2019},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {3},
+  number     = {ICFP},
+  url        = {https://doi.org/10.1145/3341708},
+  doi        = {10.1145/3341708},
+  journal    = {Proc. ACM Program. Lang.},
+  month      = {jul},
+  articleno  = {104},
+  numpages   = {29}
+}
+
+
+@inproceedings{SW+13,
+  author    = {Nikhil Swamy and
+               Joel Weinberger and
+               Cole Schlesinger and
+               Juan Chen and
+               Benjamin Livshits},
+  editor    = {Hans{-}Juergen Boehm and
+               Cormac Flanagan},
+  title     = {{Verifying Higher-Order Programs with the Dijkstra Monad}},
+  booktitle = {{ACM} {SIGPLAN} Conference on Programming Language Design and Implementation,
+               {PLDI} '13, Seattle, WA, USA, June 16-19, 2013},
+  pages     = {387--398},
+  publisher = {{ACM}},
+  year      = {2013},
+  url       = {https://doi.org/10.1145/2491956.2491978},
+  doi       = {10.1145/2491956.2491978},
+  timestamp = {Thu, 03 Sep 2020 16:02:23 +0200},
+  biburl    = {https://dblp.org/rec/conf/pldi/SwamyWSCL13.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@article{TV19,
+  author     = {Thiemann, Peter and Vasconcelos, Vasco T.},
+  title      = {{Label-Dependent Session Types}},
+  year       = {2019},
+  issue_date = {January 2020},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {4},
+  number     = {POPL},
+  url        = {https://doi.org/10.1145/3371135},
+  doi        = {10.1145/3371135},
+  journal    = {Proc. ACM Program. Lang.},
+  month      = {dec},
+  articleno  = {67},
+  numpages   = {29}
+}
+
+
+@inproceedings{TCP11,
+  author    = {Toninho, Bernardo and Caires, Lu\'{\i}s and Pfenning, Frank},
+  title     = {{Dependent Session Types via Intuitionistic Linear Type Theory}},
+  year      = {2011},
+  isbn      = {9781450307765},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/2003476.2003499},
+  doi       = {10.1145/2003476.2003499},
+  booktitle = {Proceedings of the 13th International ACM SIGPLAN Symposium on Principles and Practices of Declarative Programming},
+  pages     = {161–172},
+  numpages  = {12}
+}
+
+
+@inproceedings{BMV12,
+  author    = {Pedro Baltazar and
+               Dimitris Mostrous and
+               Vasco Thudichum Vasconcelos},
+  editor    = {Sandra Alves and
+               Ian Mackie},
+  title     = {{Linearly Refined Session Types}},
+  booktitle = {Proceedings 2nd International Workshop on Linearity, {LINEARITY} 2012,
+               Tallinn, Estonia, 1 April 2012},
+  series    = {{EPTCS}},
+  volume    = {101},
+  pages     = {38--49},
+  year      = {2012},
+  url       = {https://doi.org/10.4204/EPTCS.101.4},
+  doi       = {10.4204/EPTCS.101.4},
+  timestamp = {Wed, 12 Sep 2018 01:05:14 +0200},
+  biburl    = {https://dblp.org/rec/journals/corr/abs-1211-4099.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@inproceedings{TCP21,
+  author    = {Bernardo Toninho and
+               Lu{\'{\i}}s Caires and
+               Frank Pfenning},
+  editor    = {Niccol{\`{o}} Veltri and
+               Nick Benton and
+               Silvia Ghilezan},
+  title     = {{A Decade of Dependent Session Types}},
+  booktitle = {{PPDP} 2021: 23rd International Symposium on Principles and Practice
+               of Declarative Programming, Tallinn, Estonia, September 6-8, 2021},
+  pages     = {3:1--3:3},
+  publisher = {{ACM}},
+  year      = {2021},
+  url       = {https://doi.org/10.1145/3479394.3479398},
+  doi       = {10.1145/3479394.3479398},
+  timestamp = {Tue, 21 Mar 2023 21:03:02 +0100},
+  biburl    = {https://dblp.org/rec/conf/ppdp/ToninhoCP21.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@inproceedings{de2008z3,
+  author    = {de Moura, Leonardo
+               and Bj{\o}rner, Nikolaj},
+  editor    = {Ramakrishnan, C. R.
+               and Rehof, Jakob},
+  title     = {{Z3: An Efficient SMT Solver}},
+  booktitle = {Tools and Algorithms for the Construction and Analysis of Systems},
+  year      = {2008},
+  doi       = {10.1007/978-3-540-78800-3_24},
+  publisher = {Springer Berlin Heidelberg},
+  address   = {Berlin, Heidelberg},
+  pages     = {337--340},
+  abstract  = {Satisfiability Modulo Theories (SMT) problem is a decision problem for logical first order formulas with respect to combinations of background theories such as: arithmetic, bit-vectors, arrays, and uninterpreted functions. Z3 is a new and efficient SMT Solver freely available from Microsoft Research. It is used in various software verification and analysis applications.},
+  isbn      = {978-3-540-78800-3}
+}
+
+@inproceedings{KT+14,
+  author    = {Koskinen, Eric and Terauchi, Tachio},
+  title     = {Local Temporal Reasoning},
+  year      = {2014},
+  isbn      = {9781450328869},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/2603088.2603138},
+  doi       = {10.1145/2603088.2603138},
+  abstract  = {We present the first method for reasoning about temporal
+               logic properties of higher-order, infinite-data
+               programs. By distinguishing between the finite
+               traces and infinite traces in the specification, we
+               obtain rules that permit us to reason about the
+               temporal behavior of program parts via a
+               type-and-effect system, which is then able to
+               compose these facts together to prove the overall
+               target property of the program. The type system
+               alone is strong enough to derive many temporal
+               safety properties using refinement types and
+               temporal effects. We also show how existing
+               techniques can be used as oracles to provide
+               liveness information (e.g. termination) about
+               program parts and that the type-and-effect system
+               can combine this information with temporal safety
+               information to derive nontrivial temporal
+               properties. Our work has application toward
+               verification of higher-order software, as well as
+               modular strategies for procedural programs.},
+  booktitle = {Proceedings of the Joint Meeting of the Twenty-Third EACSL Annual Conference on Computer Science Logic (CSL) and the Twenty-Ninth Annual ACM/IEEE Symposium on Logic in Computer Science (LICS)},
+  articleno = {59},
+  numpages  = {10},
+  keywords  = {temporal logic, formal verification, model checking, higher-order programs, program analysis},
+  location  = {Vienna, Austria},
+  series    = {CSL-LICS '14}
+}
+
+@inproceedings{NUKT+18,
+  author    = {Nanjo, Yoji and Unno, Hiroshi and Koskinen, Eric and Terauchi, Tachio},
+  title     = {{A Fixpoint Logic and Dependent Effects for Temporal Property Verification}},
+  year      = {2018},
+  isbn      = {9781450355834},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/3209108.3209204},
+  doi       = {10.1145/3209108.3209204},
+  abstract  = {Existing approaches to temporal verification of higher-order functional programs have either sacrificed compositionality in favor of achieving automation or vice-versa. In this paper we present a dependent-refinement type \& effect system to ensure that well-typed programs satisfy given temporal properties, and also give an algorithmic approach---based on deductive reasoning over a fixpoint logic---to typing in this system. The first contribution is a novel type-and-effect system capable of expressing dependent temporal effects, which are fixpoint logic predicates on event sequences and program values, extending beyond the (non-dependent) temporal effects used in recent proposals. Temporal effects facilitate compositional reasoning whereby the temporal behavior of program parts are summarized as effects and combined to form those of the larger parts. As a second contribution, we show that type checking and typability for the type system can be reduced to solving first-order fixpoint logic constraints. Finally, we present a novel deductive system for solving such constraints. The deductive system consists of rules for reasoning via invariants and well-founded relations, and is able to reduce formulas containing both least and greatest fixpoints to predicate-based reasoning.},
+  booktitle = {Proceedings of the 33rd Annual ACM/IEEE Symposium on Logic in Computer Science},
+  pages     = {759–768},
+  numpages  = {10},
+  keywords  = {dependent refinement types, temporal verification, higher-order programs, dependent temporal effects, fixpoint logic},
+  location  = {Oxford, United Kingdom},
+  series    = {LICS '18}
+}
+
+@software{quickCheck,
+  title  = {{QuickCheck}},
+  author = {Koen Claessen},
+  url    = {https://hackage.haskell.org/package/QuickCheck},
+  year   = {2020}
+}
+
+
+@article{BidirectionalTyping,
+  author     = {Dunfield, Jana and Krishnaswami, Neel},
+  title      = {{Bidirectional Typing}},
+  year       = {2021},
+  issue_date = {June 2022},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {54},
+  number     = {5},
+  issn       = {0360-0300},
+  url        = {https://doi.org/10.1145/3450952},
+  doi        = {10.1145/3450952},
+  abstract   = {Bidirectional typing combines two modes of typing: type checking, which checks that a program satisfies a known type, and type synthesis, which determines a type from the program. Using checking enables bidirectional typing to support features for which inference is undecidable; using synthesis enables bidirectional typing to avoid the large annotation burden of explicitly typed languages. In addition, bidirectional typing improves error locality. We highlight the design principles that underlie bidirectional type systems, survey the development of bidirectional typing from the prehistoric period before Pierce and Turner’s local type inference to the present day, and provide guidance for future investigations.},
+  journal    = {ACM Comput. Surv.},
+  month      = {may},
+  articleno  = {98},
+  numpages   = {38},
+  keywords   = {Type checking, type inference}
+}
+
+@article{ZDDJ21,
+  author    = {Zhe Zhou and
+               Robert Dickerson and
+               Benjamin Delaware and
+               Suresh Jagannathan},
+  title     = {{Data-driven Abductive Inference of Library Specifications}},
+  journal   = {Proc. {ACM} Program. Lang.},
+  volume    = {5},
+  number    = {{OOPSLA}},
+  pages     = {1--29},
+  year      = {2021},
+  url       = {https://doi.org/10.1145/3485493},
+  doi       = {10.1145/3485493},
+  timestamp = {Sat, 08 Jan 2022 02:21:37 +0100},
+  biburl    = {https://dblp.org/rec/journals/pacmpl/ZhouDDJ21.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@article{DeBruijn,
+  title    = {Lambda calculus notation with nameless dummies, a tool for automatic formula manipulation, with application to the Church-Rosser theorem},
+  journal  = {Indagationes Mathematicae (Proceedings)},
+  volume   = {75},
+  number   = {5},
+  pages    = {381-392},
+  year     = {1972},
+  issn     = {1385-7258},
+  doi      = {https://doi.org/10.1016/1385-7258(72)90034-0},
+  url      = {https://www.sciencedirect.com/science/article/pii/1385725872900340},
+  author   = {N.G {de Bruijn}},
+  abstract = {In ordinary lambda calculus the occurrences of a bound variable are made recognizable by the use of one and the same (otherwise irrelevant) name at all occurrences. This convention is known to cause considerable trouble in cases of substitution. In the present paper a different notational system is developed, where occurrences of variables are indicated by integers giving the “distance” to the binding λ instead of a name attached to that λ. The system is claimed to be efficient for automatic formula manipulation as well as for metalingual discussion. As an example the most essential part of a proof of the Church-Rosser theorem is presented in this namefree calculus.}
+}
+
+@article{MonkeyDB,
+  author     = {Biswas, Ranadeep and Kakwani, Diptanshu and Vedurada, Jyothi and Enea, Constantin and Lal, Akash},
+  title      = {MonkeyDB: effectively testing correctness under weak isolation levels},
+  year       = {2021},
+  issue_date = {October 2021},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {5},
+  number     = {OOPSLA},
+  url        = {https://doi.org/10.1145/3485546},
+  doi        = {10.1145/3485546},
+  abstract   = {Modern applications, such as social networking systems and e-commerce platforms are centered around using large-scale storage systems for storing and retrieving data. In the presence of concurrent accesses, these storage systems trade off isolation for performance. The weaker the isolation level, the more behaviors a storage system is allowed to exhibit and it is up to the developer to ensure that their application can tolerate those behaviors. However, these weak behaviors only occur rarely in practice and outside the control of the application, making it difficult for developers to test the robustness of their code against weak isolation levels.  This paper presents MonkeyDB, a mock storage system for testing storage-backed applications. MonkeyDB supports a key-value interface as well as SQL queries under multiple isolation levels. It uses a logical specification of the isolation level to compute, on a read operation, the set of all possible return values. MonkeyDB then returns a value randomly from this set. We show that MonkeyDB provides good coverage of weak behaviors, which is complete in the limit. We test a variety of applications for assertions that fail only under weak isolation. MonkeyDB is able to break each of those assertions in a small number of attempts.},
+  journal    = {Proc. ACM Program. Lang.},
+  month      = oct,
+  articleno  = {132},
+  numpages   = {27},
+  keywords   = {Weak Isolation Levels, Transactional Databases, Testing, Applications of Storage Systems}
+}
+
+@inproceedings{Eff,
+  author    = {Bauer, Andrej
+               and Pretnar, Matija},
+  editor    = {Heckel, Reiko
+               and Milius, Stefan},
+  title     = {{An Effect System for Algebraic Effects and Handlers}},
+  booktitle = {Algebra and Coalgebra in Computer Science},
+  year      = {2013},
+  publisher = {Springer Berlin Heidelberg},
+  address   = {Berlin, Heidelberg},
+  pages     = {1--16},
+  abstract  = {We present an effect system for algebraic effects and
+               handlers. Because handlers may transform an
+               effectful computation into a pure one, the effect
+               system is non-monotone in the sense that effects do
+               not just accumulate, but may also be deleted from
+               types or generally transformed. We also provide
+               denotational semantics for the effect system, based
+               on a domain-theoretic model with partial equivalence
+               relations. The semantics validates equational
+               reasoning about effectful computations.},
+  isbn      = {978-3-642-40206-7}
+}
+
+@misc{Java,
+  key   = {Java},
+  title = {Java Platform Standard Edition 7 Documentation.},
+  year  = {2013},
+  url   = {https://docs.oracle.com/javase/7/docs/}
+}
+
+@inproceedings{EffectSystem,
+  author    = {Gifford, David K. and Lucassen, John M.},
+  title     = {{Integrating Functional and Imperative Programming}},
+  year      = {1986},
+  isbn      = {0897912004},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/319838.319848},
+  doi       = {10.1145/319838.319848},
+  booktitle = {Proceedings of the 1986 ACM Conference on LISP and Functional Programming},
+  pages     = {28–38},
+  numpages  = {11},
+  location  = {Cambridge, Massachusetts, USA},
+  series    = {LFP '86}
+}
+
+@article{ABHI+08,
+  author     = {Abadi, Mart\'{\i}n and Birrell, Andrew and Harris, Tim and Isard, Michael},
+  title      = {{Semantics of Transactional Memory and Automatic Mutual Exclusion}},
+  year       = {2011},
+  issue_date = {January 2011},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {33},
+  number     = {1},
+  issn       = {0164-0925},
+  url        = {https://doi.org/10.1145/1889997.1889999},
+  doi        = {10.1145/1889997.1889999},
+  abstract   = {Software Transactional Memory (STM) is an attractive basis for the development of language features for concurrent programming. However, the semantics of these features can be delicate and problematic. In this article we explore the trade-offs semantic simplicity, the viability of efficient implementation strategies, and the flexibility of language constructs. Specifically, we develop semantics and type systems for the constructs of the Automatic Mutual Exclusion (AME) programming model; our results apply also to other constructs, such as atomic blocks. With this semantics as a point of reference, we study several implementation strategies. We model STM systems that use in-place update, optimistic concurrency, lazy conflict detection, and rollback. These strategies are correct only under nontrivial assumptions that we identify and analyze. One important source of errors is that some efficient implementations create dangerous “zombie” computations where a transaction keeps running after experiencing a conflict; the assumptions confine the effects of these computations.},
+  journal    = {ACM Trans. Program. Lang. Syst.},
+  month      = {jan},
+  articleno  = {2},
+  numpages   = {50},
+  keywords   = {Atomicity, correctness}
+}
+
+@article{10.1145/2480359.2429074,
+  author     = {Tate, Ross},
+  title      = {{The Sequential Semantics of Producer Effect Systems}},
+  year       = {2013},
+  issue_date = {January 2013},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {48},
+  number     = {1},
+  issn       = {0362-1340},
+  url        = {https://doi.org/10.1145/2480359.2429074},
+  doi        = {10.1145/2480359.2429074},
+  abstract   = {Effects are fundamental to programming languages. Even the lambda calculus has effects, and consequently the two famous evaluation strategies produce different semantics. As such, much research has been done to improve our understanding of effects. Since Moggi introduced monads for his computational lambda calculus, further generalizations have been designed to formalize increasingly complex computational effects, such as indexed monads followed by layered monads followed by parameterized monads. This succession prompted us to determine the most general formalization possible. In searching for this formalization we came across many surprises, such as the insufficiencies of arrows, as well as many unexpected insights, such as the importance of considering an effect as a small component of a whole system rather than just an isolated feature. In this paper we present our semantic formalization for producer effect systems, which we call a productor, and prove its maximal generality by focusing on only sequential composition of effectful computations, consequently guaranteeing that the existing monadic techniques are specializations of productors.},
+  journal    = {SIGPLAN Not.},
+  month      = {jan},
+  pages      = {15–26},
+  numpages   = {12},
+  keywords   = {effectors, monads, productors, effects, thunks}
+}
+
+@inproceedings{Tate+13,
+  author    = {Tate, Ross},
+  title     = {{The Sequential Semantics of Producer Effect Systems}},
+  year      = {2013},
+  isbn      = {9781450318327},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/2429069.2429074},
+  doi       = {10.1145/2429069.2429074},
+  abstract  = {Effects are fundamental to programming languages. Even the
+               lambda calculus has effects, and consequently the
+               two famous evaluation strategies produce different
+               semantics. As such, much research has been done to
+               improve our understanding of effects. Since Moggi
+               introduced monads for his computational lambda
+               calculus, further generalizations have been designed
+               to formalize increasingly complex computational
+               effects, such as indexed monads followed by layered
+               monads followed by parameterized monads. This
+               succession prompted us to determine the most general
+               formalization possible. In searching for this
+               formalization we came across many surprises, such as
+               the insufficiencies of arrows, as well as many
+               unexpected insights, such as the importance of
+               considering an effect as a small component of a
+               whole system rather than just an isolated
+               feature. In this paper we present our semantic
+               formalization for producer effect systems, which we
+               call a productor, and prove its maximal generality
+               by focusing on only sequential composition of
+               effectful computations, consequently guaranteeing
+               that the existing monadic techniques are
+               specializations of productors.},
+  booktitle = {Proceedings of the 40th Annual ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages},
+  pages     = {15–26},
+  numpages  = {12},
+  keywords  = {effectors, thunks, effects, monads, productors},
+  location  = {Rome, Italy},
+  series    = {POPL '13}
+}
+
+@inproceedings{SS+04,
+  author    = {Skalka, Christian
+               and Smith, Scott},
+  editor    = {Chin, Wei-Ngan},
+  title     = {{History Effects and Verification}},
+  booktitle = {Programming Languages and Systems},
+  year      = {2004},
+  publisher = {Springer Berlin Heidelberg},
+  address   = {Berlin, Heidelberg},
+  pages     = {107--128},
+  abstract  = {This paper shows how type effect systems can be combined with model-checking techniques to produce powerful, automatically verifiable program logics for higher-order programs. The properties verified are based on the ordered sequence of events that occur during program execution --- an event history. Our type and effect systems automatically infer conservative approximations of the event histories arising at run- time, and model-checking techniques are used to verify logical properties of these histories.},
+  isbn      = {978-3-540-30477-7}
+}
+
+@inproceedings{10.1145/781131.781169,
+  author    = {Flanagan, Cormac and Qadeer, Shaz},
+  title     = {{A Type and Effect System for Atomicity}},
+  year      = {2003},
+  isbn      = {1581136625},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/781131.781169},
+  doi       = {10.1145/781131.781169},
+  abstract  = {Ensuring the correctness of multithreaded programs is difficult, due to the potential for unexpected and nondeterministic interactions between threads. Previous work addressed this problem by devising tools for detecting race conditions, a situation where two threads simultaneously access the same data variable, and at least one of the accesses is a write. However, verifying the absence of such simultaneous-access race conditions is neither necessary nor sufficient to ensure the absence of errors due to unexpected thread interactions.We propose that a stronger non-interference property is required, namely atomicity. Atomic methods can be assumed to execute serially, without interleaved steps of other threads. Thus, atomic methods are amenable to sequential reasoning techniques, which significantly simplifies both formal and informal reasoning about program correctness.This paper presents a type system for specifying and verifying the atomicity of methods in multithreaded Java programs. The atomic type system is a synthesis of Lipton's theory of reduction and type systems for race detection.We have implemented this atomic type system for Java and used it to check a variety of standard Java library classes. The type checker uncovered subtle atomicity violations in classes such as <tt>java.lang.String</tt> and <tt>java.lang.String-Buffer</tt> that cause crashes under certain thread interleavings.This paper proposes that a stronger non-interference property is required, namely atomicity, and presents a type system for verifying the atomicity of methods in multithreaded Java programs. Methods in a class can be annotated with the keyword <tt>atomic</tt>. Clients of a well-typed class can then assume that each atomic method is executed in one step, thus significantly simplifying both formal and informal reasoning about the client's correctness.},
+  booktitle = {Proceedings of the ACM SIGPLAN 2003 Conference on Programming Language Design and Implementation},
+  pages     = {338–349},
+  numpages  = {12},
+  keywords  = {atomicity, static checking, race conditions, multithreading},
+  location  = {San Diego, California, USA},
+  series    = {PLDI '03}
+}
+
+@article{FQ+03,
+  author     = {Flanagan, Cormac and Qadeer, Shaz},
+  title      = {{A Type and Effect System for Atomicity}},
+  year       = {2003},
+  issue_date = {May 2003},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {38},
+  number     = {5},
+  issn       = {0362-1340},
+  url        = {https://doi.org/10.1145/780822.781169},
+  doi        = {10.1145/780822.781169},
+  abstract   = {Ensuring the correctness of multithreaded programs is difficult, due to the potential for unexpected and nondeterministic interactions between threads. Previous work addressed this problem by devising tools for detecting race conditions, a situation where two threads simultaneously access the same data variable, and at least one of the accesses is a write. However, verifying the absence of such simultaneous-access race conditions is neither necessary nor sufficient to ensure the absence of errors due to unexpected thread interactions.We propose that a stronger non-interference property is required, namely atomicity. Atomic methods can be assumed to execute serially, without interleaved steps of other threads. Thus, atomic methods are amenable to sequential reasoning techniques, which significantly simplifies both formal and informal reasoning about program correctness.This paper presents a type system for specifying and verifying the atomicity of methods in multithreaded Java programs. The atomic type system is a synthesis of Lipton's theory of reduction and type systems for race detection.We have implemented this atomic type system for Java and used it to check a variety of standard Java library classes. The type checker uncovered subtle atomicity violations in classes such as <tt>java.lang.String</tt> and <tt>java.lang.String-Buffer</tt> that cause crashes under certain thread interleavings.This paper proposes that a stronger non-interference property is required, namely atomicity, and presents a type system for verifying the atomicity of methods in multithreaded Java programs. Methods in a class can be annotated with the keyword <tt>atomic</tt>. Clients of a well-typed class can then assume that each atomic method is executed in one step, thus significantly simplifying both formal and informal reasoning about the client's correctness.},
+  journal    = {SIGPLAN Not.},
+  month      = {may},
+  pages      = {338–349},
+  numpages   = {12},
+  keywords   = {race conditions, atomicity, static checking, multithreading}
+}
+
+@misc{vocal,
+  topics       = {team},
+  author       = {Arthur Chargu\'eraud and Jean-Christophe Filli{\^a}tre and
+                  M{\'a}rio Pereira and Fran\c{c}ois Pottier},
+  title        = {{VOCAL} -- {A} {V}erified {OC}aml {L}ibrary},
+  howpublished = {ML Family Workshop},
+  month        = {September},
+  year         = {2017},
+  hal          = {https://hal.inria.fr/hal-01561094}
+}
+
+
+@inproceedings{NM+08,
+  author    = {Nanevski, Aleksandar and Morrisett, Greg and Shinnar, Avraham and Govereau, Paul and Birkedal, Lars},
+  title     = {{Ynot: Dependent Types for Imperative Programs}},
+  year      = {2008},
+  isbn      = {9781595939197},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/1411204.1411237},
+  doi       = {10.1145/1411204.1411237},
+  booktitle = {Proceedings of the 13th ACM SIGPLAN International Conference on Functional Programming},
+  pages     = {229–240},
+  numpages  = {12},
+  series    = {ICFP '08}
+}
+
+
+@inproceedings{RKJ10,
+  author    = {Rondon, Patrick Maxim and Kawaguchi, Ming and Jhala, Ranjit},
+  title     = {{Low-Level Liquid Types}},
+  year      = {2010},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/1706299.1706316},
+  doi       = {10.1145/1706299.1706316},
+  booktitle = {Proceedings of the 37th Annual ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages},
+  pages     = {131–144},
+  numpages  = {14}
+}
+
+@inproceedings{SLK+21,
+  author    = {Sammler, Michael and Lepigre, Rodolphe and Krebbers, Robbert and Memarian, Kayvan and Dreyer, Derek and Garg, Deepak},
+  title     = {{RefinedC: Automating the Foundational Verification of C Code with Refined Ownership Types}},
+  year      = {2021},
+  isbn      = {9781450383912},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/3453483.3454036},
+  doi       = {10.1145/3453483.3454036},
+  booktitle = {Proceedings of the 42nd ACM SIGPLAN International Conference on Programming Language Design and Implementation},
+  pages     = {158–174},
+  numpages  = {17},
+  series    = {PLDI 2021}
+}
+
+
+@article{LG+23,
+  author     = {Lehmann, Nico and Geller, Adam T. and Vazou, Niki and Jhala, Ranjit},
+  title      = {{Flux: Liquid Types for Rust}},
+  year       = {2023},
+  issue_date = {June 2023},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {7},
+  number     = {PLDI},
+  url        = {https://doi.org/10.1145/3591283},
+  doi        = {10.1145/3591283}
+}
+
+
+@inproceedings{Hon93,
+  author    = {Honda, Kohei},
+  editor    = {Best, Eike},
+  title     = {{Types for Dyadic Interaction}},
+  booktitle = {CONCUR'93},
+  year      = {1993},
+  publisher = {Springer Berlin Heidelberg},
+  address   = {Berlin, Heidelberg},
+  pages     = {509--523},
+  isbn      = {978-3-540-47968-0}
+}
+
+@inbook{Vasconcelos2009,
+  author    = {Vasconcelos, Vasco T.},
+  editor    = {Bernardo, Marco and Padovani, Luca and Zavattaro, Gianluigi},
+  title     = {{Fundamentals of Session Types}},
+  booktitle = {Formal Methods for Web Services: 9th International School on Formal Methods for the Design of Computer, Communication, and Software Systems, SFM 2009, Bertinoro, Italy, June 1-6, 2009, Advanced Lectures},
+  year      = {2009},
+  publisher = {Springer Berlin Heidelberg},
+  address   = {Berlin, Heidelberg},
+  pages     = {158--186},
+  isbn      = {978-3-642-01918-0},
+  doi       = {10.1007/978-3-642-01918-0_4},
+  url       = {https://doi.org/10.1007/978-3-642-01918-0_4}
+}
+
+
+@inproceedings{HVK98,
+  author    = {Honda, Kohei and Vasconcelos, Vasco T. and Kubo, Makoto},
+  editor    = {Hankin, Chris},
+  title     = {{Language Primitives and Type Discipline for Structured Communication-Based Programming}},
+  booktitle = {Programming Languages and Systems},
+  year      = {1998},
+  publisher = {Springer Berlin Heidelberg},
+  address   = {Berlin, Heidelberg},
+  pages     = {122--138},
+  isbn      = {978-3-540-69722-0}
+}
+
+
+@inproceedings{Vea13,
+  author    = {Veanes, Margus},
+  editor    = {Konstantinidis, Stavros},
+  title     = {{Applications of Symbolic Finite Automata}},
+  booktitle = {Implementation and Application of Automata},
+  year      = {2013},
+  publisher = {Springer Berlin Heidelberg},
+  address   = {Berlin, Heidelberg},
+  pages     = {16--23},
+  isbn      = {978-3-642-39274-0}
+}
+
+@inproceedings{DA14,
+  author    = {D'Antoni, Loris and Alur, Rajeev},
+  editor    = {Biere, Armin
+               and Bloem, Roderick},
+  title     = {{Symbolic Visibly Pushdown Automata}},
+  booktitle = {Computer Aided Verification},
+  year      = {2014},
+  publisher = {Springer International Publishing},
+  address   = {Cham},
+  pages     = {209--225},
+  isbn      = {978-3-319-08867-9}
+}
+
+@inproceedings{MP+07,
+  author    = {Muhammad Zubair Malik and
+               Aman Pervaiz and
+               Sarfraz Khurshid},
+  editor    = {Orna Grumberg and
+               Michael Huth},
+  title     = {{Generating Representation Invariants of Structurally Complex Data}},
+  booktitle = {Tools and Algorithms for the Construction and Analysis of Systems,
+               13th International Conference, {TACAS} 2007, Held as Part of the Joint
+               European Conferences on Theory and Practice of Software, {ETAPS} 2007
+               Braga, Portugal, March 24 - April 1, 2007, Proceedings},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {4424},
+  pages     = {34--49},
+  publisher = {Springer},
+  year      = {2007},
+  url       = {https://doi.org/10.1007/978-3-540-71209-1\_5},
+  doi       = {10.1007/978-3-540-71209-1\_5}
+}
+
+@inproceedings{MP+20,
+  author    = {Anders Miltner and
+               Saswat Padhi and
+               Todd D. Millstein and
+               David Walker},
+  title     = {{Data-driven Inference of Representation Invariants}},
+  booktitle = {Proceedings of the 41st {ACM} {SIGPLAN} International Conference on
+               Programming Language Design and Implementation, {PLDI}},
+  pages     = {1--15},
+  publisher = {{ACM}},
+  year      = {2020},
+  url       = {https://doi.org/10.1145/3385412.3385967},
+  doi       = {10.1145/3385412.3385967}
+}
+
+@article{PP03,
+  author  = {Gordon D. Plotkin and
+             John Power},
+  title   = {{Algebraic Operations and Generic Effects}},
+  journal = {Appl. Categorical Struct.},
+  volume  = {11},
+  number  = {1},
+  pages   = {69--94},
+  year    = {2003},
+  url     = {https://doi.org/10.1023/A:1023064908962},
+  doi     = {10.1023/A:1023064908962}
+}
+
+@inproceedings{PP09,
+  author    = {Gordon D. Plotkin and
+               Matija Pretnar},
+  editor    = {Giuseppe Castagna},
+  title     = {Handlers of Algebraic Effects},
+  booktitle = {Programming Languages and Systems, 18th European Symposium on Programming,
+               {ESOP} 2009, Held as Part of the Joint European Conferences on Theory
+               and Practice of Software, {ETAPS} 2009, York, UK, March 22-29, 2009.
+               Proceedings},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {5502},
+  pages     = {80--94},
+  publisher = {Springer},
+  year      = {2009},
+  url       = {https://doi.org/10.1007/978-3-642-00590-9\_7},
+  doi       = {10.1007/978-3-642-00590-9\_7}
+}
+
+@book{Appel+SF3,
+  author    = {Andrew W. Appel},
+  editor    = {Benjamin C. Pierce},
+  title     = {Verified Functional Algorithms},
+  series    = {Software Foundations},
+  volume    = {3},
+  year      = {2023},
+  publisher = {Electronic textbook},
+  note      = {Version 1.5.3, \url{http://softwarefoundations.cis.upenn.edu} }
+}
+
+@inproceedings{Katsumata+14,
+  author    = {Katsumata, Shin-ya},
+  title     = {Parametric Effect Monads and Semantics of Effect Systems},
+  year      = {2014},
+  isbn      = {9781450325448},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/2535838.2535846},
+  doi       = {10.1145/2535838.2535846},
+  abstract  = {We study fundamental properties of a generalisation of monad called parametric effect monad, and apply it to the interpretation of general effect systems whose effects have sequential composition operators. We show that parametric effect monads admit analogues of the structures and concepts that exist for monads, such as Kleisli triples, the state monad and the continuation monad, Plotkin and Power's algebraic operations, and the categorical ┬┬-lifting. We also show a systematic method to generate both effects and a parametric effect monad from a monad morphism. Finally, we introduce two effect systems with explicit and implicit subeffecting, and discuss their denotational semantics and the soundness of effect systems.},
+  booktitle = {Proceedings of the 41st ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages},
+  pages     = {633–645},
+  numpages  = {13},
+  keywords  = {monad, parametric effect monad, algebrac operation, computational effect, effect system, lax monoidal functor},
+  location  = {San Diego, California, USA},
+  series    = {POPL '14}
+}
+
+@inproceedings{MOP+15,
+  author    = {Mycroft, Alan and Orchard, Dominic and Petricek, Tomas},
+  title     = {Effect Systems Revisited--Control-Flow Algebra and Semantics},
+  year      = {2015},
+  isbn      = {9783319278094},
+  publisher = {Springer-Verlag},
+  address   = {Berlin, Heidelberg},
+  url       = {https://doi.org/10.1007/978-3-319-27810-0_1},
+  doi       = {10.1007/978-3-319-27810-0_1},
+  abstract  = {Effect systems were originally conceived as an inference-based program analysis to capture program behaviour--as a set of representations of effects. Two orthogonal developments have since happened. First, motivated by static analysis, effects were generalised to values in an algebra, to better model control flow e.g. for may/must analyses and concurrency. Second, motivated by semantic questions, the syntactic notion of set- or semilattice- based effect system was linked to the semantic notion of monads and more recently to graded monads which give a more precise semantic account of effects.We give a lightweight tutorial explanation of the concepts involved in these two threads and then unify them via the notion of an effect-directed semantics for a control-flow algebra of effects. For the case of effectful programming with sequencing, alternation and parallelism--illustrated with music--we identify a form of graded joinads as the appropriate structure for unifying effect analysis and semantics.},
+  booktitle = {Essays Dedicated to Hanne Riis Nielson and Flemming Nielson on the Occasion of Their 60th Birthdays on Semantics, Logics, and Calculi - Volume 9560},
+  pages     = {1–32},
+  numpages  = {32}
+}
+
+@article{SNSAT+11,
+  author     = {Sunshine, Joshua and Naden, Karl and Stork, Sven and Aldrich, Jonathan and Tanter, \'{E}ric},
+  title      = {First-Class State Change in Plaid},
+  year       = {2011},
+  issue_date = {October 2011},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {46},
+  number     = {10},
+  issn       = {0362-1340},
+  url        = {https://doi.org/10.1145/2076021.2048122},
+  doi        = {10.1145/2076021.2048122},
+  abstract   = {Objects model the world, and state is fundamental to a faithful modeling. Engineers use state machines to understand and reason about state transitions, but programming languages provide little support for building software based on state abstractions. We propose Plaid, a language in which objects are modeled not just in terms of classes, but in terms of changing abstract states. Each state may have its own representation, as well as methods that may transition the object into a new state. A formal model precisely defines the semantics of core Plaid constructs such as state transition and trait-like state composition. We evaluate Plaid through a series of examples taken from the Plaid compiler and the standard libraries of Smalltalk and Java. These examples show how Plaid can more closely model state-based designs, enhancing understandability, enhancing dynamic error checking, and providing reuse benefits.},
+  journal    = {SIGPLAN Not.},
+  month      = {oct},
+  pages      = {713–732},
+  numpages   = {20},
+  keywords   = {state-chart, typestate, plaid}
+}
+
+
+@inproceedings{DGJ+13,
+  author    = {Ankush Desai and
+               Vivek Gupta and
+               Ethan K. Jackson and
+               Shaz Qadeer and
+               Sriram K. Rajamani and
+               Damien Zufferey},
+  editor    = {Hans{-}Juergen Boehm and
+               Cormac Flanagan},
+  title     = {{{P:} Safe Asynchronous Event-Driven Programming}},
+  booktitle = {{ACM} {SIGPLAN} Conference on Programming Language Design and Implementation,
+               {PLDI} '13, Seattle, WA, USA, June 16-19, 2013},
+  pages     = {321--332},
+  publisher = {{ACM}},
+  year      = {2013},
+  url       = {https://doi.org/10.1145/2491956.2462184},
+  doi       = {10.1145/2491956.2462184},
+  timestamp = {Fri, 30 Nov 2018 12:24:24 +0100},
+  biburl    = {https://dblp.org/rec/conf/pldi/DesaiGJQRZ13.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@inproceedings{DQ17,
+  author    = {Ankush Desai and
+               Shaz Qadeer},
+  editor    = {Shuvendu K. Lahiri and
+               Giles Reger},
+  title     = {{P:} Modular and Safe Asynchronous Programming},
+  booktitle = {Runtime Verification - 17th International Conference, {RV} 2017, Seattle,
+               WA, USA, September 13-16, 2017, Proceedings},
+  series    = {Lecture Notes in Computer Science},
+  volume    = {10548},
+  pages     = {3--7},
+  publisher = {Springer},
+  year      = {2017},
+  url       = {https://doi.org/10.1007/978-3-319-67531-2\_1},
+  doi       = {10.1007/978-3-319-67531-2\_1},
+  timestamp = {Tue, 14 May 2019 10:00:51 +0200},
+  biburl    = {https://dblp.org/rec/conf/rv/DesaiQ17.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@inproceedings{LDGP09,
+  author    = {Leslie Lamport},
+  editor    = {Ewen Denney and
+               Dimitra Giannakopoulou and
+               Corina S. Pasareanu},
+  title     = {{{TLA+:} Whence, Wherefore, and Whither}},
+  booktitle = {First {NASA} Formal Methods Symposium - {NFM} 2009, Moffett Field,
+               California, USA, April 6-8, 2009},
+  series    = {{NASA} Conference Proceedings},
+  volume    = {{NASA/CP-2009-215407}},
+  pages     = {3},
+  year      = {2009},
+  timestamp = {Tue, 17 Jul 2012 14:23:04 +0200},
+  biburl    = {https://dblp.org/rec/conf/nfm/Lamport09.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@article{DBLP:journals/pacmpl/GleissenthallKB19,
+  author    = {Klaus von Gleissenthall and
+               Rami G{\"{o}}khan Kici and
+               Alexander Bakst and
+               Deian Stefan and
+               Ranjit Jhala},
+  title     = {{Pretend Synchrony: Synchronous Verification of Asynchronous Distributed
+               Programs}},
+  journal   = {Proc. {ACM} Program. Lang.},
+  volume    = {3},
+  number    = {{POPL}},
+  pages     = {59:1--59:30},
+  year      = {2019},
+  url       = {https://doi.org/10.1145/3290372},
+  doi       = {10.1145/3290372},
+  timestamp = {Sun, 06 Oct 2024 21:36:38 +0200},
+  biburl    = {https://dblp.org/rec/journals/pacmpl/GleissenthallKB19.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@inproceedings{TB13,
+  author    = {Emina Torlak and
+               Rastislav Bod{\'{\i}}k},
+  editor    = {Antony L. Hosking and
+               Patrick Th. Eugster and
+               Robert Hirschfeld},
+  title     = {{Growing Solver-Aided Languages with Rosette}},
+  booktitle = {{ACM} Symposium on New Ideas in Programming and Reflections on Software,
+               Onward! 2013, part of {SPLASH} '13, Indianapolis, IN, USA, October
+               26-31, 2013},
+  pages     = {135--152},
+  publisher = {{ACM}},
+  year      = {2013},
+  url       = {https://doi.org/10.1145/2509578.2509586},
+  doi       = {10.1145/2509578.2509586},
+  timestamp = {Sun, 06 Oct 2024 21:12:41 +0200},
+  biburl    = {https://dblp.org/rec/conf/oopsla/TorlakB13.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@inproceedings{TB14,
+  author    = {Emina Torlak and
+               Rastislav Bod{\'{\i}}k},
+  title     = {{A Lightweight Symbolic Virtual Machine for Solver-Aided Host Languages}},
+  booktitle = {{ACM} {SIGPLAN} Conference on Programming Language Design and Implementation
+               (PLDI)},
+  pages     = {530--541},
+  publisher = {{ACM}},
+  year      = {2014},
+  url       = {https://doi.org/10.1145/2594291.2594340},
+  doi       = {10.1145/2594291.2594340},
+  timestamp = {Thu, 24 Jun 2021 16:19:30 +0200},
+  biburl    = {https://dblp.org/rec/conf/pldi/TorlakB14.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@article{CoverageType,
+  author     = {Zhou, Zhe and Mishra, Ashish and Delaware, Benjamin and Jagannathan, Suresh},
+  title      = {Covering All the Bases: Type-Based Verification of Test Input Generators},
+  year       = {2023},
+  issue_date = {June 2023},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {7},
+  number     = {PLDI},
+  url        = {https://doi.org/10.1145/3591271},
+  doi        = {10.1145/3591271},
+  abstract   = {Test input generators are an important part of property-based testing (PBT) frameworks. Because PBT is intended to test deep semantic and structural properties of a program, the outputs produced by these generators can be complex data structures, constrained to satisfy properties the developer believes is most relevant to testing the function of interest. An important feature expected of these generators is that they be capable of producing all acceptable elements that satisfy the function’s input type and generator-provided constraints. However, it is not readily apparent how we might validate whether a particular generator’s output satisfies this coverage requirement. Typically, developers must rely on manual inspection and post-mortem analysis of test runs to determine if the generator is providing sufficient coverage; these approaches are error-prone and difficult to scale as generators become more complex. To address this important concern, we present a new refinement type-based verification procedure for validating the coverage provided by input test generators, based on a novel interpretation of types that embeds “must-style” underapproximate reasoning principles as a fundamental part of the type system. The types associated with expressions now capture the set of values guaranteed to be produced by the expression, rather than the typical formulation that uses types to represent the set of values an expression may produce. Beyond formalizing the notion of coverage types in the context of a rich core language with higher-order procedures and inductive datatypes, we also present a detailed evaluation study to justify the utility of our ideas.},
+  journal    = {Proc. ACM Program. Lang.},
+  month      = jun,
+  articleno  = {157},
+  numpages   = {24},
+  keywords   = {underapproximate reasoning, refinement types, property-based testing}
+}
+
+@article{ZYDJ24,
+  author    = {Zhe Zhou and
+               Qianchuan Ye and
+               Benjamin Delaware and
+               Suresh Jagannathan},
+  title     = {{A {HAT} Trick: Automatically Verifying Representation Invariants using
+               Symbolic Finite Automata}},
+  journal   = {Proc. {ACM} Program. Lang.},
+  volume    = {8},
+  number    = {{PLDI}},
+  pages     = {1387--1411},
+  year      = {2024},
+  url       = {https://doi.org/10.1145/3656433},
+  doi       = {10.1145/3656433},
+  timestamp = {Fri, 02 Aug 2024 21:41:17 +0200},
+  biburl    = {https://dblp.org/rec/journals/pacmpl/ZhouYDJ24.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@software{QCheck,
+  title        = {{QCheck: QuickCheck inspired property-based testing for OCaml}},
+  key          = {QCheck},
+  url          = {https://c-cube.github.io/qcheck/},
+  howpublished = {https://c-cube.github.io/qcheck/},
+  year         = {2024}
+}
+
+@inproceedings{LTLf,
+  author    = {De Giacomo, Giuseppe and Vardi, Moshe Y.},
+  title     = {Linear Temporal Logic and Linear Dynamic Logic on Finite Traces},
+  year      = {2013},
+  isbn      = {9781577356332},
+  publisher = {AAAI Press},
+  abstract  = {In this paper we look into the assumption of interpreting LTL over finite traces. In particular we show that LTLf, i.e., LTL under this assumption, is less expressive than what might appear at first sight, and that at essentially no computational cost one can make a significant increase in expressiveness while maintaining the same intuitiveness of LTLf. Indeed, we propose a logic, LDLf for Linear Dynamic Logic over finite traces, which borrows the syntax from Propositional Dynamic Logic (PDL), but is interpreted over finite traces. Satisfiability, validity and logical implication (as well as model checking) for LTLf. are PSPACE-complete as for LTLf. (and LTL).},
+  booktitle = {Proceedings of the Twenty-Third International Joint Conference on Artificial Intelligence},
+  pages     = {854–860},
+  numpages  = {7},
+  location  = {Beijing, China},
+  series    = {IJCAI '13}
+}
+
+@inproceedings{Burckhardt2014,
+  author    = {Burckhardt, Sebastian and Gotsman, Alexey and Yang, Hongseok and Zawirski, Marek},
+  title     = {{Replicated Data Types: Specification, Verification, Optimality}},
+  booktitle = {{Proceedings of the 41st ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages}},
+  series    = {POPL '14},
+  year      = {2014},
+  isbn      = {978-1-4503-2544-8},
+  location  = {San Diego, California, USA},
+  pages     = {271--284},
+  numpages  = {14},
+  doi       = {10.1145/2535838.2535848},
+  acmid     = {2535848},
+  publisher = {ACM},
+  address   = {New York, NY, USA},
+  keywords  = {eventual consistency, replication, weak memory}
+}
+
+@inproceedings{Session,
+  author    = {Terry, Douglas B. and Demers, Alan J. and Petersen, Karin and Spreitzer, Mike and Theimer, Marvin and Welch, Brent W.},
+  title     = {{Session Guarantees for Weakly Consistent Replicated Data}},
+  booktitle = {{Proceedings of the Third International Conference on Parallel and Distributed Information Systems}},
+  series    = {PDIS '94},
+  year      = {1994},
+  isbn      = {0-8186-6400-2},
+  pages     = {140--149},
+  numpages  = {10},
+  url       = {http://dl.acm.org/citation.cfm?id=645792.668302},
+  acmid     = {668302},
+  publisher = {IEEE Computer Society},
+  address   = {Washington, DC, USA}
+}
+
+
+@article{tygus,
+  author     = {Guo, Zheng and James, Michael and Justo, David and Zhou, Jiaxiao and Wang, Ziteng and Jhala, Ranjit and Polikarpova, Nadia},
+  title      = {{Program Synthesis by Type-Guided Abstraction Refinement}},
+  year       = {2019},
+  issue_date = {January 2020},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {4},
+  number     = {POPL},
+  url        = {https://doi.org/10.1145/3371080},
+  doi        = {10.1145/3371080},
+  journal    = {Proc. ACM Program. Lang.},
+  month      = dec,
+  articleno  = {12},
+  numpages   = {28},
+  keywords   = {Abstract Interpretation, Type Systems, Program Synthesis}
+}
+
+@inproceedings{sypet,
+  author    = {Feng, Yu and Martins, Ruben and Wang, Yuepeng and Dillig, Isil and Reps, Thomas W.},
+  title     = {{Component-Based Synthesis for Complex APIs}},
+  year      = {2017},
+  isbn      = {9781450346603},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/3009837.3009851},
+  doi       = {10.1145/3009837.3009851},
+  booktitle = {Proceedings of the 44th ACM SIGPLAN Symposium on Principles of Programming Languages},
+  pages     = {599–612},
+  numpages  = {14},
+  keywords  = {Petri-net, Program Synthesis, Component-based, Type-directed},
+  location  = {Paris, France},
+  series    = {POPL 2017}
+}
+
+
+@inproceedings{rbsyn,
+  author    = {Guria, Sankha Narayan and Foster, Jeffrey S. and Van Horn, David},
+  title     = {{RbSyn: Type- and Effect-Guided Program Synthesis}},
+  year      = {2021},
+  isbn      = {9781450383912},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/3453483.3454048},
+  doi       = {10.1145/3453483.3454048},
+  booktitle = {Proceedings of the 42nd ACM SIGPLAN International Conference on Programming Language Design and Implementation},
+  pages     = {344–358},
+  numpages  = {15},
+  keywords  = {type and effect systems, program synthesis, Ruby},
+  location  = {Virtual, Canada},
+  series    = {PLDI 2021}
+}
+
+
+@inproceedings{Lam02a,
+  author    = {Leslie Lamport},
+  editor    = {Alain Bui and
+               Hac{\`{e}}ne Fouchal},
+  title     = {{Paxos Made Simple, Fast, and Byzantine}},
+  booktitle = {Procedings of the 6th International Conference on Principles of Distributed
+               Systems. {OPODIS} 2002, Reims, France, December 11-13, 2002},
+  series    = {Studia Informatica Universalis},
+  volume    = {3},
+  pages     = {7--9},
+  publisher = {Suger, Saint-Denis, rue Catulienne, France},
+  year      = {2002},
+  timestamp = {Tue, 20 Jan 2004 14:15:23 +0100},
+  biburl    = {https://dblp.org/rec/conf/opodis/Lamport02.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@inproceedings{OO14,
+  author    = {Diego Ongaro and
+               John K. Ousterhout},
+  editor    = {Garth Gibson and
+               Nickolai Zeldovich},
+  title     = {{In Search of an Understandable Consensus Algorithm}},
+  booktitle = {Proceedings of the 2014 {USENIX} Annual Technical Conference, {USENIX}
+               {ATC} 2014, Philadelphia, PA, USA, June 19-20, 2014},
+  pages     = {305--319},
+  publisher = {{USENIX} Association},
+  year      = {2014},
+  url       = {https://www.usenix.org/conference/atc14/technical-sessions/presentation/ongaro},
+  timestamp = {Tue, 16 Jul 2024 09:12:32 +0200},
+  biburl    = {https://dblp.org/rec/conf/usenix/OngaroO14.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@inproceedings{RS04,
+  author    = {Robbert Van Renesse and Fred B. Schneider},
+  title     = {{Chain Replication for Supporting High Throughput and Availability}},
+  booktitle = {6th Symposium on Operating Systems Design \& Implementation (OSDI 04)},
+  year      = {2004},
+  address   = {San Francisco, CA},
+  url       = {https://www.usenix.org/conference/osdi-04/chain-replication-supporting-high-throughput-and-availability},
+  publisher = {USENIX Association},
+  month     = dec
+}
+
+
+@book{Lam02,
+  author    = {Leslie Lamport},
+  title     = {Specifying Systems, The {TLA+} Language and Tools for Hardware and
+               Software Engineers},
+  publisher = {Addison-Wesley},
+  year      = {2002},
+  url       = {http://research.microsoft.com/users/lamport/tla/book.html},
+  isbn      = {0-3211-4306-X},
+  timestamp = {Wed, 10 Jul 2019 10:47:07 +0200},
+  biburl    = {https://dblp.org/rec/books/aw/Lamport2002.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@inproceedings{BJA+21,
+  author    = {Bornholt, James and Joshi, Rajeev and Astrauskas, Vytautas and Cully, Brendan and Kragl, Bernhard and Markle, Seth and Sauri, Kyle and Schleit, Drew and Slatton, Grant and Tasiran, Serdar and Van Geffen, Jacob and Warfield, Andrew},
+  title     = {{Using Lightweight Formal Methods to Validate a Key-Value Storage Node in Amazon S3}},
+  year      = {2021},
+  booktitle = {Proceedings of the ACM SIGOPS 28th Symposium on Operating Systems Principles},
+  pages     = {836–850},
+  numpages  = {15},
+  series    = {SOSP '21}
+}
+
+
+@article{LM22,
+  author     = {Lamport, Leslie and Merz, Stephan},
+  title      = {{Prophecy Made Simple}},
+  year       = {2022},
+  issue_date = {June 2022},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {44},
+  number     = {2},
+  issn       = {0164-0925},
+  url        = {https://doi.org/10.1145/3492545},
+  doi        = {10.1145/3492545},
+  journal    = {ACM Trans. Program. Lang. Syst.},
+  month      = {April},
+  articleno  = {6},
+  numpages   = {27}
+}
+
+@article{BP15,
+  author    = {Andrej Bauer and
+               Matija Pretnar},
+  title     = {{Programming with Algebraic Effects and Handlers}},
+  journal   = {J. Log. Algebraic Methods Program.},
+  volume    = {84},
+  number    = {1},
+  pages     = {108--123},
+  year      = {2015},
+  url       = {https://doi.org/10.1016/j.jlamp.2014.02.001},
+  doi       = {10.1016/J.JLAMP.2014.02.001},
+  timestamp = {Mon, 28 Aug 2023 21:42:09 +0200},
+  biburl    = {https://dblp.org/rec/journals/jlp/BauerP15.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+ @inbook{Ramsey1987,
+  author    = {Ramsey, F. P.},
+  title     = {On a Problem of Formal Logic},
+  booktitle = {Classic Papers in Combinatorics},
+  year      = {1987},
+  publisher = {Birkh{\"a}user Boston},
+  address   = {Boston, MA},
+  pages     = {1--24},
+  abstract  = {This paper is primarily concerned with a special case of one of the leading problems of mathematical logic, the problem of finding a regular procedure to determine the truth or falsity of any given logical formula*. But in the course of this investigation it is necessary to use certain theorems on combinations which have an independent interest and are most conveniently set out by themselves beforehand.},
+  isbn      = {978-0-8176-4842-8},
+  doi       = {10.1007/978-0-8176-4842-8_1},
+  url       = {https://doi.org/10.1007/978-0-8176-4842-8_1}
+}
+
+
+@book{UG07,
+  author    = {Mark Utting and
+               Bruno Legeard},
+  title     = {Practical Model-Based Testing - {A} Tools Approach},
+  publisher = {Morgan Kaufmann},
+  year      = {2007},
+  url       = {http://www.elsevierdirect.com/product.jsp?isbn=9780123725011},
+  isbn      = {978-0-12-372501-1},
+  timestamp = {Wed, 23 Mar 2011 08:32:42 +0100},
+  biburl    = {https://dblp.org/rec/books/daglib/0023861.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@article{DPQS18,
+  author     = {Desai, Ankush and Phanishayee, Amar and Qadeer, Shaz and Seshia, Sanjit A.},
+  title      = {{Compositional Programming and Testing of Dynamic Distributed Systems}},
+  year       = {2018},
+  issue_date = {November 2018},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {2},
+  number     = {OOPSLA},
+  url        = {https://doi.org/10.1145/3276529},
+  doi        = {10.1145/3276529},
+  journal    = {Proc. ACM Program. Lang.},
+  month      = oct,
+  articleno  = {159},
+  numpages   = {30}
+}
+
+@inproceedings{WW+15,
+  author    = {James R. Wilcox and
+               Doug Woos and
+               Pavel Panchekha and
+               Zachary Tatlock and
+               Xi Wang and
+               Michael D. Ernst and
+               Thomas E. Anderson},
+  editor    = {David Grove and
+               Stephen M. Blackburn},
+  title     = {{Verdi: A Framework for Implementing and Formally Verifying Distributed
+               Systems}},
+  booktitle = {Proceedings of the 36th {ACM} {SIGPLAN} Conference on Programming
+               Language Design and Implementation, Portland, OR, USA, June 15-17,
+               2015},
+  pages     = {357--368},
+  publisher = {{ACM}},
+  year      = {2015},
+  url       = {https://doi.org/10.1145/2737924.2737958},
+  doi       = {10.1145/2737924.2737958},
+  timestamp = {Sun, 12 Feb 2023 18:48:20 +0100},
+  biburl    = {https://dblp.org/rec/conf/pldi/WilcoxWPTWEA15.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+
+@article{SWT18,
+  author    = {Ilya Sergey and
+               James R. Wilcox and
+               Zachary Tatlock},
+  title     = {{Programming and Proving with Distributed Protocols}},
+  journal   = {Proc. {ACM} Program. Lang.},
+  volume    = {2},
+  number    = {{POPL}},
+  pages     = {28:1--28:30},
+  year      = {2018},
+  url       = {https://doi.org/10.1145/3158116},
+  doi       = {10.1145/3158116},
+  timestamp = {Sun, 12 Feb 2023 18:49:14 +0100},
+  biburl    = {https://dblp.org/rec/journals/pacmpl/SergeyWT18.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@inproceedings{HH+15,
+  author    = {Hawblitzel, Chris and Howell, Jon and Kapritsos, Manos and Lorch, Jacob R. and Parno, Bryan and Roberts, Michael L. and Setty, Srinath and Zill, Brian},
+  title     = {{IronFleet: Proving Practical Distributed Systems Correct}},
+  year      = {2015},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/2815400.2815428},
+  doi       = {10.1145/2815400.2815428},
+  booktitle = {Proceedings of the 25th Symposium on Operating Systems Principles},
+  pages     = {1–17},
+  numpages  = {17},
+  location  = {Monterey, California},
+  series    = {SOSP '15}
+}
+
+@inproceedings{PM+16,
+  author    = {Oded Padon and
+               Kenneth L. McMillan and
+               Aurojit Panda and
+               Mooly Sagiv and
+               Sharon Shoham},
+  editor    = {Chandra Krintz and
+               Emery D. Berger},
+  title     = {{Ivy: Safety Verification by Interactive Generalization}},
+  booktitle = {Proceedings of the 37th {ACM} {SIGPLAN} Conference on Programming
+               Language Design and Implementation, {PLDI} 2016, Santa Barbara, CA,
+               USA, June 13-17, 2016},
+  pages     = {614--630},
+  publisher = {{ACM}},
+  year      = {2016},
+  url       = {https://doi.org/10.1145/2908080.2908118},
+  doi       = {10.1145/2908080.2908118},
+  timestamp = {Sat, 30 Sep 2023 09:54:48 +0200},
+  biburl    = {https://dblp.org/rec/conf/pldi/PadonMPSS16.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@inproceedings{YR+21,
+  author    = {Jianan Yao and Runzhou Tao and Ronghui Gu and Jason Nieh and Suman Jana and Gabriel Ryan},
+  title     = {{{DistAI}: {Data-Driven} Automated Invariant Learning for Distributed Protocols}},
+  booktitle = {15th USENIX Symposium on Operating Systems Design and Implementation (OSDI 21)},
+  year      = {2021},
+  isbn      = {978-1-939133-22-9},
+  pages     = {405--421},
+  url       = {https://www.usenix.org/conference/osdi21/presentation/yao},
+  publisher = {USENIX Association},
+  month     = jul
+}
+
+@inproceedings{MG+19,
+  author    = {Ma, Haojun and Goel, Aman and Jeannin, Jean-Baptiste and Kapritsos, Manos and Kasikci, Baris and Sakallah, Karem A.},
+  title     = {{I4: incremental Inference of Inductive Invariants for Verification of Distributed Protocols}},
+  year      = {2019},
+  isbn      = {9781450368735},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/3341301.3359651},
+  doi       = {10.1145/3341301.3359651},
+  booktitle = {Proceedings of the 27th ACM Symposium on Operating Systems Principles},
+  pages     = {370–384},
+  numpages  = {15},
+  location  = {Huntsville, Ontario, Canada},
+  series    = {SOSP}
+}
+
+@misc{Jepsen,
+  key   = {Jepsen},
+  title = {Jepsen},
+  url   = {https://jepsen.io/},
+  year  = 2018
+}
+
+@inproceedings{KA+07,
+  author    = {Killian, Charles and Anderson, James W. and Jhala, Ranjit and Vahdat, Amin},
+  title     = {Life, Death, and the Critical Transition: Finding Liveness Bugs in Systems Code},
+  booktitle = {Proceedings of the 4th USENIX Conference on Networked Systems Design \&\#38; Implementation},
+  series    = {NSDI'07},
+  year      = {2007},
+  location  = {Cambridge, MA},
+  pages     = {18--18},
+  numpages  = {1},
+  url       = {http://dl.acm.org/citation.cfm?id=1973430.1973448},
+  acmid     = {1973448},
+  publisher = {USENIX Association},
+  address   = {Berkeley, CA, USA}
+}
+
+@article{OLTPBench,
+author = {Difallah, Djellel Eddine and Pavlo, Andrew and Curino, Carlo and Cudre-Mauroux, Philippe},
+title = {OLTP-Bench: an extensible testbed for benchmarking relational databases},
+year = {2013},
+issue_date = {December 2013},
+publisher = {VLDB Endowment},
+volume = {7},
+number = {4},
+issn = {2150-8097},
+url = {https://doi.org/10.14778/2732240.2732246},
+doi = {10.14778/2732240.2732246},
+abstract = {Benchmarking is an essential aspect of any database management system (DBMS) effort. Despite several recent advancements, such as pre-configured cloud database images and database-as-a-service (DBaaS) offerings, the deployment of a comprehensive testing platform with a diverse set of datasets and workloads is still far from being trivial. In many cases, researchers and developers are limited to a small number of workloads to evaluate the performance characteristics of their work. This is due to the lack of a universal benchmarking infrastructure, and to the difficulty of gaining access to real data and workloads. This results in lots of unnecessary engineering efforts and makes the performance evaluation results difficult to compare. To remedy these problems, we present OLTP-Bench, an extensible "batteries included" DBMS benchmarking testbed. The key contributions of OLTP-Bench are its ease of use and extensibility, support for tight control of transaction mixtures, request rates, and access distributions over time, as well as the ability to support all major DBMSs and DBaaS platforms. Moreover, it is bundled with fifteen workloads that all differ in complexity and system demands, including four synthetic workloads, eight workloads from popular benchmarks, and three workloads that are derived from real-world applications. We demonstrate through a comprehensive set of experiments conducted on popular DBMS and DBaaS offerings the different features provided by OLTP-Bench and the effectiveness of our testbed in characterizing the performance of database services.},
+journal = {Proc. VLDB Endow.},
+month = dec,
+pages = {277–288},
+numpages = {12}
+}
+
+@inproceedings{OcamlMulticorePBT,
+  author    = {Midtgaard, Jan},
+  title     = {Property-Based Testing of OCaml 5’s Runtime System: Fun and Segfaults with Interpreters and State Transition Functions},
+  year      = {2025},
+  isbn      = {9798400721502},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/3759427.3760378},
+  doi       = {10.1145/3759427.3760378},
+  abstract  = {We describe our effort on using property-based testing to test the OCaml 5 multicore runtime system. In particular, we cover three case studies of increasing complexity that utilize a model-based state machine framework: (a) Testing the Array module, (b) testing weak hash sets, and (c) testing the garbage collector, with the latter two behaving non-deterministically from the point of view of the   black-box testing process. We evaluate the approach empirically by analyzing the bugs found, and discuss both limitations of the approach and challenges we have met underway.},
+  booktitle = {Proceedings of the Workshop Dedicated to Olivier Danvy on the Occasion of His 64th Birthday},
+  pages     = {180–193},
+  numpages  = {14},
+  keywords  = {garbage collection, model-based testing, property-based testing, run- time system},
+  location  = {Singapore, Singapore},
+  series    = {OLIVIERFEST '25}
+}
+
+@article{RK+19,
+  author    = {Kia Rahmani and
+               Kartik Nagar and
+               Benjamin Delaware and
+               Suresh Jagannathan},
+  title     = {{CLOTHO:} directed test generation for weakly consistent database
+               systems},
+  journal   = {Proc. {ACM} Program. Lang.},
+  volume    = {3},
+  number    = {{OOPSLA}},
+  pages     = {117:1--117:28},
+  year      = {2019},
+  url       = {https://doi.org/10.1145/3360543},
+  doi       = {10.1145/3360543},
+  timestamp = {Wed, 17 Feb 2021 08:54:09 +0100},
+  biburl    = {https://dblp.org/rec/journals/pacmpl/RahmaniNDJ19.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@inproceedings{RGJ07,
+  author    = {Murali Krishna Ramanathan and
+               Ananth Grama and
+               Suresh Jagannathan},
+  title     = {{Path-Sensitive Inference of Function Precedence Protocols}},
+  booktitle = {29th International Conference on Software Engineering {(ICSE} 2007),
+               Minneapolis, MN, USA, May 20-26, 2007},
+  pages     = {240--250},
+  publisher = {{IEEE} Computer Society},
+  year      = {2007},
+  url       = {https://doi.org/10.1109/ICSE.2007.63},
+  doi       = {10.1109/ICSE.2007.63},
+  timestamp = {Thu, 23 Mar 2023 23:58:12 +0100},
+  biburl    = {https://dblp.org/rec/conf/icse/RamanathanGJ07.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@inproceedings{RGJ07a,
+  author    = {Murali Krishna Ramanathan and
+               Ananth Grama and
+               Suresh Jagannathan},
+  editor    = {Jeanne Ferrante and
+               Kathryn S. McKinley},
+  title     = {{Static Specification Inference using Predicate Mining}},
+  booktitle = {Proceedings of the {ACM} {SIGPLAN} 2007 Conference on Programming
+               Language Design and Implementation (PLDI)},
+  pages     = {123--134},
+  publisher = {{ACM}},
+  year      = {2007},
+  url       = {https://doi.org/10.1145/1250734.1250749},
+  doi       = {10.1145/1250734.1250749},
+  timestamp = {Fri, 25 Jun 2021 14:48:54 +0200},
+  biburl    = {https://dblp.org/rec/conf/pldi/RamanathanGJ07.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@inproceedings{CH00,
+  author    = {Claessen, Koen and Hughes, John},
+  title     = {{QuickCheck: A Lightweight Tool for Random Testing of Haskell Programs}},
+  year      = {2000},
+  isbn      = {1581132026},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/351240.351266},
+  doi       = {10.1145/351240.351266},
+  abstract  = {Quick Check is a tool which aids the Haskell programmer in formulating and testing
+               properties of programs. Properties are described as Haskell functions, and can be
+               automatically tested on random input, but it is also possible to define custom test
+               data generators. We present a number of case studies, in which the tool was successfully
+               used, and also point out some pitfalls to avoid. Random testing is especially suitable
+               for functional programs because properties can be stated at a fine grain. When a function
+               is built from separately tested components, then random testing suffices to obtain
+               good coverage of the definition under test.},
+  booktitle = {Proceedings of the Fifth ACM SIGPLAN International Conference on Functional Programming},
+  pages     = {268–279},
+  numpages  = {12},
+  series    = {ICFP '00}
+}
+
+@inproceedings{pbt-ifc,
+  author    = {Hritcu, Catalin and Hughes, John and Pierce, Benjamin C. and Spector-Zabusky, Antal and Vytiniotis, Dimitrios and Azevedo de Amorim, Arthur and Lampropoulos, Leonidas},
+  title     = {Testing noninterference, quickly},
+  year      = {2013},
+  isbn      = {9781450323260},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/2500365.2500574},
+  doi       = {10.1145/2500365.2500574},
+  abstract  = {Information-flow control mechanisms are difficult to design and labor intensive to prove correct. To reduce the time wasted on proof attempts doomed to fail due to broken definitions, we advocate modern random testing techniques for finding counterexamples during the design process. We show how to use QuickCheck, a property-based random-testing tool, to guide the design of a simple information-flow abstract machine. We find that both sophisticated strategies for generating well-distributed random programs and readily falsifiable formulations of noninterference properties are critically important. We propose several approaches and evaluate their effectiveness on a collection of injected bugs of varying subtlety. We also present an effective technique for shrinking large counterexamples to minimal, easily comprehensible ones. Taken together, our best methods enable us to quickly and automatically generate simple counterexamples for all these bugs.},
+  booktitle = {Proceedings of the 18th ACM SIGPLAN International Conference on Functional Programming},
+  pages     = {455–468},
+  numpages  = {14},
+  keywords  = {security, random testing, quickcheck, noninterference, dynamic information-flow control, design, abstract machine},
+  location  = {Boston, Massachusetts, USA},
+  series    = {ICFP '13}
+}
+
+@inproceedings{HC+24,
+  author    = {Harrison Goldstein and
+               Joseph W. Cutler and
+               Daniel Dickstein and
+               Benjamin C. Pierce and
+               Andrew Head},
+  title     = {{Property-Based Testing in Practice}},
+  booktitle = {Proceedings of the 46th {IEEE/ACM} International Conference on Software
+               Engineering, {ICSE} 2024, Lisbon, Portugal, April 14-20, 2024},
+  pages     = {187:1--187:13},
+  publisher = {{ACM}},
+  year      = {2024},
+  url       = {https://doi.org/10.1145/3597503.3639581},
+  doi       = {10.1145/3597503.3639581},
+  timestamp = {Mon, 24 Jun 2024 15:20:25 +0200},
+  biburl    = {https://dblp.org/rec/conf/icse/GoldsteinCDPH24.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@inproceedings{WD+23,
+  author    = {Dong Wang and
+               Wensheng Dou and
+               Yu Gao and
+               Chenao Wu and
+               Jun Wei and
+               Tao Huang},
+  editor    = {Giuseppe Antonio Di Luna and
+               Leonardo Querzoni and
+               Alexandra Fedorova and
+               Dushyanth Narayanan},
+  title     = {{Model Checking Guided Testing for Distributed Systems}},
+  booktitle = {Proceedings of the Eighteenth European Conference on Computer Systems (EuroSys)},
+  pages     = {127--143},
+  publisher = {{ACM}},
+  year      = {2023},
+  url       = {https://doi.org/10.1145/3552326.3587442},
+  doi       = {10.1145/3552326.3587442},
+  timestamp = {Fri, 14 Jul 2023 07:59:09 +0200},
+  biburl    = {https://dblp.org/rec/conf/eurosys/WangDGWW023.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+
+@article{OM+18,
+  author    = {Ozkan, Burcu Kulahcioglu and Majumdar, Rupak and Niksic, Filip and Befrouei, Mitra Tabaei and Weissenbacher, Georg},
+  title     = {{Randomized Testing of Distributed Systems with Probabilistic Guarantees}},
+  year      = {2018},
+  volume    = {2},
+  number    = {OOPSLA},
+  journal   = {Proc. ACM Program. Lang.},
+  month     = oct,
+  articleno = {160},
+  numpages  = {28}
+}
+
+@inproceedings{YY20,
+  author    = {Yuan, Xinhao and Yang, Junfeng},
+  title     = {{Effective Concurrency Testing for Distributed Systems}},
+  year      = {2020},
+  booktitle = {Proceedings of the Twenty-Fifth International Conference on Architectural Support for Programming Languages and Operating Systems},
+  pages     = {1141–1156},
+  numpages  = {16},
+  series    = {ASPLOS '20}
+}
+
+@article{NR+15,
+  author   = {Newcombe, Chris and Rath, Tim and Zhang, Fan and Munteanu, Bogdan and Brooker, Marc and Deardeuff, Michael},
+  title    = {{How Amazon Web Services uses Formal Methods}},
+  year     = {2015},
+  journal  = {Commun. ACM},
+  month    = mar,
+  pages    = {66–73},
+  numpages = {8}
+}
+
+
+@inproceedings{casl,
+  author    = {Raad, Azalea and Vanegue, Julien and Berdine, Josh and O'Hearn, Peter},
+  title     = {{A General Approach to Under-Approximate Reasoning About Concurrent Programs}},
+  booktitle = {34th International Conference on Concurrency Theory (CONCUR 2023)},
+  pages     = {25:1--25:17},
+  series    = {Leibniz International Proceedings in Informatics (LIPIcs)},
+  isbn      = {978-3-95977-299-0},
+  issn      = {1868-8969},
+  year      = {2023},
+  volume    = {279},
+  editor    = {P\'{e}rez, Guillermo A. and Raskin, Jean-Fran\c{c}ois},
+  publisher = {Schloss Dagstuhl -- Leibniz-Zentrum f{\"u}r Informatik},
+  address   = {Dagstuhl, Germany},
+  url       = {https://drops.dagstuhl.de/opus/volltexte/2023/19019},
+  urn       = {urn:nbn:de:0030-drops-190195},
+  doi       = {10.4230/LIPIcs.CONCUR.2023.25},
+  annote    = {Keywords: Under-approximate reasoning, incorrectness logic, bug detection, software exploits, separation logic}
+}
+
+@article{OHP19,
+  author     = {O'Hearn, Peter W.},
+  title      = {{Incorrectness Logic}},
+  year       = {2019},
+  journal    = {Proc. {ACM} Program. Lang.},
+  issue_date = {January 2020},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {4},
+  number     = {POPL},
+  url        = {https://doi.org/10.1145/3371078},
+  doi        = {10.1145/3371078}
+}
+
+@article{LR+22,
+  author    = {Quang Loc Le and
+               Azalea Raad and
+               Jules Villard and
+               Josh Berdine and
+               Derek Dreyer and
+               Peter W. O'Hearn},
+  title     = {{Finding Real Bugs in Big Programs with Incorrectness Logic}},
+  journal   = {Proc. {ACM} Program. Lang.},
+  volume    = {6},
+  number    = {{OOPSLA}},
+  pages     = {1--27},
+  year      = {2022},
+  url       = {https://doi.org/10.1145/3527325},
+  doi       = {10.1145/3527325},
+  timestamp = {Wed, 18 May 2022 15:21:43 +0200},
+  biburl    = {https://dblp.org/rec/journals/pacmpl/LeRVBDO22.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@inproceedings{RBD+20,
+  author    = {Raad, Azalea and Berdine, Josh and Dang, Hoang-Hai and Dreyer, Derek and O’Hearn, Peter and Villard, Jules},
+  title     = {Local Reasoning About the Presence of Bugs: Incorrectness Separation Logic},
+  year      = {2020},
+  isbn      = {978-3-030-53290-1},
+  publisher = {Springer-Verlag},
+  address   = {Berlin, Heidelberg},
+  url       = {https://doi.org/10.1007/978-3-030-53291-8_14},
+  doi       = {10.1007/978-3-030-53291-8_14},
+  abstract  = {There has been a large body of work on local reasoning for proving the absence of bugs, but none for proving their presence. We present a new formal framework for local reasoning about the presence of bugs, building on two complementary foundations: 1) separation logic and 2) incorrectness logic. We explore the theory of this new incorrectness separation logic (ISL), and use it to derive a begin-anywhere, intra-procedural symbolic execution analysis that has no false positives by construction. In so doing, we take a step towards transferring modular, scalable techniques from the world of program verification to bug catching.},
+  booktitle = {Computer Aided Verification: 32nd International Conference, CAV 2020, Los Angeles, CA, USA, July 21–24, 2020, Proceedings, Part II},
+  pages     = {225–252},
+  numpages  = {28},
+  keywords  = {Separation logic, Program logics, Bug catching},
+  location  = {Los Angeles, CA, USA}
+}
+
+
+@article{FQL24,
+  author    = {Justin Frank and
+               Benjamin Quiring and
+               Leonidas Lampropoulos},
+  title     = {{Generating Well-Typed Terms That Are Not "Useless"}},
+  journal   = {Proc. {ACM} Program. Lang.},
+  volume    = {8},
+  number    = {{POPL}},
+  pages     = {2318--2339},
+  year      = {2024},
+  url       = {https://doi.org/10.1145/3632919},
+  doi       = {10.1145/3632919},
+  timestamp = {Sat, 10 Feb 2024 18:05:27 +0100},
+  biburl    = {https://dblp.org/rec/journals/pacmpl/FrankQL24.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+
+@inproceedings{CD11,
+  author    = {Calcagno, Cristiano and Distefano, Dino},
+  title     = {{Infer: An Automatic Program Verifier for Memory Safety of C Programs}},
+  year      = {2011},
+  isbn      = {9783642203978},
+  publisher = {Springer-Verlag},
+  address   = {Berlin, Heidelberg},
+  booktitle = {Proceedings of the Third International Conference on NASA Formal Methods},
+  pages     = {459–465},
+  numpages  = {7},
+  location  = {Pasadena, CA},
+  series    = {NFM'11}
+}
+
+@article{DFLO19,
+  author     = {Distefano, Dino and F\"{a}hndrich, Manuel and Logozzo, Francesco and O'Hearn, Peter W.},
+  title      = {{Scaling Static Analyses at Facebook}},
+  year       = {2019},
+  issue_date = {August 2019},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {62},
+  number     = {8},
+  issn       = {0001-0782},
+  journal    = {Commun. ACM},
+  month      = jul,
+  pages      = {62–70},
+  numpages   = {9}
+}
+
+@article{ZDS23,
+  author     = {Zilberstein, Noam and Dreyer, Derek and Silva, Alexandra},
+  title      = {{Outcome Logic: A Unifying Foundation for Correctness and Incorrectness Reasoning}},
+  year       = {2023},
+  issue_date = {April 2023},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {7},
+  number     = {OOPSLA1},
+  journal    = {Proc. ACM Program. Lang.},
+  month      = apr,
+  articleno  = {93},
+  numpages   = {29}
+}
+
+
+@article{RW24,
+  author     = {Ramsay, Steven and Walpole, Charlie},
+  title      = {{Ill-Typed Programs Don’t Evaluate}},
+  year       = {2024},
+  issue_date = {January 2024},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {8},
+  number     = {POPL},
+  journal    = {Proc. ACM Program. Lang.},
+  month      = jan,
+  articleno  = {67},
+  numpages   = {31}
+}
+
+
+@article{WGJ24,
+  author     = {Webbers, Robin and von Gleissenthall, Klaus and Jhala, Ranjit},
+  title      = {{Refinement Type Refutations}},
+  year       = {2024},
+  issue_date = {October 2024},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {8},
+  number     = {OOPSLA2},
+  journal    = {Proc. ACM Program. Lang.},
+  month      = oct,
+  articleno  = {305},
+  numpages   = {26}
+}
+
+
+@inproceedings{PCRH+11,
+  author    = {Pa\l{}ka, Micha\l{} H. and Claessen, Koen and Russo, Alejandro and Hughes, John},
+  title     = {Testing an Optimising Compiler by Generating Random Lambda Terms},
+  year      = {2011},
+  isbn      = {9781450305921},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/1982595.1982615},
+  doi       = {10.1145/1982595.1982615},
+  abstract  = {This paper considers random testing of a compiler, using randomly generated programs as inputs, and comparing their behaviour with and without optimisation. Since the generated programs must compile, then we need to take into account syntax, scope rules, and type checking during our random generation. Doing so, while attaining a good distribution of test data, proves surprisingly subtle; the main contribution of this paper is a workable solution to this problem. We used it to generate typed functions on lists, which we compiled using the Glasgow Haskell compiler, a mature production quality Haskell compiler. After around 20,000 tests we triggered an optimiser failure, and automatically simplified it to a program with just a few constructs.},
+  booktitle = {Proceedings of the 6th International Workshop on Automation of Software Test},
+  pages     = {91–97},
+  numpages  = {7},
+  keywords  = {random testing, software testing},
+  location  = {Waikiki, Honolulu, HI, USA},
+  series    = {AST '11}
+}
+
+@inproceedings{BC+10,
+  author    = {Bodik, Rastislav and Chandra, Satish and Galenson, Joel and Kimelman, Doug and Tung, Nicholas and Barman, Shaon and Rodarmor, Casey},
+  title     = {{Programming with Angelic Nondeterminism}},
+  year      = {2010},
+  isbn      = {9781605584799},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  booktitle = {Proceedings of the 37th Annual ACM Symposium on Principles of Programming Languages},
+  pages     = {339–352},
+  numpages  = {14},
+  series    = {POPL '10}
+}
+
+@inproceedings{CKL04,
+  author    = { Clarke, Edmund
+               and Kroening, Daniel
+               and Lerda, Flavio },
+  title     = { A Tool for Checking {ANSI-C} Programs },
+  booktitle = { Tools and Algorithms for the Construction and Analysis of Systems (TACAS 2004) },
+  year      = { 2004 },
+  publisher = { Springer },
+  pages     = { 168--176 },
+  isbn      = { 3-540-21299-X },
+  series    = { Lecture Notes in Computer Science },
+  volume    = { 2988 },
+  editor    = { Kurt Jensen and Andreas Podelski }
+}
+
+@inproceedings{LPR26,
+  author    = {Celia Mengyue Li and Sophie Pull and Steven Ramsay},
+  title     = {{ A Complementary Approach to Incorrectness Typing}},
+  booktitle = {ACM Symposium on Principles of Programming Languages (POPL)},
+  year      = 2026
+}
+
+@inproceedings{JY15,
+  author    = {Jakob, Robert and Thiemann, Peter},
+  editor    = {Havelund, Klaus and Holzmann, Gerard and Joshi, Rajeev},
+  title     = {{A Falsification View of Success Typing}},
+  booktitle = {NASA Formal Methods},
+  year      = {2015},
+  publisher = {Springer International Publishing},
+  address   = {Cham},
+  pages     = {234--247},
+  isbn      = {978-3-319-17524-9}
+}
+
+@inproceedings{CP+09,
+  author    = {Claessen, Koen and Palka, Michal and Smallbone, Nicholas and Hughes, John and Svensson, Hans and Arts, Thomas and Wiger, Ulf},
+  title     = {{Finding Race Conditions in Erlang with QuickCheck and PULSE}},
+  year      = {2009},
+  publisher = {Association for Computing Machinery},
+  booktitle = {Proceedings of the 14th ACM SIGPLAN International Conference on Functional Programming},
+  pages     = {149–160},
+  numpages  = {12}
+}
+
+
+@inproceedings{CGS13,
+  author    = {Christakis, Maria and Gotovos, Alkis and Sagonas, Konstantinos},
+  booktitle = {2013 IEEE Sixth International Conference on Software Testing, Verification and Validation},
+  title     = {{Systematic Testing for Detecting Concurrency Errors in Erlang Programs}},
+  year      = {2013},
+  volume    = {},
+  number    = {},
+  pages     = {154-163},
+  keywords  = {Concurrent computing;Instruments;Testing;Space exploration;Runtime;Systematics;Context},
+  doi       = {10.1109/ICST.2013.50}
+}
+
+
+@article{LZ+25,
+  author     = {LaFontaine, Patrick and Zhou, Zhe and Mishra, Ashish and Jagannathan, Suresh and Delaware, Benjamin},
+  title      = {{We’ve Got You Covered: Type-Guided Repair of Incomplete Input Generators}},
+  year       = {2025},
+  issue_date = {October 2025},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {9},
+  number     = {OOPSLA2},
+  journal    = {Proc. ACM Program. Lang.},
+  month      = oct,
+  articleno  = {380},
+  numpages   = {29}
+}

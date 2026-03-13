@@ -1,0 +1,173 @@
+
+%%  Comments
+\definecolor{Red}{RGB}{255,0,0}
+\definecolor{LimeGreen}{RGB}{50,205,50}
+\definecolor{DeepGreen}{RGB}{5,125,8}
+\definecolor{CobaltBlue}{RGB}{0,71,171}
+\definecolor{DarkOrange}{RGB}{255,69,0}
+\definecolor{DarkPurple}{RGB}{79,21,95}
+\definecolor{Amber}{rgb}{1.0, 0.75, 0.0}
+\definecolor{DarkGolden}{rgb}{0.72, 0.53, 0.04}
+
+\newcommand\BD[1]{ % Ben's Comments
+  \textcolor{DarkPurple}{[\texttt{BD: #1}]}}
+\newcommand\SJ[1]{ % Suresh's Comments
+  \textcolor{red}{[\texttt{SJ: #1}]} }
+\newcommand\ZZ[1]{ % Zhe's Comments
+  \textcolor{orange}{[\textit{ZZ: #1}]} }
+\newcommand\OL[1]{ % Zhe's Comments
+  \textcolor{DeepGreen}{\# \textit{outline: #1}} }
+\newcommand\AM[1]{ % Ashish's Comments
+  \textcolor{blue}{[\texttt{AM: #1}]} }
+
+% hyper-references
+% So autoref capitalizes 'Section' and 'Algorithm'
+\def\sectionautorefname{Sec.}
+\def\subsectionautorefname{Sec.}
+\def\algorithmautorefname{Algorithm}
+\def\figureautorefname{Fig.}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,
+    urlcolor=cyan,
+}
+
+\newcommand*{\fullref}[1]{\hyperref[{#1}]{\autoref*{#1}}}
+
+% Algorithm setup:
+\SetAlFnt{\small\sffamily}
+\SetKwRepeat{Do}{do}{while}
+\SetKwRepeat{Repeat}{repeat}{until}
+\SetKw{Break}{break}
+\SetKw{When}{when}
+\SetKw{Raiseerr}{raise\ Err}
+\SetKw{ZFor}{for}
+\SetKw{ZDo}{do}
+\SetKw{ZForall}{forall}
+\SetKw{UntilConverge}{\NV{until converge}}
+\SetKw{Continue}{continue}
+\SetKwProg{Match}{match}{\string:}{}
+\SetKwInOut{All}{all}
+\SetKwInOut{Params}{Inputs}
+%\SetKwInOut{Hyperparams}{Hyperparameters}
+\SetKwInOut{Output}{Output}
+\SetKwProg{Procedure}{Procedure}{}{}
+\SetKwFor{RepTimes}{repeat}{times}{end}
+
+
+% Macros:
+\newcommand\NV[1]{\debugte{\textcolor{magenta}{#1}}{#1}} % new version
+\renewcommand\S[1]{\mathbf{#1}}
+\newcommand\I[1]{\mathit{#1}}
+\newcommand\unitaryc[1]{\llbracket \mathit{#1} \rrbracket}
+\newcommand\ocamlinline[1]{\lstinline[language = ocaml]!#1!}
+\newcommand\goodtype{\textcolor{LimeGreen}{\vdash}~~}
+\newcommand\badtype{\textcolor{red}{\not \vdash}~~}
+
+\newcommand{\name}{{\sf Clouseau}}
+% \newcommand{\langname}{{$\boldsymbol{\lambda}^{\mathit{U}}$}}
+
+% Code listing configuration:
+\lstdefinelanguage{ocaml}[Objective]{Caml}{
+  % Fix errors in the default definition of ocaml.
+  deletekeywords={closed,ref},
+  morekeywords={initializer, intro, elim},
+  % General settings.
+}
+
+\newcommand{\ocamlcommentstyle}{\color{blue}}
+
+\lstdefinestyle{mystyle}{
+    frame = single,
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{codegreen}\bfseries,
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=4,
+    framexleftmargin=8pt
+}
+
+\lstset{style=mystyle}
+
+% Tikz styling
+\tikzcdset{
+    boxedcd/.style={
+        every matrix/.append style={
+            draw=red,
+            thick,
+            fill=yellow!50!white,
+            rounded corners,
+            #1
+        },
+    },
+  }
+
+\newcommand{\submissionMode}{true}
+
+\ifdefined\diffmode
+\newcommand{\cbnewadding}[1]{
+\cbstart{\textcolor{blue}{#1}}\cbend}
+\newcommand{\cbst}{\cbstart}
+\newcommand{\cbed}{\cbend}
+\newcommand{\cbcontent}[1]{\textcolor{blue}{#1}}
+\newcommand{\techreport}{supplemental material\xspace}
+\else
+\ifdefined\submissionMode
+\newcommand{\cbnewadding}[1]{{#1}}
+\newcommand{\cbst}{}
+\newcommand{\cbed}{}
+\newcommand{\cbcontent}[1]{{#1}}
+\newcommand{\techreport}{supplemental material\xspace}
+\else
+\ifdefined\originalmode
+\newcommand{\cbnewadding}[1]{{#1}}
+\newcommand{\cbst}{}
+\newcommand{\cbed}{}
+\newcommand{\cbcontent}[1]{{#1}}
+\newcommand{\techreport}{technical report~\cite{FullVersion}\xspace }
+\else
+\newcommand{\cbnewadding}[1]{{#1}}
+\newcommand{\cbst}{}
+\newcommand{\cbed}{}
+\newcommand{\cbcontent}[1]{{#1}}
+\newcommand{\techreport}{supplemental material\xspace}
+\fi
+\fi
+
+\newcommand{\Pair}[2]{\mbox{$\langle\,#1,#2\,\rangle$}}
+
+% \newcommand{\JB}[1]{\textcolor{blue}{JB: #1}}
+\newcommand{\JB}[1]{}
+
+\newcommand{\specRealizable}{A_\Code{realizable}}
+
+\newcommand{\req}{\mbox{\textsf{Req}}}
+\newcommand{\resp}{\mbox{\textsf{Resp}}}
+
+\newcommand{\reqOp}[2]{\mbox{\req$\langle\eff{#1}$\,#2$\rangle$ }}
+\newcommand{\reqOpNoArgs}[1]{\mbox{\req$\langle\eff{#1}\rangle$}}
+
+\newcommand{\respOp}[2]{\mbox{\resp$\langle\eff{#1}$\;#2$\rangle$}}
+\newcommand{\respOpNoArgs}[1]{\mbox{\resp$\langle\eff{#1}\rangle$}}
+
+\newcommand{\EvtNoArgs}[1]{\mbox{$\langle\eff{#1}\rangle$}}
+
+\newcommand{\reqEvt}[2]{\mbox{$\langle\eff{#1}_{\mbox{\textsf{Req}}}$\;#2$\rangle$}}
+\newcommand{\reqEvtNoArgs}[1]{\mbox{$\langle\eff{#1}_{\mbox{\textsf{Req}}}\rangle$}}
+\newcommand{\respEvt}[2]{\mbox{$\langle\eff{#1}_{\mbox{\textsf{Rsp}}}$\;#2$\rangle$}}
+
+\newcommand{\reqEvtName}[1]{\mbox{\ensuremath{\eff{#1}}$_{\mbox{\textsf{Req}}}$}}
+\newcommand{\respEvtName}[1]{\mbox{\ensuremath{\eff{#1}}$_{\mbox{\textsf{Rsp}}}$}}

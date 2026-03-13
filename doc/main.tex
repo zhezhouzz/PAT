@@ -1,0 +1,307 @@
+\documentclass[acmsmall,screen,review,anonymous]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
+
+\setcopyright{none}
+
+%% NOTE that a single column version is required for
+%% submission and peer review. This can be done by changing
+%% the \doucmentclass[...]{acmart} in this template to
+%% \documentclass[manuscript,screen]{acmart}
+%%
+%% To ensure 100% compatibility, please check the white list of
+%% approved LaTeX packages to be used with the Master Article Template at
+%% https://www.acm.org/publications/taps/whitelist-of-latex-packages
+%% before creating your document. The white list page provides
+%% information on how to submit additional LaTeX packages for
+%% review and adoption.
+%% Fonts used in the template cannot be substituted; margin
+%% adjustments are not allowed.
+%%
+%% \BibTeX command to typeset BibTeX logo in the docs
+\AtBeginDocument{%
+  \providecommand\BibTeX{{%
+    \normalfont B\kern-0.5em{\scshape i\kern-0.25em b}\kern-0.8em\TeX}}}
+
+%% Rights management information.  This information is sent to you
+%% when you complete the rights form.  These commands have SAMPLE
+%% values in them; it is your responsibility as an author to replace
+%% the commands and values with those provided to you when you
+%% complete the rights form.
+% \setcopyright{acmcopyright}
+% \copyrightyear{2018}
+% \acmYear{2018}
+% \acmDOI{XXXXXXX.XXXXXXX}
+
+
+%%
+%% These commands are for a JOURNAL article.
+% \acmJournal{JACM}
+% \acmVolume{37}
+% \acmNumber{4}
+% \acmArticle{111}
+% \acmMonth{8}
+
+%%
+%% Submission ID.
+%% Use this when submitting an article to a sponsored event. You'll
+%% receive a unique submission ID from the organizers
+%% of the event, and this ID should be used as the parameter to this command.
+%%\acmSubmissionID{123-A56-BU3}
+
+%%
+%% For managing citations, it is recommended to use bibliography
+%% files in BibTeX format.
+%%
+%% You can then either use BibTeX with the ACM-Reference-Format style,
+%% or BibLaTeX with the acmnumeric or acmauthoryear sytles, that include
+%% support for advanced citation of software artefact from the
+%% biblatex-software package, also separately available on CTAN.
+%%
+%% Look at the sample-*-biblatex.tex files for templates showcasing
+%% the biblatex styles.
+%%
+
+%%
+%% The majority of ACM publications use numbered citations and
+%% references.  The command \citestyle{authoryear} switches to the
+%% "author year" style.
+%%
+%% If you are preparing content for an event
+%% sponsored by ACM SIGGRAPH, you must use the "author year" style of
+%% citations and references.
+%% Uncommenting
+%% the next command will enable that style.
+%\citestyle{acmauthoryear}
+
+%%
+%% end of the preamble, start of the body of the document source.
+
+\usepackage{hyperref, wrapfig, amsthm, pict2e, booktabs, subcaption,
+  subfiles, rotating, pifont, indentfirst, amsmath, amsfonts,
+  mathrsfs, adjustbox, mathtools,booktabs, microtype, ebproof,
+  enumitem, multirow, multicol, setspace, xcolor, lineno, listings,
+  stmaryrd, xspace, stackengine, makecell}
+
+\usepackage{empheq}
+\newcommand*\widefbox[1]{\fbox{\hspace{2em}#1\hspace{2em}}}
+\usepackage[tableposition=top]{caption}
+\usepackage{tikz-cd}
+\usetikzlibrary{decorations.pathmorphing}
+\usepackage[ruled,linesnumbered,vlined]{algorithm2e}
+\newcommand\mycommfont[1]{\footnotesize\ttfamily\textcolor{DeepGreen}{#1}}
+\SetCommentSty{mycommfont}
+\usepackage{graphicx}
+\urlstyle{same}
+\usepackage{minted}
+\usemintedstyle{borland}
+\usepackage{tikz}
+\newcounter{markeq}
+\setcounter{markeq}{0}
+\usepackage{spacingtricks}
+\newcommand*\tstrut[1]{\vstrut{#1}}
+\newcommand*\bstrut[1]{\vstrut[#1]{0pt}}
+\usepackage[T1]{fontenc}
+\newcommand*\mystrut[1]{\vrule width0pt height0pt depth#1\relax}
+% \usepackage{bm}
+
+\newcommand{\tyName}{\mbox{\textsf{u}\textsc{Hat}}\xspace}
+
+% ZZ's Macros
+\usepackage{spacingtricks, commands, refinementtydef}
+
+\begin{document}
+
+%%
+%% The "title" command has an optional parameter,
+%% allowing the author to define a "short title" to be used in page headers.
+% \title{Synthesizing Test Controllers from Types: Property-Guided Bug-Finding for Distributed System Models}
+\title{Trace-Guided Synthesis of Effectful Test Generators}
+%%
+%% The "author" command and its associated commands are used to define
+%% the authors and their affiliations.
+%% Of note is the shared affiliation of the first two authors, and the
+%% "authornote" and "authornotemark" commands
+%% used to denote shared contribution to the research.
+\author{Zhe Zhou}
+%\authornote{with author1 note}          %% \authornote is optional;
+                                        %% can be repeated if necessary
+%\orcid{nnnn-nnnn-nnnn-nnnn}             %% \orcid is optional
+\affiliation{
+  \institution{Purdue University}            %% \institution is required
+  \country{USA}                    %% \country is recommended
+}
+% \email{first1.last1@inst1.edu}          %% \email is recommended
+
+\author{Benjamin Delaware}
+\affiliation{
+  \institution{Purdue University}            %% \institution is required
+  \country{USA}                    %% \country is recommended
+}
+
+\author{Suresh Jagannathan}
+\affiliation{
+  \institution{Purdue University}            %% \institution is required
+  \country{USA}                    %% \country is recommended
+}
+
+
+
+
+
+%%
+%% By default, the full list of authors will be used in the page
+%% headers. Often, this list is too long, and will overlap
+%% other information printed in the page headers. This command allows
+%% the author to define a more concise list
+%% of authors' names for this purpose.
+% \renewcommand{\shortauthors}{Trovato and Tobin, et al.}
+
+%%
+%% The abstract is a short summary of the work to be presented in the
+%% article.
+
+
+\begin{abstract}
+  Several recently proposed program logics have incorporated notions
+  of \emph{underapproximation} into their design, enabling them to
+  reason about reachability rather than safety. In this paper, we
+  explore how similar ideas can be integrated into an expressive type
+  and effect system.  We use the resulting underapproximate type
+  specifications to guide the synthesis of test generators that probe
+  the behavior of effectful black-box systems. A key novelty of our
+  type language is its ability to capture underapproximate behaviors
+  of \emph{effectful} operations using symbolic traces that expose
+  latent data and control dependencies, constraints that must be
+  preserved by the test sequences the generator outputs.  We
+  implement this approach in a tool called \name{}, and evaluate it on
+  a diverse range of applications by integrating \name{}'s synthesized
+  generators into property-based testing frameworks like QCheck and
+  model-checking tools like P.  In both settings, the generators
+  synthesized by \name{} are significantly more effective than the
+  default testing strategy, and are competitive with state-of-the-art,
+  handwritten solutions.
+\end{abstract}
+
+
+
+
+  % Effective testing of distributed system designs is challenging.
+  % This is because the executions that lead to violations of important
+  % safety or liveness properties represent an infinitesimally small
+  % fragment of the set of all possible behaviors the system can
+  % exhibit.  In this paper, we address this challenge by proposing a
+  % technique that automatically synthesizes a \emph{test controller}---
+  % a program that guides the search for buggy executions--- tailored to
+  % the model of a distributed system-under-test (SUT) and
+  % the property whose violation we are interested in triggering.  We
+  % focus our solution on \emph{open} systems in which the test
+  % controller must govern both the construction of messages injected
+  % into the SUT by an external environment as well as the order in
+  % which messages within the SUT are sent and received.  Our
+  % approach rests on two technical innovations: first, we develop a
+  % novel trace-based refinement type system called \emph{Prophecy
+  %   Automata Types} that describes both the history of the system and
+  % its future behaviors using a symbolic variant of linear temporal
+  % logic. Second, we use these types to design a synthesis algorithm
+  % that constructs a program in a DSL tailored for expressing test
+  % controllers.  Such programs directly express faulty executions in
+  % the target system by fixing the order in which messages are
+  % communicated among actors, and the contents of messages sent from an
+  % external environment to trigger component actions.  We describe the
+  % implementation of our approach in a tool, Clouseau, and present a
+  % comprehensive evaluation on a set of diverse, non-trivial
+  % benchmarks, including a case study of an application model developed
+  % by a major cloud vendor, to justify our technique.
+
+
+%%
+%% The code below is generated by the tool at http://dl.acm.org/ccs.cfm.
+%% Please copy and paste the code instead of the example below.
+%%
+% \begin{CCSXML}
+% <ccs2012>
+%  <concept>
+%   <concept_id>10010520.10010553.10010562</concept_id>
+%   <concept_desc>Computer systems organization~Embedded systems</concept_desc>
+%   <concept_significance>500</concept_significance>
+%  </concept>
+%  <concept>
+%   <concept_id>10010520.10010575.10010755</concept_id>
+%   <concept_desc>Computer systems organization~Redundancy</concept_desc>
+%   <concept_significance>300</concept_significance>
+%  </concept>
+%  <concept>
+%   <concept_id>10010520.10010553.10010554</concept_id>
+%   <concept_desc>Computer systems organization~Robotics</concept_desc>
+%   <concept_significance>100</concept_significance>
+%  </concept>
+%  <concept>
+%   <concept_id>10003033.10003083.10003095</concept_id>
+%   <concept_desc>Networks~Network reliability</concept_desc>
+%   <concept_significance>100</concept_significance>
+%  </concept>
+% </ccs2012>
+% \end{CCSXML}
+
+% \ccsdesc[500]{Computer systems organization~Embedded systems}
+% \ccsdesc[300]{Computer systems organization~Redundancy}
+% \ccsdesc{Computer systems organization~Robotics}
+% \ccsdesc[100]{Networks~Network reliability}
+
+%%
+%% Keywords. The author(s) should pick words that accurately describe
+%% the work being presented. Separate the keywords with commas.
+%\keywords{Property-based testing, Type systems, Underapproximate
+%  reasoning}
+
+%%
+%% This command processes the author and affiliation and title
+%% information and builds the first part of the formatted document.
+\maketitle
+
+% \subfile{oopsla25/0-intro}
+% \subfile{oopsla25/9-benchmark-MonkeyDB}
+% \subfile{oopsla25/10-benchmark-Quickstorm}
+% \subfile{oopsla25/11-benchmark-STLCFuzzer}
+
+% \subfile{sections/reviews}
+% \subfile{sections/rebuttal}
+
+% \subfile{sections/0-intro}
+% \subfile{sections/1-overview}
+% \subfile{sections/2-language}
+% \subfile{sections/3-algo}
+% \subfile{sections/4-evaluation}
+% \subfile{sections/5-related}
+
+% \bibliographystyle{ACM-Reference-Format}
+% \bibliography{bibliography}
+
+% \section*{Acknowledgements}
+
+%%
+%% The next two lines define the bibliography style to be used, and
+%% the bibliography file.
+
+%\bibliographystyle{ACM-Reference-Format}
+\bibliographystyle{plainnat}
+% \bibliographystyle{plain}
+% \bibliographystyle{ACM-Reference-Format}
+% \citestyle{acmauthoryear}
+\bibliography{bibliography}
+
+\newpage
+\appendix
+\subfile{explaination}
+% \subfile{tech/0-semantics}
+% \subfile{tech/1-typing}
+% \subfile{tech/2-denotation}
+% \subfile{tech/3-algo}
+% \subfile{tech/4-proof-0}
+% \subfile{tech/4-proof-2}
+% \subfile{tech/4-proof-3}
+% \subfile{tech/5-evaluation}
+
+\end{document}
+\endinput
+%%
+%% End of file `sample-acmsmall.tex'.

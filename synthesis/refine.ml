@@ -39,7 +39,7 @@ let _strategy =
       layout_bound = 10;
       result_expection = 1;
       pause = Myconfig.get_bool_option "pause_during_synthesis";
-      search_new_goals = false;
+      search_new_goals = true;
       addKstar = Myconfig.get_bool_option "add_kstar_during_synthesis";
       expected_end_time = None;
     }
@@ -65,40 +65,14 @@ let init_strategy env =
   in
   let () = Pp.printf "num_gen: %i, num_obs: %i\n" num_gen num_obs in
   if database_related env then
-    _strategy :=
-      {
-        !_strategy with
-        search = UnSortedDFS 1;
-        search_new_goals = false;
-        addKstar = false;
-      }
+    _strategy := { !_strategy with search = UnSortedDFS 1; addKstar = false }
   else if p_related env then
-    _strategy :=
-      {
-        !_strategy with
-        search = UnSortedDFS 1;
-        search_new_goals = false;
-        addKstar = false;
-      }
+    _strategy := { !_strategy with search = UnSortedDFS 1; addKstar = false }
   else if StrMap.cardinal env.axioms > 3 || num_obs > num_gen + 3 then
-    _strategy :=
-      {
-        !_strategy with
-        search = UnSortedDFS 1;
-        search_new_goals = false;
-        addKstar = true;
-      }
+    _strategy := { !_strategy with search = UnSortedDFS 1; addKstar = true }
   else if num_gen <= 4 && StrMap.cardinal env.axioms == 0 then
-    _strategy :=
-      {
-        !_strategy with
-        search = UnSortedDFS 1;
-        search_new_goals = false;
-        addKstar = true;
-      }
-  else
-    _strategy :=
-      { !_strategy with search = UnSortedDFS 1; search_new_goals = false }
+    _strategy := { !_strategy with search = UnSortedDFS 1; addKstar = true }
+  else _strategy := { !_strategy with search = UnSortedDFS 1 }
 
 let search_strategy_to_string = function
   | DFS -> "DFS"

@@ -99,7 +99,7 @@ let handle_syn_result (env, num_assert, term) name =
     Out_channel.close oc;
     raise e
 
-let do_syn ?(num_expected = 1) name source_file () =
+let do_syn name source_file num_expected () =
   let code = read_source_file source_file () in
   (* let () = Printf.printf "%s\n" (layout_structure code) in *)
   let env = Ntypecheck.(struct_check init_env code) in
@@ -818,7 +818,7 @@ let cmds =
       param_string_int "sample random" (fun name n ->
           test_random "sample" name None (Some n)) );
     ("read-syn", one_param "read syn" read_syn);
-    ("do-syn", tag_and_file "read syn" do_syn);
+    ("do-syn", tag_and_file_int "do syn" do_syn);
     ("do-naive", string_string_int_float "do naive syn" do_naive_syn);
     ("do-parse", tag_and_file "read parse" do_parse);
     ("syn-one", file_and_string "syn one" syn_term);

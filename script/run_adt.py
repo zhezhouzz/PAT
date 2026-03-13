@@ -38,21 +38,14 @@ def invoc_cmd(cmd, cwd=None):
         print(e.output)
 
 
-# benchmarks = ["Stack", "HashTable", "Filesystem", "Graph", "NFA", "IFCAdd", "IFCStore", "IFCLoad", "DeBruijn2",  "CartRC", "CartCC", "CoursewareRC", "CoursewareCC", "TwitterRC", "TwitterCC", "SmallbankRC", "SmallbankCC", "TreiberStackRC", "TreiberStackCC"]
 benchmarks = ["Stack", "HashTable", "Filesystem", "Graph", "NFA", "IFCAdd", "IFCStore",  "IFCLoad", "DeBruijn1", "DeBruijn2", "Shopping", "Courseware", "Twitter", "Smallbank"]
-# benchmarks = ["Shopping", "Courseware", "Twitter", "Smallbank"]
-# benchmarks  = ["Filesystem", "Graph",  "NFA", "IFCAdd", "IFCStore",  "IFCLoad"]
-# benchmarks  = ["DeBruijn1"]
-benchmarks = ["IFCStore", "IFCAdd", "IFCLoad"]
-benchmarks = ["Set", "ReaderWriter"]
-benchmarks = ["ReaderWriter"]
-benchmarks = ["Filesystem"]
 
 discription_dict = {
     "Set": "Missing inserted value.",
     "Stack": "All pushed values should be popped.",
     "HashTable": "Updates must be visible to all threads.",
     "Filesystem": "No access allowed after parent path deletion.",
+    "FilesystemSimple": "No access allowed after parent path deletion.",
     "Graph": "A connected graph with at least $3$ nodes.",
     "NFA": "A NFA with at least $3$ edges.",
     "IFCAdd": "A IFC program that contains $\\Code{Add}$ command.",
@@ -76,6 +69,7 @@ task_name_dict = {
     "Stack": "stack",
     "Graph": "graph",
     "Filesystem": "filesystem",
+    "FilesystemSimple": "filesystem",
     "NFA": "nfa",
     "IFCStore": "ifc_store",
     "IFCAdd": "ifc_add",
@@ -106,6 +100,7 @@ task_dir_dict = {
     "Stack": "ADT/stack_spec.ml",
     "Graph": "ADT/graph_spec.ml",
     "Filesystem": "ADT/filesystem_spec.ml",
+    "FilesystemSimple": "ADT/filesystem_simp_spec.ml",
     "NFA": "ADT/nfa_spec.ml",
     "IFCStore": "ADT/ifc_spec.ml",
     "IFCAdd": "ADT/ifc_spec.ml",
@@ -433,7 +428,7 @@ def table1(benchnames, stat):
 
 def do_syn():
     for bench_name in benchmarks:
-        cmd = cmd_prefix + ["do-syn", task_name(bench_name), task_dir(bench_name)]
+        cmd = cmd_prefix + ["do-syn", task_name(bench_name), task_dir(bench_name), "3"]
         invoc_cmd(cmd)
     return
 
@@ -471,30 +466,63 @@ def fix():
             j = json.dump(j, f)
 
 
+import argparse
+
+def parse_benchmarks(names_str):
+    if not names_str:
+        return []
+    return [x.strip() for x in names_str.split(',') if x.strip()]
+
 if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        arg = sys.argv[1]
-        if arg == "syn":
-            do_syn()
-        elif arg == "runsyn":
-            run_syn()
-            j = load_stat()
-            print_cols(benchmarks, j)
-        elif arg == "runrandom":
-            run_random()
-            j = load_stat()
-            print_cols(benchmarks, j)
-        elif arg == "parse":
-            do_parse()
-            j = load_stat()
-            print_cols(benchmarks, j)
-        elif arg == "show":
-            j = load_stat()
-            print_cols(benchmarks, j)
-        elif arg == "table1":
-            j = load_stat()
-            table1(benchmarks, j)
-    else:
+    parser = argparse.ArgumentParser(description='Run ADT benchmarks')
+    parser.add_argument('command', nargs='?', default='all', help='Command to run (syn, runsyn, runrandom, etc.)')
+    parser.add_argument('-b', '--benchmarks', type=str, help='Comma-separated list of benchmarks to run')
+    parser.add_argument('extra_args', nargs='*', help='Extra arguments for specific commands')
+    
+    args = parser.parse_args()
+    
+    if args.benchmarks:
+        parsed = parse_benchmarks(args.benchmarks)
+        if parsed:
+            benchmarks = parsed
+
+    if args.command == "syn":
+        do_syn()
+    elif args.command == "runsyn":
+        run_syn()
+        j = load_stat()
+        print_cols(benchmarks, j)
+    elif args.command == "syn-one":
+        if not args.extra_args:
+            print("Error: syn-one requires a benchmark name")
+            sys.exit(1)
+        name = args.extra_args[0]
+        benchmarks = [name]
+        do_syn()
+    elif args.command == "runsyn-one":
+        if not args.extra_args:
+            print("Error: runsyn-one requires a benchmark name")
+            sys.exit(1)
+        name = args.extra_args[0]
+        benchmarks = [name]
+        run_syn()
+        j = load_stat()
+        print_cols(benchmarks, j)
+    elif args.command == "runrandom":
+        run_random()
+        j = load_stat()
+        print_cols(benchmarks, j)
+    elif args.command == "parse":
+        do_parse()
+        j = load_stat()
+        print_cols(benchmarks, j)
+    elif args.command == "show":
+        j = load_stat()
+        print_cols(benchmarks, j)
+    elif args.command == "table1":
+        j = load_stat()
+        table1(benchmarks, j)
+    elif args.command == "all":
         do_syn()
         run_syn()
         run_random()
