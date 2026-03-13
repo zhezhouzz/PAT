@@ -423,29 +423,46 @@ def fix():
 
 
 
+import argparse
+
+def parse_benchmarks(names_str):
+    if not names_str:
+        return []
+    return [x.strip() for x in names_str.split(',') if x.strip()]
+
 if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        arg = sys.argv[1]
-        if arg == "syn":
-            do_p_syn()
-            do_compile()
-        elif arg == "runsyn":
-            run_syn_p()
-            j = load_stat()
-            print_cols(benchmarks, j)
-        elif arg == "runrandom":
-            run_random_p()
-        elif arg == "parse":
-            do_parse()
-            j = load_stat()
-            print_cols(benchmarks, j)
-        elif arg == "show":
-            j = load_stat()
-            print_cols(benchmarks, j)
-        elif arg == "table2":
-            j = load_stat()
-            table2(benchmarks, j)
-    else:
+    parser = argparse.ArgumentParser(description='Run P benchmarks')
+    parser.add_argument('command', nargs='?', default='all', help='Command to run (syn, runsyn, runrandom, etc.)')
+    parser.add_argument('-b', '--benchmarks', type=str, help='Comma-separated list of benchmarks to run')
+    parser.add_argument('extra_args', nargs='*', help='Extra arguments for specific commands')
+    
+    args = parser.parse_args()
+    
+    if args.benchmarks:
+        parsed = parse_benchmarks(args.benchmarks)
+        if parsed:
+            benchmarks = parsed
+
+    if args.command == "syn":
+        do_p_syn()
+        do_compile()
+    elif args.command == "runsyn":
+        run_syn_p()
+        j = load_stat()
+        print_cols(benchmarks, j)
+    elif args.command == "runrandom":
+        run_random_p()
+    elif args.command == "parse":
+        do_parse()
+        j = load_stat()
+        print_cols(benchmarks, j)
+    elif args.command == "show":
+        j = load_stat()
+        print_cols(benchmarks, j)
+    elif args.command == "table2":
+        j = load_stat()
+        table2(benchmarks, j)
+    elif args.command == "all":
         # do_p_syn()
         do_compile()
         run_syn_p()

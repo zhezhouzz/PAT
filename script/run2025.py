@@ -53,9 +53,16 @@ def run_random(name, testNum):
     cmd = cmd_prefix + ["test-random", name, str(testNum)]
     invoc_cmd(cmd)
 
+import argparse
+
 if __name__ == "__main__":
-    name = sys.argv[1]
-    testNum = int(sys.argv[2])
+    parser = argparse.ArgumentParser(description='Run 2025 benchmarks')
+    parser.add_argument('name', type=str, help='Benchmark name')
+    parser.add_argument('testNum', type=int, help='Test number')
+    args = parser.parse_args()
+
+    name = args.name
+    testNum = args.testNum
     print("\n\n\n\nRunning synthesis for", name)
     run_syn(name)
     input()

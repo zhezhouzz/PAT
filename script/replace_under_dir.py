@@ -30,7 +30,13 @@ subst = "Nt.Ty_tuple"
 # regex = r"Nt.eq "
 # subst = "Nt.equal_nt "
 
-walk_dir = sys.argv[1]
+import argparse
+
+parser = argparse.ArgumentParser(description='Replace text in files under a directory')
+parser.add_argument('walk_dir', type=str, help='Directory to walk')
+args = parser.parse_args()
+
+walk_dir = args.walk_dir
 tmp_path = "/tmp/.tmp"
 tmp_original_path = "/tmp/.tmp_original"
 
