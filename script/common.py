@@ -4,7 +4,13 @@ import os
 import math
 
 verbose = False
-cmd_prefix = ["dune", "exec", "--", "bin/main.exe"]
+cmd_prefix = ["./main.exe"]
+
+def build_and_copy_exe():
+    print("Building project...")
+    subprocess.run(["dune", "build"], check=True)
+    print("Copying main.exe...")
+    subprocess.run(["cp", "_build/default/bin/main.exe", "main.exe"], check=True)
 
 def invoc_cmd(cmd, cwd=None):
     if (verbose):

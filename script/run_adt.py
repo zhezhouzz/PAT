@@ -465,6 +465,8 @@ if __name__ == '__main__':
         if parsed:
             benchmarks = parsed
 
+    build_and_copy_exe()
+
     if args.command == "syn":
         do_syn()
     elif args.command == "runsyn":

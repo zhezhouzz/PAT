@@ -22,7 +22,7 @@ def mk_spec_path(name, specname):
 def mk_output_path(pname):
     return p_repo + "/" + pname + "/PSyn/SynClient.p"
 
-benchmarks = ["Database", "Firewall", "RingLeaderElection", "EspressoMachine", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Raft", "Kermit2PCModel"]
+benchmarks = ["Database", "Firewall", "RingLeaderElection", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Raft", "Kermit2PCModel"]
 # benchmarks = ["ChainReplication", "Paxos", "Raft"]
 # benchmarks = ["Raft"]
 # benchmarks = ["Firewall"]
@@ -389,6 +389,8 @@ if __name__ == '__main__':
         parsed = parse_benchmarks(args.benchmarks)
         if parsed:
             benchmarks = parsed
+
+    build_and_copy_exe()
 
     if args.command == "syn":
         do_p_syn()

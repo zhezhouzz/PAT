@@ -46,6 +46,7 @@ if __name__ == "__main__":
 
     name = args.name
     testNum = args.testNum
+    build_and_copy_exe()
     print("\n\n\n\nRunning synthesis for", name)
     run_syn(name)
     input()
