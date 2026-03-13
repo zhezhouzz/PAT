@@ -1,163 +1,294 @@
-# P PBT
-Property-Based Testing For P
+# Artifact Guide: Trace-Guided Synthesis of Effectful Test Generators
 
-# Install
+This is the artifact for the PLDI 2026 paper *Trace-Guided Synthesis of Effectful Test
+Generators*. The tool is called **Clouseau** and is implemented in approximately 14K lines
+of OCaml. It automatically synthesizes effectful test generators (schedulers) for
+property-based testing, guided by traces that witness property violations.
 
-The easiest way to install the dependencies is via [OPAM](https://opam.ocaml.org/doc/Install.html).
+The artifact supports reproduction of:
+- **Table 1** — ADT & QCheck benchmarks (14 benchmarks)
+- **Table 2** — P language benchmarks (11 benchmarks)
 
-```
-  opam init --auto-setup
-  opam update
-  opam switch create YOUR_NAME ocaml-base-compiler.5.2.0
-  eval $(opam env)
-  opam install dune core core_unix yojson conf-c++ conf-python qcheck ocolor dolog ocamlbuild z3 ppx_deriving_yojson menhirLib menhir spectrum
-```
+---
 
-Then download the dependent libraries `zutils` and `AutomataLibrary`, and install them:
+## Getting Started Guide
 
-```
-    cd zutils
-    opam install .
-    cd AutomataLibrary
-    opam install .
-```
+**Recommended hardware:** 8 GB RAM, 8 GB free disk space.
 
-Then compile this repo:
+**Requirements:** Docker version 20.10.23 or later, Docker Compose v2.
 
-```
-    dune build
-```
+**Tested on:** Linux, Intel Core i7, 64 GB RAM.
 
-# Run Synthesizer
+### Using the Pre-Built Docker Image
+
+Pull from Docker Hub:
 
 ```
-dune exec -- bin/main.exe do-syn [GOAL_NAME] [SPEC_FILE]
+$ docker pull clouseau2026/clouseau:pldi-2026
 ```
 
-For example,
-```
-    mkdir output
-    dune exec -- bin/main.exe do-syn stack benchmarks/ADT/stack_spec.ml
-```
-
-This command will store the synthesized programs as output/stack.scm
-
-# Run Synthesized Programs
-
-Run synthesized programs `N` times (e.g., 100):
+Or load from the provided archive:
 
 ```
-    dune exec -- bin/main.exe test-eval stack 100
-```
-# Run QuickCheck Programs
-
-Run random test programs `N` times (e.g., 100):
-
-```
-    dune exec -- bin/main.exe test-random stack 100
+$ docker load < clouseau:pldi-2026.tar.gz
 ```
 
-Note: benchmark names are hardcoded in `bin/commands/cre.ml`.
-
-# Run Benchmarks
+### Building the Docker Image (Optional)
 
 ```
-    python3 script/run2025.py [NAME] [NUM_TEST]
+$ docker build . --tag clouseau2026/clouseau:pldi-2026
 ```
 
-The script pauses for input between phases (synthesis → evaluation → random); press Enter when prompted.
+> **Note:** Building the image requires compiling Z3 from source via the `z3` opam package,
+> which may require up to 32 GB of RAM on some systems. If the build fails due to memory
+> pressure, increase Docker's memory limit or use the pre-built image instead.
 
-Currently supported:
+### Running Clouseau (ADT benchmarks only)
 
-+ ADT: `graph`, `nfa`, `stlc`, `stack`, `filesystem`, `ifc_store`, `ifc_add`, `ifc_load`.
-
-+ Database (Causal and Read Committed): `cart`. TODO: `courseware`, `twitter`, `treiber_stack`, `OTLP`.
-
-+ P Language (legacy code needs updates to work with the current version).
-
-# Database
-
-To run MonkeyDB benchmarks, set up a MariaDB Galera cluster.
-
-## MariaDB setup
-
-We use Docker to run three MariaDB instances on different ports.
-
-- Download the image from `https://hub.docker.com/r/bitnami/mariadb-galera`.
-
-- Use Docker Compose (`https://github.com/docker/compose`) to start the cluster (e.g., under the `docker` directory that contains a `docker/compose.yaml`).
-  + Start the first node named `galera1` (`-d` runs in the background):
+For ADT and P language benchmarks (no database required):
 
 ```
-  docker compose up galera1 -d 
+$ docker run -it -m="8g" clouseau2026/clouseau:pldi-2026
 ```
 
-  + Wait until the node is ready to accept connections. Check logs of the detached container:
+Once inside the container, verify the tool works:
 
 ```
-  docker logs -f galera1
+$ ./main.exe --help
 ```
 
-  Proceed once you see a line like `WSREP: Synchronized with group, ready for connections`.
+You should see the Clouseau help message listing available commands.
 
-  + Then start the other nodes (`galera2` and `galera3`):
+### Running Clouseau with MariaDB (for MonkeyDB benchmarks)
 
-```
-  docker compose up galera2 galera3 -d 
-```
+The MonkeyDB benchmarks (Shopping, Courseware, Twitter, Smallbank) require a
+three-node MariaDB Galera cluster. A `compose.yaml` at the root of this repository
+sets up everything — the Galera cluster and the Clouseau container — with a single
+command. The Galera nodes use the `bitnamilegacy/mariadb-galera:latest` image
+(AMD64, legacy Bitnami build).
 
-  + Connect to MariaDB from the command line (requires the MariaDB client):
-
-```
-  mysql -h 127.0.0.1 -P 3308 -uroot -prootpass
-```
-
-  The nodes listen on ports `3307`, `3308`, and `3309`; the user is `root`, password `rootpass` (see `docker/compose.yaml` for details).
-
-  + (Optional) Use a web UI via Adminer. First start `adminer`:
+**Step 1 — Start the first Galera node and wait for it to be ready:**
 
 ```
-  docker compose up adminer -d 
-``` 
-
-Then open `http://localhost:8080/` in your browser to access the database. Server `host.docker.internal:[PORT]`, Database can be empty (or `mysql`).
-
-+ If something fails, clear everything except `docker/compose.yaml` under the `docker` directory, then run `docker compose down -v` to shut down and clean volumes, and try again.
-
-## MariaDB options and tests
-
-A MariaDB-backed, MonkeyDB-like layer lives in `benchmarks/BackendMariaDB/backendMariaDB.ml`.
-
-We support four isolation levels (weak → strong): `ReadUncommitted`, `ReadCommitted`, `Causal` (via Galera), and `Serializable`. InnoDB prevents write/write conflicts: two concurrent transactions cannot both write the same row. If a synthesized schedule violates these policies, the database may deadlock or raise errors.
-
-We provide several simple test programs in `benchmarks/BackendMariaDB/backendMariaDB.ml`:
-
-+ `test_stuck`: causes a write/write conflict.
-+ `test_dirty_read`: reads uncommitted changes.
-+ `test_non_repeatable_read`: reads different results within one transaction.
-+ `test_causal`: violates causal consistency.
-+ `test_cart`: a possible run of the `cart` benchmark.
-
-Try them, for example:
-
-```
-  dune exec -- bin/main.exe test-non-repeatable-read ReadUncommitted
+$ docker compose up galera1 -d
+$ docker logs -f galera1
 ```
 
-These commands are also defined in `bin/commands/cre.ml`.
+Wait until you see a line like:
 
-## Next Steps
+```
+WSREP: Synchronized with group, ready for connections
+```
 
-To extend and evaluate the system, follow these steps:
+**Step 2 — Start the remaining nodes and the Clouseau container:**
 
-1. **Set up MariaDB and run the `cart_rc` benchmark.**
-  - Ensure your MariaDB cluster is running as described above.
-  - Use the provided scripts and commands to execute the `cart_rc` benchmark and verify correct operation.
+```
+$ docker compose up galera2 galera3 clouseau -d
+```
 
-2. **Add and evaluate additional benchmarks: `courseware`, `twitter`, `treiber_stack`, and `smallbank`.**
-  - For each benchmark:
-    - **Design the database schema:** Define tables and relationships to represent the application's data model.
-    - **Implement handlers:** Write the code to process transactions and operations for the benchmark.
-    - **Write the specification:** Formalize the application APIs and isolation requirements for the benchmark (isolation requirements are similar with `cart`).
-    - **Develop a random test generator:** Create a generator to produce randomized sequences of operations in asynchronize style.
-    - **Run experiments:** Execute the benchmark under different isolation levels and collect results.
+**Step 3 — Open an interactive shell in the Clouseau container:**
+
+```
+$ docker compose exec clouseau bash
+```
+
+The Galera nodes listen on host ports `3307`, `3308`, and `3309` (user `root`,
+password `rootpass`). The Clouseau container uses `network_mode: host` so it can
+reach them at `127.0.0.1` on those ports.
+
+**Optional — web UI via Adminer:**
+
+```
+$ docker compose up adminer -d
+```
+
+Then open `http://localhost:8080/` in your browser (server: `127.0.0.1:3307`,
+leave database blank or enter `mysql`).
+
+**Shutting down:**
+
+```
+$ docker compose down -v
+```
+
+The `-v` flag removes the Galera data volumes for a clean restart.
+
+**Cluster initialization (required before first MonkeyDB benchmark run):**
+
+After starting the cluster, run the initialization script once:
+
+```
+$ python3 scripts/init_cluster.py
+```
+
+---
+
+## Step-by-Step Instructions
+
+### Artifact Structure
+
+Key directories and files:
+
+| Path | Description |
+|------|-------------|
+| `bin/main.ml` | Entry point |
+| `synthesis/` | Core synthesis engine |
+| `interpreter/` | Trace interpreter / runtime |
+| `benchmarks/ADT/` | ADT specs for Table 1 |
+| `benchmarks/MonkeyDB/` | MonkeyDB (database) specs for Table 1 |
+| `benchmarks/BackendMariaDB/` | MariaDB backend implementation |
+| `benchmarks/Database/`, `benchmarks/Firewall/`, … | P language specs for Table 2 |
+| `penv/` | Synthesized P programs (output) |
+| `poriginal/` | Baseline P programs (random) |
+| `script/run_adt.py` | Script to reproduce Table 1 |
+| `script/run_bench.py` | Script to reproduce Table 2 |
+| `stat/` | Statistics output files (JSON) |
+| `meta-config.json` | Tool configuration |
+
+---
+
+### Reproducing Table 1 (ADT & QCheck Benchmarks)
+
+**Benchmarks:** Stack, HashTable, Filesystem, Graph, NFA, IFCStore, IFCAdd, IFCLoad,
+DeBruijn1, DeBruijn2, Shopping, Courseware, Twitter, Smallbank
+
+> **Note:** Shopping, Courseware, Twitter, and Smallbank are MonkeyDB benchmarks that
+> connect to the MariaDB Galera cluster during the `runsyn` step. Start the cluster
+> and run the **cluster initialization warm-up** (see above) before running Steps 2–3
+> for those benchmarks.
+
+All steps are run from `/home/clouseau` inside the container.
+
+**Step 1 — Synthesis (approximately X minutes):**
+
+```
+$ python3 script/run_adt.py syn
+```
+
+**Step 2 — Run synthesized generators (200 runs each):**
+
+```
+$ python3 script/run_adt.py runsyn
+```
+
+**Step 3 — Run random (QCheck) baseline:**
+
+```
+$ python3 script/run_adt.py runrandom
+```
+
+**Step 4 — Display Table 1 as LaTeX:**
+
+```
+$ python3 script/run_adt.py table1
+```
+
+---
+
+### Reproducing Table 2 (P Language Benchmarks)
+
+**Benchmarks:** Database, Firewall, RingLeaderElection, EspressoMachine, BankServer,
+Simplified2PC, HeartBeat, ChainReplication, Paxos, Raft, Kermit2PCModel
+
+**Step 1 — Synthesis + compile to P (approximately X minutes):**
+
+```
+$ python3 script/run_bench.py syn
+```
+
+**Step 2 — Run synthesized schedulers (500 runs each):**
+
+```
+$ python3 script/run_bench.py runsyn
+```
+
+**Step 3 — Run random baseline:**
+
+```
+$ python3 script/run_bench.py runrandom
+```
+
+**Step 4 — Display Table 2 as LaTeX:**
+
+```
+$ python3 script/run_bench.py table2
+```
+
+---
+
+### Detailed Usage of Clouseau
+
+**Synthesis — run the synthesizer on a single benchmark:**
+
+```
+$ ./main.exe do-syn GOAL_NAME SPEC_FILE
+```
+
+Example:
+
+```
+$ ./main.exe do-syn stack benchmarks/ADT/stack_spec.ml
+```
+
+Output is written to `output/GOAL_NAME.scm`.
+
+**Run synthesized generator N times:**
+
+```
+$ ./main.exe sample-syn GOAL_NAME N
+```
+
+Example (`stack`, 100 runs):
+
+```
+$ ./main.exe sample-syn stack 100
+```
+
+**Run random (QCheck) generator N times:**
+
+```
+$ ./main.exe sample-random GOAL_NAME N
+```
+
+Example:
+
+```
+$ ./main.exe sample-random stack 100
+```
+
+**Compile synthesized generator to P:**
+
+```
+$ ./main.exe compile-to-p TASK_NAME BENCH_NAME
+```
+
+---
+
+### MariaDB Isolation Level Tests
+
+The MariaDB backend supports four isolation levels (weak → strong):
+`ReadUncommitted`, `ReadCommitted`, `Causal` (via Galera), and `Serializable`.
+
+Several standalone test programs are provided:
+
+```
+$ ./main.exe test-stuck ReadUncommitted
+$ ./main.exe test-dirty-read ReadUncommitted
+$ ./main.exe test-non-repeatable-read ReadUncommitted
+$ ./main.exe test-causal Causal
+$ ./main.exe test-db ReadCommitted
+```
+
+These require the MariaDB Galera cluster to be running (see above).
+
+---
+
+### Configuration of Clouseau (`meta-config.json`)
+
+| Field | Description |
+|-------|-------------|
+| `mode` | `"Debug"` or `"Release"` |
+| `log_tags` | Controls debug output (e.g., `result`, `eval`) |
+| `bool_options` | Synthesis and display flags |
+| `prover_timeout_bound` | Z3 timeout in milliseconds (default `1999`) |
+| `prim_path` | Paths to built-in automata and P templates |

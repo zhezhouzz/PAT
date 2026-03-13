@@ -13,10 +13,10 @@ services:
       - MARIADB_GALERA_MARIABACKUP_PASSWORD=backup123
     volumes:
       - galera1_data:/bitnami/mariadb
-    networks:
-      - galera
     ports:
       - "3307:3306"
+    networks:
+      - galera
 
   galera2:
     image: bitnamilegacy/mariadb-galera:latest
@@ -31,10 +31,10 @@ services:
       - MARIADB_GALERA_MARIABACKUP_PASSWORD=backup123
     volumes:
       - galera2_data:/bitnami/mariadb
-    networks:
-      - galera
     ports:
       - "3308:3306"
+    networks:
+      - galera
 
   galera3:
     image: bitnamilegacy/mariadb-galera:latest
@@ -49,10 +49,18 @@ services:
       - MARIADB_GALERA_MARIABACKUP_PASSWORD=backup123
     volumes:
       - galera3_data:/bitnami/mariadb
-    networks:
-      - galera
     ports:
       - "3309:3306"
+    networks:
+      - galera
+
+  clouseau:
+    image: clouseau2026/clouseau:pldi-2026
+    container_name: clouseau
+    network_mode: host
+    stdin_open: true
+    tty: true
+    working_dir: /home/clouseau
 
   adminer:
     image: adminer:latest
@@ -69,4 +77,3 @@ volumes:
 networks:
   galera:
     driver: bridge
-

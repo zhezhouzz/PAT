@@ -22,7 +22,7 @@ def mk_spec_path(name, specname):
 def mk_output_path(pname):
     return p_repo + "/" + pname + "/PSyn/SynClient.p"
 
-benchmarks = ["Database", "Firewall", "RingLeaderElection",  "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Raft", "Kermit2PCModel"]
+benchmarks = ["Database", "Firewall", "RingLeaderElection", "EspressoMachine", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Raft", "Kermit2PCModel"]
 # benchmarks = ["ChainReplication", "Paxos", "Raft"]
 # benchmarks = ["Raft"]
 # benchmarks = ["Firewall"]
