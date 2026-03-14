@@ -136,60 +136,22 @@ def task_name(name):
 def task_dir(name):
     return "benchmarks/OCamlBench/" + task_dir_dict[name].replace("ADT/", "")
 
-def syn_num_map(name):
-    return 500
+SYN_NUM = "200"
+RANDOM_NUM_MAP = {}
 
-def default_num_map(name):
-    return 2000
+def init_config(override_num=None):
+    global SYN_NUM
+    for name in task_name_dict:
+        if name in ["Set", "ReaderWriter", "SetSimple", "ReaderWriterSimple"]:
+            RANDOM_NUM_MAP[name] = "1"
+        else:
+            RANDOM_NUM_MAP[name] = "1800"
+            
+    if override_num is not None:
+        SYN_NUM = str(override_num)
+        for name in RANDOM_NUM_MAP:
+            RANDOM_NUM_MAP[name] = str(override_num)
 
-dict = {
-    "Set": "1",
-    "Stack": "1800",
-    "Graph": "1800",
-    "Filesystem": "1800",
-    "NFA": "1800",
-    "IFCStore": "1800",
-    "IFCAdd": "1800",
-    "IFCLoad": "1800",
-    "DeBruijn1": "1800",
-    "DeBruijn2": "1800",
-    "HashTable": "1800",
-    "ReaderWriter": "1",
-    "CartCC": "1800",
-    "Shopping": "1800",
-    "CoursewareCC": "1800",
-    "Courseware": "1800",
-    "TwitterCC": "1800",
-    "Twitter": "1800",
-    "SmallbankCC": "1800",
-    "Smallbank": "1800",
-    "TreiberStackCC": "1800",
-    "SetSimple": "1",
-    "StackSimple": "1800",
-    "GraphSimple": "1800",
-    "FilesystemSimple": "1800",
-    "NFASimple": "1800",
-    "IFCStoreSimple": "1800",
-    "IFCAddSimple": "1800",
-    "IFCLoadSimple": "1800",
-    "DeBruijn1Simple": "1800",
-    "DeBruijn2Simple": "1800",
-    "HashTableSimple": "1800",
-    "ReaderWriterSimple": "1",
-    "CartCCSimple": "1800",
-    "ShoppingSimple": "1800",
-    "CoursewareCCSimple": "1800",
-    "CoursewareSimple": "1800",
-    "TwitterCCSimple": "1800",
-    "TwitterSimple": "1800",
-    "SmallbankCCSimple": "1800",
-    "SmallbankSimple": "1800",
-    "TreiberStackCCSimple": "1800",
-    "TreiberStackSimple": "1800",
-}
-
-def random_num_map(name):
-    return dict[name]
 
 def print_pat_col1(stat):
     stat = stat["task_complexity"]
@@ -404,7 +366,7 @@ def do_parse():
 
 def run_syn():
     for bench_name in benchmarks:
-        cmd = cmd_prefix + ["sample-syn", task_name(bench_name), "200"]
+        cmd = cmd_prefix + ["sample-syn", task_name(bench_name), SYN_NUM]
         print(" ".join(cmd))
         invoc_cmd(cmd)
     return
@@ -412,7 +374,7 @@ def run_syn():
 def run_random():
     for bench_name in benchmarks:
         if bench_name not in monkeydb:
-            cmd = cmd_prefix + ["sample-random", task_name(bench_name), dict[bench_name]]
+            cmd = cmd_prefix + ["sample-random", task_name(bench_name), RANDOM_NUM_MAP[bench_name]]
             invoc_cmd(cmd)
     return
 
@@ -434,6 +396,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run ADT benchmarks')
     parser.add_argument('command', nargs='?', default='all', help='Command to run (syn, runsyn, runrandom, etc.)')
     parser.add_argument('-b', '--benchmarks', type=str, help='Comma-separated list of benchmarks to run')
+    parser.add_argument('-n', '--number', type=int, help='Override random execution count for fast run mode')
     parser.add_argument('extra_args', nargs='*', help='Extra arguments for specific commands')
     
     args = parser.parse_args()
@@ -444,6 +407,7 @@ if __name__ == '__main__':
             benchmarks = parsed
 
     build_and_copy_exe()
+    init_config(args.number)
 
     if args.command == "syn":
         do_syn()

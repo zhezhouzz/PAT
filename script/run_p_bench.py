@@ -23,28 +23,26 @@ def task_name(name):
 def task_spec_file(name):
     return "benchmarks/PBench/" + name.lower() + "_spec.ml"
 
-def syn_num_map(name):
-    return 500
-
-def default_num_map(name):
-    return 2000
+SYN_NUM = 500
+DEFAULT_NUM = 2000
 
 manual_baseline_benchmarks = ["EspressoMachine", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Kermit2PCModel"]
 
-dict = {"Database":10000,
-        "EspressoMachine":10000,
-        "Simplified2PC":10000,
-        "HeartBeat":10000,
-        "BankServer":10000,
-        "RingLeaderElection":10000,
-        "Firewall":50,
-        "ChainReplication":10000,
-        "Paxos":10000,
-        "Raft":1000,
-        "Kermit2PCModel": 1000}
+RANDOM_NUM_MAP = {}
 
-def random_num_map(name):
-    return dict[name]
+def init_config(override_num=None):
+    global SYN_NUM, DEFAULT_NUM
+    for name in ["Database", "EspressoMachine", "Simplified2PC", "HeartBeat", "BankServer", "RingLeaderElection", "ChainReplication", "Paxos"]:
+        RANDOM_NUM_MAP[name] = 10000
+    for name in ["Raft", "Kermit2PCModel"]:
+        RANDOM_NUM_MAP[name] = 1000
+    RANDOM_NUM_MAP["Firewall"] = 50
+
+    if override_num is not None:
+        SYN_NUM = override_num
+        DEFAULT_NUM = override_num
+        for name in RANDOM_NUM_MAP:
+            RANDOM_NUM_MAP[name] = override_num
 
 def scriptsize(content: str):
     return "{" + "\\scriptsize" + content + "}"
@@ -326,7 +324,7 @@ def run_syn_p():
         kw = "PSpec"
         if name == "RingLeaderElection" or name == "Paxos":
             kw = ""
-        (ratio, avg_time) = run_syn_p_one("penv/" + name, syn_num_map(name), "Syn", kw)
+        (ratio, avg_time) = run_syn_p_one("penv/" + name, SYN_NUM, "Syn", kw)
         data[name] = (ratio, avg_time)
     with open(syn_stat_file, 'w') as fp:
         json.dump(data, fp)
@@ -340,7 +338,7 @@ def run_random_p():
         kw = "PSpec"
         if name == "RingLeaderElection" or name == "Paxos":
             kw = ""
-        (ratio, avg_time) = run_syn_p_one("poriginal/" + name, random_num_map(name), "Syn", kw)
+        (ratio, avg_time) = run_syn_p_one("poriginal/" + name, RANDOM_NUM_MAP[name], "Syn", kw)
         data[name] = (ratio, avg_time)
     with open(random_stat_file, 'w') as fp:
         json.dump(data, fp)
@@ -355,7 +353,7 @@ def run_default_p():
         if name == "Database" or name == "Firewall" or name == "RingLeaderElection" or name == "Raft":
             data[name] = (None, None)
             continue
-        (ratio, avg_time) = run_syn_p_one("poriginal/" + name, default_num_map(name), "Manual", kw)
+        (ratio, avg_time) = run_syn_p_one("poriginal/" + name, DEFAULT_NUM, "Manual", kw)
         data[name] = (ratio, avg_time)
     with open(default_stat_file, 'w') as fp:
         json.dump(data, fp)
@@ -376,6 +374,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run P benchmarks')
     parser.add_argument('command', nargs='?', default='all', help='Command to run (syn, runsyn, runrandom, etc.)')
     parser.add_argument('-b', '--benchmarks', type=str, help='Comma-separated list of benchmarks to run')
+    parser.add_argument('-n', '--number', type=int, help='Override random execution count for fast run mode')
     parser.add_argument('extra_args', nargs='*', help='Extra arguments for specific commands')
     
     args = parser.parse_args()
@@ -386,6 +385,7 @@ if __name__ == '__main__':
             benchmarks = parsed
 
     build_and_copy_exe()
+    init_config(args.number)
 
     if args.command == "syn":
         do_p_syn()
@@ -411,6 +411,7 @@ if __name__ == '__main__':
         do_compile()
         run_syn_p()
         run_random_p()
+        run_default_p()
         j = load_stat()
         print_cols(benchmarks, j)
         # fix()
