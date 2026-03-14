@@ -49,10 +49,10 @@ let with_reconnect test () =
   try test ()
   with Failure msg when Interpreter.is_db_transient_error msg ->
     let rec try_reset n =
-      (try BackendMariaDB.MyMariaDB.reset_connections ()
-       with Failure _ when n > 0 ->
-         Unix.sleepf 2.0;
-         try_reset (n - 1))
+      try BackendMariaDB.MyMariaDB.reset_connections ()
+      with Failure _ when n > 0 ->
+        Unix.sleepf 2.0;
+        try_reset (n - 1)
     in
     try_reset 5;
     raise (Failure msg)
@@ -172,7 +172,7 @@ let syn_term source_file output_file () =
   ()
 
 let benchmark_convension task_name benchname =
-  let source_file = spf "benchmarks/%s/task.ml" benchname in
+  let source_file = spf "benchmarks/PBench/%s_spec.ml" benchname in
   let output_file = spf "output/%s" task_name in
   let stat_file = spf "stat/.%s.json" task_name in
   let pheader = spf "benchmarks/%s/pheader.ml" benchname in
@@ -517,67 +517,67 @@ let test_eval mode s (converge_bound : int) () =
       let test () = Interpreter.once (init, [ main ], check_membership_queue) in
       eval test *)
     | "stack" ->
-        let open Adt.Stack in
+        let open Ocaml_bench.Stack in
         let main = Synthesis.load_prog s () in
         (* let main = [ rec_main ] in *)
         let test () = Interpreter.once (init, main, check_membership_stack) in
         eval test
     | "set" ->
-        let open Adt.Set in
+        let open Ocaml_bench.Set in
         let main = Synthesis.load_prog s () in
         let test () = Interpreter.once (init, main, check_membership_set) in
         eval test
     | "hashtable" ->
-        let open Adt.Hashtable in
+        let open Ocaml_bench.Hashtable in
         let main = Synthesis.load_prog s () in
         let test () =
           Interpreter.once (init, main, check_membership_hashtable)
         in
         eval test
     (* | "hashtable" ->
-        let open Adt.Hashtable_random in
+        let open Ocaml_bench.Hashtable_random in
         test_fn () *)
     | "filesystem" ->
-        let open Adt.Filesystem in
+        let open Ocaml_bench.Filesystem in
         let main = Synthesis.load_prog s () in
         let test () = Interpreter.once (init, main, filesystem_last_delete) in
         eval test
     | "graph" ->
-        let open Adt.Graph in
+        let open Ocaml_bench.Graph in
         let main = Synthesis.load_prog s () in
         let test () = Interpreter.once (init, main, trace_is_not_connected) in
         eval test
     | "nfa" ->
-        let open Adt.Nfa in
+        let open Ocaml_bench.Nfa in
         let main = Synthesis.load_prog s () in
         let test () = Interpreter.once (init, main, trace_is_not_nfa) in
         eval test
     | "stlc1" ->
-        let open Adt.Stlc_simple in
+        let open Ocaml_bench.Stlc_simple in
         let main = Synthesis.load_prog s () in
         (* let main = [ main_rec ] in *)
         let test () = Interpreter.once (init, main, trace_eval_correct) in
         eval test
     | "stlc2" ->
-        let open Adt.Stlc_moti in
+        let open Ocaml_bench.Stlc_moti in
         let main = Synthesis.load_prog s () in
         (* let main = [ main_rec ] in *)
         let test () = Interpreter.once (init, main, trace_eval_correct) in
         eval test
     | "ifc_store" ->
-        let open Adt.Ifc in
+        let open Ocaml_bench.Ifc in
         let () = set_ruleset_store () in
         let main = Synthesis.load_prog s () in
         let test () = Interpreter.once (init, main, trace_enni) in
         eval test
     | "ifc_add" ->
-        let open Adt.Ifc in
+        let open Ocaml_bench.Ifc in
         let () = set_ruleset_add () in
         let main = Synthesis.load_prog s () in
         let test () = Interpreter.once (init, main, trace_enni) in
         eval test
     | "ifc_load" ->
-        let open Adt.Ifc in
+        let open Ocaml_bench.Ifc in
         let () = set_ruleset_load () in
         let main = Synthesis.load_prog s () in
         let test () = Interpreter.once (init, main, trace_enni) in
@@ -733,16 +733,16 @@ let test_eval mode s (converge_bound : int) () =
 
 let test_envs =
   [
-    ("stack", Adt.Stack.test_env);
-    ("set", Adt.Set.test_env);
-    ("filesystem", Adt.Filesystem.test_env);
-    ("graph", Adt.Graph.test_env);
-    ("nfa", Adt.Nfa.test_env);
-    ("stlc1", Adt.Stlc_simple.test_env);
-    ("stlc2", Adt.Stlc_moti.test_env);
-    ("ifc_store", Adt.Ifc.test_env);
-    ("ifc_add", Adt.Ifc.test_env);
-    ("ifc_load", Adt.Ifc.test_env);
+    ("stack", Ocaml_bench.Stack.test_env);
+    ("set", Ocaml_bench.Set.test_env);
+    ("filesystem", Ocaml_bench.Filesystem.test_env);
+    ("graph", Ocaml_bench.Graph.test_env);
+    ("nfa", Ocaml_bench.Nfa.test_env);
+    ("stlc1", Ocaml_bench.Stlc_simple.test_env);
+    ("stlc2", Ocaml_bench.Stlc_moti.test_env);
+    ("ifc_store", Ocaml_bench.Ifc.test_env);
+    ("ifc_add", Ocaml_bench.Ifc.test_env);
+    ("ifc_load", Ocaml_bench.Ifc.test_env);
     ("read_cc", MonkeyBD.Read.test_env Causal);
     ("cart_rc", MonkeyBD.Cart.test_env ReadCommitted);
     ("cart_cc", MonkeyBD.Cart.test_env Causal);
@@ -793,10 +793,10 @@ let test_random mode s converge_bound time_bound () =
   let res =
     match s with
     | "hashtable" ->
-        let open Adt.Hashtable_random in
+        let open Ocaml_bench.Hashtable_random in
         test_fn ()
     (* | "hashtable" ->
-        let open Adt.Hashtable in
+        let open Ocaml_bench.Hashtable in
         let test () =
           Interpreter.seq_random_test
             ( init,

@@ -11,6 +11,7 @@ def build_and_copy_exe():
     subprocess.run(["dune", "build"], check=True)
     print("Copying main.exe...")
     subprocess.run(["cp", "_build/default/bin/main.exe", "main.exe"], check=True)
+    subprocess.run(["chmod", "+w", "main.exe"], check=True)
 
 def invoc_cmd(cmd, cwd=None):
     if (verbose):

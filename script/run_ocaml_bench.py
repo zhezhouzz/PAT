@@ -95,19 +95,19 @@ task_name_dict = {
 }
 
 task_dir_dict = {
-    "Set": "ADT/set_spec.ml",
-    "Stack": "ADT/stack_spec.ml",
-    "Graph": "ADT/graph_spec.ml",
-    "Filesystem": "ADT/filesystem_spec.ml",
-    "FilesystemSimple": "ADT/filesystem_simp_spec.ml",
-    "GraphSimple": "ADT/graph_simp_spec.ml",
-    "NFASimple": "ADT/nfa_simp_spec.ml",
-    "IFCStoreSimple": "ADT/ifc_simp_spec.ml",
-    "IFCAddSimple": "ADT/ifc_simp_spec.ml",
-    "IFCLoadSimple": "ADT/ifc_simp_spec.ml",
-    "DeBruijn1Simple": "ADT/stlc_spec_simple_simp.ml",
-    "DeBruijn2Simple": "ADT/stlc_spec_moti_simp.ml",
-    "HashTableSimple": "ADT/hashtable_simp_spec.ml",
+    "Set": "set_spec.ml",
+    "Stack": "stack_spec.ml",
+    "Graph": "graph_spec.ml",
+    "Filesystem": "filesystem_spec.ml",
+    "FilesystemSimple": "filesystem_simp_spec.ml",
+    "GraphSimple": "graph_simp_spec.ml",
+    "NFASimple": "nfa_simp_spec.ml",
+    "IFCStoreSimple": "ifc_simp_spec.ml",
+    "IFCAddSimple": "ifc_simp_spec.ml",
+    "IFCLoadSimple": "ifc_simp_spec.ml",
+    "DeBruijn1Simple": "stlc_spec_simple_simp.ml",
+    "DeBruijn2Simple": "stlc_spec_moti_simp.ml",
+    "HashTableSimple": "hashtable_simp_spec.ml",
     "ReaderWriterSimple": "MonkeyDB/read_cc_simp_spec.ml",
     "CartCCSimple": "MonkeyDB/cart_cc_simp_spec.ml",
     "ShoppingSimple": "MonkeyDB/cart_cc_simp_spec.ml",
@@ -119,15 +119,15 @@ task_dir_dict = {
     "SmallbankSimple": "MonkeyDB/smallbank_cc_simp_spec.ml",
     "TreiberStackCCSimple": "MonkeyDB/treiber_stack_cc_simp_spec.ml",
     "TreiberStackSimple": "MonkeyDB/treiber_stack_cc_simp_spec.ml",
-    "StackSimple": "ADT/stack_simp_spec.ml",
-    "SetSimple": "ADT/set_simp_spec.ml",
-    "NFA": "ADT/nfa_spec.ml",
-    "IFCStore": "ADT/ifc_spec.ml",
-    "IFCAdd": "ADT/ifc_spec.ml",
-    "IFCLoad": "ADT/ifc_spec.ml",
-    "DeBruijn1": "ADT/stlc_spec_simple.ml",
-    "DeBruijn2": "ADT/stlc_spec_moti.ml",
-    "HashTable": "ADT/hashtable_spec.ml",
+    "StackSimple": "stack_simp_spec.ml",
+    "SetSimple": "set_simp_spec.ml",
+    "NFA": "nfa_spec.ml",
+    "IFCStore": "ifc_spec.ml",
+    "IFCAdd": "ifc_spec.ml",
+    "IFCLoad": "ifc_spec.ml",
+    "DeBruijn1": "stlc_spec_simple.ml",
+    "DeBruijn2": "stlc_spec_moti.ml",
+    "HashTable": "hashtable_spec.ml",
     "ReaderWriter": "MonkeyDB/read_cc_spec.ml",
     "CartCC": "MonkeyDB/cart_cc_spec.ml",
     "Shopping": "MonkeyDB/cart_cc_spec.ml",
@@ -145,7 +145,7 @@ def task_name(name):
     return task_name_dict[name]
 
 def task_dir(name):
-    return "benchmarks/" + task_dir_dict[name]
+    return "benchmarks/OCamlBench/" + task_dir_dict[name].replace("ADT/", "")
 
 def syn_num_map(name):
     return 500
@@ -454,7 +454,7 @@ if __name__ == '__main__':
         if parsed:
             benchmarks = parsed
 
-    # build_and_copy_exe()
+    build_and_copy_exe()
 
     if args.command == "syn":
         do_syn()

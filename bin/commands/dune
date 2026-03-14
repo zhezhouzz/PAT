@@ -8,7 +8,7 @@
   synthesis
   interpreter
   monkeyBD
-  adt
+  ocaml_bench
   BackendMariaDB
   pbackend)
  (modules caux ctest cre)

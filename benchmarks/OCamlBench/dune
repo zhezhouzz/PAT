@@ -1,6 +1,6 @@
 (library
- (public_name haft.adt)
- (name adt)
+ (public_name haft.ocaml_bench)
+ (name ocaml_bench)
  (wrapped true)
  (libraries language interpreter qcheck-stm.sequential qcheck-stm.domain)
  (modules

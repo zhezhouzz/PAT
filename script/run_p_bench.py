@@ -11,7 +11,7 @@ default_stat_file = "stat/.run_default_p.json"
 p_repo = ""
 
 def mk_local_path(name):
-    return "benchmarks/" + name
+    return "benchmarks/PBench/" + name
 
 def mk_header_path(name):
     return mk_local_path(name) + "/HeaderSpec.p"
@@ -30,6 +30,9 @@ benchmarks = ["Database", "Firewall", "RingLeaderElection", "BankServer", "Simpl
 
 def task_name(name):
     return "task" + "_" + name
+
+def task_spec_file(name):
+    return "benchmarks/PBench/" + name.lower() + "_spec.ml"
 
 def syn_num_map(name):
     return 500
@@ -275,32 +278,32 @@ def table2(benchnames, stat):
     return
 
 def do_syn():
-    for (bench_name, task_name) in benchmarks:
-        cmd = cmd_prefix + ["do-syn", task_name, "benchmarks/" + bench_name + "/task.ml"]
+    for name in benchmarks:
+        cmd = cmd_prefix + ["do-syn", task_name(name), task_spec_file(name)]
         invoc_cmd(cmd)
     return
 
 def do_parse():
-    for bench_name in benchmarks:
-        cmd = cmd_prefix + ["do-parse", task_name(bench_name), "benchmarks/" + bench_name + "/task.ml"]
+    for name in benchmarks:
+        cmd = cmd_prefix + ["do-parse", task_name(name), task_spec_file(name)]
         invoc_cmd(cmd)
     return
 
 def do_p_syn():
-    for bench_name in benchmarks:
-        cmd = cmd_prefix + ["do-syn", task_name(bench_name), "benchmarks/" + bench_name + "/task.ml", "1"]
+    for name in benchmarks:
+        cmd = cmd_prefix + ["do-syn", task_name(name), task_spec_file(name), "1"]
         invoc_cmd(cmd)
     return
 
 def do_eval():
-    for bench_name in benchmarks:
-        cmd = cmd_prefix + ["eval-benchmark", task_name(bench_name), bench_name]
+    for name in benchmarks:
+        cmd = cmd_prefix + ["eval-benchmark", task_name(name), name]
         invoc_cmd(cmd)
     return
 
 def do_compile():
-    for bench_name in benchmarks:
-        cmd = cmd_prefix + ["compile-to-p", task_name(bench_name), bench_name]
+    for name in benchmarks:
+        cmd = cmd_prefix + ["compile-to-p", task_name(name), name]
         invoc_cmd(cmd)
     return
 
@@ -393,7 +396,7 @@ if __name__ == '__main__':
         if parsed:
             benchmarks = parsed
 
-    # build_and_copy_exe()
+    build_and_copy_exe()
 
     if args.command == "syn":
         do_p_syn()
@@ -415,11 +418,10 @@ if __name__ == '__main__':
         j = load_stat()
         table2(benchmarks, j)
     elif args.command == "all":
-        # do_p_syn()
+        do_p_syn()
         do_compile()
         run_syn_p()
         run_random_p()
-        run_default_p()
         j = load_stat()
         print_cols(benchmarks, j)
         # fix()
