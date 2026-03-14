@@ -163,6 +163,7 @@ module type MyDB = sig
   val check_read_committed : unit -> bool
   val layout_field : M.Field.t -> unit Lwt.t
   val set_single_connection_mode : bool -> unit
+  val reset_connections : unit -> unit
 end
 
 module MyMariaDB : MyDB = struct
@@ -483,6 +484,55 @@ module MyMariaDB : MyDB = struct
     let* () = mk_conn gelara2_port in
     let* () = mk_conn gelara3_port in
     Lwt.return_unit
+
+  let async_reset_connections () =
+    (* Close all existing connections, ignoring errors on broken sockets *)
+    let* () =
+      Hashtbl.fold
+        (fun _ conn acc ->
+          let* _ = acc in
+          Lwt.catch (fun () -> M.close conn) (fun _ -> Lwt.return_unit))
+        connectionPool Lwt.return_unit
+    in
+    let () = Hashtbl.clear connectionPool in
+    let () = Hashtbl.clear connectionStatus in
+    let () = Hashtbl.clear connMap in
+    let () = Hashtbl.clear commit_tid in
+    (* Reopen fresh connections with the current isolation settings *)
+    let mk_conn port =
+      let* conn = connect port !_db_name >>= or_die "connect" in
+      let () = Hashtbl.add connectionPool port conn in
+      let () = Hashtbl.add connectionStatus port true in
+      let* _ = M.autocommit conn false >>= or_die "autocommit" in
+      let* _ =
+        match !_isolation with
+        | Serializable ->
+            no_param_no_ret conn
+              "SET GLOBAL TRANSACTION ISOLATION LEVEL SERIALIZABLE;"
+        | ReadUncommitted ->
+            no_param_no_ret conn
+              "SET GLOBAL TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;"
+        | ReadCommitted ->
+            let* _ =
+              no_param_no_ret conn
+                "SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED;"
+            in
+            no_param_no_ret conn "SET GLOBAL wsrep_sync_wait = 0;"
+        | Causal ->
+            let* _ =
+              no_param_no_ret conn
+                "SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED;"
+            in
+            no_param_no_ret conn "SET GLOBAL wsrep_sync_wait = 1;"
+      in
+      Lwt.return_unit
+    in
+    let* () = mk_conn gelara1_port in
+    let* () = mk_conn gelara2_port in
+    let* () = mk_conn gelara3_port in
+    Lwt.return_unit
+
+  let reset_connections () = Lwt_main.run (async_reset_connections ())
 
   let init db_name isolation =
     _db_name := db_name;

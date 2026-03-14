@@ -64,7 +64,8 @@ You should see the Clouseau help message listing available commands.
 The MonkeyDB benchmarks (Shopping, Courseware, Twitter, Smallbank) require a
 three-node MariaDB Galera cluster. A `compose.yaml` at the root of this repository
 sets up everything — the Galera cluster and the Clouseau container — with a single
-command.
+command. The Galera nodes use the `bitnamilegacy/mariadb-galera:latest` image
+(AMD64, legacy Bitnami build).
 
 **Step 1 — Start the first Galera node and wait for it to be ready:**
 
@@ -112,6 +113,14 @@ $ docker compose down -v
 
 The `-v` flag removes the Galera data volumes for a clean restart.
 
+**Cluster initialization (required before first MonkeyDB benchmark run):**
+
+After starting the cluster, run the initialization script once:
+
+```
+$ python3 scripts/init_cluster.py
+```
+
 ---
 
 ## Step-by-Step Instructions
@@ -145,7 +154,8 @@ DeBruijn1, DeBruijn2, Shopping, Courseware, Twitter, Smallbank
 
 > **Note:** Shopping, Courseware, Twitter, and Smallbank are MonkeyDB benchmarks that
 > connect to the MariaDB Galera cluster during the `runsyn` step. Start the cluster
-> (see above) before running Steps 2–3 for those benchmarks.
+> and run the **cluster initialization warm-up** (see above) before running Steps 2–3
+> for those benchmarks.
 
 All steps are run from `/home/clouseau` inside the container.
 

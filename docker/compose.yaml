@@ -1,8 +1,6 @@
-version: '3.9'
-
 services:
   galera1:
-    image: clouseau2026/mariadb-galera:latest
+    image: bitnamilegacy/mariadb-galera:latest
     container_name: galera1
     environment:
       - MARIADB_ROOT_PASSWORD=rootpass
@@ -21,7 +19,7 @@ services:
       - "3307:3306"
 
   galera2:
-    image: clouseau2026/mariadb-galera:latest
+    image: bitnamilegacy/mariadb-galera:latest
     container_name: galera2
     environment:
       - MARIADB_ROOT_PASSWORD=rootpass
@@ -39,7 +37,7 @@ services:
       - "3308:3306"
 
   galera3:
-    image: clouseau2026/mariadb-galera:latest
+    image: bitnamilegacy/mariadb-galera:latest
     container_name: galera3
     environment:
       - MARIADB_ROOT_PASSWORD=rootpass
