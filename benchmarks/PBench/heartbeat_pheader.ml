@@ -1,7 +1,0 @@
-val eNotifyNodesDone : unit [@@obsRecv]
-val eNetworkError : < trial : int > [@@gen]
-val ePing : < trial : int > [@@obs]
-val eShutDone : unit [@@obs]
-val eStart : unit [@@gen]
-val ePong : < trial : int > [@@obs]
-val ePongLost : < trial : int > [@@obs]

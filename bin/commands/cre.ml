@@ -175,12 +175,11 @@ let benchmark_convension task_name benchname =
   let source_file = spf "benchmarks/PBench/%s_spec.ml" benchname in
   let output_file = spf "output/%s" task_name in
   let stat_file = spf "stat/.%s.json" task_name in
-  let pheader = spf "benchmarks/%s/pheader.ml" benchname in
   let poutput = spf "penv/%s/PSyn/SynClient.p" benchname in
-  (source_file, output_file, stat_file, pheader, poutput)
+  (source_file, output_file, stat_file, poutput)
 
 let syn_benchmark task_name benchname () =
-  let source_file, output_file, stat_file, _, _ =
+  let source_file, output_file, stat_file, _ =
     benchmark_convension task_name benchname
   in
   let code = read_source_file source_file () in
@@ -236,7 +235,7 @@ let eval source_file output_file () =
   ()
 
 let eval_benchmark task_name benchname () =
-  let source_file, output_file, stat_file, _, _ =
+  let source_file, output_file, stat_file, _ =
     benchmark_convension task_name benchname
   in
   let (env, term), (rate, n_retry) = eval_aux source_file output_file () in
@@ -263,7 +262,7 @@ let compile_to_p_aux source_file output_file p_output_file () =
   ()
 
 let compile_to_p task_name benchname =
-  let source_file, output_file, _, _, p_output_file =
+  let source_file, output_file, _, p_output_file =
     benchmark_convension task_name benchname
   in
   compile_to_p_aux source_file output_file p_output_file

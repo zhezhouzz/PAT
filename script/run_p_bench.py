@@ -10,17 +10,6 @@ default_stat_file = "stat/.run_default_p.json"
 
 p_repo = ""
 
-def mk_local_path(name):
-    return "benchmarks/PBench/" + name
-
-def mk_header_path(name):
-    return mk_local_path(name) + "/HeaderSpec.p"
-
-def mk_spec_path(name, specname):
-    return mk_local_path(name) + "/" + specname + ".p"
-
-def mk_output_path(pname):
-    return p_repo + "/" + pname + "/PSyn/SynClient.p"
 
 benchmarks = ["Database", "Firewall", "RingLeaderElection", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Raft", "Kermit2PCModel"]
 # benchmarks = ["ChainReplication", "Paxos", "Raft"]

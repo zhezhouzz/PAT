@@ -10,17 +10,6 @@ default_stat_file = "stat/.run_default.json"
 
 p_repo = ""
 
-def mk_local_path(name):
-    return "benchmarks/" + name
-
-def mk_header_path(name):
-    return mk_local_path(name) + "/HeaderSpec.p"
-
-def mk_spec_path(name, specname):
-    return mk_local_path(name) + "/" + specname + ".p"
-
-def mk_output_path(pname):
-    return p_repo + "/" + pname + "/PSyn/SynClient.p"
 
 benchmarks = ["Stack", "Set", "Filesystem", "Graph", "NFA", "IFCStore", "IFCAdd", "IFCLoad", "DeBruijn1", "DeBruijn2", "Shopping", "HashTable", "ReaderWriter", "Courseware", "Twitter", "Smallbank"]
 
