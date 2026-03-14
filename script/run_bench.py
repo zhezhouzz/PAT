@@ -81,7 +81,7 @@ def print_tries(ratio):
     elif ratio < 0.1:
         return "{\\tiny Timeout}"
     else:
-        return "${:.0f}$".format(100.0 / ratio)
+        return "${:.1f}$".format(100.0 / ratio)
 
 def print_tries_label(ratio, label):
     if ratio is None:
@@ -96,9 +96,9 @@ def print_tries_label(ratio, label):
             return "{{\\tiny Timeout}}${}$".format(label)
     else:
         if label == "":
-            return "${:.0f}$".format(100.0 / ratio)
+            return "${:.1f}$".format(100.0 / ratio)
         else:
-            return "${:.0f}{}$".format(100.0 / ratio, label)
+            return "${:.1f}{}$".format(100.0 / ratio, label)
 
 def print_pat_col3(stat):
     return [ print_tries(stat["syn_ratio"]), print_tries(stat["random_ratio"]), print_tries(stat["default_ratio"])]
@@ -134,6 +134,8 @@ def pp_benchname(name):
         postfix = "\\cite{ModP}"
     elif name in aws:
         postfix = ""
+    if name == "Kermit2PCModel":
+        return "\\textsf{AnonReadAtomicity}"
     return scriptsize(textsf(name)) + postfix
 
 def print_pat_col(name, stat):
@@ -167,17 +169,17 @@ def print_table_algo(statA):
         safe_print_int(stat["n_sat"])]
 
 discription_dict = {
-    "Database": "Read-Your-Writes policy.",
-    "Firewall": "Internal requests in firewall eventually receive external responses.",
-    "RingLeaderElection": "Unique leader policy.",
+    "Database": "The database maintains a Read-Your-Writes policy.",
+    "Firewall": "Requests generated inside the firewall are eventually propagated to the outside.",
+    "RingLeaderElection": "There is always a single unique  leader.",
     "EspressoMachine": "Error states of coffee machine should be notified to user.",
-    "BankServer": "Prevents withdrawals exceeding balance.",
-    "Simplified2PC": "Read-Your-Writes policy.",
-    "HeartBeat": "If the node is alive, the detector will not report a false positive error.",
-    "ChainReplication": "Read-Your-Writes policy.",
-    "Paxos": "Unique leader policy.",
-    "Raft": "The leader’s view should align with committed data.",
-    "Kermit2PCModel": "The user and the database should have the same will view of stored data.",
+    "BankServer": "Withdrawals in excess of the available balance are never allowed.",
+    "Simplified2PC": "Transactions are atomic.",
+    "HeartBeat": "All available nodes are identified by a  detector.",
+    "ChainReplication": "Concurrent updates are never lost.",
+    "Paxos": "Logs are correctly replicated.",
+    "Raft": "Leader election is robust to faults.",
+    "Kermit2PCModel": "Read Atomicity is preserved.",
 }
 
 def discription(name):
@@ -239,10 +241,11 @@ def table2(benchnames, stat):
     default_stat = load_eval_stat(default_stat_file)
     for name in benchnames:
         if name == "Kermit2PCModel":
-            random_stat[name] = [1.887, 0.1]
+            random_stat[name] = [1.877, 0.1]
             syn_stat[name] = [100.0, 0.1]
             stat[name]["n_retry"] = 1.0
-        if name in manual_baseline_benchmarks:
+            stat[name]["random_ratio"] = 1.877
+        elif name in manual_baseline_benchmarks:
             if name in default_stat:
                 stat[name]["random_ratio"] = default_stat[name][0]
                 stat[name]["random_time"] = default_stat[name][1]
@@ -390,7 +393,7 @@ if __name__ == '__main__':
         if parsed:
             benchmarks = parsed
 
-    build_and_copy_exe()
+    # build_and_copy_exe()
 
     if args.command == "syn":
         do_p_syn()

@@ -57,7 +57,7 @@ def print_tries_label(ratio, label):
         if label == "":
             return "-"
         else:
-            return "-${}$".format(label)
+            return "{\\tiny Timeout}" + "${}$".format(label)
     elif not math.isfinite(ratio) or ratio < 0.1:
         if label == "":
             return "{\\tiny Timeout}"

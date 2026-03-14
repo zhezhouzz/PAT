@@ -22,41 +22,25 @@ def mk_spec_path(name, specname):
 def mk_output_path(pname):
     return p_repo + "/" + pname + "/PSyn/SynClient.p"
 
-benchmarks = ["Stack", "HashTable", "Filesystem", "Graph", "NFA", "IFCAdd", "IFCStore",  "IFCLoad", "DeBruijn1", "DeBruijn2", "Shopping", "Courseware", "Twitter", "Smallbank"]
+benchmarks = ["Stack", "Set", "Filesystem", "Graph", "NFA", "IFCStore", "IFCAdd", "IFCLoad", "DeBruijn1", "DeBruijn2", "Shopping", "HashTable", "ReaderWriter", "Courseware", "Twitter", "Smallbank"]
 
 discription_dict = {
-    "Set": "Missing inserted value.",
-    "Stack": "All pushed values should be popped.",
-    "HashTable": "Updates must be visible to all threads.",
-    "Filesystem": "No access allowed after parent path deletion.",
-    "FilesystemSimple": "No access allowed after parent path deletion.",
-    "GraphSimple": "A connected graph with at least $3$ nodes.",
-    "NFASimple": "A NFA with at least $3$ edges.",
-    "IFCAddSimple": "A IFC program that contains $\\Code{Add}$ command.",
-    "IFCStoreSimple": "A IFC program that contains $\\Code{Store}$ command.",
-    "IFCLoadSimple": "A IFC program that contains $\\Code{Load}$ command.",
-    "DeBruijn1Simple": "A $\\Int$ typed De Bruijn STLC program.",
-    "DeBruijn2Simple": "A $\\Int$ typed De Bruijn STLC program and all lambda variables should be used.",
-    "ReaderWriterSimple": "Read atomicity property violation.",
-    "ShoppingSimple": "Added items should be visible in the cart.",
-    "CoursewareSimple": "Courses enrolled by students should be visible.",
-    "TwitterSimple": "Posted tweets are visible to all followers.",
-    "SmallbankSimple": "Updated balance should be visible.",
-    "TreiberStackSimple": "Pushed value can be popped.",
-    "StackSimple": "All pushed values should be popped.",
-    "SetSimple": "Missing inserted value.",
-    "Graph": "A connected graph with at least $3$ nodes.",
-    "NFA": "A NFA with at least $3$ edges.",
-    "IFCAdd": "A IFC program that contains $\\Code{Add}$ command.",
-    "IFCStore": "A IFC program that contains $\\Code{Store}$ command.",
-    "IFCLoad": "A IFC program that contains $\\Code{Load}$ command.",
-    "DeBruijn1": "A $\\Int$ typed De Bruijn STLC program.",
-    "DeBruijn2": "A $\\Int$ typed De Bruijn STLC program and all lambda variables should be used.",
-    "ReaderWriter": "Read atomicity property violation.",
-    "Shopping": "Added items should be visible in the cart.",
-    "Courseware": "Courses enrolled by students should be visible.",
+    "Set": "Membership holds for every element inserted into the set.",
+    "Stack": "Pushes and pops are correctly paired.",
+    "HashTable": "No updates to a concurrent hashtable are every lost.",
+    "Filesystem": "A valid file path only contains non-deleted entries.",
+    "Graph": "A serialized stream of nodes and edges is re-constituted to\n  form a fully-connected graph.",
+    "NFA": "An NFA reaches a final state for every string in the language it accepts.",
+    "IFCAdd": "A well-behaved IFC program containing an $\\Code{Add}$ command never leaks a secret.",
+    "IFCStore": "A well-behaved IFC program containing a $\\Code{Store}$ command never leaks a secret.",
+    "IFCLoad": "A well-behaved IFC program containing a $\\Code{Load}$ command never leaks a secret.",
+    "DeBruijn1": "An STLC interpreter correctly evaluates a\n  well-typed first-order STLC program that uses a de Brujin representation.",
+    "DeBruijn2": "An STLC interpreter correctly evaluates a\n  a well-typed higher-order STLC program that uses a de Brujin representation.",
+    "ReaderWriter": "Asynchronous read operations are logically atomic.",
+    "Shopping": "All items added to a cart can be checked-out.",
+    "Courseware": "Every student enrolled in a course exists in the\n  enrollment database for that course.",
     "Twitter": "Posted tweets are visible to all followers.",
-    "Smallbank": "Updated balance should be visible.",
+    "Smallbank": "Account updates are strongly consistent.",
     "TreiberStack": "Pushed value can be popped.",
 }
 
@@ -287,7 +271,6 @@ monkeydb_ratio = {
     "Shopping": 20.0,
     "Courseware": 57.5,
     "Twitter": 6.3,
-    "Smallbank": 2.7,
     "TreiberStack": 3.7,
 }
 
@@ -303,6 +286,10 @@ def pp_benchname(name):
         postfix = "\\cite{OcamlMulticorePBT}"
     elif name in monkeydb:
         postfix = "\\cite{MonkeyDB}"
+    if name == "ReaderWriter":
+        return "\\textsf{Transaction}"
+    elif name == "Smallbank":
+        return "\\textsf{Smallbank}\\cite{OLTPBench}"
     return textsf(name) + postfix
 
 def print_pat_col(name, stat):
@@ -389,6 +376,8 @@ def table1(benchnames, stat):
             stat[name]["random_ratio"] = monkeydb_ratio[name]
         elif name == "HashTable":
             stat[name]["random_ratio"] = 2.5
+        elif name == "Smallbank":
+            stat[name]["random_ratio"] = None
         elif task_name(name) in random_stat:
             stat[name]["random_ratio"] = random_stat[task_name(name)][0]
         else:
@@ -407,7 +396,7 @@ def table1(benchnames, stat):
         i = i - 1
         if i > 0:
             print("\\midrule")
-        if name in ["NFA", "DeBruijn2"]:
+        if name in ["Filesystem", "DeBruijn2"]:
             print("\\midrule")
     print("\\bottomrule\n\\end{tabular}\n\n")
     return
@@ -465,7 +454,7 @@ if __name__ == '__main__':
         if parsed:
             benchmarks = parsed
 
-    build_and_copy_exe()
+    # build_and_copy_exe()
 
     if args.command == "syn":
         do_syn()
