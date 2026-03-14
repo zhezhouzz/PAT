@@ -41,3 +41,9 @@ _opam/
 
 # VSCode settings
 .vscode/
+
+# Temporary files
+.commit_msg
+script/__pycache__/
+.claude/
+main.exe
