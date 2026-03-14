@@ -354,7 +354,7 @@ def table1(benchnames, stat):
 
 def do_syn():
     for bench_name in benchmarks:
-        cmd = cmd_prefix + ["do-syn", task_name(bench_name), task_dir(bench_name), "3"]
+        cmd = cmd_prefix + ["do-syn", task_name(bench_name), task_dir(bench_name), "1"]
         invoc_cmd(cmd)
     return
 
