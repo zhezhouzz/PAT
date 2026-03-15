@@ -455,9 +455,9 @@ let scratch_gen env size_bound =
         let se = Plan.mk_se env.event_tyctx x.x (fun _ -> mk_true) in
         let _, act = se_to_dummy_act se in
         LineAct act)
-      (oneofl l)
+      (oneof_list l)
   in
-  let elem_list_gen = list_repeat size_bound elem_gen in
+  let elem_list_gen = list_size (return size_bound) elem_gen in
   map
     (fun acts ->
       let _, elems, _ = register_elems_under_plan [] acts in
