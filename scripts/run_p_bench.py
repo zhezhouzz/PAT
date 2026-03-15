@@ -411,5 +411,5 @@ if __name__ == '__main__':
         run_random_p()
         run_default_p()
         j = load_stat()
-        print_cols(benchmarks, j)
+        table2(benchmarks, j)
         # fix()

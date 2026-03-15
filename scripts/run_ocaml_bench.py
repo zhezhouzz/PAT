@@ -398,4 +398,4 @@ if __name__ == '__main__':
         run_random()
         # run_default()
         j = load_stat()
-        print_cols(benchmarks, j)
+        table1(benchmarks, j)
