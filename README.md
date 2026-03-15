@@ -153,143 +153,143 @@ This prints the synthesized Clouseau DSL program in a formatted, readable layout
 
 ## 2.2 Comprehensive Scripts
 
+Running the scripts without arguments executes all steps in order and prints the
+final table. This is the easiest way to reproduce the paper results.
+
 ### 2.2.1 Reproducing Table 1 (ADT & QCheck Benchmarks)
 
 **Benchmarks:** Stack, HashTable, Filesystem, Graph, NFA, IFCStore, IFCAdd, IFCLoad,
 DeBruijn1, DeBruijn2, Shopping, Courseware, Twitter, Smallbank
 
-**Step 1 — Synthesis:**
-
 ```
-$ docker compose exec clouseau python3 scripts/run_ocaml_bench.py syn
-```
-
-**Step 2 — Run synthesized generators (200 runs each):**
-
-```
-$ docker compose exec clouseau python3 scripts/run_ocaml_bench.py runsyn
-```
-
-**Step 3 — Run random (QCheck) baseline:**
-
-```
-$ docker compose exec clouseau python3 scripts/run_ocaml_bench.py runrandom
-```
-
-**Step 4 — Print Table 1 as LaTeX:**
-
-```
-$ docker compose exec clouseau python3 scripts/run_ocaml_bench.py table1
+$ docker compose exec clouseau python3 scripts/run_ocaml_bench.py
 ```
 
 ### 2.2.2 Reproducing Table 2 (P Language Benchmarks)
 
-**Benchmarks:** Database, Firewall, RingLeaderElection, EspressoMachine, BankServer,
-Simplified2PC, HeartBeat, ChainReplication, Paxos, Raft, Kermit2PCModel
-
-**Step 1 — Synthesis + compile to P:**
+**Benchmarks:** Database, Firewall, RingLeaderElection, BankServer, Simplified2PC,
+HeartBeat, ChainReplication, Paxos, Raft, AnonReadAtomicity
 
 ```
-$ docker compose exec clouseau python3 scripts/run_p_bench.py syn
-```
-
-**Step 2 — Run synthesized schedulers (500 runs each):**
-
-```
-$ docker compose exec clouseau python3 scripts/run_p_bench.py runsyn
-```
-
-**Step 3 — Run random baseline:**
-
-```
-$ docker compose exec clouseau python3 scripts/run_p_bench.py runrandom
-```
-
-**Step 4 — Print Table 2 as LaTeX:**
-
-```
-$ docker compose exec clouseau python3 scripts/run_p_bench.py table2
+$ docker compose exec clouseau python3 scripts/run_p_bench.py
 ```
 
 ---
 
 ## 2.3 Detailed Steps
 
-All commands accept an optional `-config PATH` flag to use an alternate configuration
-file (default: `meta-config.json`).
+The comprehensive scripts above can also be invoked step-by-step using subcommands.
+Each step description below shows both the script command and the underlying
+`main.exe` calls it performs.
 
-### 2.3.1 Synthesis
+All `main.exe` commands accept an optional `-config PATH` flag to use an alternate
+configuration file (default: `meta-config.json`).
 
-Run the synthesizer on a single benchmark:
+### 2.3.1 Table 1 Step-by-Step
+
+**Step 1 — Synthesis**
 
 ```
-$ docker compose exec clouseau ./main.exe do-syn GOAL_NAME SPEC_FILE N
+$ docker compose exec clouseau python3 scripts/run_ocaml_bench.py syn
 ```
 
-| Argument | Description |
-|----------|-------------|
-| `GOAL_NAME` | The synthesis goal name (must match the `[@goal]` annotation in the spec file) |
-| `SPEC_FILE` | Path to the `.ml` spec file |
-| `N` | Number of expected synthesis candidates |
+For each benchmark, this runs:
 
-Output is written to `output/GOAL_NAME.scm`.
+```
+$ docker compose exec clouseau ./main.exe do-syn GOAL_NAME benchmarks/OCamlBench/SPEC_FILE 1
+```
 
-Example:
+Output is written to `output/GOAL_NAME.scm`. Example for a single benchmark:
 
 ```
 $ docker compose exec clouseau ./main.exe do-syn stack benchmarks/OCamlBench/stack_spec.ml 1
 ```
 
-### 2.3.2 Running the Synthesized Generator
-
-Run the synthesized generator `N` times and report the bug-detection rate:
+**Step 2 — Run synthesized generators (200 runs each)**
 
 ```
-$ docker compose exec clouseau ./main.exe sample-syn GOAL_NAME N
+$ docker compose exec clouseau python3 scripts/run_ocaml_bench.py runsyn
 ```
 
-Loads `output/GOAL_NAME.scm` and executes the synthesized test generator against the
-system under test, reporting the fraction of runs that expose a violation.
-
-Example:
+For each benchmark, this runs:
 
 ```
-$ docker compose exec clouseau ./main.exe sample-syn stack 200
+$ docker compose exec clouseau ./main.exe sample-syn GOAL_NAME 200
 ```
 
-### 2.3.3 Running the Random Baseline
-
-Run the random (QCheck-style) baseline generator for `N` seconds of wall-clock time:
+**Step 3 — Run random (QCheck) baseline**
 
 ```
-$ docker compose exec clouseau ./main.exe sample-random GOAL_NAME N
+$ docker compose exec clouseau python3 scripts/run_ocaml_bench.py runrandom
 ```
 
-Example:
+For each benchmark, this runs:
 
 ```
-$ docker compose exec clouseau ./main.exe sample-random stack 200
+$ docker compose exec clouseau ./main.exe sample-random GOAL_NAME 1800
 ```
 
-### 2.3.4 Compiling a Synthesized Generator to P
-
-After synthesis, compile the result to a P language scheduler:
+**Step 4 — Print Table 1 as LaTeX**
 
 ```
-$ docker compose exec clouseau ./main.exe compile-to-p TASK_NAME BENCH_NAME
+$ docker compose exec clouseau python3 scripts/run_ocaml_bench.py table1
 ```
 
-| Argument | Description |
-|----------|-------------|
-| `TASK_NAME` | The task identifier, e.g. `p_database` |
-| `BENCH_NAME` | The P benchmark directory name, e.g. `Database` |
+### 2.3.2 Table 2 Step-by-Step
 
-The compiled P file is written to `penv/BENCH_NAME/PSyn/SynClient.p`.
-
-Example:
+**Step 1 — Synthesis + compile to P**
 
 ```
-$ docker compose exec clouseau ./main.exe compile-to-p p_database Database
+$ docker compose exec clouseau python3 scripts/run_p_bench.py syn
+```
+
+For each benchmark, this first synthesizes:
+
+```
+$ docker compose exec clouseau ./main.exe do-syn p_BENCHNAME benchmarks/PBench/p_BENCHNAME_spec.ml 1
+```
+
+Then compiles the result to a P scheduler:
+
+```
+$ docker compose exec clouseau ./main.exe compile-to-p p_BENCHNAME BENCHNAME
+```
+
+The compiled P file is written to `penv/BENCHNAME/PSyn/SynClient.p`.
+
+**Step 2 — Run synthesized schedulers (500 runs each)**
+
+```
+$ docker compose exec clouseau python3 scripts/run_p_bench.py runsyn
+```
+
+Runs each P benchmark under `penv/BENCHNAME/` using the synthesized scheduler.
+
+**Step 3 — Run random P baseline**
+
+```
+$ docker compose exec clouseau python3 scripts/run_p_bench.py runrandom
+```
+
+Runs each P benchmark under `poriginal/BENCHNAME/` using the original random
+scheduler. Used as the baseline for benchmarks without a manually-written scheduler.
+
+**Step 4 — Run default (manual) P baseline**
+
+```
+$ docker compose exec clouseau python3 scripts/run_p_bench.py rundefault
+```
+
+Runs each P benchmark under `poriginal/BENCHNAME/` using the manually-written
+default scheduler (mode `Manual`). Used as the baseline for benchmarks in
+`manual_baseline_benchmarks`: EspressoMachine, BankServer, Simplified2PC, HeartBeat,
+ChainReplication, Paxos, AnonReadAtomicity. Both Step 3 and Step 4 must be run
+before printing Table 2, as each benchmark uses whichever baseline is applicable.
+
+**Step 5 — Print Table 2 as LaTeX**
+
+```
+$ docker compose exec clouseau python3 scripts/run_p_bench.py table2
 ```
 
 ---

@@ -394,6 +394,8 @@ if __name__ == '__main__':
         print_cols(benchmarks, j)
     elif args.command == "runrandom":
         run_random_p()
+    elif args.command == "rundefault":
+        run_default_p()
     elif args.command == "parse":
         do_parse()
         j = load_stat()
