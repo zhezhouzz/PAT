@@ -32,7 +32,7 @@ WORKDIR /home/opam
 # Install OCaml dependencies
 # Note: conf-python was removed (no longer in opam; python3 already installed via apt)
 RUN opam install -y \
-    dune.3.21.1 core.v0.17.1 core_unix.v0.17.1 yojson.3.0.0 conf-c++.1.0 qcheck.0.91 \
+    dune.3.21.1 core.v0.17.1 core_unix.v0.17.1 yojson.2.2.2 conf-c++.1.0 qcheck.0.91 \
     ocolor.1.3.1 dolog.6.0.0 ocamlbuild.0.16.1 ppx_deriving_yojson.3.9.1 \
     menhirLib.20260209 menhir.20260209 spectrum.1.0.0.alpha ppx_jane.v0.17.0
 
