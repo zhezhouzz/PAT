@@ -352,9 +352,9 @@ def table1(benchnames, stat):
     print("\\bottomrule\n\\end{tabular}\n\n")
     return
 
-def do_syn():
+def do_syn(candidate_num="1"):
     for bench_name in benchmarks:
-        cmd = cmd_prefix + ["do-syn", task_name(bench_name), task_dir(bench_name), "1"]
+        cmd = cmd_prefix + ["do-syn", task_name(bench_name), task_dir(bench_name), candidate_num]
         invoc_cmd(cmd)
     return
 
@@ -397,6 +397,7 @@ if __name__ == '__main__':
     parser.add_argument('command', nargs='?', default='all', help='Command to run (syn, runsyn, runrandom, etc.)')
     parser.add_argument('-b', '--benchmarks', type=str, help='Comma-separated list of benchmarks to run')
     parser.add_argument('-n', '--number', type=int, help='Override random execution count for fast run mode')
+    parser.add_argument('-c', '--candidate', type=str, default="1", help='Number of candidates for synthesis')
     parser.add_argument('extra_args', nargs='*', help='Extra arguments for specific commands')
     
     args = parser.parse_args()
@@ -410,7 +411,7 @@ if __name__ == '__main__':
     init_config(args.number)
 
     if args.command == "syn":
-        do_syn()
+        do_syn(args.candidate)
     elif args.command == "runsyn":
         run_syn()
         j = load_stat()
@@ -421,7 +422,7 @@ if __name__ == '__main__':
             sys.exit(1)
         name = args.extra_args[0]
         benchmarks = [name]
-        do_syn()
+        do_syn(args.candidate)
     elif args.command == "runsyn-one":
         if not args.extra_args:
             print("Error: runsyn-one requires a benchmark name")
@@ -446,7 +447,7 @@ if __name__ == '__main__':
         j = load_stat()
         table1(benchmarks, j)
     elif args.command == "all":
-        do_syn()
+        do_syn(args.candidate)
         run_syn()
         run_random()
         # run_default()

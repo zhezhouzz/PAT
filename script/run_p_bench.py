@@ -264,21 +264,15 @@ def table2(benchnames, stat):
     print("\\bottomrule\n\\end{tabular}\n\n")
     return
 
-def do_syn():
+def do_syn(candidate_num="1"):
     for name in benchmarks:
-        cmd = cmd_prefix + ["do-syn", task_name(name), task_spec_file(name)]
+        cmd = cmd_prefix + ["do-syn", task_name(name), task_spec_file(name), candidate_num]
         invoc_cmd(cmd)
     return
 
 def do_parse():
     for name in benchmarks:
         cmd = cmd_prefix + ["do-parse", task_name(name), task_spec_file(name)]
-        invoc_cmd(cmd)
-    return
-
-def do_p_syn():
-    for name in benchmarks:
-        cmd = cmd_prefix + ["do-syn", task_name(name), task_spec_file(name), "1"]
         invoc_cmd(cmd)
     return
 
@@ -375,6 +369,7 @@ if __name__ == '__main__':
     parser.add_argument('command', nargs='?', default='all', help='Command to run (syn, runsyn, runrandom, etc.)')
     parser.add_argument('-b', '--benchmarks', type=str, help='Comma-separated list of benchmarks to run')
     parser.add_argument('-n', '--number', type=int, help='Override random execution count for fast run mode')
+    parser.add_argument('-c', '--candidate', type=str, default="1", help='Number of candidates for synthesis')
     parser.add_argument('extra_args', nargs='*', help='Extra arguments for specific commands')
     
     args = parser.parse_args()
@@ -388,7 +383,7 @@ if __name__ == '__main__':
     init_config(args.number)
 
     if args.command == "syn":
-        do_p_syn()
+        do_syn(args.candidate)
         do_compile()
     elif args.command == "runsyn":
         run_syn_p()
@@ -407,7 +402,7 @@ if __name__ == '__main__':
         j = load_stat()
         table2(benchmarks, j)
     elif args.command == "all":
-        do_p_syn()
+        do_syn(args.candidate)
         do_compile()
         run_syn_p()
         run_random_p()
