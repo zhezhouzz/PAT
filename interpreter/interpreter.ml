@@ -51,11 +51,7 @@ let over_number_bound number_bound n =
 
 let over_time_bound time_bound exec_time =
   match time_bound with
-  | Some time_bound ->
-      (* let () = Printf.printf "@{<red>Time bound: %i@}\n" time_bound in
-      let () = Printf.printf "@{<red>Exec time: %f@}\n" exec_time in
-      let _ = read_line () in *)
-      exec_time > float_of_int time_bound
+  | Some time_bound -> exec_time > time_bound
   | None -> false
 
 let string_contains sub s =

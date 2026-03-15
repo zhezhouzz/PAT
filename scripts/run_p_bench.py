@@ -390,14 +390,16 @@ if __name__ == '__main__':
         do_compile()
     elif args.command == "runsyn":
         run_syn_p()
-        j = load_stat()
-        print_cols(benchmarks, j)
+        # j = load_stat()
+        # print_cols(benchmarks, j)
     elif args.command == "runrandom":
         run_random_p()
+    elif args.command == "rundefault":
+        run_default_p()
     elif args.command == "parse":
         do_parse()
-        j = load_stat()
-        print_cols(benchmarks, j)
+        # j = load_stat()
+        # print_cols(benchmarks, j)
     elif args.command == "show":
         j = load_stat()
         print_cols(benchmarks, j)

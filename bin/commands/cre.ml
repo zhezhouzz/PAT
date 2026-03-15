@@ -7,9 +7,9 @@ open Zdatatype
 let parse = Oparse.parse_imp_from_file
 
 let read_ocaml_file source_file () =
-  let _ = Pp.printf "@{<yellow>cre.ml:@}  10\n" in
+  let () = Myconfig._log "cre" (fun () -> Pp.printf "@{<yellow>cre.ml:@}  10\n") in
   let code = Oparse.parse_imp_from_file ~sourcefile:source_file in
-  let _ = Pp.printf "@{<yellow>cre.ml:@}  12\n" in
+  let () = Myconfig._log "cre" (fun () -> Pp.printf "@{<yellow>cre.ml:@}  12\n") in
   let code = ocaml_structure_to_items code in
   code
 
@@ -386,6 +386,19 @@ let param_string_int message f =
       let () = Myconfig.meta_config_path := config_file in
       f str_option int_option)
 
+let param_string_int_float message f =
+  Command.basic ~summary:message
+    Command.Let_syntax.(
+      let%map_open config_file =
+        flag "config"
+          (optional_with_default Myconfig.default_meta_config_path regular_file)
+          ~doc:"config file path"
+      and str_option = anon ("string" %: string)
+      and count = anon ("count" %: int)
+      and time_sec = anon ("time_sec" %: float) in
+      let () = Myconfig.meta_config_path := config_file in
+      f str_option count time_sec)
+
 let file_and_string message f =
   Command.basic ~summary:message
     Command.Let_syntax.(
@@ -490,28 +503,16 @@ let update_eval_stat file_name (name, mode, res) =
         `Assoc assoc_list
       in
       let () =
-        Pp.printf "@{<bold>update eval stat:@} %s\n"
-          (Yojson.Safe.to_string data)
+        Myconfig._log "stat" (fun () ->
+            Pp.printf "@{<bold>update eval stat:@} %s\n"
+              (Yojson.Safe.to_string data))
       in
       let oc = open_out file_name in
       output_string oc (Yojson.Safe.to_string data);
       close_out oc
   | UntilDetectResult _ -> ()
 
-let test_eval mode s (converge_bound : int) () =
-  let eval f =
-    match mode with
-    | "sample" ->
-        let n_successed, rate, exec_time =
-          Interpreter.eval_sample ~number_bound:(Some converge_bound)
-            ~time_bound:None f
-        in
-        SampleResult (n_successed, rate, exec_time)
-    | "detect" ->
-        let n_retry, his = Interpreter.eval_until_detect_bug converge_bound f in
-        UntilDetectResult (n_retry, his)
-    | _ -> _die_with [%here] "unknown mode"
-  in
+let run_bench_with_eval eval s =
   let res =
     match s with
     | "stack" ->
@@ -707,6 +708,31 @@ let test_eval mode s (converge_bound : int) () =
   let () = update_eval_stat syn_stat_file (s, "syn", res) in
   ()
 
+let test_eval mode s (converge_bound : int) () =
+  let eval f =
+    match mode with
+    | "sample" ->
+        let n_successed, rate, exec_time =
+          Interpreter.eval_sample ~number_bound:(Some converge_bound)
+            ~time_bound:None f
+        in
+        SampleResult (n_successed, rate, exec_time)
+    | "detect" ->
+        let n_retry, his = Interpreter.eval_until_detect_bug converge_bound f in
+        UntilDetectResult (n_retry, his)
+    | _ -> _die_with [%here] "unknown mode"
+  in
+  run_bench_with_eval eval s
+
+let test_eval_sample s number_bound time_bound () =
+  let eval f =
+    let n_successed, rate, exec_time =
+      Interpreter.eval_sample ~number_bound ~time_bound f
+    in
+    SampleResult (n_successed, rate, exec_time)
+  in
+  run_bench_with_eval eval s
+
 let test_envs =
   [
     ("stack", Ocaml_bench.Stack.test_env);
@@ -747,21 +773,21 @@ let default_random_test_config =
     ("numBalanceDB", 20);
   ]
 
-let test_random mode s converge_bound time_bound () =
+let test_random mode s number_bound time_bound () =
   let () = BackendMariaDB.MyMariaDB.set_single_connection_mode true in
   let eval f =
     match mode with
     | "detect" ->
-        let converge_bound =
-          match converge_bound with
+        let n_bound =
+          match number_bound with
           | Some x -> x
           | None -> _die_with [%here] "converge bound not set"
         in
-        let n_retry, his = Interpreter.eval_until_detect_bug converge_bound f in
+        let n_retry, his = Interpreter.eval_until_detect_bug n_bound f in
         UntilDetectResult (n_retry, his)
     | "sample" ->
         let n_successed, rate, exec_time =
-          Interpreter.eval_sample ~number_bound:converge_bound ~time_bound f
+          Interpreter.eval_sample ~number_bound ~time_bound f
         in
         SampleResult (n_successed, rate, exec_time)
     | _ -> _die_with [%here] "unknown mode"
@@ -817,10 +843,16 @@ let cmds =
     ( "test-random",
       param_string_int "test random" (fun name n ->
           test_random "detect" name (Some n) None) );
-    ("sample-syn", param_string_int "sample syn" (test_eval "sample"));
+    ( "sample-syn",
+      param_string_int_float "sample syn" (fun name count time_sec ->
+          test_eval_sample name
+            (if count > 0 then Some count else None)
+            (if time_sec > 0.0 then Some time_sec else None)) );
     ( "sample-random",
-      param_string_int "sample random" (fun name n ->
-          test_random "sample" name None (Some n)) );
+      param_string_int_float "sample random" (fun name count time_sec ->
+          test_random "sample" name
+            (if count > 0 then Some count else None)
+            (if time_sec > 0.0 then Some time_sec else None)) );
     ("read-syn", one_param "read syn" read_syn);
     ("do-syn", tag_and_file_int "do syn" do_syn);
     ("do-naive", string_string_int_float "do naive syn" do_naive_syn);

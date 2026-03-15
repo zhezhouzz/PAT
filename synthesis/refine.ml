@@ -44,6 +44,8 @@ let _strategy =
       expected_end_time = None;
     }
 
+let _log_refine f = _log "refine" f
+
 let database_related env =
   List.exists (fun x -> String.equal x.x "commit") (ctx_to_list env.event_tyctx)
 
@@ -63,7 +65,7 @@ let init_strategy env =
     List.length
     @@ List.filter (fun x -> is_observable x.ty) (ctx_to_list env.msgkind_ctx)
   in
-  let () = Pp.printf "num_gen: %i, num_obs: %i\n" num_gen num_obs in
+  let () = _log_refine (fun () -> Pp.printf "num_gen: %i, num_obs: %i\n" num_gen num_obs) in
   if database_related env then
     _strategy := { !_strategy with search = UnSortedDFS 1; addKstar = false }
   else if p_related env then
@@ -127,7 +129,7 @@ let try_pause () =
     | None -> ()
   in
   let () = pause_counter := !pause_counter + 1 in
-  let () = Pp.printf "@{<bold>@{<red>pause_counter@}: %i@}\n" !pause_counter in
+  let () = _log_refine (fun () -> Pp.printf "@{<bold>@{<red>pause_counter@}: %i@}\n" !pause_counter) in
   if !_strategy.pause then
     let _ = input_line stdin in
     ()
@@ -165,26 +167,36 @@ let rec search_on_strategy (f : 'a -> 'a list) plans =
 let num_recursion = ref 3
 
 let simp_print_syn_judgement plan =
-  let () = Pp.printf "@{<bold>@{<red>Synthesis plan:@}@}\n" in
-  print_plan plan
+  let () = _log_refine (fun () -> Pp.printf "@{<bold>@{<red>Synthesis plan:@}@}\n") in
+  let () = _log_refine (fun () -> print_plan plan) in
+  ()
 
 let layout_candidate_plans plans =
   let len = List.length plans in
   let plans, rest = first_n_list !_strategy.layout_bound plans in
-  List.iteri
-    (fun i plan ->
-      Pp.printf "@{<bold>@{<red>%i:@}@}\n%s\n%s\n" i (omit_layout_line plan)
-        (layout_plan_checkedActs plan))
-    plans;
-  if List.length rest > 0 then
-    Pp.printf "@{<bold>@{<red>total (%i); rest is omitted@}@}\n" len;
-  Pp.printf "\n"
+  let () =
+    _log_refine (fun () ->
+        List.iteri
+          (fun i plan ->
+            Pp.printf "@{<bold>@{<red>%i:@}@}\n%s\n%s\n" i (omit_layout_line plan)
+              (layout_plan_checkedActs plan))
+          plans;
+        if List.length rest > 0 then
+          Pp.printf "@{<bold>@{<red>total (%i); rest is omitted@}@}\n" len;
+        Pp.printf "\n")
+  in
+  ()
 
 let layout_candidate_res_and_plans res plans =
   layout_candidate_plans plans;
-  Pp.printf "\n@{<bold>@{<red>res(%i) plans pool(%i):@}@}\n" (List.length res)
-    (List.length plans);
-  Pp.printf "\n"
+  let () =
+    _log_refine (fun () ->
+        Pp.printf "\n@{<bold>@{<red>res(%i) plans pool(%i):@}@}\n"
+          (List.length res)
+          (List.length plans);
+        Pp.printf "\n")
+  in
+  ()
 
 let layout_res res =
   let remove_ghost { gprop; elems } =
@@ -201,8 +213,12 @@ let layout_res res =
   in
   layout_candidate_plans (List.map remove_ghost res);
   layout_candidate_plans res;
-  Pp.printf "\n@{<bold>@{<red>res(%i)@}@}\n" (List.length res);
-  Pp.printf "\n"
+  let () =
+    _log_refine (fun () ->
+        Pp.printf "\n@{<bold>@{<red>res(%i)@}@}\n" (List.length res);
+        Pp.printf "\n")
+  in
+  ()
 
 let output_prefix = "output"
 
@@ -229,11 +245,14 @@ let rec deductive_synthesis env r num_expected : synMidResult list =
   in
   let () = init_strategy env in
   let () =
-    Pp.printf "@{<bold>@{<red>strategy:@}@}\n%s\n" (layout_strategy !_strategy)
+    _log_refine (fun () ->
+        Pp.printf "@{<bold>@{<red>strategy:@}@}\n%s\n" (layout_strategy !_strategy))
   in
   (* let () = _die_with [%here] "zz" in *)
   let () = try_pause () in
-  let () = Pp.printf "@{<bold>@{<red>plans@}@}\n%i\n" (List.length plans) in
+  let () =
+    _log_refine (fun () -> Pp.printf "@{<bold>@{<red>plans@}@}\n%i\n" (List.length plans))
+  in
   let res = refinement_loop env ([], plans) in
   (* let () = _die_with [%here] "zz" in *)
   (* let () = save_line "goal" goal in *)
@@ -318,8 +337,9 @@ and refine_one_step env (goal : line) : line list =
   let ids = underived_act_ids goal in
   let ids = List.sort (fun x y -> Int.compare x y) ids in
   let () =
-    Pp.printf "@{<bold>@{<red>ids@}@}\n%s\n"
-      (List.split_by_comma string_of_int ids)
+    _log_refine (fun () ->
+        Pp.printf "@{<bold>@{<red>ids@}@}\n%s\n"
+          (List.split_by_comma string_of_int ids))
   in
   (* let () = try_pause () in *)
   match ids with
@@ -328,7 +348,7 @@ and refine_one_step env (goal : line) : line list =
       let op = midAct.aop in
       if is_gen env op then _die_with [%here] "never"
       else
-        let () = Pp.printf "@{<bold>@{<red>backward@} on %i@}\n" id in
+        let () = _log_refine (fun () -> Pp.printf "@{<bold>@{<red>backward@} on %i@}\n" id) in
         (* let _ = try_pause () in *)
         backward env goal id
   | [] -> (
@@ -346,14 +366,15 @@ and refine_one_step env (goal : line) : line list =
               ids
           in
           let id = match recId with Some id -> id | None -> id in
-          let () = Pp.printf "@{<bold>@{<red>forward@} on %i@}\n" id in
+          let () = _log_refine (fun () -> Pp.printf "@{<bold>@{<red>forward@} on %i@}\n" id) in
           (* let _ = try_pause () in *)
           forward env goal id)
 
 and gen_new_act env (goal : line) : line list =
   let () =
-    Pp.printf "@{<bold>@{<red>gen new act@} on line@}\n%s\n"
-      (omit_layout_line goal)
+    _log_refine (fun () ->
+        Pp.printf "@{<bold>@{<red>gen new act@} on line@}\n%s\n"
+          (omit_layout_line goal))
   in
   let rules = select_gen_rules env in
   match rules with
@@ -364,8 +385,9 @@ and gen_new_act env (goal : line) : line list =
 
 and gen_new_kstar env (goal : line) : (int * line * int) list =
   let () =
-    Pp.printf "@{<bold>@{<red>gen_new_kstar@} on line@}\n%s\n"
-      (omit_layout_line goal)
+    _log_refine (fun () ->
+        Pp.printf "@{<bold>@{<red>gen_new_kstar@} on line@}\n%s\n"
+          (omit_layout_line goal))
   in
   let lines = mk_singleton_star goal in
   let rules = select_gen_rules env in
@@ -387,21 +409,23 @@ and backward env (goal : line) mid : line list =
   let op = midAct.aop in
   let rules = select_rule_by_future env op in
   let () =
-    List.iteri
-      (fun i ((_, se, _), pat) ->
-        let () =
-          Pp.printf "@{<bold>rty[%i]:@}\n@{<red>se@}: %s\n@{<red>pat@}: %s\n" i
-            (layout_sevent se)
-            (layout_pat layout_regex pat)
-        in
-        ())
-      rules
+    _log_refine (fun () ->
+        List.iteri
+          (fun i ((_, se, _), pat) ->
+            let () =
+              Pp.printf "@{<bold>rty[%i]:@}\n@{<red>se@}: %s\n@{<red>pat@}: %s\n" i
+                (layout_sevent se)
+                (layout_pat layout_regex pat)
+            in
+            ())
+          rules)
   in
   let handle ((future1, se, future2), pat) =
     let () =
-      Pp.printf "@{<bold>use rty@}\n@{<red>se@}: %s\n@{<red>pat@}: %s\n"
-        (layout_sevent se)
-        (layout_pat layout_regex pat)
+      _log_refine (fun () ->
+          Pp.printf "@{<bold>use rty@}\n@{<red>se@}: %s\n@{<red>pat@}: %s\n"
+            (layout_sevent se)
+            (layout_pat layout_regex pat))
     in
     let _, (args, retrty) = destruct_pat [%here] pat in
     let goal = plan_add_cargs goal args in
@@ -424,7 +448,7 @@ and forward env (goal : line) mid : line list =
   let () = Language.Stat.incr_forward () in
   let _, (_, midAct, _) = line_divide_by_task_id goal mid in
   let op = midAct.aop in
-  let () = Pp.printf "forward on op: %s\n" op in
+  let () = _log_refine (fun () -> Pp.printf "forward on op: %s\n" op) in
   let rules = select_rule_by_op env op in
   let handle pat =
     let _, (args, retrty) = destruct_pat [%here] pat in
@@ -489,6 +513,7 @@ let naive_searching ~timebound env r size =
   in
   let res = try loop () with SynthesisTimeout -> [] in
   let () =
-    Pp.printf "@{<bold>@{<red>valid_init_plans@}@}\n%i\n" !valid_init_plans
+    _log_refine (fun () ->
+        Pp.printf "@{<bold>@{<red>valid_init_plans@}@}\n%i\n" !valid_init_plans)
   in
   res

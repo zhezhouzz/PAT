@@ -5,6 +5,7 @@ open Refine *)
 
 (* open MkTerm *)
 
+let _log_synthesis f = _log "synthesis" f
 let tmp_plans_file = "/tmp/plans.sexp"
 
 let save_plans plans =
@@ -39,29 +40,46 @@ let synthesize (env : syn_env) name num_expected =
   in
   let m = List.map (fun x -> (x.x, AVar (Rename.unique_var x.x)#:x.ty)) qvs in
   let () =
-    Pp.printf "@{<bold>m:@} %s\n"
-      (List.split_by_comma (fun (x, y) -> spf "%s -> %s" x (layout_lit y)) m)
+    _log_synthesis (fun () ->
+        Pp.printf "@{<bold>m:@} %s\n"
+          (List.split_by_comma
+             (fun (x, y) -> spf "%s -> %s" x (layout_lit y))
+             m))
   in
   let reg = msubst subst_rich_regex_instance m reg in
   let r = SFA.rich_regex_to_regex reg in
-  let () = Pp.printf "\n@{<red>Original Reg:@} %s\n" (SFA.layout_regex r) in
+  let () =
+    _log_synthesis (fun () ->
+        Pp.printf "\n@{<red>Original Reg:@} %s\n" (SFA.layout_regex r))
+  in
   let plans = Refine.deductive_synthesis env r num_expected in
-  let () = Pp.printf "\n@{<yellow>Result plans:@}\n" in
+  let () =
+    _log_synthesis (fun () -> Pp.printf "\n@{<yellow>Result plans:@}\n")
+  in
   let () = save_plans plans in
   (* let () = _die [%here] in *)
   let plans = load_plans () in
-  let () = Pp.printf "@{<bold>load plans:@}%s\n" name in
-  List.iter (fun p -> Plan.print_mid_result p) plans;
+  let () =
+    _log_synthesis (fun () -> Pp.printf "@{<bold>load plans:@}%s\n" name)
+  in
+  let () =
+    _log_synthesis (fun () ->
+        List.iter (fun p -> Plan.print_mid_result p) plans)
+  in
   (* let term = instantiation env (g.gamma, g.plan) in *)
   let progs = List.map (fun p -> Compile.compile_term env p) plans in
   (* let progs = [ List.nth progs 2 ] in *)
-  let () = Pp.printf "@{<bold>num of progs:@}%i\n" (List.length progs) in
   let () =
-    List.iteri
-      (fun i (num_assert, p) ->
-        Pp.printf "@{<bold>Prog[%i]:@}\n%s\nAssertion number: %i\n" i
-          (layout_term p) num_assert)
-      progs
+    _log_synthesis (fun () ->
+        Pp.printf "@{<bold>num of progs:@}%i\n" (List.length progs))
+  in
+  let () =
+    _log_result (fun () ->
+        List.iteri
+          (fun i (num_assert, p) ->
+            Pp.printf "@{<bold>Prog[%i]:@}\n%s\nAssertion number: %i\n" i
+              (layout_term p) num_assert)
+          progs)
   in
   let () = Language.Stat.set_num_result (List.length plans) in
   let avg_num =
@@ -84,12 +102,18 @@ let naive_synthesize (env : syn_env) name size timebound =
   in
   let m = List.map (fun x -> (x.x, AVar (Rename.unique_var x.x)#:x.ty)) qvs in
   let () =
-    Pp.printf "@{<bold>m:@} %s\n"
-      (List.split_by_comma (fun (x, y) -> spf "%s -> %s" x (layout_lit y)) m)
+    _log_synthesis (fun () ->
+        Pp.printf "@{<bold>m:@} %s\n"
+          (List.split_by_comma
+             (fun (x, y) -> spf "%s -> %s" x (layout_lit y))
+             m))
   in
   let reg = msubst subst_rich_regex_instance m reg in
   let r = SFA.rich_regex_to_regex reg in
-  let () = Pp.printf "\n@{<red>Original Reg:@} %s\n" (SFA.layout_regex r) in
+  let () =
+    _log_synthesis (fun () ->
+        Pp.printf "\n@{<red>Original Reg:@} %s\n" (SFA.layout_regex r))
+  in
   let res = Refine.naive_searching ~timebound env r size in
   let exec_time = Sys.time () -. start_time in
   if List.length res > 0 then Some exec_time else None

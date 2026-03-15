@@ -4,6 +4,10 @@ open Zdatatype
 (* open Common *)
 open Language
 
+let _log_simp f = _log "simp" f
+
+let _log_simp f = _log "simp" f
+
 let partial_func = [ "fstTy"; "sndTy" ]
 let check_sat x = Prover.raw_check_sat_bool x
 
@@ -116,16 +120,17 @@ let rename_plan ass (gen_vars, gprop, prog) =
   in
   let ass = List.filter not_valid_subst ass in
   let () =
-    Pp.printf "@{<bold>ass:@} %s\n"
-      (List.split_by_comma (fun (x, y) -> spf "%s -> %s" x y.x) ass)
+    _log_simp (fun () ->
+        Pp.printf "@{<bold>ass:@} %s\n"
+          (List.split_by_comma (fun (x, y) -> spf "%s -> %s" x y.x) ass))
   in
   match ass with
   | [] -> None
   | _ ->
       let _ = check_sat (None, gprop) in
-      let () = Pp.printf "@{<bold>gprop:@} %s\n" (layout_prop gprop) in
+      let () = _log_simp (fun () -> Pp.printf "@{<bold>gprop:@} %s\n" (layout_prop gprop)) in
       let gprop, prog = do_rename_plan ass (gprop, prog) in
-      let () = Pp.printf "@{<bold>gprop:@} %s\n" (layout_prop gprop) in
+      let () = _log_simp (fun () -> Pp.printf "@{<bold>gprop:@} %s\n" (layout_prop gprop)) in
       let _ = check_sat (None, gprop) in
       Some (gen_vars, gprop, prog)
 
@@ -142,7 +147,7 @@ let simp_partial_func (gen_vars, gprop, prog) =
             (* let () = Pp.printf "op: %s\n" (show_lit lit) in *)
             match args with
             | [ { x = AVar x; _ }; { x = AVar y; _ } ] ->
-                let () = Pp.printf "op: %s, x: %s, y: %s\n" op.x x.x y.x in
+                let () = _log_simp (fun () -> Pp.printf "op: %s, x: %s, y: %s\n" op.x x.x y.x) in
                 Some ((op.x, x.x), y)
             | _ -> None)
         | _ -> None)
@@ -232,7 +237,7 @@ let simp_plan { gprop; elems } =
       | [] -> { gprop; elems }
       | _ ->
           let _ = check_sat (None, gprop) in
-          let () = Pp.printf "@{<bold>gprop:@} %s\n" (layout_prop gprop) in
+          let () = _log_simp (fun () -> Pp.printf "@{<bold>gprop:@} %s\n" (layout_prop gprop)) in
           let gprop =
             msubst subst_prop_instance
               (List.map (fun (x, y) -> (x, AVar y)) ass)
@@ -240,6 +245,6 @@ let simp_plan { gprop; elems } =
           in
           let gprop = simpl_eq_in_prop gprop in
           let line = msubst subst_name_in_line ass { gprop; elems } in
-          let () = Pp.printf "@{<bold>gprop:@} %s\n" (layout_prop line.gprop) in
+          let () = _log_simp (fun () -> Pp.printf "@{<bold>gprop:@} %s\n" (layout_prop line.gprop)) in
           let _ = check_sat (None, gprop) in
           line)

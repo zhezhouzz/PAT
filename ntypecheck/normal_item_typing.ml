@@ -67,7 +67,10 @@ let rich_symbolic_global_prop_type_check event_ctx ctx (qvs, prop) =
 
 let type_check_item env = function
   | MsgDecl { name; pat } ->
-      let () = Printf.printf "type_check_item: MsgDecl %s\n" name in
+      let () =
+        Myconfig._log "ntypecheck" (fun () ->
+            Printf.printf "type_check_item: MsgDecl %s\n" name)
+      in
       let pat =
         Normal_rty_typing.rich_symbolic_regex_pat_type_check env.event_tyctx
           env.tyctx pat
@@ -101,7 +104,9 @@ let type_check_item env = function
 
 let struct_check env l =
   let env = List.fold_left add_to_env env l in
-  let () = Printf.printf "%s\n" (layout_syn_env env) in
+  let () =
+    Myconfig._log "ntypecheck" (fun () -> Printf.printf "%s\n" (layout_syn_env env))
+  in
   let env = List.fold_left type_check_item env l in
   let () =
     Prover.update_axioms

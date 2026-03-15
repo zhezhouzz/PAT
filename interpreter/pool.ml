@@ -28,8 +28,9 @@ module Runtime = struct
       (List.map layout_msg !MsgBuffer.buffer |> String.concat " ")
 
   let print_hisTrace () =
-    Pp.printf "@{<blue>HisTrace:@} %s\n"
-      (List.map layout_msg_concise !hisTrace |> String.concat " ")
+    _log "eval_io" (fun () ->
+      Pp.printf "@{<blue>HisTrace:@} %s\n"
+        (List.map layout_msg_concise !hisTrace |> String.concat " "))
 end
 
 open Runtime
@@ -107,7 +108,7 @@ let select_handler msg =
       hd
 
 let handle_obs op f =
-  Printf.printf "obs:tid %i; op: %s\n" !_curTid op;
+  _log "eval" (fun () -> Printf.printf "obs:tid %i; op: %s\n" !_curTid op);
   assert (default_tid == !_curTid);
   let msgs = MsgBuffer.find_by_op op in
   (* let () =
@@ -127,8 +128,9 @@ let handle_obs op f =
   | [] -> None
   | _ -> (
       let () =
-        Printf.printf "msgs1: %s\n"
-          (List.map layout_msg msgs |> String.concat " ")
+        _log "eval" (fun () ->
+            Printf.printf "msgs1: %s\n"
+              (List.map layout_msg msgs |> String.concat " "))
       in
       let msgs =
         List.filter
@@ -140,8 +142,9 @@ let handle_obs op f =
           msgs
       in
       let () =
-        Printf.printf "msgs2: %s\n"
-          (List.map layout_msg msgs |> String.concat " ")
+        _log "eval" (fun () ->
+            Printf.printf "msgs2: %s\n"
+              (List.map layout_msg msgs |> String.concat " "))
       in
       let msg =
         match msgs with
@@ -159,7 +162,7 @@ let jump_to_tid tid = _curTid := tid
 let jump_back () = _curTid := default_tid
 
 let handle_gen msg =
-  Printf.printf "obs:gen %i\n" !_curTid;
+  _log "eval" (fun () -> Printf.printf "obs:gen %i\n" !_curTid);
   assert (default_tid == !_curTid);
   let hd = select_handler msg in
   appendToHisTrace msg;
