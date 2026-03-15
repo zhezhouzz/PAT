@@ -206,7 +206,7 @@ let var =
          allA) ));
   |]
 
-let[@goal] stlc2 (i : int) =
+let[@goal] debruijn2 (i : int) =
   Depth (d == 0);
   TyOpen (sid == i);
   allA;

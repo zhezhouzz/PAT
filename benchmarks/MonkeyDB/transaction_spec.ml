@@ -93,7 +93,7 @@ let readResp =
  fun ?l:(x = (true : [%v: int])) -> (allA, ReadResp (value == x), allA)
 
 (* Global Properties *)
-let[@goal] read_cc (y : int) =
+let[@goal] transaction (y : int) =
   allA;
   WriteResp (value == y);
   ReadReq true;

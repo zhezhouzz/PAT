@@ -29,7 +29,7 @@ let eWon ?l:(ld = (true : [%v: tNode])) = (allA, EWon (leader == ld), [||])
 
 (* unique leader *)
 
-let[@goal] task_RingLeaderElection (ld : tNode) =
+let[@goal] p_ringleaderelection (ld : tNode) =
   allA;
   EWon (leader == ld);
   allA;

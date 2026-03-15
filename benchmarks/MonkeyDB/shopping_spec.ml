@@ -123,7 +123,7 @@ let deleteItemReq (i : int) (l : int list) ?l:(x = (true : [%v: int]))
 let deleteItemResp = (allA, DeleteItemResp true, allA)
 
 (* Global Properties *)
-let[@goal] cart_cc (x : int) (y : int list) =
+let[@goal] shopping (x : int) (y : int list) =
   allA;
   Put (key == x && value == y);
   starA (anyA - Put (key == x));

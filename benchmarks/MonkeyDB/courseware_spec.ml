@@ -221,7 +221,7 @@ let unenrollStudentResp = (allA, UnenrollStudentResp true, allA)
 
 (* Goals *)
 
-let[@goal] courseware_cc (x : int) (y : int list) =
+let[@goal] courseware (x : int) (y : int list) =
   allA;
   PutStudentEnrollments (key == x && value == y);
   starA (anyA - PutStudentEnrollments (key == x));

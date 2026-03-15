@@ -12,8 +12,8 @@
   nfa
   stlc
   ifc
-  stlc_moti
-  stlc_simple
+  debruijn2
+  debruijn1
   hashtable
   hashtable_random)
  (inline_tests)

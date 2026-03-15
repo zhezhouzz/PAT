@@ -11,7 +11,7 @@ default_stat_file = "stat/.run_default.json"
 p_repo = ""
 
 
-benchmarks = ["Stack", "Set", "Filesystem", "Graph", "NFA", "IFCStore", "IFCAdd", "IFCLoad", "DeBruijn1", "DeBruijn2", "Shopping", "HashTable", "ReaderWriter", "Courseware", "Twitter", "Smallbank"]
+benchmarks = ["Stack", "Set", "Filesystem", "Graph", "NFA", "IFCStore", "IFCAdd", "IFCLoad", "DeBruijn1", "DeBruijn2", "Shopping", "HashTable", "Transaction", "Courseware", "Twitter", "Smallbank"]
 
 discription_dict = {
     "Set": "Membership holds for every element inserted into the set.",
@@ -25,7 +25,7 @@ discription_dict = {
     "IFCLoad": "A well-behaved IFC program containing a $\\Code{Load}$ command never leaks a secret.",
     "DeBruijn1": "An STLC interpreter correctly evaluates a\n  well-typed first-order STLC program that uses a de Brujin representation.",
     "DeBruijn2": "An STLC interpreter correctly evaluates a\n  a well-typed higher-order STLC program that uses a de Brujin representation.",
-    "ReaderWriter": "Asynchronous read operations are logically atomic.",
+    "Transaction": "Asynchronous read operations are logically atomic.",
     "Shopping": "All items added to a cart can be checked-out.",
     "Courseware": "Every student enrolled in a course exists in the\n  enrollment database for that course.",
     "Twitter": "Posted tweets are visible to all followers.",
@@ -41,100 +41,44 @@ task_name_dict = {
     "Stack": "stack",
     "Graph": "graph",
     "Filesystem": "filesystem",
-    "FilesystemSimple": "filesystem",
-    "GraphSimple": "graph",
-    "NFASimple": "nfa",
-    "IFCStoreSimple": "ifc_store",
-    "IFCAddSimple": "ifc_add",
-    "IFCLoadSimple": "ifc_load",
-    "DeBruijn1Simple": "stlc1",
-    "DeBruijn2Simple": "stlc2",
-    "HashTableSimple": "hashtable",
-    "ReaderWriterSimple": "read_cc",
-    "CartCCSimple": "cart_cc",
-    "ShoppingSimple": "cart_cc",
-    "CoursewareCCSimple": "courseware_cc",
-    "CoursewareSimple": "courseware_cc",
-    "TwitterCCSimple": "twitter_cc",
-    "TwitterSimple": "twitter_cc",
-    "SmallbankCCSimple": "smallbank_cc",
-    "SmallbankSimple": "smallbank_cc",
-    "TreiberStackCCSimple": "treiber_stack_cc",
-    "TreiberStackSimple": "treiber_stack_cc",
-    "StackSimple": "stack",
-    "SetSimple": "set",
     "NFA": "nfa",
     "IFCStore": "ifc_store",
     "IFCAdd": "ifc_add",
     "IFCLoad": "ifc_load",
-    "DeBruijn1": "stlc1",
-    "DeBruijn2": "stlc2",
+    "DeBruijn1": "debruijn1",
+    "DeBruijn2": "debruijn2",
     "HashTable": "hashtable",
-    "ReaderWriter": "read_cc",
-    "CartCC": "cart_cc",
-    "Shopping": "cart_cc",
-    "CoursewareCC": "courseware_cc",
-    "Courseware": "courseware_cc",
-    "TwitterCC": "twitter_cc",
-    "Twitter": "twitter_cc",
-    "SmallbankCC": "smallbank_cc",
-    "Smallbank": "smallbank_cc",
-    "TreiberStackCC": "treiber_stack_cc",
-    "TreiberStack": "treiber_stack_cc",
+    "Transaction": "transaction",
+    "Shopping": "shopping",
+    "Courseware": "courseware",
+    "Twitter": "twitter",
+    "Smallbank": "smallbank",
 }
 
 task_dir_dict = {
-    "Set": "set_spec.ml",
-    "Stack": "stack_spec.ml",
-    "Graph": "graph_spec.ml",
-    "Filesystem": "filesystem_spec.ml",
-    "FilesystemSimple": "filesystem_simp_spec.ml",
-    "GraphSimple": "graph_simp_spec.ml",
-    "NFASimple": "nfa_simp_spec.ml",
-    "IFCStoreSimple": "ifc_simp_spec.ml",
-    "IFCAddSimple": "ifc_simp_spec.ml",
-    "IFCLoadSimple": "ifc_simp_spec.ml",
-    "DeBruijn1Simple": "stlc_spec_simple_simp.ml",
-    "DeBruijn2Simple": "stlc_spec_moti_simp.ml",
-    "HashTableSimple": "hashtable_simp_spec.ml",
-    "ReaderWriterSimple": "MonkeyDB/read_cc_simp_spec.ml",
-    "CartCCSimple": "MonkeyDB/cart_cc_simp_spec.ml",
-    "ShoppingSimple": "MonkeyDB/cart_cc_simp_spec.ml",
-    "CoursewareCCSimple": "MonkeyDB/courseware_cc_simp_spec.ml",
-    "CoursewareSimple": "MonkeyDB/courseware_cc_simp_spec.ml",
-    "TwitterCCSimple": "MonkeyDB/twitter_cc_simp_spec.ml",
-    "TwitterSimple": "MonkeyDB/twitter_cc_simp_spec.ml",
-    "SmallbankCCSimple": "MonkeyDB/smallbank_cc_simp_spec.ml",
-    "SmallbankSimple": "MonkeyDB/smallbank_cc_simp_spec.ml",
-    "TreiberStackCCSimple": "MonkeyDB/treiber_stack_cc_simp_spec.ml",
-    "TreiberStackSimple": "MonkeyDB/treiber_stack_cc_simp_spec.ml",
-    "StackSimple": "stack_simp_spec.ml",
-    "SetSimple": "set_simp_spec.ml",
-    "NFA": "nfa_spec.ml",
-    "IFCStore": "ifc_spec.ml",
-    "IFCAdd": "ifc_spec.ml",
-    "IFCLoad": "ifc_spec.ml",
-    "DeBruijn1": "stlc_spec_simple.ml",
-    "DeBruijn2": "stlc_spec_moti.ml",
-    "HashTable": "hashtable_spec.ml",
-    "ReaderWriter": "MonkeyDB/read_cc_spec.ml",
-    "CartCC": "MonkeyDB/cart_cc_spec.ml",
-    "Shopping": "MonkeyDB/cart_cc_spec.ml",
-    "CoursewareCC": "MonkeyDB/courseware_cc_spec.ml",
-    "Courseware": "MonkeyDB/courseware_cc_spec.ml",
-    "TwitterCC": "MonkeyDB/twitter_cc_spec.ml",
-    "Twitter": "MonkeyDB/twitter_cc_spec.ml",
-    "SmallbankCC": "MonkeyDB/smallbank_cc_spec.ml",
-    "Smallbank": "MonkeyDB/smallbank_cc_spec.ml",
-    "TreiberStackCC": "MonkeyDB/treiber_stack_cc_spec.ml",
-    "TreiberStack": "MonkeyDB/treiber_stack_cc_spec.ml",
+    "Set": "OCamlBench/set_spec.ml",
+    "Stack": "OCamlBench/stack_spec.ml",
+    "Graph": "OCamlBench/graph_spec.ml",
+    "Filesystem": "OCamlBench/filesystem_spec.ml",
+    "NFA": "OCamlBench/nfa_spec.ml",
+    "IFCStore": "OCamlBench/ifc_spec.ml",
+    "IFCAdd": "OCamlBench/ifc_spec.ml",
+    "IFCLoad": "OCamlBench/ifc_spec.ml",
+    "DeBruijn1": "OCamlBench/debruijn1_spec.ml",
+    "DeBruijn2": "OCamlBench/debruijn2_spec.ml",
+    "HashTable": "OCamlBench/hashtable_spec.ml",
+    "Transaction": "MonkeyDB/transaction_spec.ml",
+    "Shopping": "MonkeyDB/shopping_spec.ml",
+    "Courseware": "MonkeyDB/courseware_spec.ml",
+    "Twitter": "MonkeyDB/twitter_spec.ml",
+    "Smallbank": "MonkeyDB/smallbank_spec.ml",
 }
 
 def task_name(name):
     return task_name_dict[name]
 
 def task_dir(name):
-    return "benchmarks/OCamlBench/" + task_dir_dict[name].replace("ADT/", "")
+    return "benchmarks/" + task_dir_dict[name].replace("ADT/", "")
 
 SYN_NUM = "200"
 RANDOM_NUM_MAP = {}
@@ -203,7 +147,7 @@ hat = ["Set", "Stack", "Graph", "Filesystem", "NFA", "SetSimple", "StackSimple",
 ifc = ["IFCStore", "IFCAdd", "IFCLoad", "IFCStoreSimple", "IFCAddSimple", "IFCLoadSimple"]
 stlc = ["DeBruijn1", "DeBruijn2", "DeBruijn1Simple", "DeBruijn2Simple"]
 hashtable = ["HashTable", "HashTableSimple"]
-monkeydb = ["Shopping", "CartCC", "Courseware", "CoursewareCC", "Twitter", "TwitterCC", "Smallbank", "SmallbankCC", "TreiberStack", "TreiberStackCC", "ShoppingSimple", "CartCCSimple", "CoursewareSimple", "CoursewareCCSimple", "TwitterSimple", "TwitterCCSimple", "SmallbankSimple", "SmallbankCCSimple", "TreiberStackSimple", "TreiberStackCCSimple"]
+monkeydb = ["Shopping", "CartCC", "Courseware", "CoursewareCC", "Twitter", "TwitterCC", "SmallbankCC", "TreiberStack", "TreiberStackCC", "ShoppingSimple", "CartCCSimple", "CoursewareSimple", "CoursewareCCSimple", "TwitterSimple", "TwitterCCSimple", "SmallbankSimple", "SmallbankCCSimple", "TreiberStackSimple", "TreiberStackCCSimple"]
 
 
 def manual_label(name):
@@ -215,6 +159,8 @@ def manual_label(name):
         return "^{\\dagger}"
     elif name in monkeydb:
         return "^{\\dagger}"
+    elif name in oltpbench:
+        return "^{\\dagger}"
     else:
         return ""
 
@@ -224,6 +170,8 @@ monkeydb_ratio = {
     "Twitter": 6.3,
     "TreiberStack": 3.7,
 }
+
+oltpbench = ["Smallbank"]
 
 def pp_benchname(name):
     postfix=""
@@ -237,10 +185,8 @@ def pp_benchname(name):
         postfix = "\\cite{OcamlMulticorePBT}"
     elif name in monkeydb:
         postfix = "\\cite{MonkeyDB}"
-    if name == "ReaderWriter":
-        return "\\textsf{Transaction}"
-    elif name == "Smallbank":
-        return "\\textsf{Smallbank}\\cite{OLTPBench}"
+    elif name in oltpbench:
+        postfix = "\\cite{OLTPBench}"
     return textsf(name) + postfix
 
 def print_pat_col(name, stat):

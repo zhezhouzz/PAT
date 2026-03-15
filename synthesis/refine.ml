@@ -51,7 +51,7 @@ let p_related env =
   StrMap.exists
     (fun x _ ->
       let ss = String.split_on_char '_' x in
-      List.exists (String.equal "task") ss)
+      List.exists (String.equal "p") ss)
     env.goals
 
 let init_strategy env =

@@ -96,7 +96,7 @@ let eReadQueryResp =
   |]
 
 (* bank withdraw success *)
-let[@goal] task_BankServer (ac : aid) =
+let[@goal] p_bankserver (ac : aid) =
   allA;
   EWithDrawResp (accountId == ac && not status);
   allA

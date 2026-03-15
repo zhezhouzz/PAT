@@ -171,8 +171,10 @@ let syn_term source_file output_file () =
   let () = Pp.printf "@{<bold>synthesis time: %f@}\n" exec_time in
   ()
 
+let mk_p_name name = "p_" ^ String.lowercase_ascii name
+
 let benchmark_convension task_name benchname =
-  let source_file = spf "benchmarks/PBench/%s_spec.ml" benchname in
+  let source_file = spf "benchmarks/PBench/%s_spec.ml" task_name in
   let output_file = spf "output/%s" task_name in
   let stat_file = spf "stat/.%s.json" task_name in
   let poutput = spf "penv/%s/PSyn/SynClient.p" benchname in
@@ -190,6 +192,7 @@ let syn_benchmark task_name benchname () =
   let start_time = Sys.time () in
   let term = Synthesis.synthesize env in
   let exec_time = Sys.time () -. start_time in
+  (* let () = handle_syn_result (env, num_assert, prog) name in *)
   ()
 
 (* let syn_term_timeout source_file output_file timebound () =
@@ -511,10 +514,6 @@ let test_eval mode s (converge_bound : int) () =
   in
   let res =
     match s with
-    (* | "queue" ->
-      let open Adt.Queue in
-      let test () = Interpreter.once (init, [ main ], check_membership_queue) in
-      eval test *)
     | "stack" ->
         let open Ocaml_bench.Stack in
         let main = Synthesis.load_prog s () in
@@ -533,9 +532,6 @@ let test_eval mode s (converge_bound : int) () =
           Interpreter.once (init, main, check_membership_hashtable)
         in
         eval test
-    (* | "hashtable" ->
-        let open Ocaml_bench.Hashtable_random in
-        test_fn () *)
     | "filesystem" ->
         let open Ocaml_bench.Filesystem in
         let main = Synthesis.load_prog s () in
@@ -551,14 +547,14 @@ let test_eval mode s (converge_bound : int) () =
         let main = Synthesis.load_prog s () in
         let test () = Interpreter.once (init, main, trace_is_not_nfa) in
         eval test
-    | "stlc1" ->
-        let open Ocaml_bench.Stlc_simple in
+    | "debruijn1" ->
+        let open Ocaml_bench.Debruijn1 in
         let main = Synthesis.load_prog s () in
         (* let main = [ main_rec ] in *)
         let test () = Interpreter.once (init, main, trace_eval_correct) in
         eval test
-    | "stlc2" ->
-        let open Ocaml_bench.Stlc_moti in
+    | "debruijn2" ->
+        let open Ocaml_bench.Debruijn2 in
         let main = Synthesis.load_prog s () in
         (* let main = [ main_rec ] in *)
         let test () = Interpreter.once (init, main, trace_eval_correct) in
@@ -581,21 +577,21 @@ let test_eval mode s (converge_bound : int) () =
         let main = Synthesis.load_prog s () in
         let test () = Interpreter.once (init, main, trace_enni) in
         eval test
-    | "read_cc" ->
+    | "transaction" ->
         let open MonkeyBD in
         let open Common in
-        let open ReadWriteDB in
+        let open Transaction in
         BackendMariaDB.MyMariaDB.maria_context "readwrite" Causal (fun () ->
             let main = Synthesis.load_prog s () in
             let test () =
               Interpreter.once
-                (ReadWriteDB.init, main, Read.check_read_atomicity)
+                (ReadWriteDB.init, main, Transaction.check_read_atomicity)
             in
             eval (with_reconnect test))
-    | "cart_rc" ->
+    | "shopping_rc" ->
         let open MonkeyBD in
         let open Common in
-        let open Cart in
+        let open Shopping in
         BackendMariaDB.MyMariaDB.maria_context "cart" ReadCommitted (fun () ->
             let main = Synthesis.load_prog s () in
             let test () =
@@ -603,10 +599,10 @@ let test_eval mode s (converge_bound : int) () =
                 (CartDB.init, main, CartDB.check_isolation_level Serializable)
             in
             eval (with_reconnect test))
-    | "cart_cc" ->
+    | "shopping" ->
         let open MonkeyBD in
         let open Common in
-        let open Cart in
+        let open Shopping in
         BackendMariaDB.MyMariaDB.maria_context "cart" Causal (fun () ->
             let main = Synthesis.load_prog s () in
             let test () =
@@ -628,7 +624,7 @@ let test_eval mode s (converge_bound : int) () =
                   TwitterDB.check_isolation_level Serializable )
             in
             eval (with_reconnect test))
-    | "twitter_cc" ->
+    | "twitter" ->
         let open MonkeyBD in
         let open Common in
         let open Twitter in
@@ -655,7 +651,7 @@ let test_eval mode s (converge_bound : int) () =
                   CoursewareDB.check_isolation_level Serializable )
             in
             eval (with_reconnect test))
-    | "courseware_cc" ->
+    | "courseware" ->
         let open MonkeyBD in
         let open Common in
         let open CoursewareDB in
@@ -682,7 +678,7 @@ let test_eval mode s (converge_bound : int) () =
                   SmallBankDB.check_isolation_level Serializable )
             in
             eval (with_reconnect test))
-    | "smallbank_cc" ->
+    | "smallbank" ->
         let open MonkeyBD in
         let open Common in
         let open Smallbank in
@@ -695,29 +691,10 @@ let test_eval mode s (converge_bound : int) () =
                   SmallBankDB.check_isolation_level Serializable )
             in
             eval (with_reconnect test))
-    | "cart" ->
-        let open MonkeyBD in
-        let open Common in
-        let open Cart in
-        BackendMariaDB.MyMariaDB.maria_context "cart" ReadCommitted (fun () ->
-            let test () =
-              Interpreter.once
-                (CartDB.init, main, CartDB.check_isolation_level Serializable)
-            in
-            eval (with_reconnect test))
-    (* | "treiber-stack" ->
-        let open MonkeyBD in
-        let open Common in
-        let open TreiberStack in
-        let test () =
-          Interpreter.once
-            (init Causal, [ main ], StackDB.serializable_trace_checker)
-        in
-        eval test *)
     | "warmup" ->
         let open MonkeyBD in
         let open Common in
-        let open Cart in
+        let open Shopping in
         BackendMariaDB.MyMariaDB.maria_context "cart" Causal (fun () ->
             let main = Synthesis.load_prog s () in
             let test () =
@@ -737,20 +714,20 @@ let test_envs =
     ("filesystem", Ocaml_bench.Filesystem.test_env);
     ("graph", Ocaml_bench.Graph.test_env);
     ("nfa", Ocaml_bench.Nfa.test_env);
-    ("stlc1", Ocaml_bench.Stlc_simple.test_env);
-    ("stlc2", Ocaml_bench.Stlc_moti.test_env);
+    ("debruijn1", Ocaml_bench.Debruijn1.test_env);
+    ("debruijn2", Ocaml_bench.Debruijn2.test_env);
     ("ifc_store", Ocaml_bench.Ifc.test_env);
     ("ifc_add", Ocaml_bench.Ifc.test_env);
     ("ifc_load", Ocaml_bench.Ifc.test_env);
-    ("read_cc", MonkeyBD.Read.test_env Causal);
-    ("cart_rc", MonkeyBD.Cart.test_env ReadCommitted);
-    ("cart_cc", MonkeyBD.Cart.test_env Causal);
+    ("transaction", MonkeyBD.Transaction.test_env Causal);
+    ("shopping_rc", MonkeyBD.Shopping.test_env ReadCommitted);
+    ("shopping", MonkeyBD.Shopping.test_env Causal);
     ("courseware_rc", MonkeyBD.Courseware.test_env ReadCommitted);
-    ("courseware_cc", MonkeyBD.Courseware.test_env Causal);
+    ("courseware", MonkeyBD.Courseware.test_env Causal);
     ("smallbank_rc", MonkeyBD.Smallbank.test_env ReadCommitted);
-    ("smallbank_cc", MonkeyBD.Smallbank.test_env Causal);
+    ("smallbank", MonkeyBD.Smallbank.test_env Causal);
     ("twitter_rc", MonkeyBD.Twitter.test_env ReadCommitted);
-    ("twitter_cc", MonkeyBD.Twitter.test_env Causal);
+    ("twitter", MonkeyBD.Twitter.test_env Causal);
   ]
 
 let default_random_test_config =
@@ -856,7 +833,7 @@ let cmds =
     (* ("compile-to-p", four_param_string "compile to p language" compile_to_p); *)
     ("compile-to-p", string_and_string "compile to p language" compile_to_p);
     ("show-term", one_param "show term" show_term);
-    ("test-db", one_param_string "run cart" BackendMariaDB.test_cart);
+    ("test-db", one_param_string "run shopping" BackendMariaDB.test_shopping);
     ( "test-non-repeatable-read",
       one_param_string "run non repeatable read"
         BackendMariaDB.test_non_repeatable_read );

@@ -266,7 +266,7 @@ let eShardPrepareRsp =
 
 (* read visibility *)
 
-let[@goal] task_Kermit2PCModel (id : tGid) (k : tKey) (v1 : tVal) (v2 : tVal) =
+let[@goal] p_anonreadatomicity (id : tGid) (k : tKey) (v1 : tVal) (v2 : tVal) =
   starA anyA;
   EUpdateRsp
     (gid == id && key == k && value == v1 && (not (value == v2)) && ok status);

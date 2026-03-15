@@ -297,7 +297,7 @@ let writeCheckReq (i : int) (c : int) ?l:(n = (true : [%v: int]))
 let writeCheckResp = (allA, WriteCheckResp true, allA)
 
 (* Global Properties *)
-let[@goal] smallbank_cc (c : int) (b : int) =
+let[@goal] smallbank (c : int) (b : int) =
   allA;
   SelectChecking (custid == c && balance == b);
   starA (anyA - UpdateChecking (custid == c));

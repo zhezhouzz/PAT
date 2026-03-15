@@ -912,7 +912,7 @@ let test_causal isolation () =
       let _ = raw_commit ~tid:tid2 in
       ())
 
-let test_cart isolation () =
+let test_shopping isolation () =
   let isolation = Language.isolation_of_string isolation in
   let db_name = "cart" in
   let table = "cart" in

@@ -46,7 +46,7 @@ let writeRsp ?l:(x = (true : [%v: int])) ?l:(s = (v : [%v: bool])) =
   (allA, WriteRsp (va == x && stat == s), [||])
 
 (* read after write *)
-let[@goal] task_Simplified2PC (x : int) (y : int) =
+let[@goal] p_simplified2pc (x : int) (y : int) =
   allA;
   WriteRsp (va == x && stat);
   starA (anyA - WriteRsp stat);

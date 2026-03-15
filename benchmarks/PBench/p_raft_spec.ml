@@ -89,7 +89,7 @@ let eBecomeLeader ?l:(ld = (true : [%v: tNode])) =
   (allA, EBecomeLeader (leader == ld), [||])
 
 (* leader log safety *)
-let[@goal] task_Raft (n1 : tNode) (n2 : tNode) (x : tVal) =
+let[@goal] p_raft (n1 : tNode) (n2 : tNode) (x : tVal) =
   allA;
   EAppendEntry (node == n1 && va == x);
   allA;

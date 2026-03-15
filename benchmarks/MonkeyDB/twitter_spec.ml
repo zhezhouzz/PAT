@@ -199,7 +199,7 @@ let timelineReq (i : int) (l : int list) ?l:(u = (true : [%v: int])) =
 let timelineResp = (allA, TimelineResp true, allA)
 
 (* Global Properties *)
-let[@goal] twitter_cc (u : int) (l : int list) =
+let[@goal] twitter (u : int) (l : int list) =
   allA;
   SelectFollows (user == u && follows == l);
   starA (anyA - UpdateFollows (user == u));

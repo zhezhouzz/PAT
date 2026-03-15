@@ -70,7 +70,7 @@ let ePongLost =
   |]
 
 (* detect false negative *)
-let[@goal] task_HeartBeat =
+let[@goal] p_heartbeat =
   starA (anyA - EShutDown true);
   ENotifyNodesDown true;
   starA (anyA - EShutDown true)

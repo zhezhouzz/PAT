@@ -59,7 +59,7 @@ let eExternalRsp ?l:(n = (true : [%v: tNode])) ?l:(st = (true : [%v: bool])) =
 
 (* allow all session from internal node *)
 
-let[@goal] task_Firewall (n : tNode) =
+let[@goal] p_firewall (n : tNode) =
   starA (anyA - EExternalReq (node == n) - EForwardReq (node == n));
   EInternalReq (node == n);
   (* allA; *)

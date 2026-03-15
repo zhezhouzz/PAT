@@ -5,7 +5,7 @@
  (libraries language interpreter BackendMariaDB)
  (modules
   common
-  cart
+  shopping
   twitter
   smallbank
   ; courseware 
@@ -13,7 +13,7 @@
   twitter
   smallbank
   courseware
-  read
+  transaction
   ; treiberStack 
   ; smallbank
   )

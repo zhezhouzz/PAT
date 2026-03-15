@@ -8,8 +8,10 @@ cmd_prefix = ["./main.exe"]
 
 def build_and_copy_exe():
     print("Building project...")
+    # subprocess.run(["dune", "clean"], check=True)
     subprocess.run(["dune", "build"], check=True)
     print("Copying main.exe...")
+    subprocess.run(["rm", "main.exe"], check=False)
     subprocess.run(["cp", "_build/default/bin/main.exe", "main.exe"], check=True)
     subprocess.run(["chmod", "+w", "main.exe"], check=True)
 

@@ -11,22 +11,25 @@ default_stat_file = "stat/.run_default_p.json"
 p_repo = ""
 
 
-benchmarks = ["Database", "Firewall", "RingLeaderElection", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Raft", "Kermit2PCModel"]
+benchmarks = ["Database", "Firewall", "RingLeaderElection", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Raft", "AnonReadAtomicity"]
 # benchmarks = ["ChainReplication", "Paxos", "Raft"]
 # benchmarks = ["Raft"]
 # benchmarks = ["Firewall"]
 # benchmarks = ["Kermit2PCModel"]
 
+def mk_p_name(name):
+    return "p_" + name.lower()
+
 def task_name(name):
-    return "task" + "_" + name
+    return mk_p_name(name)
 
 def task_spec_file(name):
-    return "benchmarks/PBench/" + name.lower() + "_spec.ml"
+    return "benchmarks/PBench/" + mk_p_name(name) + "_spec.ml"
 
 SYN_NUM = 500
 DEFAULT_NUM = 2000
 
-manual_baseline_benchmarks = ["EspressoMachine", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "Kermit2PCModel"]
+manual_baseline_benchmarks = ["EspressoMachine", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "AnonReadAtomicity"]
 
 RANDOM_NUM_MAP = {}
 
@@ -34,7 +37,7 @@ def init_config(override_num=None):
     global SYN_NUM, DEFAULT_NUM
     for name in ["Database", "EspressoMachine", "Simplified2PC", "HeartBeat", "BankServer", "RingLeaderElection", "ChainReplication", "Paxos"]:
         RANDOM_NUM_MAP[name] = 10000
-    for name in ["Raft", "Kermit2PCModel"]:
+    for name in ["Raft", "AnonReadAtomicity"]:
         RANDOM_NUM_MAP[name] = 1000
     RANDOM_NUM_MAP["Firewall"] = 50
 
@@ -111,7 +114,7 @@ def print_pat_col4(statA):
 plang = ["EspressoMachine", "Simplified2PC", "HeartBeat", "BankServer"]
 message_chain = ["RingLeaderElection", "Firewall"]
 modP = ["ChainReplication", "Paxos"]
-aws = ["Kermit2PCModel"]
+aws = ["AnonReadAtomicity"]
 
 
 def pp_benchname(name):
@@ -124,7 +127,7 @@ def pp_benchname(name):
         postfix = "\\cite{ModP}"
     elif name in aws:
         postfix = ""
-    if name == "Kermit2PCModel":
+    if name == "AnonReadAtomicity":
         return "\\textsf{AnonReadAtomicity}"
     return scriptsize(textsf(name)) + postfix
 
@@ -169,7 +172,7 @@ discription_dict = {
     "ChainReplication": "Concurrent updates are never lost.",
     "Paxos": "Logs are correctly replicated.",
     "Raft": "Leader election is robust to faults.",
-    "Kermit2PCModel": "Read Atomicity is preserved.",
+    "AnonReadAtomicity": "Read Atomicity is preserved.",
 }
 
 def discription(name):
@@ -194,7 +197,7 @@ def print_cols(benchnames, stat):
     syn_stat = load_eval_stat(syn_stat_file)
     default_stat = load_eval_stat(default_stat_file)
     for name in benchnames:
-        if name == "Kermit2PCModel":
+        if name == "AnonReadAtomicity":
             random_stat[name] = [1.887, 0.1]
             syn_stat[name] = [100.0, 0.1]
             stat[name]["n_retry"] = 1.0
@@ -230,7 +233,7 @@ def table2(benchnames, stat):
     syn_stat = load_eval_stat(syn_stat_file)
     default_stat = load_eval_stat(default_stat_file)
     for name in benchnames:
-        if name == "Kermit2PCModel":
+        if name == "AnonReadAtomicity":
             random_stat[name] = [1.877, 0.1]
             syn_stat[name] = [100.0, 0.1]
             stat[name]["n_retry"] = 1.0
@@ -313,7 +316,7 @@ def run_syn_p_one(postfix, num, mode, kw):
 def run_syn_p():
     data = load_eval_stat(syn_stat_file)
     for name in benchmarks:
-        if name == "Kermit2PCModel":
+        if name == "AnonReadAtomicity":
             continue
         kw = "PSpec"
         if name == "RingLeaderElection" or name == "Paxos":
@@ -327,7 +330,7 @@ def run_syn_p():
 def run_random_p():
     data = load_eval_stat(random_stat_file)
     for name in benchmarks:
-        if name == "Kermit2PCModel":
+        if name == "AnonReadAtomicity":
             continue
         kw = "PSpec"
         if name == "RingLeaderElection" or name == "Paxos":
@@ -341,7 +344,7 @@ def run_random_p():
 def run_default_p():
     data = load_eval_stat(default_stat_file)
     for name in benchmarks:
-        if name == "Kermit2PCModel":
+        if name == "AnonReadAtomicity":
             continue
         kw = "PSpec"
         if name == "Database" or name == "Firewall" or name == "RingLeaderElection" or name == "Raft":

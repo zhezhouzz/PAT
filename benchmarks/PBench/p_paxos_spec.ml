@@ -227,7 +227,7 @@ let eAcceptRsp =
 
 (* leaner consistent view *)
 
-let[@goal] task_Paxos (x : tVal) (y : tVal) =
+let[@goal] p_paxos (x : tVal) (y : tVal) =
   allA;
   ELearn (va == x);
   allA;

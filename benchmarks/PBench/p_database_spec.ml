@@ -24,7 +24,7 @@ let readRsp ?l:(x = (true : [%v: int])) ?l:(s = (true : [%v: bool])) =
   (allA, ReadRsp (va == x && st == s), [||])
 
 (* read your write *)
-let[@goal] task_Database (x : int) (y : int) =
+let[@goal] p_database (x : int) (y : int) =
   allA;
   WriteRsp (va == x);
   starA (anyA - WriteRsp true);

@@ -101,7 +101,7 @@ let readRsp ?l:(k = (true : [%v: tKey])) ?l:(x = (true : [%v: int]))
   WriteReq (key == k && va == x);
   starA (anyA - WriteRsp (key == k && va == x)) *)
 
-let[@goal] task_ChainReplication (k : tKey) (x : int) (y : int) =
+let[@goal] p_chainreplication (k : tKey) (x : int) (y : int) =
   allA;
   WriteReq (key == k && va == x);
   starA (anyA - WriteRsp true);
