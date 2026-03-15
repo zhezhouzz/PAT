@@ -57,17 +57,16 @@ The script performs the following steps automatically:
 2. Starts Galera nodes 2 & 3 and the Clouseau container
 3. Runs `scripts/init_cluster.py` inside the container to warm up the cluster
 
-Once it completes, open an interactive shell in the Clouseau container:
+Once it completes, verify the tool works:
 
 ```
-$ docker compose exec clouseau bash
+$ docker compose exec clouseau ./main.exe --help
 ```
 
-Verify the tool works:
-
-```
-$ ./main.exe --help
-```
+> **Tip:** For an interactive session inside the container, run:
+> ```
+> $ docker compose exec clouseau bash
+> ```
 
 **Shutting down:**
 
@@ -100,7 +99,7 @@ The `-v` flag removes the Galera data volumes for a clean restart.
 >
 > **Step 4 — Initialize the cluster (required once before any MonkeyDB benchmark run):**
 > ```
-> $ python3 scripts/init_cluster.py
+> $ docker compose exec clouseau python3 scripts/init_cluster.py
 > ```
 >
 > The Galera nodes listen on host ports `3307`, `3308`, and `3309` (user `root`,
@@ -114,13 +113,13 @@ The `-v` flag removes the Galera data volumes for a clean restart.
 To display a synthesized generator in human-readable form:
 
 ```
-$ ./main.exe show-term output/GOAL_NAME.scm
+$ docker compose exec clouseau ./main.exe show-term output/GOAL_NAME.scm
 ```
 
 Example — after synthesizing the `stack` benchmark (see §2.3.1):
 
 ```
-$ ./main.exe show-term output/stack.scm
+$ docker compose exec clouseau ./main.exe show-term output/stack.scm
 ```
 
 This prints the synthesized Clouseau DSL program in a formatted, readable layout.
@@ -154,8 +153,6 @@ This prints the synthesized Clouseau DSL program in a formatted, readable layout
 
 ## 2.2 Comprehensive Scripts
 
-All steps below are run from `/home/clouseau` inside the container.
-
 ### 2.2.1 Reproducing Table 1 (ADT & QCheck Benchmarks)
 
 **Benchmarks:** Stack, HashTable, Filesystem, Graph, NFA, IFCStore, IFCAdd, IFCLoad,
@@ -164,25 +161,25 @@ DeBruijn1, DeBruijn2, Shopping, Courseware, Twitter, Smallbank
 **Step 1 — Synthesis:**
 
 ```
-$ python3 scripts/run_ocaml_bench.py syn
+$ docker compose exec clouseau python3 scripts/run_ocaml_bench.py syn
 ```
 
 **Step 2 — Run synthesized generators (200 runs each):**
 
 ```
-$ python3 scripts/run_ocaml_bench.py runsyn
+$ docker compose exec clouseau python3 scripts/run_ocaml_bench.py runsyn
 ```
 
 **Step 3 — Run random (QCheck) baseline:**
 
 ```
-$ python3 scripts/run_ocaml_bench.py runrandom
+$ docker compose exec clouseau python3 scripts/run_ocaml_bench.py runrandom
 ```
 
 **Step 4 — Print Table 1 as LaTeX:**
 
 ```
-$ python3 scripts/run_ocaml_bench.py table1
+$ docker compose exec clouseau python3 scripts/run_ocaml_bench.py table1
 ```
 
 ### 2.2.2 Reproducing Table 2 (P Language Benchmarks)
@@ -193,25 +190,25 @@ Simplified2PC, HeartBeat, ChainReplication, Paxos, Raft, Kermit2PCModel
 **Step 1 — Synthesis + compile to P:**
 
 ```
-$ python3 scripts/run_p_bench.py syn
+$ docker compose exec clouseau python3 scripts/run_p_bench.py syn
 ```
 
 **Step 2 — Run synthesized schedulers (500 runs each):**
 
 ```
-$ python3 scripts/run_p_bench.py runsyn
+$ docker compose exec clouseau python3 scripts/run_p_bench.py runsyn
 ```
 
 **Step 3 — Run random baseline:**
 
 ```
-$ python3 scripts/run_p_bench.py runrandom
+$ docker compose exec clouseau python3 scripts/run_p_bench.py runrandom
 ```
 
 **Step 4 — Print Table 2 as LaTeX:**
 
 ```
-$ python3 scripts/run_p_bench.py table2
+$ docker compose exec clouseau python3 scripts/run_p_bench.py table2
 ```
 
 ---
@@ -226,7 +223,7 @@ file (default: `meta-config.json`).
 Run the synthesizer on a single benchmark:
 
 ```
-$ ./main.exe do-syn GOAL_NAME SPEC_FILE N
+$ docker compose exec clouseau ./main.exe do-syn GOAL_NAME SPEC_FILE N
 ```
 
 | Argument | Description |
@@ -240,7 +237,7 @@ Output is written to `output/GOAL_NAME.scm`.
 Example:
 
 ```
-$ ./main.exe do-syn stack benchmarks/OCamlBench/stack_spec.ml 1
+$ docker compose exec clouseau ./main.exe do-syn stack benchmarks/OCamlBench/stack_spec.ml 1
 ```
 
 ### 2.3.2 Running the Synthesized Generator
@@ -248,7 +245,7 @@ $ ./main.exe do-syn stack benchmarks/OCamlBench/stack_spec.ml 1
 Run the synthesized generator `N` times and report the bug-detection rate:
 
 ```
-$ ./main.exe sample-syn GOAL_NAME N
+$ docker compose exec clouseau ./main.exe sample-syn GOAL_NAME N
 ```
 
 Loads `output/GOAL_NAME.scm` and executes the synthesized test generator against the
@@ -257,7 +254,7 @@ system under test, reporting the fraction of runs that expose a violation.
 Example:
 
 ```
-$ ./main.exe sample-syn stack 200
+$ docker compose exec clouseau ./main.exe sample-syn stack 200
 ```
 
 ### 2.3.3 Running the Random Baseline
@@ -265,13 +262,13 @@ $ ./main.exe sample-syn stack 200
 Run the random (QCheck-style) baseline generator for `N` seconds of wall-clock time:
 
 ```
-$ ./main.exe sample-random GOAL_NAME N
+$ docker compose exec clouseau ./main.exe sample-random GOAL_NAME N
 ```
 
 Example:
 
 ```
-$ ./main.exe sample-random stack 200
+$ docker compose exec clouseau ./main.exe sample-random stack 200
 ```
 
 ### 2.3.4 Compiling a Synthesized Generator to P
@@ -279,7 +276,7 @@ $ ./main.exe sample-random stack 200
 After synthesis, compile the result to a P language scheduler:
 
 ```
-$ ./main.exe compile-to-p TASK_NAME BENCH_NAME
+$ docker compose exec clouseau ./main.exe compile-to-p TASK_NAME BENCH_NAME
 ```
 
 | Argument | Description |
@@ -292,7 +289,7 @@ The compiled P file is written to `penv/BENCH_NAME/PSyn/SynClient.p`.
 Example:
 
 ```
-$ ./main.exe compile-to-p p_database Database
+$ docker compose exec clouseau ./main.exe compile-to-p p_database Database
 ```
 
 ---
