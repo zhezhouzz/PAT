@@ -414,7 +414,7 @@ let ty_gen depth =
     (fun self depth ->
       if depth <= 0 then pure StlcInt
       else
-        frequency
+        oneof_weighted
           [
             (1, pure StlcInt);
             ( 1,
@@ -440,7 +440,7 @@ let stlc_gen config =
       @@ List.mapi (fun i x -> (i, x)) ctx
     in
     if List.length is == 0 then None
-    else Some (map (fun i -> StlcVar i) (oneofl is))
+    else Some (map (fun i -> StlcVar i) (oneof_list is))
   in
   let genconst = map (fun i -> StlcConst i) (int_range 0 (constRange - 1)) in
   let rec gen_base ctx ty =
@@ -448,7 +448,7 @@ let stlc_gen config =
     | StlcInt -> (
         match genvar ctx ty with
         | None -> genconst
-        | Some g -> frequency [ (1, g); (1, genconst) ])
+        | Some g -> oneof_weighted [ (1, g); (1, genconst) ])
     | StlcArrow (ty1, ty2) ->
         map
           (fun e2 -> StlcAbs { absTy = ty1; absBody = e2 })
@@ -460,9 +460,9 @@ let stlc_gen config =
       match ty with
       | StlcInt -> (
           match genvar ctx ty with
-          | None -> frequency [ (1, genconst); (1, aux_app ctx numApp ty) ]
+          | None -> oneof_weighted [ (1, genconst); (1, aux_app ctx numApp ty) ]
           | Some g ->
-              frequency [ (1, g); (1, genconst); (1, aux_app ctx numApp ty) ])
+              oneof_weighted [ (1, g); (1, genconst); (1, aux_app ctx numApp ty) ])
       | StlcArrow (ty1, ty2) -> (
           let abs =
             map
@@ -471,8 +471,8 @@ let stlc_gen config =
           in
           let app = aux_app ctx numApp ty in
           match genvar ctx ty with
-          | None -> frequency [ (1, app); (1, abs) ]
-          | Some g -> frequency [ (1, g); (1, app); (1, abs) ])
+          | None -> oneof_weighted [ (1, app); (1, abs) ]
+          | Some g -> oneof_weighted [ (1, g); (1, app); (1, abs) ])
   and aux_app ctx numApp ty =
     ty_gen tyDepthBound >>= fun t2 ->
     let t1 = StlcArrow (t2, ty) in

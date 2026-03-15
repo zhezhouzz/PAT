@@ -432,7 +432,7 @@ let instrGen config =
   let random_noop = pure [ Noop ] in
   let random_halt = pure [ Halt ] in
   let random_instr =
-    frequency
+    oneof_weighted
       [
         (1, random_push);
         (1, random_pop);

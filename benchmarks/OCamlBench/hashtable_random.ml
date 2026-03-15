@@ -38,7 +38,7 @@ module HConf = struct
   let arb_cmd s =
     let key_gen =
       if s = [] then Gen.int_range 0 10
-      else Gen.(oneof [ oneofl (List.map fst s); int_range 0 10 ])
+      else Gen.(oneof [ oneof_list (List.map fst s); int_range 0 10 ])
     in
     let val_gen = Gen.int_range 0 100 in
     QCheck.make ~print:show_cmd
