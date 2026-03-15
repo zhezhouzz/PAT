@@ -127,13 +127,15 @@ let random_user config =
   let rec genOp ~thread_id restNum =
     if restNum <= 0 then
       let () =
-        Pp.printf "@{<red>[thread: %i] End with numOpDB@}\n%i\n" thread_id
-          numOpDB
+        Myconfig._log "qc" (fun () ->
+            Pp.printf "@{<red>[thread: %i] End with numOpDB@}\n%i\n" thread_id
+              numOpDB)
       in
       Lwt.return_unit
     else
       let () =
-        Pp.printf "@{<yellow>[thread: %i] restNum@}: %i\n" thread_id restNum
+        Myconfig._log "qc" (fun () ->
+            Pp.printf "@{<yellow>[thread: %i] restNum@}: %i\n" thread_id restNum)
       in
       let* () = Lwt_unix.sleep 0.001 in
       let* _ = random_option ~thread_id () in

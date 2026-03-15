@@ -209,7 +209,7 @@ let random_select_handler curMsg =
     | None -> msg
     | Some msg' -> if Random.int 100 < 1 then msg else msg'
   in
-  let () = Printf.printf "select msg: %s\n" (layout_msg msg) in
+  let () = _log "eval" (fun () -> Printf.printf "select msg: %s\n" (layout_msg msg)) in
   let hd = select_handler msg in
   let msg' = { msg with dest = Some hd.tid } in
   if not (String.equal msg.ev.op "dummy") then MsgBuffer.consume msg;
@@ -224,7 +224,7 @@ let eager_select_handler _ =
     | [ msg ] -> msg
     | _ -> _die_with [%here] "Multiple messages found"
   in
-  let () = Printf.printf "select msg: %s\n" (layout_msg msg) in
+  let () = _log "eval" (fun () -> Printf.printf "select msg: %s\n" (layout_msg msg)) in
   let hd = select_handler msg in
   let msg' = { msg with dest = Some hd.tid } in
   if not (String.equal msg.ev.op "dummy") then MsgBuffer.consume msg;
@@ -338,7 +338,7 @@ let rec random_scheduler main =
       let _ = input_line stdin in *)
       jump_to_tid hd.tid;
       let msg = { msg with ev = ak msg.ev } in
-      let () = Printf.printf "new msg: %s\n" (layout_msg msg) in
+      let () = _log "eval" (fun () -> Printf.printf "new msg: %s\n" (layout_msg msg)) in
       appendToHisTrace msg;
       random_scheduler (fun () -> hd.k msg)
   in
@@ -425,7 +425,7 @@ let rec eager_scheduler main =
       let hd, ak, msg = eager_select_handler curMsg in
       jump_to_tid hd.tid;
       let msg = { msg with ev = ak msg.ev } in
-      let () = Printf.printf "new msg: %s\n" (layout_msg msg) in
+      let () = _log "eval" (fun () -> Printf.printf "new msg: %s\n" (layout_msg msg)) in
       appendToHisTrace msg;
       eager_scheduler (fun () -> hd.k msg)
   in

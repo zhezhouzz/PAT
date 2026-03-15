@@ -162,7 +162,7 @@ let randomTest config =
   let rec genOp restNum =
     if restNum <= 0 then ()
     else
-      let () = Pp.printf "@{<yellow>restNum@}: %i\n" restNum in
+      let () = Myconfig._log "qc" (fun () -> Pp.printf "@{<yellow>restNum@}: %i\n" restNum) in
       (match Random.int 5 with
       | 0 -> random_isEmpty ()
       | 1 -> random_add ()
@@ -172,7 +172,7 @@ let randomTest config =
       genOp (restNum - 1)
   in
   let () = genOp numOp in
-  let () = Pp.printf "@{<red>End with numOp@}\n%i\n" numOp in
+  let () = Myconfig._log "qc" (fun () -> Pp.printf "@{<red>End with numOp@}\n%i\n" numOp) in
   Effect.perform End
 
 let test_env =

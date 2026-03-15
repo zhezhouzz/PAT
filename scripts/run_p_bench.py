@@ -26,15 +26,16 @@ def task_name(name):
 def task_spec_file(name):
     return "benchmarks/PBench/" + mk_p_name(name) + "_spec.ml"
 
-SYN_NUM = 500
+SAMPLE_COUNT = 500   # sample count for runsyn and runrandom
+SAMPLE_TIME = 0      # 0 = no time limit; run_p.sh is count-based, time TBD
 DEFAULT_NUM = 2000
 
 manual_baseline_benchmarks = ["EspressoMachine", "BankServer", "Simplified2PC", "HeartBeat", "ChainReplication", "Paxos", "AnonReadAtomicity"]
 
-RANDOM_NUM_MAP = {}
+RANDOM_NUM_MAP = {}  # per-benchmark count (run_p.sh uses count)
 
-def init_config(override_num=None):
-    global SYN_NUM, DEFAULT_NUM
+def init_config(override_num=None, override_time=None):
+    global SAMPLE_COUNT, SAMPLE_TIME, DEFAULT_NUM
     for name in ["Database", "EspressoMachine", "Simplified2PC", "HeartBeat", "BankServer", "RingLeaderElection", "ChainReplication", "Paxos"]:
         RANDOM_NUM_MAP[name] = 10000
     for name in ["Raft", "AnonReadAtomicity"]:
@@ -42,10 +43,16 @@ def init_config(override_num=None):
     RANDOM_NUM_MAP["Firewall"] = 50
 
     if override_num is not None:
-        SYN_NUM = override_num
+        SAMPLE_COUNT = override_num
         DEFAULT_NUM = override_num
         for name in RANDOM_NUM_MAP:
             RANDOM_NUM_MAP[name] = override_num
+
+    if override_time is not None:
+        SAMPLE_TIME = override_time
+        # run_p.sh is count-based; override_time could map to reduced count for quick runs
+        for name in RANDOM_NUM_MAP:
+            RANDOM_NUM_MAP[name] = int(override_time)
 
 def scriptsize(content: str):
     return "{" + "\\scriptsize" + content + "}"
@@ -296,7 +303,7 @@ def run_syn_p_one(postfix, num, mode, kw):
     new_dir = cur_dir + "/" + postfix
     # print(new_dir)
     os.chdir(new_dir)
-    print(os.getcwd())
+    # print(os.getcwd())
     start_time = time.time()
     compile_result = subprocess.run("../../scripts/compile_p.sh {}".format(new_dir), shell=True, stdout=subprocess.PIPE, text=True, check=True)
     result = subprocess.run("../../scripts/run_p.sh {} {} {}".format(mode, str(num), kw), shell=True, stdout=subprocess.PIPE, text=True, check=True)
@@ -307,7 +314,7 @@ def run_syn_p_one(postfix, num, mode, kw):
     avg_time = None
     if success != 0:
         avg_time = elapsed_time / success
-    print("{}/{} ~ {} ==> {}".format(success, num, elapsed_time, avg_time))
+    # print("{}/{} ~ {} ==> {}".format(success, num, elapsed_time, avg_time))
     ratio = float(success * 100) / num
     # print("Output:", success)
     os.chdir(cur_dir)
@@ -321,7 +328,7 @@ def run_syn_p():
         kw = "PSpec"
         if name == "RingLeaderElection" or name == "Paxos":
             kw = ""
-        (ratio, avg_time) = run_syn_p_one("penv/" + name, SYN_NUM, "Syn", kw)
+        (ratio, avg_time) = run_syn_p_one("penv/" + name, SAMPLE_COUNT, "Syn", kw)
         data[name] = (ratio, avg_time)
     with open(syn_stat_file, 'w') as fp:
         json.dump(data, fp)
@@ -371,7 +378,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run P benchmarks')
     parser.add_argument('command', nargs='?', default='all', help='Command to run (syn, runsyn, runrandom, etc.)')
     parser.add_argument('-b', '--benchmarks', type=str, help='Comma-separated list of benchmarks to run')
-    parser.add_argument('-n', '--number', type=int, help='Override random execution count for fast run mode')
+    parser.add_argument('-n', '--number', type=int, help='Override synthesis sample count for fast run mode')
+    parser.add_argument('-t', '--time', type=float, help='Override time limit (seconds) for runsyn and runrandom')
     parser.add_argument('-c', '--candidate', type=str, default="1", help='Number of candidates for synthesis')
     parser.add_argument('extra_args', nargs='*', help='Extra arguments for specific commands')
     
@@ -383,7 +391,7 @@ if __name__ == '__main__':
             benchmarks = parsed
 
     build_and_copy_exe()
-    init_config(args.number)
+    init_config(args.number, args.time)
 
     if args.command == "syn":
         do_syn(args.candidate)

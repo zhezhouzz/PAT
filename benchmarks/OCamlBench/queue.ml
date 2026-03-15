@@ -164,7 +164,7 @@ let randomTest { numElem; numOp } =
   let rec genOp restNum =
     if restNum <= 0 then ()
     else
-      let () = Pp.printf "@{<yellow>restNum@}: %i\n" restNum in
+      let () = Myconfig._log "qc" (fun () -> Pp.printf "@{<yellow>restNum@}: %i\n" restNum) in
       (if !currentSize <= 0 then
          match Random.int 3 with
          | 0 -> random_isEmpty ()
@@ -179,5 +179,5 @@ let randomTest { numElem; numOp } =
       genOp (restNum - 1)
   in
   let () = genOp numOp in
-  let () = Pp.printf "@{<red>End with numOp@}\n%i\n" numOp in
+  let () = Myconfig._log "qc" (fun () -> Pp.printf "@{<red>End with numOp@}\n%i\n" numOp) in
   Effect.perform End

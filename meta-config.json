@@ -16,6 +16,8 @@
         // "simp",
         // "compile",
         // "stat",
+        // "eval_error",
+        // "qc",
         // "line_merge_results",
         // "line_merge_related",
         // "plan",
@@ -24,6 +26,8 @@
         // "model",
         // "z3encode",
         "result",
+        // "DB",
+        // "pbackend",
         // "desym_mapping",
         // "desymbolic",
         "never-use"

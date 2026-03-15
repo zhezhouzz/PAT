@@ -69,21 +69,23 @@ let res_to_list res =
   Lwt_stream.to_list @@ Lwt_stream.from next
 
 let print_row row =
-  Lwt_io.printf "[DB] ---\n%!" >>= fun () ->
-  M.Row.StringMap.fold
-    (fun name field _ ->
-      Lwt_io.printf "[DB] %20s " name >>= fun () ->
-      match M.Field.value field with
-      | `Int i -> Lwt_io.printf "%d\n%!" i
-      | `Float x -> Lwt_io.printf "%f\n%!" x
-      | `String s -> Lwt_io.printf "%s\n%!" s
-      | `Bytes b -> Lwt_io.printf "%s\n%!" (Bytes.to_string b)
-      | `Time t ->
-          Lwt_io.printf "%04d-%02d-%02d %02d:%02d:%02d\n%!" (M.Time.year t)
-            (M.Time.month t) (M.Time.day t) (M.Time.hour t) (M.Time.minute t)
-            (M.Time.second t)
-      | `Null -> Lwt_io.printf "NULL\n%!")
-    row Lwt.return_unit
+  if not (List.mem "DB" Myconfig.(get_log_tags ())) then Lwt.return_unit
+  else
+    Lwt_io.printf "[DB] ---\n%!" >>= fun () ->
+    M.Row.StringMap.fold
+      (fun name field _ ->
+        Lwt_io.printf "[DB] %20s " name >>= fun () ->
+        match M.Field.value field with
+        | `Int i -> Lwt_io.printf "%d\n%!" i
+        | `Float x -> Lwt_io.printf "%f\n%!" x
+        | `String s -> Lwt_io.printf "%s\n%!" s
+        | `Bytes b -> Lwt_io.printf "%s\n%!" (Bytes.to_string b)
+        | `Time t ->
+            Lwt_io.printf "%04d-%02d-%02d %02d:%02d:%02d\n%!"
+              (M.Time.year t) (M.Time.month t) (M.Time.day t)
+              (M.Time.hour t) (M.Time.minute t) (M.Time.second t)
+        | `Null -> Lwt_io.printf "NULL\n%!")
+      row Lwt.return_unit
 
 open Lwt.Syntax
 
@@ -454,8 +456,9 @@ module MyMariaDB : MyDB = struct
       let () = Hashtbl.add connectionStatus port true in
       let* _ = M.autocommit conn false >>= or_die "autocommit" in
       let () =
-        Printf.printf "[DB] set isolation level %s\n"
-          (Language.show_isolation !_isolation)
+        Myconfig._log "DB" (fun () ->
+            Printf.printf "[DB] set isolation level %s\n"
+              (Language.show_isolation !_isolation))
       in
       let* _ =
         match !_isolation with
@@ -561,7 +564,10 @@ module MyMariaDB : MyDB = struct
     Hashtbl.add connMap tid connId;
     let conn = Hashtbl.find connectionPool connId in
     let* _ = no_param_no_ret conn "BEGIN" in
-    let () = Printf.printf "[DB] begin tid: %i with port %i\n" tid connId in
+    let () =
+      Myconfig._log "DB" (fun () ->
+          Printf.printf "[DB] begin tid: %i with port %i\n" tid connId)
+    in
     let () = _history := !_history @ [ Begin { tid } ] in
     let () =
       match Hashtbl.find_opt so thread_id with
@@ -581,7 +587,10 @@ module MyMariaDB : MyDB = struct
             (spf "transaction %i already committed with cid %i" tid cid))
     | None ->
         let cid = next_cid () in
-        let () = Printf.printf "[DB] commit {tid: %i, cid: %i}\n" tid cid in
+        let () =
+          Myconfig._log "DB" (fun () ->
+              Printf.printf "[DB] commit {tid: %i, cid: %i}\n" tid cid)
+        in
         let () = Hashtbl.add commit_tid tid cid in
         let () =
           match Hashtbl.find_opt connMap tid with
@@ -621,7 +630,8 @@ module MyMariaDB : MyDB = struct
     let* res = M.Stmt.execute stmt [||] >>= or_die "exec" in
     let* s = res_to_list res in
     let () =
-      Printf.printf "[DB] transaction_isolation (%i):\n" (List.length s)
+      Myconfig._log "DB" (fun () ->
+          Printf.printf "[DB] transaction_isolation (%i):\n" (List.length s))
     in
     let* () = print_row (List.nth s 0) in
     let* _ = M.Stmt.close stmt >>= or_die "stmt close" in
@@ -640,8 +650,9 @@ module MyMariaDB : MyDB = struct
     let json_str = Yojson.Basic.to_string json in
     let raw_key = Zutils.spf "%s:%s" table key in
     let () =
-      Printf.printf "[DB] put {tid: %i, key: %s, value: %s}\n" tid raw_key
-        json_str
+      Myconfig._log "DB" (fun () ->
+          Printf.printf "[DB] put {tid: %i, key: %s, value: %s}\n" tid raw_key
+            json_str)
     in
     (* let* () = async_get_current_isolation conn () in *)
     (* let () = Language.(if !__counter == 10 then _die_with [%here] "die") in *)
@@ -707,8 +718,9 @@ module MyMariaDB : MyDB = struct
             | `Time _ -> Zutils.(_die_with [%here] "invalid time")
           in
           let () =
-            Printf.printf "[DB] get {tid: %i, key: %s, value: %s}\n" tid raw_key
-              (Yojson.Basic.to_string json)
+            Myconfig._log "DB" (fun () ->
+                Printf.printf "[DB] get {tid: %i, key: %s, value: %s}\n" tid
+                  raw_key (Yojson.Basic.to_string json))
           in
           Lwt.return json
       | _ ->
