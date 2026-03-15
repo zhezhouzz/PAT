@@ -299,104 +299,184 @@ $ ./main.exe compile-to-p p_database Database
 
 ## 2.4 Input File Formats
 
-Each benchmark is specified in a single `.ml` file using Clouseau's OCaml-embedded DSL.
-A spec file has three sections: basic typing declarations, uHAT specifications, and a
-goal declaration.
+Each benchmark is specified in a single `.ml` file using Clouseau's OCaml-embedded DSL
+(files are conventionally named `*_spec.ml`). The DSL reuses the OCaml parser and maps
+OCaml constructs to internal Clouseau AST nodes. A spec file has five sections:
 
-### 2.4.1 Syntax
+1. **Pure Operators** — uninterpreted functions and axioms used in logic formulas
+2. **Effectful Operations** — declarations of generator requests and system observations
+3. **Refinement Types & uHAT Specifications** — behavioral specs for each operation
+4. **Global Property (Goal)** — the bad trace the synthesizer targets
 
-The core syntactic objects used in spec files are **Symbolic Regular Expressions
-(SREs)**, which describe sets of event traces:
+### 2.4.1 Pure Operators and Axioms
 
-```
-SRE  H, F, A  ::=
-    allA                   -- (anything)*  matches any trace (including empty)
-  | anyA                   -- matches any single event
-  | ε                      -- empty trace
-  | Op φ                   -- single event of type Op whose payload satisfies φ
-  | A ; A                  -- sequence
-  | A ∨ A                  -- union
-  | A ∧ A                  -- intersection
-  | starA A                -- Kleene star  (A*)
-  | anyA - A               -- difference: any event not matching A
-  | •                      -- wildcard event (used in ghost event position)
+Pure operators are uninterpreted functions used in payload qualifiers. Declare them
+with a `val` binding:
+
+```ocaml
+val ( == ) : 'a. 'a -> 'a -> bool
+val is_root : Path.t -> bool
+val parent  : Path.t -> Path.t
 ```
 
-Payload qualifiers `φ` are Boolean expressions over the event's field names and
-bound variables:
+Axioms state First-Order Logic facts about these operators. The sugared form
+universally quantifies over the named argument:
 
-```
-Qualifier  φ  ::=
-    true | false
-  | field == expr
-  | field != expr
-  | field < expr  |  field <= expr
-  | φ && φ  |  φ || φ  |  not φ
+```ocaml
+let[@axiom] isFileOrDir (b : Byte.t) = isFile b || isDir b
+let[@axiom] isDirNotFile (b : Byte.t) = not (isFile b && isDir b)
+let[@axiom] parent_is_root (p : Path.t) = iff (p == parent p) (is_root p)
 ```
 
-A **uHAT** (Underapproximate Hoare Automata Type) for an operation has the form:
+The desugared form uses `[@forall]`:
 
-```
-uHAT  ::=  ( H, Op φ, F )
-```
-
-where `H` is the history SRE (what must have happened before), `Op φ` is the current
-event, and `F` is the future SRE (what must follow).
-
-**Ghost variables** introduce existentially quantified witnesses that relate values
-across events:
-
-```
-?l:(x = (true : [%v: τ]))    -- binds ghost variable x of type τ
+```ocaml
+let[@axiom] name = fun ((x : int) [@forall]) -> PROP
 ```
 
-### 2.4.2 Basic Typing Declarations
+### 2.4.2 Propositions (Qualifiers)
+
+Payload qualifiers `φ` are Boolean expressions used to constrain event fields and
+refinement types:
+
+```
+LIT  ::=  true | false | INT | VAR | OP VAR ...
+
+PROP ::=
+    LIT
+  | PROP "&&" PROP  |  PROP "||" PROP  |  "not" PROP
+  | "implies" PROP PROP  |  "iff" PROP PROP
+  | "fun" "((" NAME " [@forall]) :" TYPE ") ->" PROP   -- ∀NAME:TYPE. PROP
+```
+
+Examples: `x > 0`, `isFile b || isDir b`, `implies (x > 0) (y > 0)`
+
+### 2.4.3 Effectful Operations (Events)
 
 Declare the effectful API of the system under test. Each operation is annotated with
 its role:
 
 | Annotation | Role |
 |------------|------|
-| `[@@gen]` | Generator effect — the test generator actively invokes this operation |
-| `[@@obs]` | Observation effect — a synchronous response received from the SUT |
+| `[@@gen]` | Generator request — the test generator actively invokes this |
+| `[@@obs]` | System observation — a synchronous response from the SUT |
 | `[@@obsRecv]` | Asynchronous observation — used in P language benchmarks |
 
-The payload type is an anonymous record `< field : type; ... >`. Example:
+The payload type is an OCaml object type `< field : type; ... >`. An empty record
+`< >` represents `unit`.
 
 ```ocaml
-val pushReq  : < elem : int >  [@@gen]
-val popReq   : < >             [@@gen]
-val popResp  : < elem : int >  [@@obs]
-val isEmptyResp : < isEmpty : bool > [@@obs]
+val pushReq     : < elem : int >      [@@gen]
+val popReq      : < >                 [@@gen]
+val popResp     : < elem : int >      [@@obs]
+val isEmptyResp : < isEmpty : bool >  [@@obs]
 ```
 
-### 2.4.3 uHAT Specifications
+### 2.4.4 Refinement Types
 
-Each declared operation is given a uHAT specification:
+Refinement types constrain the values of arguments in uHAT specifications.
+
+**Base refinement type** `{v: T | φ(v)}`:
 
 ```ocaml
-(* pushReq: at any history, a PushReq carrying x requires
-   a subsequent PopReq somewhere in the future *)
+(PROP : [%v: TYPE])
+
+(true : [%v: int])          (* any integer *)
+(v > 0 : [%v: int])         (* positive integers *)
+(is_root v : [%v: Path.t])  (* root paths *)
+```
+
+**Arrow type** — binds an argument name for use in subsequent refinements:
+
+```ocaml
+fun ?l:(ARG = BASE_RTY) -> BODY_RTY
+
+fun ?l:(x = (true : [%v: int])) -> ...   (* x is a ghost int, used in H/F *)
+```
+
+**Ghost arrow type** — like an arrow type but the argument is a pure specification
+variable with no runtime counterpart:
+
+```ocaml
+fun (g : int) -> ...
+```
+
+**Intersection type** — specifies multiple disjoint behaviors for one operation,
+written as an OCaml array:
+
+```ocaml
+[| RTY1; RTY2; ... |]
+```
+
+Example (two cases for `createReq` based on whether the parent path is root):
+
+```ocaml
+let createReq =
+  [|
+    (fun ?l:(p = (is_root (parent v) : [%v: Path.t])) -> ...);
+    (fun ?l:(p = (not (is_root v)   : [%v: Path.t])) -> ...);
+  |]
+```
+
+### 2.4.5 Symbolic Regex (SRE) Syntax
+
+History `H` and future `F` components of a uHAT are **Symbolic Regular Expressions**
+over events:
+
+| Expression | Meaning |
+|------------|---------|
+| `allA` | `.*` — any trace (including empty) |
+| `anyA` | `.` — any single event |
+| `epsilonA` | `ε` — the empty trace |
+| `emptyA` | `∅` — the empty language |
+| `Op φ` | Single event of type `Op` whose payload satisfies `φ` |
+| `A ; B` | Concatenation (sequence) |
+| `A \|\| B` | Union (`A ∪ B`) |
+| `A && B` | Intersection (`A ∩ B`) |
+| `A - B` | Difference (`A \ B`) |
+| `starA A` | Kleene star (`A*`) |
+| `not A` | Complement |
+| `repeat N A` | Exactly `N` repetitions of `A` |
+| `range [| a1; a2; ... |]` | Matches any one of the atomic events |
+| `parallel [| a1; a2; ... |]` | Matches any interleaving of the atoms |
+
+**Atomic event predicates** — written as `EventName (qualifier)`:
+
+```ocaml
+PushReq (elem == x)   (* PushReq event where elem field equals x *)
+PopReq true           (* any PopReq event *)
+WriteRsp (va == x && st)
+```
+
+### 2.4.6 uHAT Specifications
+
+Each declared operation is given a uHAT of the form `(H, Op φ, F)` where `H` is the
+history SRE, `Op φ` is the current event, and `F` is the future SRE:
+
+```ocaml
+let NAME ARGS = (HISTORY_REGEX, ATOMIC_EVENT, FUTURE_REGEX)
+```
+
+Arrow-type arguments bind ghost variables that can appear in all three components:
+
+```ocaml
+(* pushReq: a PushReq carrying x must eventually be followed by a PopReq *)
 let pushReq ?l:(x = (true : [%v: int])) =
   ( allA,
     PushReq (elem == x),
     (allA; PopReq true; allA) )
 
-(* popReq: at any history, a PopReq must eventually be answered *)
+(* popReq: a PopReq must be answered by a PopResp *)
 let popReq =
   ( allA,
     PopReq true,
     (PopResp true; allA) )
 
-(* popResp: a PopResp can only occur after a sequence that has no
-   intervening PushReq *)
+(* popResp: after a PopResp, no PushReq can occur *)
 let popResp = (allA, PopResp true, starA (anyA - PushReq true))
 ```
 
-Ghost variables (`?l:(x = ...)`) allow the history `H` and future `F` of a uHAT to
-share data values with the current event's payload.
-
-For operations with multiple possible behaviors, list uHAT cases as an array:
+For operations with multiple behaviors, use an intersection type (array of cases):
 
 ```ocaml
 let readReq =
@@ -409,12 +489,23 @@ let readReq =
   |]
 ```
 
-### 2.4.4 Goal Declaration
+### 2.4.7 Goal Declaration
 
-The synthesis goal is an SRE describing the *bad trace* (the property violation to
-expose), annotated with `[@goal]`:
+The synthesis goal is an SRE annotated with `[@goal]` that describes the *bad trace*
+(the property violation to expose). Goals take typed ghost parameters that are
+existentially quantified over the SRE:
 
 ```ocaml
+let[@goal] NAME (GHOST_ARGS) = REGEX
+```
+
+**Important:** the goal SRE describes a *violation*, not a correct behavior. Clouseau
+synthesizes a generator guaranteed to produce traces matching this SRE whenever the
+SUT has the corresponding bug.
+
+```ocaml
+(* A trace in which y is pushed but the stack later reports empty without
+   ever popping y — this witnesses a "lost element" bug *)
 let[@goal] stack (y : int) =
   allA;
   PushReq (elem == y);
@@ -422,25 +513,17 @@ let[@goal] stack (y : int) =
   IsEmptyResp (isEmpty == true)
 ```
 
-This asserts that there exists a trace in which value `y` is pushed but then reported
-missing by `isEmpty`. Clouseau synthesizes a generator whose executions are guaranteed
-to produce such a trace whenever the SUT has the corresponding bug.
-
-The goal takes typed parameters (here `y : int`) that are treated as existentially
-quantified witnesses across the SRE.
-
-### 2.4.5 P Language Spec Files
+### 2.4.8 P Language Spec Files
 
 P benchmark specs follow the same structure but use `[@@obsRecv]` for asynchronous
-responses, and write the future SRE as an array of alternatives `[| F1; F2; ... |]`
-to model the nondeterministic responses a P state machine may return. Example
-(`benchmarks/PBench/p_database_spec.ml`):
+responses. The future SRE in each uHAT case is written as an array `[| F1; F2; ... |]`
+to model nondeterministic P state machine responses:
 
 ```ocaml
-val readReq : < >                     [@@gen]
-val readRsp : < va : int; st : bool > [@@obsRecv]
-val writeReq : < va : int >           [@@gen]
-val writeRsp : < va : int >           [@@obsRecv]
+val readReq  : < >                     [@@gen]
+val readRsp  : < va : int; st : bool > [@@obsRecv]
+val writeReq : < va : int >            [@@gen]
+val writeRsp : < va : int >            [@@obsRecv]
 
 let readReq =
   [|
@@ -459,7 +542,23 @@ let[@goal] p_database (x : int) (y : int) =
   allA
 ```
 
-### 2.4.6 Output Files
+### 2.4.9 Syntax Summary
+
+| Concept | OCaml Syntax | Notes |
+|---------|--------------|-------|
+| Pure operator | `val (op) : type` | Uninterpreted function |
+| Axiom | `let[@axiom] name (x:T) = prop` | Universally quantified FOL fact |
+| Event (gen) | `val name : <...> [@@gen]` | Generator request |
+| Event (obs) | `val name : <...> [@@obs]` | Synchronous observation |
+| Event (async) | `val name : <...> [@@obsRecv]` | Asynchronous observation (P) |
+| Base refinement | `(φ : [%v: T])` | `{v:T \| φ}` |
+| Arrow type | `fun ?l:(x = rty) -> body` | Binds ghost variable `x` |
+| Ghost arrow | `fun (x : T) -> body` | Pure spec variable |
+| Intersection | `[| rty1; rty2; ... |]` | Multiple behaviors |
+| uHAT | `let name args = (H, Op φ, F)` | Core spec triple |
+| Goal | `let[@goal] name (args) = regex` | Bad trace to synthesize toward |
+
+### 2.4.10 Output Files
 
 Synthesized generators are serialized as S-expressions and written to
 `output/GOAL_NAME.scm`. These files are consumed by `sample-syn`, `compile-to-p`, and
