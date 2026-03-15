@@ -295,8 +295,8 @@ def run_syn_p_one(postfix, num, mode, kw):
     os.chdir(new_dir)
     print(os.getcwd())
     start_time = time.time()
-    compile_result = subprocess.run("../../script/compile_p.sh {}".format(new_dir), shell=True, stdout=subprocess.PIPE, text=True, check=True)
-    result = subprocess.run("../../script/run_p.sh {} {} {}".format(mode, str(num), kw), shell=True, stdout=subprocess.PIPE, text=True, check=True)
+    compile_result = subprocess.run("../../scripts/compile_p.sh {}".format(new_dir), shell=True, stdout=subprocess.PIPE, text=True, check=True)
+    result = subprocess.run("../../scripts/run_p.sh {} {} {}".format(mode, str(num), kw), shell=True, stdout=subprocess.PIPE, text=True, check=True)
     end_time = time.time()
     elapsed_time = end_time - start_time
     success = result.stdout.split(' ')

@@ -134,14 +134,14 @@ Key directories and files:
 | `bin/main.ml` | Entry point |
 | `synthesis/` | Core synthesis engine |
 | `interpreter/` | Trace interpreter / runtime |
-| `benchmarks/ADT/` | ADT specs for Table 1 |
+| `benchmarks/OCamlBench/` | ADT specs for Table 1 |
 | `benchmarks/MonkeyDB/` | MonkeyDB (database) specs for Table 1 |
 | `benchmarks/BackendMariaDB/` | MariaDB backend implementation |
-| `benchmarks/Database/`, `benchmarks/Firewall/`, … | P language specs for Table 2 |
+| `benchmarks/PBench/` | P language specs for Table 2 |
 | `penv/` | Synthesized P programs (output) |
 | `poriginal/` | Baseline P programs (random) |
-| `script/run_adt.py` | Script to reproduce Table 1 |
-| `script/run_bench.py` | Script to reproduce Table 2 |
+| `scripts/run_ocaml_bench.py` | Script to reproduce Table 1 |
+| `scripts/run_p_bench.py` | Script to reproduce Table 2 |
 | `stat/` | Statistics output files (JSON) |
 | `meta-config.json` | Tool configuration |
 
@@ -162,25 +162,25 @@ All steps are run from `/home/clouseau` inside the container.
 **Step 1 — Synthesis (approximately X minutes):**
 
 ```
-$ python3 script/run_adt.py syn
+$ python3 scripts/run_ocaml_bench.py syn
 ```
 
 **Step 2 — Run synthesized generators (200 runs each):**
 
 ```
-$ python3 script/run_adt.py runsyn
+$ python3 scripts/run_ocaml_bench.py runsyn
 ```
 
 **Step 3 — Run random (QCheck) baseline:**
 
 ```
-$ python3 script/run_adt.py runrandom
+$ python3 scripts/run_ocaml_bench.py runrandom
 ```
 
 **Step 4 — Display Table 1 as LaTeX:**
 
 ```
-$ python3 script/run_adt.py table1
+$ python3 scripts/run_ocaml_bench.py table1
 ```
 
 ---
@@ -193,25 +193,25 @@ Simplified2PC, HeartBeat, ChainReplication, Paxos, Raft, Kermit2PCModel
 **Step 1 — Synthesis + compile to P (approximately X minutes):**
 
 ```
-$ python3 script/run_bench.py syn
+$ python3 scripts/run_p_bench.py syn
 ```
 
 **Step 2 — Run synthesized schedulers (500 runs each):**
 
 ```
-$ python3 script/run_bench.py runsyn
+$ python3 scripts/run_p_bench.py runsyn
 ```
 
 **Step 3 — Run random baseline:**
 
 ```
-$ python3 script/run_bench.py runrandom
+$ python3 scripts/run_p_bench.py runrandom
 ```
 
 **Step 4 — Display Table 2 as LaTeX:**
 
 ```
-$ python3 script/run_bench.py table2
+$ python3 scripts/run_p_bench.py table2
 ```
 
 ---
@@ -227,7 +227,7 @@ $ ./main.exe do-syn GOAL_NAME SPEC_FILE
 Example:
 
 ```
-$ ./main.exe do-syn stack benchmarks/ADT/stack_spec.ml
+$ ./main.exe do-syn stack benchmarks/OCamlBench/stack_spec.ml
 ```
 
 Output is written to `output/GOAL_NAME.scm`.
