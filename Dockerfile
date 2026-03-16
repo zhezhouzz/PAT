@@ -29,12 +29,14 @@ ENV PATH="/root/.dotnet/tools:${PATH}"
 USER opam
 WORKDIR /home/opam
 
-# Install OCaml dependencies
-# Note: conf-python was removed (no longer in opam; python3 already installed via apt)
+# Install OCaml dependencies (versions pinned to match local environment)
 RUN opam install -y \
     dune.3.21.1 core.v0.17.1 core_unix.v0.17.1 yojson.2.2.2 conf-c++.1.0 qcheck.0.91 \
-    ocolor.1.3.1 dolog.6.0.0 ocamlbuild.0.16.1 ppx_deriving_yojson.3.9.1 \
-    menhirLib.20260209 menhir.20260209 spectrum.1.0.0.alpha ppx_jane.v0.17.0
+    ocolor.1.3.1 dolog.6.0.0 ocamlbuild.0.16.1 \
+    ppx_deriving.6.0.3 ppx_deriving_yojson.3.9.1 ppx_derivers.1.2.1 \
+    menhirLib.20260209 menhir.20260209 spectrum.1.0.0.alpha ppx_jane.v0.17.0 \
+    ppxlib.0.35.0 sexplib0.v0.17.0 parsexp.v0.17.0 sexplib.v0.17.0 \
+    base.v0.17.3 stdio.v0.17.0 spawn.v0.17.0
 
 # Install z3 separately (compiles from source; may be slow, ~400s)
 RUN opam install -y z3.4.15.2
