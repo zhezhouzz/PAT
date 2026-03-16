@@ -41,6 +41,18 @@ let or_die where = function
   | Ok r -> Lwt.return r
   | Error (i, e) -> Lwt.fail_with @@ sprintf "%s: (%d) %s" where i e
 
+let db_timeout_sec =
+  try float_of_string (Sys.getenv "OCAML_MARIADB_TIMEOUT")
+  with Not_found -> 1.0
+
+let with_timeout f =
+  Lwt.pick
+    [
+      f ();
+      ( Lwt_unix.timeout db_timeout_sec >>= fun () ->
+        Lwt.fail (DBKeyNotFound "timeout") );
+    ]
+
 let connect port db_name =
   M.connect
     ~host:(env "OCAML_MARIADB_HOST" "127.0.0.1")
@@ -81,9 +93,9 @@ let print_row row =
         | `String s -> Lwt_io.printf "%s\n%!" s
         | `Bytes b -> Lwt_io.printf "%s\n%!" (Bytes.to_string b)
         | `Time t ->
-            Lwt_io.printf "%04d-%02d-%02d %02d:%02d:%02d\n%!"
-              (M.Time.year t) (M.Time.month t) (M.Time.day t)
-              (M.Time.hour t) (M.Time.minute t) (M.Time.second t)
+            Lwt_io.printf "%04d-%02d-%02d %02d:%02d:%02d\n%!" (M.Time.year t)
+              (M.Time.month t) (M.Time.day t) (M.Time.hour t) (M.Time.minute t)
+              (M.Time.second t)
         | `Null -> Lwt_io.printf "NULL\n%!")
       row Lwt.return_unit
 
@@ -222,7 +234,7 @@ module MyMariaDB : MyDB = struct
       | Some id ->
           Hashtbl.replace connectionStatus id false;
           id
-      | None -> Zutils.(_die_with [%here] "no connection available")
+      | None -> raise (DBKeyNotFound "no connection available")
 
   (* let release_connection id = Hashtbl.replace connectionStatus id true *)
 
@@ -559,6 +571,7 @@ module MyMariaDB : MyDB = struct
     Lwt_main.run r
 
   let async_begin ~thread_id () =
+    with_timeout @@ fun () ->
     let tid = next_tid () in
     let connId = use_connection () in
     Hashtbl.add connMap tid connId;
@@ -579,6 +592,7 @@ module MyMariaDB : MyDB = struct
   let raw_begin ~thread_id = Lwt_main.run (async_begin ~thread_id ())
 
   let async_commit ~tid () =
+    with_timeout @@ fun () ->
     (* let () = check_validate thread_id tid in *)
     match Hashtbl.find_opt commit_tid tid with
     | Some cid ->
@@ -606,6 +620,7 @@ module MyMariaDB : MyDB = struct
   let raw_commit ~tid = Lwt_main.run (async_commit ~tid ())
 
   let async_release_connection ~tid () =
+    with_timeout @@ fun () ->
     (* let () = check_validate thread_id tid in *)
     match Hashtbl.find_opt commit_tid tid with
     | Some _ -> Lwt.return_unit
@@ -622,6 +637,7 @@ module MyMariaDB : MyDB = struct
         Lwt.return_unit
 
   let async_get_current_isolation ~tid () =
+    with_timeout @@ fun () ->
     let conn = get_conn tid in
     let* stmt =
       M.prepare conn (Zutils.spf "SELECT @@transaction_isolation;")
@@ -641,6 +657,7 @@ module MyMariaDB : MyDB = struct
     Lwt_main.run (async_get_current_isolation ~tid ())
 
   let async_put ~tid ~table ~key ~json () =
+    with_timeout @@ fun () ->
     (* let () = check_validate thread_id tid in *)
     let conn = get_conn tid in
     let json =
@@ -691,6 +708,7 @@ module MyMariaDB : MyDB = struct
     | `Null -> Lwt_io.printf "NULL\n%!"
 
   let async_get ~tid ~table ~key () =
+    with_timeout @@ fun () ->
     (* let () = check_validate thread_id tid in *)
     let conn = get_conn tid in
     let raw_key = Zutils.spf "%s:%s" table key in
@@ -720,7 +738,8 @@ module MyMariaDB : MyDB = struct
           let () =
             Myconfig._log "DB" (fun () ->
                 Printf.printf "[DB] get {tid: %i, key: %s, value: %s}\n" tid
-                  raw_key (Yojson.Basic.to_string json))
+                  raw_key
+                  (Yojson.Basic.to_string json))
           in
           Lwt.return json
       | _ ->

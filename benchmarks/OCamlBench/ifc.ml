@@ -95,7 +95,9 @@ module BasicIFC = struct
         else
           let memory = IntMap.update c1.vi (fun _ -> Some c2) memory in
           let () =
-            Pp.printf "@{<green>store:@} %s\n" (layout_ifcCtx { stack; memory })
+            Myconfig._log "qc" (fun () ->
+                Pp.printf "@{<green>store:@} %s\n"
+                  (layout_ifcCtx { stack; memory }))
           in
           Some { stack; memory }
 
@@ -153,8 +155,11 @@ module BasicIFC = struct
   let step ruleset ((ctx1, ctx2) : ifcCtx * ifcCtx) (instr : instr) =
     if !_halt then Some (ctx1, ctx2)
     else
-      let () = Pp.printf "@{<green>ctx1:@} %s\n" (layout_ifcCtx ctx1) in
-      let () = Pp.printf "@{<green>ctx2:@} %s\n" (layout_ifcCtx ctx2) in
+      let () =
+        Myconfig._log "qc" (fun () ->
+            Pp.printf "@{<green>ctx1:@} %s\n" (layout_ifcCtx ctx1);
+            Pp.printf "@{<green>ctx2:@} %s\n" (layout_ifcCtx ctx2))
+      in
       match instr with
       | Push (PublicV v) ->
           let c = { lvl = Public; vi = v } in
@@ -173,9 +178,12 @@ module BasicIFC = struct
           Some (ctx1, ctx2)
 
   let rec multi_step ruleset (ctx1, ctx2) instrs =
-    let () = Printf.printf "ctx1: %s\n" (layout_ifcCtx ctx1) in
-    let () = Printf.printf "ctx2: %s\n" (layout_ifcCtx ctx2) in
-    let () = Printf.printf "instrs: %s\n" (layout_instrs instrs) in
+    let () =
+      Myconfig._log "qc" (fun () ->
+          Printf.printf "ctx1: %s\n" (layout_ifcCtx ctx1);
+          Printf.printf "ctx2: %s\n" (layout_ifcCtx ctx2);
+          Printf.printf "instrs: %s\n" (layout_instrs instrs))
+    in
     match instrs with
     | [] -> _die_with [%here] "never"
     | [ Halt ] -> Some (ctx1, ctx2)
@@ -221,10 +229,12 @@ module BasicIFC = struct
     let ctx2 = init () in
     match multi_step ruleset_variant (ctx1, ctx2) !tmp_instrs with
     | Some (ctx1, ctx2) ->
-        let () = Pp.printf "@{<green>success@}\n" in
+        let () = Myconfig._log "qc" (fun () -> Pp.printf "@{<green>success@}\n") in
         equal_ifcCtx ctx1 ctx2
     | None ->
-        let () = Pp.printf "@{<red>runtime error@}\n" in
+        let () =
+          Myconfig._log "qc" (fun () -> Pp.printf "@{<red>runtime error@}\n")
+        in
         true
 
   type runtime = { ctx : ifcCtx * ifcCtx; runtimeError : bool }
@@ -240,8 +250,11 @@ module BasicIFC = struct
     else
       match step ruleset_variant !_ctx.ctx instr with
       | Some (ctx1, ctx2) ->
-          let () = Pp.printf "@{<green>ctx1:@} %s\n" (layout_ifcCtx ctx1) in
-          let () = Pp.printf "@{<green>ctx2:@} %s\n" (layout_ifcCtx ctx2) in
+          let () =
+            Myconfig._log "qc" (fun () ->
+                Pp.printf "@{<green>ctx1:@} %s\n" (layout_ifcCtx ctx1);
+                Pp.printf "@{<green>ctx2:@} %s\n" (layout_ifcCtx ctx2))
+          in
           _ctx := { ctx = (ctx1, ctx2); runtimeError = false };
           List.length ctx1.stack
       | None ->
@@ -252,13 +265,17 @@ module BasicIFC = struct
     if !_ctx.runtimeError then true
     else
       let ctx1, ctx2 = !_ctx.ctx in
-      let () = Pp.printf "@{<green>success@}\n" in
-      let () = Pp.printf "@{<green>ctx1:@} %s\n" (layout_ifcCtx ctx1) in
-      let () = Pp.printf "@{<green>ctx2:@} %s\n" (layout_ifcCtx ctx2) in
+      let () =
+        Myconfig._log "qc" (fun () ->
+            Pp.printf "@{<green>success@}\n";
+            Pp.printf "@{<green>ctx1:@} %s\n" (layout_ifcCtx ctx1);
+            Pp.printf "@{<green>ctx2:@} %s\n" (layout_ifcCtx ctx2))
+      in
       let res = equal_ifcCtx ctx1 ctx2 in
       let () =
-        if res then Pp.printf "@{<green>res:@} %b\n" res
-        else Pp.printf "@{<red>res:@} %b\n" res
+        Myconfig._log "qc" (fun () ->
+            if res then Pp.printf "@{<green>res:@} %b\n" res
+            else Pp.printf "@{<red>res:@} %b\n" res)
       in
       res
 end
@@ -487,7 +504,9 @@ let exec_instrs e =
 
 let randomTest config =
   let e = _next config in
-  let () = Pp.printf "@{<green>instrs@} %s\n" (layout_instrs e) in
+  let () =
+    Myconfig._log "qc" (fun () -> Pp.printf "@{<green>instrs@} %s\n" (layout_instrs e))
+  in
   exec_instrs e
 
 let test_env =

@@ -742,11 +742,11 @@ module SmallBankDB = struct
   let chk_str = "checking"
 
   let async_get ~tid ~table ~key () =
-    let _ = Printf.printf "in async get\n" in
+    let _ = Myconfig._log "qc" (fun () -> Printf.printf "in async get\n") in
     DB.table_async_get ~tid ~db:db_str ~table ~key ()
 
   let async_put ~tid ~table ~key ~json () =
-    let _ = Printf.printf "in async put\n" in
+    let _ = Myconfig._log "qc" (fun () -> Printf.printf "in async put\n") in
     DB.table_async_put ~tid ~db:db_str ~table ~key ~json ()
 
   let selectAccountsAsync (ev : ev) = _getAsyncTable db_str acc_str ev
@@ -801,9 +801,9 @@ module SmallBankDB = struct
       match msg.ev.args with [ VConst (I tid) ] -> tid | _ -> _die [%here]
     in
     let res = f tid in
-    let _ = Pp.printf "calculated result\n" in
+    let _ = Myconfig._log "qc" (fun () -> Pp.printf "calculated result\n") in
     let _ = async ("commit", [ mk_value_int tid ]) in
-    let _ = Pp.printf "return from commit\n" in
+    let _ = Myconfig._log "qc" (fun () -> Pp.printf "return from commit\n") in
     res
 
   (* open accounts *)
@@ -949,21 +949,21 @@ module SmallBankDB = struct
       Lwt.fail (BackendMariaDB.DBKeyNotFound s)
 
   let balanceReqHandler (msg : msg) =
-    let _ = Pp.printf "running balance req handler\n" in
+    let _ = Myconfig._log "qc" (fun () -> Pp.printf "running balance req handler\n") in
     let aux (name : int) =
       do_trans (fun tid ->
           let custid = do_selectAccounts tid name in
-          let _ = Pp.printf "custid: %d\n" custid in
+          let _ = Myconfig._log "qc" (fun () -> Pp.printf "custid: %d\n" custid) in
           let sBal = do_selectSavings tid custid in
-          let _ = Pp.printf "sBal: %d\n" sBal in
+          let _ = Myconfig._log "qc" (fun () -> Pp.printf "sBal: %d\n" sBal) in
           let cBal = do_selectChecking tid custid in
-          let _ = Pp.printf "cBal: %d\n" cBal in
+          let _ = Myconfig._log "qc" (fun () -> Pp.printf "cBal: %d\n" cBal) in
           sBal + cBal)
     in
     match msg.ev.args with
     | [ VConst (I name) ] ->
         let balance = aux name in
-        let _ = Pp.printf "sending balance resp\n" in
+        let _ = Myconfig._log "qc" (fun () -> Pp.printf "sending balance resp\n") in
         send ("balanceResp", [ mk_value_int balance ])
     | _ -> _die [%here]
 
@@ -1289,11 +1289,11 @@ module TwitterDB = struct
   let twt_str = "tweets"
 
   let async_get ~tid ~table ~key () =
-    let _ = Printf.printf "in async get\n" in
+    let _ = Myconfig._log "qc" (fun () -> Printf.printf "in async get\n") in
     DB.table_async_get ~tid ~db:db_str ~table ~key ()
 
   let async_put ~tid ~table ~key ~json () =
-    let _ = Printf.printf "in async put\n" in
+    let _ = Myconfig._log "qc" (fun () -> Printf.printf "in async put\n") in
     DB.table_async_put ~tid ~db:db_str ~table ~key ~json ()
 
   let selectFollowsAsync (ev : ev) = _getAsyncTable db_str flw_str ev
@@ -1415,7 +1415,7 @@ module TwitterDB = struct
     match msg.ev.args with
     | [ VConst (I user); VConst (I follow_o) ] ->
         let _ = aux user follow_o in
-        let _ = Pp.printf "sending follow resp\n" in
+        let _ = Myconfig._log "qc" (fun () -> Pp.printf "sending follow resp\n") in
         send ("followResp", [])
     | _ -> _die [%here]
 

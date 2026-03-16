@@ -26,8 +26,9 @@ let find_stlcTy_opt ctx x = List.nth_opt ctx x
 let rec typeinfer_stlcTerm ctx e =
   let type_error () =
     let () =
-      Printf.printf "typeinfer_stlcTerm %s |- %s\n" (layout_stlcCtx ctx)
-        (layout_stlcTerm e)
+      Myconfig._log "qc" (fun () ->
+          Printf.printf "typeinfer_stlcTerm %s |- %s\n" (layout_stlcCtx ctx)
+            (layout_stlcTerm e))
     in
     None
   in
@@ -53,9 +54,10 @@ let rec typeinfer_stlcTerm ctx e =
         | _ -> type_error ())
   in
   let () =
-    Printf.printf "typeinfer_stlcTerm %s |- %s: %s\n" (layout_stlcCtx ctx)
-      (layout_stlcTerm e)
-      (match res with None -> "None" | Some ty -> layout_stlcTy ty)
+    Myconfig._log "qc" (fun () ->
+        Printf.printf "typeinfer_stlcTerm %s |- %s: %s\n" (layout_stlcCtx ctx)
+          (layout_stlcTerm e)
+          (match res with None -> "None" | Some ty -> layout_stlcTy ty))
   in
   res
 
@@ -124,7 +126,10 @@ let rec step_stlcTerm term =
   | _ -> EvalNormalFrom term
 
 let rec mstep_stlcTerm e =
-  let () = Printf.printf "mstep_stlcTerm: %s\n" (layout_stlcTerm e) in
+  let () =
+    Myconfig._log "qc" (fun () ->
+        Printf.printf "mstep_stlcTerm: %s\n" (layout_stlcTerm e))
+  in
   match step_stlcTerm e with
   | EvalError _ -> EvalError e
   | EvalNormalFrom e -> EvalNormalFrom e
@@ -272,8 +277,9 @@ let init () =
 let trace_eval_correct _ =
   let ty = typeinfer_stlcTerm [] !_tmp in
   let () =
-    Printf.printf "typeinfer_stlcTerm: %s\n"
-      (match ty with Some ty -> layout_stlcTy ty | None -> "None")
+    Myconfig._log "qc" (fun () ->
+        Printf.printf "typeinfer_stlcTerm: %s\n"
+          (match ty with Some ty -> layout_stlcTy ty | None -> "None"))
   in
   match ty with
   | None -> true
@@ -356,12 +362,16 @@ let testAst () =
   let f1 = _abs (StlcArrow (StlcInt, StlcInt)) (_app (StlcVar 0) (StlcVar 1)) in
   let f2 = _abs StlcInt (_app f1 (_abs StlcInt (StlcVar 0))) in
   let e = _app f2 (StlcConst 3) in
-  let () = Printf.printf "testAst: %s\n" (layout_stlcTerm e) in
   let () =
-    Printf.printf "typeinfer_stlcTerm: %s\n"
-      (match typeinfer_stlcTerm [] e with
-      | Some ty -> layout_stlcTy ty
-      | None -> "None")
+    Myconfig._log "qc" (fun () ->
+        Printf.printf "testAst: %s\n" (layout_stlcTerm e))
+  in
+  let () =
+    Myconfig._log "qc" (fun () ->
+        Printf.printf "typeinfer_stlcTerm: %s\n"
+          (match typeinfer_stlcTerm [] e with
+          | Some ty -> layout_stlcTy ty
+          | None -> "None"))
   in
   let res = mstep_stlcTerm e in
   let () = Printf.printf "res: %s\n" (layout_eval_result res) in
@@ -525,7 +535,10 @@ let _next conf =
 
 let randomTest conf =
   let e = _next conf in
-  let () = Pp.printf "@{<yellow>randomTest@}: %s\n" (layout_stlcTerm e) in
+  let () =
+    Myconfig._log "qc" (fun () ->
+        Pp.printf "@{<yellow>randomTest@}: %s\n" (layout_stlcTerm e))
+  in
   exec_stlc e
 
 let test_env =
