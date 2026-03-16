@@ -22,7 +22,8 @@ ENV DOTNET_ROOT="/usr/local/dotnet"
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
 
 # Install the P language tool
-RUN dotnet tool install --global P
+RUN dotnet tool install --global P && \
+    ln -s /root/.dotnet/tools/p /usr/local/bin/p
 ENV PATH="/root/.dotnet/tools:${PATH}"
 
 # Switch to opam user for all OCaml/opam operations
