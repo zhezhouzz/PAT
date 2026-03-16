@@ -2,7 +2,7 @@
  (public_name haft.monkeyBD)
  (name monkeyBD)
  (wrapped true)
- (libraries language interpreter BackendMariaDB)
+ (libraries language interpreter BackendMariaDB zutils)
  (modules
   common
   shopping

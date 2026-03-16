@@ -28,8 +28,9 @@ module Runtime = struct
       (List.map layout_msg !MsgBuffer.buffer |> String.concat " ")
 
   let print_hisTrace () =
-    Pp.printf "@{<blue>HisTrace:@} %s\n"
-      (List.map layout_msg_concise !hisTrace |> String.concat " ")
+    _log "eval_io" (fun () ->
+      Pp.printf "@{<blue>HisTrace:@} %s\n"
+        (List.map layout_msg_concise !hisTrace |> String.concat " "))
 end
 
 open Runtime
@@ -107,7 +108,7 @@ let select_handler msg =
       hd
 
 let handle_obs op f =
-  Printf.printf "obs:tid %i; op: %s\n" !_curTid op;
+  _log "eval" (fun () -> Printf.printf "obs:tid %i; op: %s\n" !_curTid op);
   assert (default_tid == !_curTid);
   let msgs = MsgBuffer.find_by_op op in
   (* let () =
@@ -127,8 +128,9 @@ let handle_obs op f =
   | [] -> None
   | _ -> (
       let () =
-        Printf.printf "msgs1: %s\n"
-          (List.map layout_msg msgs |> String.concat " ")
+        _log "eval" (fun () ->
+            Printf.printf "msgs1: %s\n"
+              (List.map layout_msg msgs |> String.concat " "))
       in
       let msgs =
         List.filter
@@ -140,8 +142,9 @@ let handle_obs op f =
           msgs
       in
       let () =
-        Printf.printf "msgs2: %s\n"
-          (List.map layout_msg msgs |> String.concat " ")
+        _log "eval" (fun () ->
+            Printf.printf "msgs2: %s\n"
+              (List.map layout_msg msgs |> String.concat " "))
       in
       let msg =
         match msgs with
@@ -159,7 +162,7 @@ let jump_to_tid tid = _curTid := tid
 let jump_back () = _curTid := default_tid
 
 let handle_gen msg =
-  Printf.printf "obs:gen %i\n" !_curTid;
+  _log "eval" (fun () -> Printf.printf "obs:gen %i\n" !_curTid);
   assert (default_tid == !_curTid);
   let hd = select_handler msg in
   appendToHisTrace msg;
@@ -206,7 +209,7 @@ let random_select_handler curMsg =
     | None -> msg
     | Some msg' -> if Random.int 100 < 1 then msg else msg'
   in
-  let () = Printf.printf "select msg: %s\n" (layout_msg msg) in
+  let () = _log "eval" (fun () -> Printf.printf "select msg: %s\n" (layout_msg msg)) in
   let hd = select_handler msg in
   let msg' = { msg with dest = Some hd.tid } in
   if not (String.equal msg.ev.op "dummy") then MsgBuffer.consume msg;
@@ -221,7 +224,7 @@ let eager_select_handler _ =
     | [ msg ] -> msg
     | _ -> _die_with [%here] "Multiple messages found"
   in
-  let () = Printf.printf "select msg: %s\n" (layout_msg msg) in
+  let () = _log "eval" (fun () -> Printf.printf "select msg: %s\n" (layout_msg msg)) in
   let hd = select_handler msg in
   let msg' = { msg with dest = Some hd.tid } in
   if not (String.equal msg.ev.op "dummy") then MsgBuffer.consume msg;
@@ -335,7 +338,7 @@ let rec random_scheduler main =
       let _ = input_line stdin in *)
       jump_to_tid hd.tid;
       let msg = { msg with ev = ak msg.ev } in
-      let () = Printf.printf "new msg: %s\n" (layout_msg msg) in
+      let () = _log "eval" (fun () -> Printf.printf "new msg: %s\n" (layout_msg msg)) in
       appendToHisTrace msg;
       random_scheduler (fun () -> hd.k msg)
   in
@@ -422,7 +425,7 @@ let rec eager_scheduler main =
       let hd, ak, msg = eager_select_handler curMsg in
       jump_to_tid hd.tid;
       let msg = { msg with ev = ak msg.ev } in
-      let () = Printf.printf "new msg: %s\n" (layout_msg msg) in
+      let () = _log "eval" (fun () -> Printf.printf "new msg: %s\n" (layout_msg msg)) in
       appendToHisTrace msg;
       eager_scheduler (fun () -> hd.k msg)
   in

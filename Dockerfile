@@ -52,8 +52,8 @@ RUN git clone https://github.com/OCamlRefinementType/zutils.git /tmp/zutils && \
     cd /tmp/zutils && git checkout 4b0e5cad8c6a1591601e3f9a45a6da33fbb54657 && \
     opam install . -y
 
-# Install AutomataLibrary (tag v2.0)
-RUN git clone --branch v2.0 https://github.com/OCamlRefinementType/AutomataLibrary.git /tmp/AutomataLibrary && \
+# Install AutomataLibrary (tag v2.1)
+RUN git clone --branch v2.1 https://github.com/OCamlRefinementType/AutomataLibrary.git /tmp/AutomataLibrary && \
     opam install /tmp/AutomataLibrary -y
 
 # Clone Clouseau (artifact branch) and build

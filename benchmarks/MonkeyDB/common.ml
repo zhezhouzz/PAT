@@ -106,8 +106,9 @@ module MyDB (C : Config) = struct
 
   let _putAsync table (ev : ev) =
     let () =
-      Printf.printf "start _putAsync %s : %s\n" table
-        (Yojson.Basic.to_string (values_to_json ev.args))
+      Myconfig._log "DB" (fun () ->
+          Printf.printf "start _putAsync %s : %s\n" table
+            (Yojson.Basic.to_string (values_to_json ev.args)))
     in
     let tid, key, v =
       match ev.args with
@@ -121,8 +122,9 @@ module MyDB (C : Config) = struct
 
   let _putAsyncTable db table (ev : ev) =
     let () =
-      Printf.printf "start _putAsync %s : %s\n" table
-        (Yojson.Basic.to_string (values_to_json ev.args))
+      Myconfig._log "DB" (fun () ->
+          Printf.printf "start _putAsync %s : %s\n" table
+            (Yojson.Basic.to_string (values_to_json ev.args)))
     in
     let tid, key, v =
       match ev.args with

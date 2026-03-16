@@ -51,11 +51,7 @@ let over_number_bound number_bound n =
 
 let over_time_bound time_bound exec_time =
   match time_bound with
-  | Some time_bound ->
-      (* let () = Printf.printf "@{<red>Time bound: %i@}\n" time_bound in
-      let () = Printf.printf "@{<red>Exec time: %f@}\n" exec_time in
-      let _ = read_line () in *)
-      exec_time > float_of_int time_bound
+  | Some time_bound -> exec_time > time_bound
   | None -> false
 
 let string_contains sub s =
@@ -92,7 +88,7 @@ let eval_sample ~number_bound ~time_bound test =
           Pp.printf "@{<red>Error:@} %s\n" "isolation violation";
           aux successed (used + 1)
       | NoBugDetected _ ->
-          Pp.printf "@{<red>Error:@} %s\n" "no bug detected";
+          let () = _log "eval_error" (fun () -> Pp.printf "@{<red>Error:@} %s\n" "no bug detected") in
           aux successed (used + 1)
       | Failure msg when string_contains_1020 msg ->
           (* Transient DB connection error (Galera 1020 or client 2000);
@@ -129,7 +125,7 @@ let eval_until_detect_bug converge_bound test =
           Pp.printf "@{<red>Error:@} %s\n" "isolation violation";
           aux i
       | NoBugDetected _ ->
-          Pp.printf "@{<red>Error:@} %s\n" "no bug detected";
+          let () = _log "eval_error" (fun () -> Pp.printf "@{<red>Error:@} %s\n" "no bug detected") in
           aux i
       | Failure msg when string_contains_1020 msg -> aux i
       | e -> raise e
@@ -170,7 +166,7 @@ let eval_by_time time_bound test =
           Pp.printf "@{<red>Error:@} %s\n" "isolation violation";
           aux num_sampled num_bug_detected
       | NoBugDetected _ ->
-          Pp.printf "@{<red>Error:@} %s\n" "no bug detected";
+          let () = _log "eval_error" (fun () -> Pp.printf "@{<red>Error:@} %s\n" "no bug detected") in
           aux num_sampled num_bug_detected
       | Failure msg when string_contains_1020 msg ->
           aux num_sampled num_bug_detected

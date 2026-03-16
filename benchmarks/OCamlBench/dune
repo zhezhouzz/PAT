@@ -2,7 +2,7 @@
  (public_name haft.ocaml_bench)
  (name ocaml_bench)
  (wrapped true)
- (libraries language interpreter qcheck-stm.sequential qcheck-stm.domain)
+ (libraries language interpreter qcheck-stm.sequential qcheck-stm.domain zutils)
  (modules
   queue
   stack

@@ -198,8 +198,9 @@ let print_send_wrapper env =
         Toplang.layout_p_local_func env (name, imp))
       sends
   in
-  Pp.printf "@{<bold>Wrapper: Send:@}\n%s\n\n"
-  @@ List.split_by "\n" (fun x -> x) l
+  Myconfig._log "pbackend" (fun () ->
+      Pp.printf "@{<bold>Wrapper: Send:@}\n%s\n\n"
+        @@ List.split_by "\n" (fun x -> x) l)
 
 let mk_wrapper_cast_imp (op, fs) =
   let input = "input"#:(Nt.Ty_record { alias = None; fds = fs }) in
@@ -221,7 +222,8 @@ let print_cast_wrapper env =
         Toplang.layout_p_local_func env (name, imp))
       sends
   in
-  Pp.printf "\n%s\n\n" @@ List.split_by "\n" (fun x -> x) l
+  Myconfig._log "pbackend" (fun () ->
+      Pp.printf "\n%s\n\n" @@ List.split_by "\n" (fun x -> x) l)
 
 let mk_wrapper_forward_imp op =
   let input = "input"#:(mk_input_op_type op) in
@@ -241,7 +243,8 @@ let print_forward_wrapper env =
         Toplang.layout_p_local_func env (name, imp))
       evs
   in
-  Pp.printf "\n%s\n\n" @@ List.split_by "\n" (fun x -> x) l
+  Myconfig._log "pbackend" (fun () ->
+      Pp.printf "\n%s\n\n" @@ List.split_by "\n" (fun x -> x) l)
 
 let print_p_type_events env =
   let evs = StrMap.to_kv_list env.event_tyctx in
@@ -261,8 +264,9 @@ let print_p_type_events env =
           (List.split_by_comma (fun x -> spf "%s:%s" x.x @@ Nt.layout x.ty) ty))
       evs
   in
-  Pp.printf "@{<bold>Events:@}\n%s\n\n"
-  @@ List.split_by "\n" (fun x -> x) (ty_decls @ evs_decls)
+  Myconfig._log "pbackend" (fun () ->
+      Pp.printf "@{<bold>Events:@}\n%s\n\n"
+        @@ List.split_by "\n" (fun x -> x) (ty_decls @ evs_decls))
 
 let compile_term env e =
   let rec aux e =
@@ -286,7 +290,10 @@ let compile_term env e =
         let send_stmt = mk_wrapper_send op.x payload in
         mk_p_seq send_stmt (aux body)
     | CLetE { lhs; rhs = { x = CObs { op = original_op; prop }; _ }; body } -> (
-        let () = Pp.printf "@{<bold>CObs: %s@}\n" (layout_qv original_op) in
+        let () =
+          Myconfig._log "pbackend" (fun () ->
+              Pp.printf "@{<bold>CObs: %s@}\n" (layout_qv original_op))
+        in
         (* let () = *)
         (*   StrMap.iter *)
         (*     (fun name ty -> Printf.printf "%s\n" (layout_qv name #: ty)) *)
@@ -338,7 +345,8 @@ let compile_term env e =
   (* let () = Pp.printf "@{<bold>After Erase Obs:@}:\n%s\n" (layout_term e.x) in *)
   let body = aux e in
   let () =
-    Pp.printf "@{<bold>P Expr:@}:\n%s\n" (Toplang.layout_p_expr env 0 body.x)
+    Myconfig._log "pbackend" (fun () ->
+        Pp.printf "@{<bold>P Expr:@}:\n%s\n" (Toplang.layout_p_expr env 0 body.x))
   in
   body
 
@@ -437,7 +445,10 @@ let compile_syn_result (env : syn_env) e =
   let state = mk_syn_state func in
   let machine = mk_syn_machine state in
   let res = Toplang.layout_p_machine env 0 machine in
-  let () = Pp.printf "@{<bold>Compile Result:@}:\n%s\n" res in
+  let () =
+    Myconfig._log "pbackend" (fun () ->
+        Pp.printf "@{<bold>Compile Result:@}:\n%s\n" res)
+  in
   let () = print_p_type_events env in
   let () = print_send_wrapper env in
   let () = print_cast_wrapper env in

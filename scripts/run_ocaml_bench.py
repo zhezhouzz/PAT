@@ -80,21 +80,25 @@ def task_name(name):
 def task_dir(name):
     return "benchmarks/" + task_dir_dict[name].replace("ADT/", "")
 
-SYN_NUM = "200"
-RANDOM_NUM_MAP = {}
+SAMPLE_COUNT = "200"  # sample count for runsyn and runrandom
+SAMPLE_TIME = "0"     # 0 = no time limit; used by runsyn; runrandom uses RANDOM_TIME_MAP
+RANDOM_TIME_MAP = {}
 
-def init_config(override_num=None):
-    global SYN_NUM
+def init_config(override_num=None, override_time=None):
+    global SAMPLE_COUNT, SAMPLE_TIME
+    if override_num is not None:
+        SAMPLE_COUNT = str(override_num)
+
     for name in task_name_dict:
         if name in ["Set", "ReaderWriter", "SetSimple", "ReaderWriterSimple"]:
-            RANDOM_NUM_MAP[name] = "1"
+            RANDOM_TIME_MAP[name] = "1800"
         else:
-            RANDOM_NUM_MAP[name] = "1800"
-            
-    if override_num is not None:
-        SYN_NUM = str(override_num)
-        for name in RANDOM_NUM_MAP:
-            RANDOM_NUM_MAP[name] = str(override_num)
+            RANDOM_TIME_MAP[name] = "1800"
+
+    if override_time is not None:
+        SAMPLE_TIME = str(override_time)
+        for name in RANDOM_TIME_MAP:
+            RANDOM_TIME_MAP[name] = str(override_time)
 
 
 def print_pat_col1(stat):
@@ -312,7 +316,8 @@ def do_parse():
 
 def run_syn():
     for bench_name in benchmarks:
-        cmd = cmd_prefix + ["sample-syn", task_name(bench_name), SYN_NUM]
+        # count (int): <=0 means None; time (float): <=0 means None
+        cmd = cmd_prefix + ["sample-syn", task_name(bench_name), SAMPLE_COUNT, SAMPLE_TIME]
         print(" ".join(cmd))
         invoc_cmd(cmd)
     return
@@ -320,7 +325,8 @@ def run_syn():
 def run_random():
     for bench_name in benchmarks:
         if bench_name not in monkeydb:
-            cmd = cmd_prefix + ["sample-random", task_name(bench_name), RANDOM_NUM_MAP[bench_name]]
+            # count (int): <=0 means None; time (float): <=0 means None
+            cmd = cmd_prefix + ["sample-random", task_name(bench_name), SAMPLE_COUNT, RANDOM_TIME_MAP[bench_name]]
             invoc_cmd(cmd)
     return
 
@@ -342,7 +348,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run ADT benchmarks')
     parser.add_argument('command', nargs='?', default='all', help='Command to run (syn, runsyn, runrandom, etc.)')
     parser.add_argument('-b', '--benchmarks', type=str, help='Comma-separated list of benchmarks to run')
-    parser.add_argument('-n', '--number', type=int, help='Override random execution count for fast run mode')
+    parser.add_argument('-n', '--number', type=int, help='Override synthesis sample count for fast run mode')
+    parser.add_argument('-t', '--time', type=float, help='Override time limit (seconds) for runsyn and runrandom')
     parser.add_argument('-c', '--candidate', type=str, default="1", help='Number of candidates for synthesis')
     parser.add_argument('extra_args', nargs='*', help='Extra arguments for specific commands')
     
@@ -354,38 +361,22 @@ if __name__ == '__main__':
             benchmarks = parsed
 
     build_and_copy_exe()
-    init_config(args.number)
+    init_config(args.number, args.time)
 
     if args.command == "syn":
         do_syn(args.candidate)
     elif args.command == "runsyn":
         run_syn()
-        j = load_stat()
-        print_cols(benchmarks, j)
-    elif args.command == "syn-one":
-        if not args.extra_args:
-            print("Error: syn-one requires a benchmark name")
-            sys.exit(1)
-        name = args.extra_args[0]
-        benchmarks = [name]
-        do_syn(args.candidate)
-    elif args.command == "runsyn-one":
-        if not args.extra_args:
-            print("Error: runsyn-one requires a benchmark name")
-            sys.exit(1)
-        name = args.extra_args[0]
-        benchmarks = [name]
-        run_syn()
-        j = load_stat()
-        print_cols(benchmarks, j)
+        # j = load_stat()
+        # print_cols(benchmarks, j)
     elif args.command == "runrandom":
         run_random()
-        j = load_stat()
-        print_cols(benchmarks, j)
+        # j = load_stat()
+        # print_cols(benchmarks, j)
     elif args.command == "parse":
         do_parse()
-        j = load_stat()
-        print_cols(benchmarks, j)
+        # j = load_stat()
+        # print_cols(benchmarks, j)
     elif args.command == "show":
         j = load_stat()
         print_cols(benchmarks, j)
@@ -398,4 +389,4 @@ if __name__ == '__main__':
         run_random()
         # run_default()
         j = load_stat()
-        print_cols(benchmarks, j)
+        table1(benchmarks, j)

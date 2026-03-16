@@ -140,6 +140,6 @@ let rec eval code =
 
 let eval_to_unit code =
   let _ = eval code in
-  let () = Pp.printf "@{<blue>Code:@}\n%s\n" (layout_term code) in
+  let () = _log "eval_io" (fun () -> Pp.printf "@{<blue>Code:@}\n%s\n" (layout_term code)) in
   Pool.Runtime.print_hisTrace ();
   ()

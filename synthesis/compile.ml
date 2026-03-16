@@ -3,6 +3,8 @@ open Zdatatype
 (* open Plan *)
 (* open Common *)
 
+let _log_compile f = _log "compile" f
+
 let recursion_vars = [ default_bound_var.x; default_iter_var.x ]
 
 module SimpleRename = struct
@@ -55,8 +57,9 @@ let unique_name_line env { gprop; elems } =
               (_safe_combine [%here] act.aargs aargs')
           in
           let () =
-            Pp.printf "@{<bold>unique name:@}\n%s\n"
-              (List.split_by_comma (fun (x, y) -> spf "%s -> %s" x y.x) m)
+            _log_compile (fun () ->
+                Pp.printf "@{<bold>unique name:@}\n%s\n"
+                  (List.split_by_comma (fun (x, y) -> spf "%s -> %s" x y.x) m))
           in
           let prop =
             List.filter_map (fun (x, y) ->
@@ -82,16 +85,18 @@ let unique_name_line env { gprop; elems } =
 let normalize_line env line =
   let { gprop; elems } = unique_name_line env line in
   let () =
-    Pp.printf "@{<bold>unique line:@}\n%s\n"
-      (Plan.omit_layout_line { gprop; elems })
+    _log_compile (fun () ->
+        Pp.printf "@{<bold>unique line:@}\n%s\n"
+          (Plan.omit_layout_line { gprop; elems }))
   in
   let rec aux gen_vars obs_vars (gprop, acts) elems =
     let () =
-      Pp.printf "@{<bold>aux@} (%s, %s)\nprop: %s\nelems: %s\n"
-        (List.split_by_comma (fun x -> x.x) gen_vars)
-        (List.split_by_comma (fun x -> x.x) obs_vars)
-        (layout_prop gprop)
-        (Plan.omit_layout_line_elems elems)
+      _log_compile (fun () ->
+          Pp.printf "@{<bold>aux@} (%s, %s)\nprop: %s\nelems: %s\n"
+            (List.split_by_comma (fun x -> x.x) gen_vars)
+            (List.split_by_comma (fun x -> x.x) obs_vars)
+            (layout_prop gprop)
+            (Plan.omit_layout_line_elems elems))
     in
     match elems with
     | [] -> (gen_vars, obs_vars, (gprop, acts))
@@ -110,8 +115,9 @@ let normalize_line env line =
           let gprop = msubst_prop (act.aargs, aargs') gprop in
           let act = { act with aargs = aargs' } in
           let () =
-            Pp.printf "@{<bold>m:@}\n%s\n"
-              (List.split_by_comma (fun (x, y) -> spf "%s -> %s" x y.x) m)
+            _log_compile (fun () ->
+                Pp.printf "@{<bold>m:@}\n%s\n"
+                  (List.split_by_comma (fun (x, y) -> spf "%s -> %s" x y.x) m))
           in
           let post = List.map (msubst subst_name_in_line_elem m) post in
           aux (gen_vars @ aargs') obs_vars (gprop, acts @ [ act ]) post
@@ -234,19 +240,25 @@ let compile_term_from_line env e =
   in
   let _, gprop, prog = SimpEq.simp (List.map _get_x tmp_vars, gprop, prog) in
   let gprop, prog = SimpEq.mk_eq_from_prev (gprop, prog) in
-  let () = Pp.printf "@{<bold>prog1:@}\n%s\n" (layout_term prog) in
-  let () = Pp.printf "@{<bold>gprop1:@}\n%s\n" (layout_prop gprop) in
+  let () =
+    _log_compile (fun () ->
+        Pp.printf "@{<bold>prog1:@}\n%s\n" (layout_term prog);
+        Pp.printf "@{<bold>gprop1:@}\n%s\n" (layout_prop gprop))
+  in
   let prog, post = distribute_assumption (gen_vars @ obs_vars, prog, gprop) in
-  let () = Pp.printf "@{<bold>prog:@}\n%s\n" (layout_term prog) in
-  let () = Pp.printf "@{<bold>post:@}\n%s\n" (layout_prop post) in
+  let () =
+    _log_compile (fun () ->
+        Pp.printf "@{<bold>prog:@}\n%s\n" (layout_term prog);
+        Pp.printf "@{<bold>post:@}\n%s\n" (layout_prop post))
+  in
   let assertion_num = calculate_assertion_num prog post in
   (assertion_num, prog)
 
 let add_kstar (pre_len, length) e rec_branch_1 rec_branch_2 =
-  let () = Pp.printf "@{<bold>add_kstar@}\n" in
-  let () = Pp.printf "@{<bold>pre_len:@}\n%i\n" pre_len in
-  let () = Pp.printf "@{<bold>length:@}\n%i\n" length in
-  let () = Pp.printf "@{<bold>e:@}\n%s\n" (layout_term e.x) in
+  let () = _log_compile (fun () -> Pp.printf "@{<bold>add_kstar@}\n") in
+  let () = _log_compile (fun () -> Pp.printf "@{<bold>pre_len:@}\n%i\n" pre_len) in
+  let () = _log_compile (fun () -> Pp.printf "@{<bold>length:@}\n%i\n" length) in
+  let () = _log_compile (fun () -> Pp.printf "@{<bold>e:@}\n%s\n" (layout_term e.x)) in
   let mkFixApp b1 e = mk_rec b1 rec_branch_2 (mk_rec_app_0 e) in
   let rec add length (k, term) =
     if length == 0 then mkFixApp rec_branch_1 term.x
@@ -271,15 +283,18 @@ let add_kstar (pre_len, length) e rec_branch_1 rec_branch_2 =
           let body' = aux (pre_len - 1) body in
           CLetE { lhs; rhs; body = body'#:(term_to_nt body') }
       | _ ->
-          let () = Pp.printf "@{<bold>term:@}\n%s\n" (layout_term term.x) in
+          let () =
+            _log_compile (fun () ->
+                Pp.printf "@{<bold>term:@}\n%s\n" (layout_term term.x))
+          in
           _die [%here]
   in
   aux pre_len e
 
 let add_kstar_drop pre_len e rec_branch_1 rec_branch_2 v =
-  let () = Pp.printf "@{<bold>add_kstar@}\n" in
-  let () = Pp.printf "@{<bold>pre_len:@}\n%i\n" pre_len in
-  let () = Pp.printf "@{<bold>e:@}\n%s\n" (layout_term e.x) in
+  let () = _log_compile (fun () -> Pp.printf "@{<bold>add_kstar@}\n") in
+  let () = _log_compile (fun () -> Pp.printf "@{<bold>pre_len:@}\n%i\n" pre_len) in
+  let () = _log_compile (fun () -> Pp.printf "@{<bold>e:@}\n%s\n" (layout_term e.x)) in
   let mkFixApp b1 e = mk_rec b1 rec_branch_2 (mk_rec_app_v v e) in
   let rec aux pre_len term =
     if pre_len == 0 then mkFixApp rec_branch_1 term.x
@@ -292,7 +307,10 @@ let add_kstar_drop pre_len e rec_branch_1 rec_branch_2 v =
           let body' = aux (pre_len - 1) body in
           CLetE { lhs; rhs; body = body'#:(term_to_nt body') }
       | _ ->
-          let () = Pp.printf "@{<bold>term:@}\n%s\n" (layout_term term.x) in
+          let () =
+            _log_compile (fun () ->
+                Pp.printf "@{<bold>term:@}\n%s\n" (layout_term term.x))
+          in
           _die [%here]
   in
   aux pre_len e
@@ -309,7 +327,10 @@ let mk_fix_body pre_len e =
           let body' = aux (pre_len - 1) body in
           CLetE { lhs; rhs; body = body'#:(term_to_nt body') }
       | _ ->
-          let () = Pp.printf "@{<bold>term:@}\n%s\n" (layout_term term.x) in
+          let () =
+            _log_compile (fun () ->
+                Pp.printf "@{<bold>term:@}\n%s\n" (layout_term term.x))
+          in
           _die [%here]
   in
   aux pre_len e
@@ -417,10 +438,11 @@ let postpone_assume e =
         } ->
         let fvs = List.map _get_x (fv_term rhs.x) in
         let () =
-          Pp.printf "@{<bold>vars:@}%s\n@{<bold>fvs:@}%s => %s\n"
-            (List.split_by_comma (fun x -> x) vars)
-            (layout_term rhs.x)
-            (List.split_by_comma (fun x -> x) fvs)
+          _log_compile (fun () ->
+              Pp.printf "@{<bold>vars:@}%s\n@{<bold>fvs:@}%s => %s\n"
+                (List.split_by_comma (fun x -> x) vars)
+                (layout_term rhs.x)
+                (List.split_by_comma (fun x -> x) fvs))
         in
         if 0 == List.length (List.interset String.equal fvs vars) then
           let body' = aux (vars, k) body in
@@ -536,43 +558,61 @@ let compile_term env e =
   | SynMidPlan line -> compile_term_from_line env line
   | SynMidKStar { old_goal; pre_len; line_b1; line_b2; line_b2_pre_len; v } ->
       let () = SimpleRename.add_preserved_var (List.map _get_x (fv_value v)) in
-      let () = Pp.printf "@{<bold>compiled term:@}\n" in
+      let () = _log_compile (fun () -> Pp.printf "@{<bold>compiled term:@}\n") in
       let num_assert0, e = compile_term_from_line env old_goal in
-      let () = Pp.printf "@{<bold>rec_branch_2:@}\n" in
+      let () = _log_compile (fun () -> Pp.printf "@{<bold>rec_branch_2:@}\n") in
       let num_assert2, rec_branch_2 = compile_term_from_line env line_b2 in
-      let () = Pp.printf "@{<bold>rec_branch_1:@}\npre_len: %i\n" pre_len in
+      let () =
+        _log_compile (fun () ->
+            Pp.printf "@{<bold>rec_branch_1:@}\npre_len: %i\n" pre_len)
+      in
       let num_assert1, rec_branch_1 = compile_term_from_line env line_b1 in
       let rec_branch_2 =
         mk_fix_body line_b2_pre_len (term_to_tterm rec_branch_2)
       in
-      let () = Pp.printf "@{<bold>v:@}\n%s\n" (layout_value v) in
+      let () =
+        _log_compile (fun () -> Pp.printf "@{<bold>v:@}\n%s\n" (layout_value v))
+      in
       let res =
         add_kstar_drop pre_len e#:(term_to_nt e) rec_branch_1 rec_branch_2 v
       in
-      let () = Pp.printf "@{<bold>result term:@}\n%s\n" (layout_term res) in
+      let () =
+        _log_compile (fun () ->
+            Pp.printf "@{<bold>result term:@}\n%s\n" (layout_term res))
+      in
       let res = drop_ghost_events res in
       let () =
-        Pp.printf "@{<bold>result term after dropping ghost events:@}\n%s\n"
-          (layout_term res)
+        _log_compile (fun () ->
+            Pp.printf
+              "@{<bold>result term after dropping ghost events:@}\n%s\n"
+              (layout_term res))
       in
       let res = remove_unused_assume (term_to_tterm res) in
       let () =
-        Pp.printf "@{<bold>result term after removing unused assume:@}\n%s\n"
-          (layout_term res.x)
+        _log_compile (fun () ->
+            Pp.printf
+              "@{<bold>result term after removing unused assume:@}\n%s\n"
+              (layout_term res.x))
       in
       let res = postpone_assume ([], fun e -> e) res in
       let () =
-        Pp.printf "@{<bold>result term after postponing assume:@}\n%s\n"
-          (layout_term res.x)
+        _log_compile (fun () ->
+            Pp.printf
+              "@{<bold>result term after postponing assume:@}\n%s\n"
+              (layout_term res.x))
       in
       let res = simplfily_assumption res.x in
       let () =
-        Pp.printf "@{<bold>result term after simplifying assumption:@}\n%s\n"
-          (layout_term res)
+        _log_compile (fun () ->
+            Pp.printf
+              "@{<bold>result term after simplifying assumption:@}\n%s\n"
+              (layout_term res))
       in
       let res = merge_assume res in
       let () =
-        Pp.printf "@{<bold>result term after merging assume:@}\n%s\n"
-          (layout_term res)
+        _log_compile (fun () ->
+            Pp.printf
+              "@{<bold>result term after merging assume:@}\n%s\n"
+              (layout_term res))
       in
       (num_assert0 + num_assert1 + num_assert2, res)

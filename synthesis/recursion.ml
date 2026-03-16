@@ -3,8 +3,12 @@ open Language
 (* open Common *)
 open Zdatatype
 
+let _log_recursion f = _log "recursion" f
+
 (* open SFA *)
 open Plan
+
+let _log_recursion f = _log "recursion" f
 
 let rec drop_action = function
   | [] -> []
@@ -80,8 +84,9 @@ let drop_by_name elems name =
 let rec get_core_subtrace (elems : (int * line_elem) list) :
     (int * line_elem) list option =
   let () =
-    Pp.printf "@{<bold>@{<red>get_core_subtrace@} on elems@} %s\n"
-      (omit_layout_line_elems (List.map snd elems))
+    _log_recursion (fun () ->
+        Pp.printf "@{<bold>@{<red>get_core_subtrace@} on elems@} %s\n"
+          (omit_layout_line_elems (List.map snd elems)))
   in
   if valid_subtrace 0 elems then Some elems
   else
@@ -246,12 +251,14 @@ let fill_core_2 new_goal goal =
 
 let select_template init_r goal =
   let () =
-    Pp.printf "@{<bold>@{<red>select_template@} on line@}\n%s\n"
-      (omit_layout_line goal)
+    _log_recursion (fun () ->
+        Pp.printf "@{<bold>@{<red>select_template@} on line@}\n%s\n"
+          (omit_layout_line goal))
   in
   let () =
-    Pp.printf "@{<bold>@{<red>select_template@} on line@}\n%s\n"
-      (layout_line goal)
+    _log_recursion (fun () ->
+        Pp.printf "@{<bold>@{<red>select_template@} on line@}\n%s\n"
+          (layout_line goal))
   in
   let plans = regex_to_lines init_r in
   let plans =
@@ -273,21 +280,23 @@ let select_template init_r goal =
         | None -> None
         | Some elems' ->
             let () =
-              Pp.printf "@{<bold>@{<red>select_core@} on line@}\n%s\n"
-                (layout_line
-                   { gprop = goal.gprop; elems = List.map snd elems' })
+              _log_recursion (fun () ->
+                  Pp.printf "@{<bold>@{<red>select_core@} on line@}\n%s\n"
+                    (layout_line
+                       { gprop = goal.gprop; elems = List.map snd elems' }))
             in
             let prefix, postfix = get_mid goal.elems elems' in
             let prefix, core, postfix =
               (prefix, List.map snd elems', postfix)
             in
             let () =
-              Pp.printf "@{<bold>@{<red>select_prefix@} on line@}\n%s\n"
-                (omit_layout_line { gprop = goal.gprop; elems = prefix });
-              Pp.printf "@{<bold>@{<red>select_core@} on line@}\n%s\n"
-                (omit_layout_line { gprop = goal.gprop; elems = core });
-              Pp.printf "@{<bold>@{<red>select_postfix@} on line@}\n%s\n"
-                (omit_layout_line { gprop = goal.gprop; elems = postfix })
+              _log_recursion (fun () ->
+                  Pp.printf "@{<bold>@{<red>select_prefix@} on line@}\n%s\n"
+                    (omit_layout_line { gprop = goal.gprop; elems = prefix });
+                  Pp.printf "@{<bold>@{<red>select_core@} on line@}\n%s\n"
+                    (omit_layout_line { gprop = goal.gprop; elems = core });
+                  Pp.printf "@{<bold>@{<red>select_postfix@} on line@}\n%s\n"
+                    (omit_layout_line { gprop = goal.gprop; elems = postfix }))
             in
             let goal = { gprop = goal.gprop; elems = prefix @ postfix } in
             Some (goal, core, List.length prefix)
