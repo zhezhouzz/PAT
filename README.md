@@ -165,6 +165,19 @@ DeBruijn1, DeBruijn2, Shopping, Courseware, Twitter, Smallbank
 $ docker compose exec clouseau python3 scripts/run_ocaml_bench.py
 ```
 
+This runs synthesis, then samples synthesized generators (200 per benchmark), then
+runs the random (QCheck) baseline (1800 seconds per benchmark), and finally prints
+Table 1 as LaTeX.
+
+**Common flags:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-n N` | — | Override sample count (e.g. `-n 50` for a quick smoke test) |
+| `-t T` | — | Override time limit in seconds for both `runsyn` and `runrandom` |
+| `-c C` | `1` | Number of synthesis candidates (rarely needs changing) |
+| `-b B1,B2,...` | all | Run a subset of benchmarks by name |
+
 ### 2.2.2 Reproducing Table 2 (P Language Benchmarks)
 
 **Benchmarks:** Database, Firewall, RingLeaderElection, BankServer, Simplified2PC,
@@ -173,6 +186,11 @@ HeartBeat, ChainReplication, Paxos, Raft, AnonReadAtomicity
 ```
 $ docker compose exec clouseau python3 scripts/run_p_bench.py
 ```
+
+This runs synthesis, compiles to P, runs synthesized schedulers (500 per benchmark),
+runs the random and default (manually-written) baselines, and prints Table 2 as LaTeX.
+
+**Common flags:** same as Table 1 above (`-n`, `-t`, `-b`, `-c`).
 
 ---
 
@@ -214,8 +232,12 @@ $ docker compose exec clouseau python3 scripts/run_ocaml_bench.py runsyn
 For each benchmark, this runs:
 
 ```
-$ docker compose exec clouseau ./main.exe sample-syn GOAL_NAME 200
+$ docker compose exec clouseau ./main.exe sample-syn GOAL_NAME COUNT TIME_SEC
 ```
+
+Where `COUNT` is the sample count (default 200) and `TIME_SEC` is the time bound in
+seconds (0 = no limit). Use `-n N` to override the count, `-t T` to override the
+time limit.
 
 **Step 3 — Run random (QCheck) baseline**
 
@@ -226,8 +248,11 @@ $ docker compose exec clouseau python3 scripts/run_ocaml_bench.py runrandom
 For each benchmark, this runs:
 
 ```
-$ docker compose exec clouseau ./main.exe sample-random GOAL_NAME 1800
+$ docker compose exec clouseau ./main.exe sample-random GOAL_NAME COUNT TIME_SEC
 ```
+
+The default time limit for the random baseline is 1800 seconds per benchmark. Use
+`-t T` to override.
 
 **Step 4 — Print Table 1 as LaTeX**
 
@@ -263,7 +288,8 @@ The compiled P file is written to `penv/BENCHNAME/PSyn/SynClient.p`.
 $ docker compose exec clouseau python3 scripts/run_p_bench.py runsyn
 ```
 
-Runs each P benchmark under `penv/BENCHNAME/` using the synthesized scheduler.
+Runs each P benchmark under `penv/BENCHNAME/` using the synthesized scheduler
+(default 500 runs; override with `-n N`).
 
 **Step 3 — Run random P baseline**
 
@@ -272,7 +298,9 @@ $ docker compose exec clouseau python3 scripts/run_p_bench.py runrandom
 ```
 
 Runs each P benchmark under `poriginal/BENCHNAME/` using the original random
-scheduler. Used as the baseline for benchmarks without a manually-written scheduler.
+scheduler. Used as the baseline for benchmarks *without* a manually-written
+scheduler. Default run counts vary by benchmark (e.g. 10 000 for most, 1 000 for
+Raft/AnonReadAtomicity, 50 for Firewall); override with `-n N`.
 
 **Step 4 — Run default (manual) P baseline**
 
@@ -281,10 +309,12 @@ $ docker compose exec clouseau python3 scripts/run_p_bench.py rundefault
 ```
 
 Runs each P benchmark under `poriginal/BENCHNAME/` using the manually-written
-default scheduler (mode `Manual`). Used as the baseline for benchmarks in
-`manual_baseline_benchmarks`: EspressoMachine, BankServer, Simplified2PC, HeartBeat,
-ChainReplication, Paxos, AnonReadAtomicity. Both Step 3 and Step 4 must be run
-before printing Table 2, as each benchmark uses whichever baseline is applicable.
+default scheduler (mode `Manual`). Used as the baseline for:
+EspressoMachine, BankServer, Simplified2PC, HeartBeat, ChainReplication, Paxos,
+AnonReadAtomicity. Default count is 2000; override with `-n N`.
+
+Both Step 3 and Step 4 must be run before printing Table 2, since each benchmark
+uses whichever baseline is applicable.
 
 **Step 5 — Print Table 2 as LaTeX**
 
