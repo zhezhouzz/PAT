@@ -1,23 +1,30 @@
 # Artifact Guide: Trace-Guided Synthesis of Effectful Test Generators
 
 This is the artifact for the PLDI 2026 paper *Trace-Guided Synthesis of Effectful Test
-Generators*. The tool is called **Clouseau** and is implemented in approximately 14K lines
+Generators*. The tool is called **Clouseau** and is implemented in approximately 10K lines
 of OCaml. It automatically synthesizes effectful test generators (schedulers) for
 property-based testing, guided by traces that witness property violations.
 
 The artifact supports reproduction of:
-- **Table 1** — ADT & QCheck benchmarks (14 benchmarks)
-- **Table 2** — P language benchmarks (11 benchmarks)
+- **Table 1** — Using Clouseau to synthesize effectful test generators in OCaml. (16 benchmarks)
+- **Table 2** — P language benchmarks (10 benchmarks)
 
 ---
 
 # 1. Quick Get Started
 
+We recommend machines have at least 8 GB of memory and 8 GB of hard disk space available when building and running Docker images. All benchmarks were tested on a Linux machine having Intel i7-8700 CPU @ 3.20GHz with 64GB of RAM. The estimated execution time in the rest of the document also fits this setting.
+
 ## 1.1 Requirements
 
-- Docker version 20.10.23 or later, Docker Compose v2
-- 8 GB RAM, 8 GB free disk space (recommended)
-- Tested on: Linux, Intel Core i7, 64 GB RAM
+This artifact is built as a Docker image. Before proceeding, ensure
+Docker is installed. (On *nix, `sudo docker run hello-world` will test
+your installation.) If Docker is not installed, install it via the
+[official installation guide](https://docs.docker.com/get-docker/). This guide was tested using Docker version `27.5.1`, but any contemporary Docker version is expected to work.
+
+The MonkeyDB benchmarks use a three-node MariaDB cluster organized via [Galera](https://galeracluster.com/). Before starting the environment, pull the MariaDB Galera image: `docker pull bitnamilegacy/mariadb-galera:latest`. The original `bitnami/mariadb-galera` image is no longer maintained by Bitnami; we use the legacy image `bitnamilegacy/mariadb-galera` instead.
+
+Docker Compose is required for running the MariaDB cluster. If you installed Docker Desktop (Windows, macOS), Docker Compose is included by default. On Linux, install it via your package manager (e.g., `apt install docker-compose-plugin` on Debian/Ubuntu) or follow the [official Compose installation guide](https://docs.docker.com/compose/install/). Verify with `docker compose version`.
 
 ## 1.2 Pull or Build the Docker Image
 
@@ -39,8 +46,9 @@ $ docker load < clouseau2026-clouseau-pldi-2026.tar.gz
 $ docker build . --tag clouseau2026/clouseau:pldi-2026
 ```
 
-> **Note:** Building requires compiling Z3 from source, which may need up to 32 GB of
-> RAM. If the build fails due to memory pressure, use the pre-built image instead.
+> **Note:** Although our tool doesn't have large memory usage, building the docker image needs more than `32GB` RAM available. This memory usage requirement comes from the installation of the SMT solver `z3` (https://github.com/Z3Prover/z3). When the RAM limit of Docker (by default, it is `8GB` on Mac, no limit on Linux machine) is lower than `32GB`, the installation of `z3` will be killed and the `docker build` will fail.
+> The memory error can be fixed by increasing the RAM limit in Docker; you can find instructions for doing so on Mac here: (https://docs.docker.com/desktop/settings/mac/#resources), for Windows here: (https://docs.docker.com/desktop/settings/windows/#resources), and for Linux here: (https://docs.docker.com/desktop/settings/linux/#resources). The pre-built docker image is built on a Linux machine having Intel i7-8700 CPU @ 3.20GHz with `64GB` of RAM, it took `30` min to build.
+
 
 ## 1.3 Start the Environment
 
@@ -49,7 +57,7 @@ cluster and the Clouseau container — and initializes the database in one step.
 from the repository root:
 
 ```
-$ bash scripts/start.sh
+$ bash scripts/start_cluster.sh
 ```
 
 The script performs the following steps automatically:
@@ -110,32 +118,54 @@ The `-v` flag removes the Galera data volumes for a clean restart.
 
 ## 1.4 Pretty Printing
 
-To display a synthesized generator in human-readable form:
+As another way to verify the tool operating successfull, the following command pretty prints the content of given files, which may contains the definition of pure and effectful operators, axioms, refinement types and global properties (the syntax of our input file can be found in [§3.2 Input File Formats](#32-input-file-formats)).:
 
 ```
-$ docker compose exec clouseau ./main.exe show-term output/GOAL_NAME.scm
+$ docker compose exec clouseau ./main.exe show-spec benchmarks/OCamlBench/stack_spec.ml
 ```
 
-Example — after synthesizing the `stack` benchmark (see §2.3.1):
+The command will print the following specifications:
 
 ```
-$ docker compose exec clouseau ./main.exe show-term output/stack.scm
+val ==: 'a . 'a -> 'a -> bool
+gen pushReq: _record
+gen initStackReq: _record
+gen popReq: _record
+obs popResp: _record
+gen isEmptyReq: _record
+obs isEmptyResp: _record
+rty pushReq:
+  (x:int) → [.*][⟨pushReq | elem == x⟩][.*•⟨popReq⟩•.*]
+rty initStackReq:
+  [.*][⟨initStackReq⟩][.*]
+rty popReq:
+  [.*][⟨popReq⟩][⟨popResp⟩•.*]
+rty popResp:
+  [.*][⟨popResp⟩][(.\⟨pushReq⟩)*]
+rty isEmptyReq:
+  [.*][⟨isEmptyReq⟩][⟨isEmptyResp⟩•.*]
+rty isEmptyResp:
+  (z:bool) → [.*][⟨isEmptyResp | isEmpty == z⟩][.*]
+goal:
+  stack: ∃(y: int)..*•⟨pushReq | elem == y⟩•(.\⟨popResp | elem == y⟩)*•⟨isEmptyResp | isEmpty == true⟩
 ```
-
-This prints the synthesized Clouseau DSL program in a formatted, readable layout.
 
 ---
 
 # 2. Step-by-Step Instructions
 
+In this section, we provide the instructions to evaluate our artifact.
+
 ## 2.1 Artifact Structure
+
+This sub-section gives a brief overview of the files in this artifact.
 
 | Path | Description |
 |------|-------------|
 | `bin/main.ml` | Entry point |
 | `synthesis/` | Core synthesis engine |
 | `interpreter/` | Trace interpreter / runtime |
-| `benchmarks/OCamlBench/` | ADT specs for Table 1 |
+| `benchmarks/OCamlBench/` | Ocaml related specs for Table 1 |
 | `benchmarks/MonkeyDB/` | MonkeyDB (database) specs for Table 1 |
 | `benchmarks/BackendMariaDB/` | MariaDB backend implementation |
 | `benchmarks/PBench/` | P language specs for Table 2 |
@@ -151,12 +181,11 @@ This prints the synthesized Clouseau DSL program in a formatted, readable layout
 
 ---
 
-## 2.2 Comprehensive Scripts
+## 2.2 Running Benchmarks of Clouseau
 
-Running the scripts without arguments executes all steps in order and prints the
-final table. This is the easiest way to reproduce the paper results.
+In this section, we discuss the scripts that display the tables in the evaluation section of the paper.
 
-### 2.2.1 Reproducing Table 1 (ADT & QCheck Benchmarks)
+### 2.2.1 Comprehensive Scripts to Reproducing Table 1 (QCheck and MonkeyDB Benchmarks)
 
 **Benchmarks:** Stack, HashTable, Filesystem, Graph, NFA, IFCStore, IFCAdd, IFCLoad,
 DeBruijn1, DeBruijn2, Shopping, Courseware, Twitter, Smallbank
@@ -165,20 +194,18 @@ DeBruijn1, DeBruijn2, Shopping, Courseware, Twitter, Smallbank
 $ docker compose exec clouseau python3 scripts/run_ocaml_bench.py
 ```
 
-This runs synthesis, then samples synthesized generators (200 per benchmark), then
-runs the random (QCheck) baseline (1800 seconds per benchmark), and finally prints
+This runs synthesis, then samples synthesized generators, then
+runs the random (QCheck) baseline, and finally prints
 Table 1 as LaTeX.
 
 **Common flags:**
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `-n N` | — | Override sample count (e.g. `-n 50` for a quick smoke test) |
-| `-t T` | — | Override time limit in seconds for both `runsyn` and `runrandom` |
-| `-c C` | `1` | Number of synthesis candidates (rarely needs changing) |
+| `-t T` | — | Override time limit in seconds for both `runsyn` and `runrandom`, default is `1800` seconds |
 | `-b B1,B2,...` | all | Run a subset of benchmarks by name |
 
-### 2.2.2 Reproducing Table 2 (P Language Benchmarks)
+### 2.2.2 Comprehensive Scripts to Reproducing Table 2 (P Language Benchmarks)
 
 **Benchmarks:** Database, Firewall, RingLeaderElection, BankServer, Simplified2PC,
 HeartBeat, ChainReplication, Paxos, Raft, AnonReadAtomicity
@@ -187,10 +214,10 @@ HeartBeat, ChainReplication, Paxos, Raft, AnonReadAtomicity
 $ docker compose exec clouseau python3 scripts/run_p_bench.py
 ```
 
-This runs synthesis, compiles to P, runs synthesized schedulers (500 per benchmark),
-runs the random and default (manually-written) baselines, and prints Table 2 as LaTeX.
+This runs synthesis, compiles to P, runs synthesized schedulers,
+runs the random and manually-written baselines, and prints Table 2 as LaTeX.
 
-**Common flags:** same as Table 1 above (`-n`, `-t`, `-b`, `-c`).
+**Common flags:** same as Table 1 above (`-t`, `-b`).
 
 ---
 
@@ -214,7 +241,7 @@ $ docker compose exec clouseau python3 scripts/run_ocaml_bench.py syn
 For each benchmark, this runs:
 
 ```
-$ docker compose exec clouseau ./main.exe do-syn GOAL_NAME benchmarks/OCamlBench/SPEC_FILE 1
+$ docker compose exec clouseau ./main.exe do-syn GOAL_NAME SPEC_FILE NUM_CANDIDATE
 ```
 
 Output is written to `output/GOAL_NAME.scm`. Example for a single benchmark:
@@ -223,7 +250,7 @@ Output is written to `output/GOAL_NAME.scm`. Example for a single benchmark:
 $ docker compose exec clouseau ./main.exe do-syn stack benchmarks/OCamlBench/stack_spec.ml 1
 ```
 
-**Step 2 — Run synthesized generators (200 runs each)**
+**Step 2 — Run synthesized generators**
 
 ```
 $ docker compose exec clouseau python3 scripts/run_ocaml_bench.py runsyn
@@ -235,7 +262,7 @@ For each benchmark, this runs:
 $ docker compose exec clouseau ./main.exe sample-syn GOAL_NAME COUNT TIME_SEC
 ```
 
-Where `COUNT` is the sample count (default 200) and `TIME_SEC` is the time bound in
+Where `COUNT` is the sample count (0 = no limit) and `TIME_SEC` is the time bound in
 seconds (0 = no limit). Use `-n N` to override the count, `-t T` to override the
 time limit.
 
@@ -271,25 +298,24 @@ $ docker compose exec clouseau python3 scripts/run_p_bench.py syn
 For each benchmark, this first synthesizes:
 
 ```
-$ docker compose exec clouseau ./main.exe do-syn p_BENCHNAME benchmarks/PBench/p_BENCHNAME_spec.ml 1
+$ docker compose exec clouseau ./main.exe do-syn GOAL_NAME SPEC_FILE NUM_CANDIDATE
 ```
 
 Then compiles the result to a P scheduler:
 
 ```
-$ docker compose exec clouseau ./main.exe compile-to-p p_BENCHNAME BENCHNAME
+$ docker compose exec clouseau ./main.exe compile-to-p GOAL_NAME BENCHNAME
 ```
 
 The compiled P file is written to `penv/BENCHNAME/PSyn/SynClient.p`.
 
-**Step 2 — Run synthesized schedulers (500 runs each)**
+**Step 2 — Run synthesized schedulers**
 
 ```
 $ docker compose exec clouseau python3 scripts/run_p_bench.py runsyn
 ```
 
-Runs each P benchmark under `penv/BENCHNAME/` using the synthesized scheduler
-(default 500 runs; override with `-n N`).
+Runs each P benchmark under `penv/BENCHNAME/` using the synthesized scheduler.
 
 **Step 3 — Run random P baseline**
 
@@ -299,10 +325,9 @@ $ docker compose exec clouseau python3 scripts/run_p_bench.py runrandom
 
 Runs each P benchmark under `poriginal/BENCHNAME/` using the original random
 scheduler. Used as the baseline for benchmarks *without* a manually-written
-scheduler. Default run counts vary by benchmark (e.g. 10 000 for most, 1 000 for
-Raft/AnonReadAtomicity, 50 for Firewall); override with `-n N`.
+scheduler. 
 
-**Step 4 — Run default (manual) P baseline**
+**Step 4 — Run manual P baseline**
 
 ```
 $ docker compose exec clouseau python3 scripts/run_p_bench.py rundefault
@@ -311,7 +336,7 @@ $ docker compose exec clouseau python3 scripts/run_p_bench.py rundefault
 Runs each P benchmark under `poriginal/BENCHNAME/` using the manually-written
 default scheduler (mode `Manual`). Used as the baseline for:
 EspressoMachine, BankServer, Simplified2PC, HeartBeat, ChainReplication, Paxos,
-AnonReadAtomicity. Default count is 2000; override with `-n N`.
+AnonReadAtomicity.
 
 Both Step 3 and Step 4 must be run before printing Table 2, since each benchmark
 uses whichever baseline is applicable.
@@ -324,7 +349,24 @@ $ docker compose exec clouseau python3 scripts/run_p_bench.py table2
 
 ---
 
-## 2.4 Input File Formats
+# 3. Configuration of Clouseau
+
+All commands of **Clouseau** take a universal configuration file (`meta-config.json`) in JSON format. The main fields are:
+
+- **`max_printing_size`** — maximum size for printed output (default: 300).
+- **`log_tags`** — list of enabled log tags. Uncomment a tag to show its debug output. Examples:
+  - `eval`, `eval_io` — interpreter evaluation traces
+  - `ntypecheck` — type checking
+  - `synthesis`, `refine`, `compile`, `simp`, `recursion` — synthesis pipeline
+  - `qc`, `DB`, `pbackend` — benchmark-related output
+  - `result` — synthesis/check results
+- **`bool_options`** — toggles for detailed output:
+  - `show_type_infer_*_judgement` — typing judgements
+  - `show_var_type_in_prop/lit/term` — variable types in formulas
+  - `pause_during_synthesis`, `add_kstar_during_synthesis` — synthesis behavior
+- **`prover_timeout_bound`** — SMT/Z3 timeout in seconds.
+
+## 3.1 Input File Formats
 
 Each benchmark is specified in a single `.ml` file using Clouseau's OCaml-embedded DSL
 (files are conventionally named `*_spec.ml`). The DSL reuses the OCaml parser and maps
@@ -335,7 +377,7 @@ OCaml constructs to internal Clouseau AST nodes. A spec file has five sections:
 3. **Refinement Types & uHAT Specifications** — behavioral specs for each operation
 4. **Global Property (Goal)** — the bad trace the synthesizer targets
 
-### 2.4.1 Pure Operators and Axioms
+### 3.1.1 Pure Operators and Axioms
 
 Pure operators are uninterpreted functions used in payload qualifiers. Declare them
 with a `val` binding:
@@ -361,7 +403,7 @@ The desugared form uses `[@forall]`:
 let[@axiom] name = fun ((x : int) [@forall]) -> PROP
 ```
 
-### 2.4.2 Propositions (Qualifiers)
+### 3.1.2 Propositions (Qualifiers)
 
 Payload qualifiers `φ` are Boolean expressions used to constrain event fields and
 refinement types:
@@ -378,7 +420,7 @@ PROP ::=
 
 Examples: `x > 0`, `isFile b || isDir b`, `implies (x > 0) (y > 0)`
 
-### 2.4.3 Effectful Operations (Events)
+### 3.1.3 Effectful Operations (Events)
 
 Declare the effectful API of the system under test. Each operation is annotated with
 its role:
@@ -399,7 +441,7 @@ val popResp     : < elem : int >      [@@obs]
 val isEmptyResp : < isEmpty : bool >  [@@obs]
 ```
 
-### 2.4.4 Refinement Types
+### 3.1.4 Refinement Types
 
 Refinement types constrain the values of arguments in uHAT specifications.
 
@@ -445,7 +487,7 @@ let createReq =
   |]
 ```
 
-### 2.4.5 Symbolic Regex (SRE) Syntax
+### 3.1.5 Symbolic Regex (SRE) Syntax
 
 History `H` and future `F` components of a uHAT are **Symbolic Regular Expressions**
 over events:
@@ -475,7 +517,7 @@ PopReq true           (* any PopReq event *)
 WriteRsp (va == x && st)
 ```
 
-### 2.4.6 uHAT Specifications
+### 3.1.6 uHAT Specifications
 
 Each declared operation is given a uHAT of the form `(H, Op φ, F)` where `H` is the
 history SRE, `Op φ` is the current event, and `F` is the future SRE:
@@ -516,7 +558,7 @@ let readReq =
   |]
 ```
 
-### 2.4.7 Goal Declaration
+### 3.1.7 Goal Declaration
 
 The synthesis goal is an SRE annotated with `[@goal]` that describes the *bad trace*
 (the property violation to expose). Goals take typed ghost parameters that are
@@ -540,7 +582,7 @@ let[@goal] stack (y : int) =
   IsEmptyResp (isEmpty == true)
 ```
 
-### 2.4.8 P Language Spec Files
+### 3.1.8 P Language Spec Files
 
 P benchmark specs follow the same structure but use `[@@obsRecv]` for asynchronous
 responses. The future SRE in each uHAT case is written as an array `[| F1; F2; ... |]`
@@ -569,7 +611,7 @@ let[@goal] p_database (x : int) (y : int) =
   allA
 ```
 
-### 2.4.9 Syntax Summary
+### 3.1.9 Syntax Summary
 
 | Concept | OCaml Syntax | Notes |
 |---------|--------------|-------|
@@ -585,7 +627,7 @@ let[@goal] p_database (x : int) (y : int) =
 | uHAT | `let name args = (H, Op φ, F)` | Core spec triple |
 | Goal | `let[@goal] name (args) = regex` | Bad trace to synthesize toward |
 
-### 2.4.10 Output Files
+### 3.1.10 Output Files
 
 Synthesized generators are serialized as S-expressions and written to
 `output/GOAL_NAME.scm`. These files are consumed by `sample-syn`, `compile-to-p`, and

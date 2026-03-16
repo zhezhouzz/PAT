@@ -7,9 +7,13 @@ open Zdatatype
 let parse = Oparse.parse_imp_from_file
 
 let read_ocaml_file source_file () =
-  let () = Myconfig._log "cre" (fun () -> Pp.printf "@{<yellow>cre.ml:@}  10\n") in
+  let () =
+    Myconfig._log "cre" (fun () -> Pp.printf "@{<yellow>cre.ml:@}  10\n")
+  in
   let code = Oparse.parse_imp_from_file ~sourcefile:source_file in
-  let () = Myconfig._log "cre" (fun () -> Pp.printf "@{<yellow>cre.ml:@}  12\n") in
+  let () =
+    Myconfig._log "cre" (fun () -> Pp.printf "@{<yellow>cre.ml:@}  12\n")
+  in
   let code = ocaml_structure_to_items code in
   code
 
@@ -98,7 +102,10 @@ let read_syn source_file () =
   let code = read_source_file source_file () in
   (* let () = Printf.printf "%s\n" (layout_structure code) in *)
   let env = Ntypecheck.(struct_check init_env code) in
-  let () = Myconfig._log "ntypecheck" (fun () -> Printf.printf "%s\n" (layout_syn_env env)) in
+  let () =
+    Myconfig._log "ntypecheck" (fun () ->
+        Printf.printf "%s\n" (layout_syn_env env))
+  in
   let () = Stat.init_algo_complexity () in
   (* let () = test_prop "timeout" () in *)
   let term = Synthesis.synthesize env in
@@ -159,11 +166,19 @@ let do_parse ?(num_expected = 1) name source_file () =
   (* let () = Synthesis.save_progs name progs in *)
   ()
 
+let show_spec source_file () =
+  let code = read_source_file source_file () in
+  let () = Printf.printf "%s\n" (layout_structure code) in
+  ()
+
 let syn_term source_file output_file () =
   let code = read_source_file source_file () in
   (* let () = Printf.printf "%s\n" (layout_structure code) in *)
   let env = Ntypecheck.(struct_check init_env code) in
-  let () = Myconfig._log "ntypecheck" (fun () -> Printf.printf "%s\n" (layout_syn_env env)) in
+  let () =
+    Myconfig._log "ntypecheck" (fun () ->
+        Printf.printf "%s\n" (layout_syn_env env))
+  in
   let () = Stat.init_algo_complexity () in
   let start_time = Sys.time () in
   let term = Synthesis.synthesize env in
@@ -187,7 +202,10 @@ let syn_benchmark task_name benchname () =
   let code = read_source_file source_file () in
   (* let () = Printf.printf "%s\n" (layout_structure code) in *)
   let env = Ntypecheck.(struct_check init_env code) in
-  let () = Myconfig._log "ntypecheck" (fun () -> Printf.printf "%s\n" (layout_syn_env env)) in
+  let () =
+    Myconfig._log "ntypecheck" (fun () ->
+        Printf.printf "%s\n" (layout_syn_env env))
+  in
   let () = Stat.init_algo_complexity () in
   let start_time = Sys.time () in
   let term = Synthesis.synthesize env in
@@ -221,7 +239,10 @@ let syn_benchmark task_name benchname () =
 let load_syn_result source_file output_file =
   let code = read_source_file source_file () in
   let env = Ntypecheck.(struct_check init_env code) in
-  let () = Myconfig._log "ntypecheck" (fun () -> Printf.printf "%s\n" (layout_syn_env env)) in
+  let () =
+    Myconfig._log "ntypecheck" (fun () ->
+        Printf.printf "%s\n" (layout_syn_env env))
+  in
   let ic = In_channel.open_text output_file in
   let sexp = Sexplib.Sexp.load_sexp output_file in
   let term = term_of_sexp sexp in
@@ -775,7 +796,9 @@ let default_random_test_config =
 
 let test_random mode s number_bound time_bound () =
   let () = BackendMariaDB.MyMariaDB.set_single_connection_mode false in
-  let () = Interpreter.set_db_reset_fn BackendMariaDB.MyMariaDB.reset_connections in
+  let () =
+    Interpreter.set_db_reset_fn BackendMariaDB.MyMariaDB.reset_connections
+  in
   let eval f =
     match mode with
     | "detect" ->
@@ -866,6 +889,7 @@ let cmds =
     (* ("compile-to-p", four_param_string "compile to p language" compile_to_p); *)
     ("compile-to-p", string_and_string "compile to p language" compile_to_p);
     ("show-term", one_param "show term" show_term);
+    ("show-spec", one_param "show spec" show_spec);
     ("test-db", one_param_string "run shopping" BackendMariaDB.test_shopping);
     ( "test-non-repeatable-read",
       one_param_string "run non repeatable read"

@@ -67,15 +67,26 @@ let is_db_transient_error msg =
 
 let string_contains_1020 = is_db_transient_error
 
-(* Error 2034: prepared-statement parameter mismatch from concurrent threads
-   sharing one connection. Error 2006: server gone away. Error 2013: lost
-   connection. Error 1213: deadlock. These corrupt the connection state;
-   we reset and skip the exploration (treat as "no bug found"). *)
-let is_db_runtime_error msg =
-  string_contains "(2034)" msg
-  || string_contains "(2006)" msg
-  || string_contains "(2013)" msg
-  || string_contains "(1213)" msg
+(* Any MySQL/MariaDB error code in parentheses (####) corrupts connection state;
+   we reset and skip the exploration (treat as "no bug found"). Examples:
+   2034, 2006, 2013, 1213, etc. *)
+let contains_four_digit_error_code s =
+  let n = String.length s in
+  let is_digit c = c >= '0' && c <= '9' in
+  let rec go i =
+    if i + 6 <= n then
+      s.[i] = '('
+      && is_digit s.[i + 1]
+      && is_digit s.[i + 2]
+      && is_digit s.[i + 3]
+      && is_digit s.[i + 4]
+      && s.[i + 5] = ')'
+      || go (i + 1)
+    else false
+  in
+  go 0
+
+let is_db_runtime_error msg = contains_four_digit_error_code msg
 
 (* Callback set by the backend (e.g. cre.ml) to reset DB connections when
    a runtime error corrupts connection state inside eval_sample. *)
@@ -103,7 +114,10 @@ let eval_sample ~number_bound ~time_bound test =
           Pp.printf "@{<red>Error:@} %s\n" "isolation violation";
           aux successed (used + 1)
       | NoBugDetected _ ->
-          let () = _log "eval_error" (fun () -> Pp.printf "@{<red>Error:@} %s\n" "no bug detected") in
+          let () =
+            _log "eval_error" (fun () ->
+                Pp.printf "@{<red>Error:@} %s\n" "no bug detected")
+          in
           aux successed (used + 1)
       | Failure msg when string_contains_1020 msg ->
           (* Transient DB connection error (Galera 1020 or client 2000);
@@ -113,15 +127,20 @@ let eval_sample ~number_bound ~time_bound test =
           (* MariaDB runtime error (e.g. 2034 prepared-statement mismatch,
              1213 deadlock). Reset connections to discard open transactions,
              then treat this exploration as "no bug found" and continue. *)
-          let () = _log "eval_error" (fun () ->
-            Pp.printf "@{<red>DB runtime error (skipped):@} %s\n" msg) in
+          let () =
+            _log "eval_error" (fun () ->
+                Pp.printf "@{<red>DB runtime error (skipped):@} %s\n" msg)
+          in
           (try !db_reset_fn () with _ -> ());
           aux successed (used + 1)
       | DBKeyNotFound msg ->
           (* Key not found in DB — transient state issue, not a consistency
              violation. Reset and treat as "no bug found". *)
-          let () = _log "eval_error" (fun () ->
-            Pp.printf "@{<red>DB runtime error (skipped):@} DBKeyNotFound: %s\n" msg) in
+          let () =
+            _log "eval_error" (fun () ->
+                Pp.printf
+                  "@{<red>DB runtime error (skipped):@} DBKeyNotFound: %s\n" msg)
+          in
           (try !db_reset_fn () with _ -> ());
           aux successed (used + 1)
       | e -> raise e
@@ -155,7 +174,10 @@ let eval_until_detect_bug converge_bound test =
           Pp.printf "@{<red>Error:@} %s\n" "isolation violation";
           aux i
       | NoBugDetected _ ->
-          let () = _log "eval_error" (fun () -> Pp.printf "@{<red>Error:@} %s\n" "no bug detected") in
+          let () =
+            _log "eval_error" (fun () ->
+                Pp.printf "@{<red>Error:@} %s\n" "no bug detected")
+          in
           aux i
       | Failure msg when string_contains_1020 msg -> aux i
       | e -> raise e
@@ -196,7 +218,10 @@ let eval_by_time time_bound test =
           Pp.printf "@{<red>Error:@} %s\n" "isolation violation";
           aux num_sampled num_bug_detected
       | NoBugDetected _ ->
-          let () = _log "eval_error" (fun () -> Pp.printf "@{<red>Error:@} %s\n" "no bug detected") in
+          let () =
+            _log "eval_error" (fun () ->
+                Pp.printf "@{<red>Error:@} %s\n" "no bug detected")
+          in
           aux num_sampled num_bug_detected
       | Failure msg when string_contains_1020 msg ->
           aux num_sampled num_bug_detected
