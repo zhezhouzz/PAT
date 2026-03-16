@@ -163,8 +163,6 @@ def manual_label(name):
         return "^{\\dagger}"
     elif name in monkeydb:
         return "^{\\dagger}"
-    elif name in oltpbench:
-        return "^{\\dagger}"
     else:
         return ""
 
