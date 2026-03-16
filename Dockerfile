@@ -70,6 +70,9 @@ RUN mkdir -p stat output && \
     dune build --profile release && \
     cp _build/default/bin/main.exe main.exe
 
+# Run as root by default
+USER root
+
 # Source opam environment on every shell invocation
 ENTRYPOINT ["/bin/bash", "-c", "eval $(opam env) && exec \"$@\"", "--"]
 CMD ["bash"]
