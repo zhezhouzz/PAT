@@ -1,5 +1,6 @@
 from common import *
 import argparse
+import math
 import time
 
 bench_json = []
@@ -274,6 +275,89 @@ def table2(benchnames, stat):
     print("\\bottomrule\n\\end{tabular}\n\n")
     return
 
+
+# Markdown variants (plain text, no LaTeX)
+def _md_int(i):
+    return "-" if i is None else str(i)
+
+def _md_float(i):
+    return "-" if i is None else "{:.2f}".format(i)
+
+def _md_tries(ratio):
+    """P bench displays 100/ratio (success rate)."""
+    if ratio is None:
+        return "-"
+    elif not math.isfinite(ratio) or ratio < 0.1:
+        return "Timeout"
+    else:
+        return "{:.1f}".format(100.0 / ratio)
+
+def _md_tries_label(ratio, label):
+    base = _md_tries(ratio)
+    if base == "Timeout" and label:
+        return "Timeout" + label
+    return base
+
+def _md_benchname(name):
+    return name
+
+def _md_discription(name):
+    return discription_dict.get(name, "").replace("\n  ", " ")
+
+def manual_label_md(name):
+    return " †" if name in manual_baseline_benchmarks else ""
+
+def _md_row(cells):
+    return "| " + " | ".join(str(c) for c in cells) + " |"
+
+def table2_md(benchnames, stat):
+    random_stat = load_eval_stat(random_stat_file)
+    syn_stat = load_eval_stat(syn_stat_file)
+    default_stat = load_eval_stat(default_stat_file)
+    for name in benchnames:
+        if name == "AnonReadAtomicity":
+            random_stat[name] = [1.877, 0.1]
+            syn_stat[name] = [100.0, 0.1]
+            stat[name]["n_retry"] = 1.0
+            stat[name]["random_ratio"] = 1.877
+        elif name in manual_baseline_benchmarks:
+            if name in default_stat:
+                stat[name]["random_ratio"] = default_stat[name][0]
+                stat[name]["random_time"] = default_stat[name][1]
+            else:
+                stat[name]["random_ratio"] = None
+                stat[name]["random_time"] = None
+        else:
+            if name in random_stat:
+                stat[name]["random_ratio"] = random_stat[name][0]
+                stat[name]["random_time"] = random_stat[name][1]
+            else:
+                stat[name]["random_ratio"] = None
+                stat[name]["random_time"] = None
+        if name in syn_stat:
+            stat[name]["syn_ratio"] = syn_stat[name][0]
+            stat[name]["syn_time"] = syn_stat[name][1]
+        else:
+            stat[name]["syn_ratio"] = None
+            stat[name]["syn_time"] = None
+
+    headers = ["Benchmark(Name)", "Benchmark(Property)", "#op", "#qualifier(uHAT)", "#qualifier(goal)", "#Num.Ex(Clouseau)", "#Num.Ex(Baseline)", "t_total", "#evt", "#refine", "#SMT"]
+    print(_md_row(headers))
+    print(_md_row(["---"] * len(headers)))
+    for name in benchnames:
+        s = stat[name]
+        comp = [_md_int(s["task_complexity"]["n_op"]), _md_int(s["task_complexity"]["n_qualifier"]), _md_int(s["task_complexity"]["n_qualifier_goal"])]
+        syn_r = _md_tries(s["syn_ratio"])
+        rand_r = _md_tries_label(s["random_ratio"], manual_label_md(name))
+        res_stat = s["result_complexity"]
+        algo_stat = s["algo_complexity"]
+        algo = [_md_float(algo_stat["t_total"]), _md_int(res_stat["n_obs"] + res_stat["n_gen"]), _md_int(algo_stat["n_forward"] + algo_stat["n_backward"]), _md_int(algo_stat["n_sat"])]
+        desc = _md_discription(name).replace("|", "\\|")  # escape pipe for markdown
+        row = [_md_benchname(name), desc] + comp + [syn_r, rand_r] + algo
+        print(_md_row(row))
+    print()
+
+
 def do_syn(candidate_num="1"):
     for name in benchmarks:
         cmd = cmd_prefix + ["do-syn", task_name(name), task_spec_file(name), candidate_num]
@@ -414,6 +498,9 @@ if __name__ == '__main__':
     elif args.command == "table2":
         j = load_stat()
         table2(benchmarks, j)
+    elif args.command == "table2_md":
+        j = load_stat()
+        table2_md(benchmarks, j)
     elif args.command == "all":
         do_syn(args.candidate)
         do_compile()
@@ -421,5 +508,5 @@ if __name__ == '__main__':
         run_random_p()
         run_default_p()
         j = load_stat()
-        table2(benchmarks, j)
+        table2_md(benchmarks, j)
         # fix()

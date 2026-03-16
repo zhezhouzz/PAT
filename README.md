@@ -284,7 +284,7 @@ The default time limit for the random baseline is 1800 seconds per benchmark. Us
 **Step 4 — Print Table 1 as LaTeX**
 
 ```
-$ docker compose exec clouseau python3 scripts/run_ocaml_bench.py table1
+$ docker compose exec clouseau python3 scripts/run_ocaml_bench.py table1_md
 ```
 
 ### 2.3.2 Table 2 Step-by-Step
@@ -344,7 +344,7 @@ uses whichever baseline is applicable.
 **Step 5 — Print Table 2 as LaTeX**
 
 ```
-$ docker compose exec clouseau python3 scripts/run_p_bench.py table2
+$ docker compose exec clouseau python3 scripts/run_p_bench.py table2_md
 ```
 
 ---

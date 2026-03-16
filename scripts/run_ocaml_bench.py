@@ -470,6 +470,5 @@ if __name__ == '__main__':
         do_syn(args.candidate)
         run_syn()
         run_random()
-        # run_default()
         j = load_stat()
-        table1(benchmarks, j)
+        table1_md(benchmarks, j)
