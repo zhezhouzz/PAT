@@ -43,7 +43,7 @@ $ docker load < clouseau2026-clouseau-pldi-2026.tar.gz
 **Option B — Build locally (optional):**
 
 ```
-$ docker build . --tag clouseau2026/clouseau:pldi-2026
+$ docker build --build-arg CACHE_BUST=$(date +%s) -t clouseau2026/clouseau:pldi-2026 .
 ```
 
 > **Note:** Although our tool doesn't have large memory usage, building the docker image needs more than `32GB` RAM available. This memory usage requirement comes from the installation of the SMT solver `z3` (https://github.com/Z3Prover/z3). When the RAM limit of Docker (by default, it is `8GB` on Mac, no limit on Linux machine) is lower than `32GB`, the installation of `z3` will be killed and the `docker build` will fail.
