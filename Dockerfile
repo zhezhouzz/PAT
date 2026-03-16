@@ -54,7 +54,9 @@ RUN curl -fsSL https://dot.net/v1/dotnet-install.sh \
 ENV PATH="/usr/local/dotnet:${PATH}"
 ENV DOTNET_ROOT="/usr/local/dotnet"
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
-RUN dotnet tool install --tool-path /usr/local/bin P
+RUN dotnet tool install --tool-path /usr/local/bin P && \
+    mkdir -p /home/opam/.nuget/NuGet && \
+    chown -R opam:opam /home/opam/.nuget
 
 # Clone Clouseau (artifact branch) and build
 # Pass --build-arg CACHE_BUST=$(date +%s) to force re-clone
