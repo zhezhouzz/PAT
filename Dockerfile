@@ -72,6 +72,9 @@ RUN mkdir -p stat output && \
 
 # Run as root by default
 USER root
+RUN apt-get update && apt-get install -y vim && rm -rf /var/lib/apt/lists/*
+ENV OPAMROOT=/home/opam/.opam
+ENV PATH="/home/opam/.opam/5.2/bin:${PATH}"
 
 # Source opam environment on every shell invocation
 ENTRYPOINT ["/bin/bash", "-c", "eval $(opam env) && exec \"$@\"", "--"]
