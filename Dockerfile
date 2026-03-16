@@ -14,18 +14,6 @@ RUN apt-get update && apt-get install -y \
     ca-certificates gnupg openssh-client \
   && rm -rf /var/lib/apt/lists/*
 
-# Install .NET SDK 8.0 (required by the P language toolchain)
-RUN curl -fsSL https://dot.net/v1/dotnet-install.sh \
-    | bash -s -- --channel 8.0 --install-dir /usr/local/dotnet
-ENV PATH="/usr/local/dotnet:${PATH}"
-ENV DOTNET_ROOT="/usr/local/dotnet"
-ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
-
-# Install the P language tool
-RUN dotnet tool install --global P && \
-    ln -s /root/.dotnet/tools/p /usr/local/bin/p
-ENV PATH="/root/.dotnet/tools:${PATH}"
-
 # Switch to opam user for all OCaml/opam operations
 USER opam
 WORKDIR /home/opam
@@ -59,10 +47,18 @@ RUN git clone https://github.com/OCamlRefinementType/zutils.git /tmp/zutils && \
 RUN git clone --branch v2.1 https://github.com/OCamlRefinementType/AutomataLibrary.git /tmp/AutomataLibrary && \
     opam install /tmp/AutomataLibrary -y
 
+# Install .NET SDK 8.0 and P language tool (after z3 to preserve cache)
+USER root
+RUN curl -fsSL https://dot.net/v1/dotnet-install.sh \
+    | bash -s -- --channel 8.0 --install-dir /usr/local/dotnet
+ENV PATH="/usr/local/dotnet:${PATH}"
+ENV DOTNET_ROOT="/usr/local/dotnet"
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+RUN dotnet tool install --tool-path /usr/local/bin P
+
 # Clone Clouseau (artifact branch) and build
 # Pass --build-arg CACHE_BUST=$(date +%s) to force re-clone
 ARG CACHE_BUST=1
-USER root
 RUN mkdir -p /home/clouseau && chown opam:opam /home/clouseau
 USER opam
 RUN git clone --branch artifact https://github.com/zhezhouzz/PAT.git /home/clouseau
