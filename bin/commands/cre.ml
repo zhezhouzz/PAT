@@ -774,7 +774,8 @@ let default_random_test_config =
   ]
 
 let test_random mode s number_bound time_bound () =
-  let () = BackendMariaDB.MyMariaDB.set_single_connection_mode true in
+  let () = BackendMariaDB.MyMariaDB.set_single_connection_mode false in
+  let () = Interpreter.set_db_reset_fn BackendMariaDB.MyMariaDB.reset_connections in
   let eval f =
     match mode with
     | "detect" ->

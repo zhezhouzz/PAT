@@ -8,6 +8,7 @@ type async_handler = { has_ret : bool; k : ev -> ev }
 type controller = { tid : int; code : term; store : Store.t }
 
 exception RuntimeInconsistent of string
+exception DBKeyNotFound of string
 
 type _ Effect.t +=
   | Send : msg -> unit Effect.t

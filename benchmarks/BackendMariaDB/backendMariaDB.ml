@@ -2,7 +2,7 @@ open Lwt.Infix
 open Printf
 module S = Mariadb.Nonblocking.Status
 
-exception DBKeyNotFound of string
+exception DBKeyNotFound = Interpreter.DBKeyNotFound
 
 module M = Mariadb.Nonblocking.Make (struct
   module IO = struct

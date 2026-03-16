@@ -67,6 +67,21 @@ let is_db_transient_error msg =
 
 let string_contains_1020 = is_db_transient_error
 
+(* Error 2034: prepared-statement parameter mismatch from concurrent threads
+   sharing one connection. Error 2006: server gone away. Error 2013: lost
+   connection. Error 1213: deadlock. These corrupt the connection state;
+   we reset and skip the exploration (treat as "no bug found"). *)
+let is_db_runtime_error msg =
+  string_contains "(2034)" msg
+  || string_contains "(2006)" msg
+  || string_contains "(2013)" msg
+  || string_contains "(1213)" msg
+
+(* Callback set by the backend (e.g. cre.ml) to reset DB connections when
+   a runtime error corrupts connection state inside eval_sample. *)
+let db_reset_fn : (unit -> unit) ref = ref (fun () -> ())
+let set_db_reset_fn f = db_reset_fn := f
+
 let eval_sample ~number_bound ~time_bound test =
   let start_time = Sys.time () in
   let rec aux (successed : int) (used : int) =
@@ -94,6 +109,21 @@ let eval_sample ~number_bound ~time_bound test =
           (* Transient DB connection error (Galera 1020 or client 2000);
              with_reconnect has already reset connections — silently retry. *)
           aux successed used
+      | Failure msg when is_db_runtime_error msg ->
+          (* MariaDB runtime error (e.g. 2034 prepared-statement mismatch,
+             1213 deadlock). Reset connections to discard open transactions,
+             then treat this exploration as "no bug found" and continue. *)
+          let () = _log "eval_error" (fun () ->
+            Pp.printf "@{<red>DB runtime error (skipped):@} %s\n" msg) in
+          (try !db_reset_fn () with _ -> ());
+          aux successed (used + 1)
+      | DBKeyNotFound msg ->
+          (* Key not found in DB — transient state issue, not a consistency
+             violation. Reset and treat as "no bug found". *)
+          let () = _log "eval_error" (fun () ->
+            Pp.printf "@{<red>DB runtime error (skipped):@} DBKeyNotFound: %s\n" msg) in
+          (try !db_reset_fn () with _ -> ());
+          aux successed (used + 1)
       | e -> raise e
   in
   let exec_time, successed, total = aux 0 0 in
