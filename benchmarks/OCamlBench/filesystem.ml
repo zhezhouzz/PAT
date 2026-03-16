@@ -167,8 +167,8 @@ module Filesystem = struct
     match get_parent_path path with
     | None -> false
     | Some parent ->
-        let () = Pp.printf "path: %s\n" path in
-        let () = Pp.printf "parent: %s\n" parent in
+        let () = Myconfig._log "qc" (fun () -> Pp.printf "path: %s\n" path) in
+        let () = Myconfig._log "qc" (fun () -> Pp.printf "parent: %s\n" parent) in
         if check_valid_path fs parent && is_dir fs parent then (
           let file =
             match file_kind with File -> FileNode () | Directory -> DirNode []
@@ -189,8 +189,8 @@ module Filesystem = struct
     match get_parent_path path with
     | None -> false
     | Some parent ->
-        let () = Pp.printf "path: %s\n" path in
-        let () = Pp.printf "parent: %s\n" parent in
+        let () = Myconfig._log "qc" (fun () -> Pp.printf "path: %s\n" path) in
+        let () = Myconfig._log "qc" (fun () -> Pp.printf "parent: %s\n" parent) in
         if check_valid_path fs parent && is_dir fs parent then (
           let file =
             match file_kind with File -> FileNode () | Directory -> DirNode []

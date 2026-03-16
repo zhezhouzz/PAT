@@ -117,17 +117,19 @@ let sample_phi store (vs, prop) =
   | None -> direct_sample_phi store (vs, prop)
   | Some ass ->
       let () =
-        Printf.printf "ass: %s\n"
-          (List.split_by_comma
-             (fun (x, lit) -> spf "%s -> %s" x (layout_lit lit))
-             ass)
+        _log "qc" (fun () ->
+            Printf.printf "ass: %s\n"
+              (List.split_by_comma
+                 (fun (x, lit) -> spf "%s -> %s" x (layout_lit lit))
+                 ass))
       in
       let alias = mk_alias ([], ass) in
       let () =
-        Printf.printf "alias: %s\n"
-          (List.split_by_comma
-             (fun (x, lit) -> spf "%s -> %s" x (layout_lit lit))
-             alias)
+        _log "qc" (fun () ->
+            Printf.printf "alias: %s\n"
+              (List.split_by_comma
+                 (fun (x, lit) -> spf "%s -> %s" x (layout_lit lit))
+                 alias))
       in
       (* let () = _die [%here] in *)
       (* let () = Printf.printf "fvs: %s\n" (layout_qvs fvs) in *)
