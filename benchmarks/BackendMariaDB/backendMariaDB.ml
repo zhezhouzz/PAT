@@ -43,7 +43,7 @@ let or_die where = function
 
 let db_timeout_sec =
   try float_of_string (Sys.getenv "OCAML_MARIADB_TIMEOUT")
-  with Not_found -> 1.0
+  with Not_found -> 0.1
 
 let with_timeout f =
   Lwt.pick

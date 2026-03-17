@@ -406,7 +406,7 @@ def run_random():
     for bench_name in benchmarks:
         if bench_name not in monkeydb:
             # count (int): <=0 means None; time (float): <=0 means None
-            cmd = cmd_prefix + ["sample-random", task_name(bench_name), SAMPLE_COUNT, RANDOM_TIME_MAP[bench_name]]
+            cmd = cmd_prefix + ["sample-random", task_name(bench_name), "0", RANDOM_TIME_MAP[bench_name]]
             invoc_cmd(cmd)
     return
 

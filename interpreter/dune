@@ -2,7 +2,7 @@
  (public_name haft.interpreter)
  (name interpreter)
  (wrapped true)
- (libraries zutils AutomataLibrary core compiler-libs language)
+ (libraries zutils AutomataLibrary core compiler-libs language lwt lwt.unix)
  (modules sample common msgBuffer store eval pool interpreter)
  (inline_tests)
  (preprocess

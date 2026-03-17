@@ -133,6 +133,9 @@ let eval_sample ~number_bound ~time_bound test =
           in
           (try !db_reset_fn () with _ -> ());
           aux successed (used + 1)
+      | Lwt_unix.Timeout ->
+          (try !db_reset_fn () with _ -> ());
+          aux successed (used + 1)
       | DBKeyNotFound msg ->
           (* Key not found in DB — transient state issue, not a consistency
              violation. Reset and treat as "no bug found". *)
