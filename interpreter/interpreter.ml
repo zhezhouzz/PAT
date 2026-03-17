@@ -72,9 +72,14 @@ let is_db_transient_error msg =
 
 let string_contains_1020 = is_db_transient_error
 
-(* Errors containing "exec:" corrupt connection state; we reset and skip the
-   exploration (treat as "no bug found"). *)
-let is_db_runtime_error msg = string_contains "exec:" msg
+(* Errors from backendMariaDB or_die (exec:, prepare:, stmt close:, connect:,
+   autocommit:) corrupt connection state; we reset and skip the exploration. *)
+let is_db_runtime_error msg =
+  string_contains "exec:" msg
+  || string_contains "prepare:" msg
+  || string_contains "stmt close:" msg
+  || string_contains "connect:" msg
+  || string_contains "autocommit:" msg
 
 (* Callback set by the backend (e.g. cre.ml) to reset DB connections when
    a runtime error corrupts connection state inside eval_sample. *)
