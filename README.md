@@ -57,7 +57,7 @@ cluster and the Clouseau container — and initializes the database in one step.
 from the repository root:
 
 ```
-$ bash scripts/start_cluster.sh
+$ bash scripts/start.sh
 ```
 
 The script performs the following steps automatically:
