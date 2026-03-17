@@ -361,6 +361,7 @@ def table2_md(benchnames, stat):
 
 def do_syn(candidate_num="1"):
     for name in benchmarks:
+        print(f"Synthesizing test generators for {name}...\n")
         cmd = cmd_prefix + ["do-syn", task_name(name), task_spec_file(name), candidate_num]
         invoc_cmd(cmd)
     return
@@ -379,6 +380,7 @@ def do_eval():
 
 def do_compile():
     for name in benchmarks:
+        print(f"Compiling synthesized test generators to P language for {name}...\n")
         cmd = cmd_prefix + ["compile-to-p", task_name(name), name]
         invoc_cmd(cmd)
     return
@@ -409,10 +411,12 @@ def run_syn_p():
     data = load_eval_stat(syn_stat_file)
     for name in benchmarks:
         if name == "AnonReadAtomicity":
+            print("Skipping AnonReadAtomicity as it is an internal benchmark from a commercial company.\n")
             continue
         kw = "PSpec"
         if name == "RingLeaderElection" or name == "Paxos":
             kw = ""
+        print(f"Running synthesized test generators for {name}...\n")
         (ratio, avg_time) = run_syn_p_one("penv/" + name, SAMPLE_COUNT, "Syn", kw)
         data[name] = (ratio, avg_time)
     with open(syn_stat_file, 'w') as fp:
@@ -423,10 +427,12 @@ def run_random_p():
     data = load_eval_stat(random_stat_file)
     for name in benchmarks:
         if name == "AnonReadAtomicity":
+            print("Skipping AnonReadAtomicity as it is an internal benchmark from a commercial company.\n")
             continue
         kw = "PSpec"
         if name == "RingLeaderElection" or name == "Paxos":
             kw = ""
+        print(f"Running random test generators for {name}...\n")
         (ratio, avg_time) = run_syn_p_one("poriginal/" + name, RANDOM_NUM_MAP[name], "Syn", kw)
         data[name] = (ratio, avg_time)
     with open(random_stat_file, 'w') as fp:
@@ -437,11 +443,13 @@ def run_default_p():
     data = load_eval_stat(default_stat_file)
     for name in benchmarks:
         if name == "AnonReadAtomicity":
+            print("Skipping AnonReadAtomicity as it is an internal benchmark from a commercial company.\n")
             continue
         kw = "PSpec"
         if name == "Database" or name == "Firewall" or name == "RingLeaderElection" or name == "Raft":
             data[name] = (None, None)
             continue
+        print(f"Running manual test generators for {name}...\n")
         (ratio, avg_time) = run_syn_p_one("poriginal/" + name, DEFAULT_NUM, "Manual", kw)
         data[name] = (ratio, avg_time)
     with open(default_stat_file, 'w') as fp:

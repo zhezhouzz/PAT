@@ -93,9 +93,9 @@ def init_config(override_num=None, override_time=None):
 
     for name in task_name_dict:
         if name in ["Set", "Stack", "Transaction", "Graph", "NFA"] or name in monkeydb:
-            RANDOM_TIME_MAP[name] = "120"
+            RANDOM_TIME_MAP[name] = "1200"
         else:
-            RANDOM_TIME_MAP[name] = "600"
+            RANDOM_TIME_MAP[name] = "1200"
 
     if override_time is not None:
         SAMPLE_TIME = str(override_time)
@@ -385,6 +385,7 @@ def table1_md(benchnames, stat):
 
 def do_syn(candidate_num="1"):
     for bench_name in benchmarks:
+        print(f"Synthesizing test generators for {bench_name}...\n")
         cmd = cmd_prefix + ["do-syn", task_name(bench_name), task_dir(bench_name), candidate_num]
         invoc_cmd(cmd)
     return
@@ -397,6 +398,7 @@ def do_parse():
 
 def run_syn():
     for bench_name in benchmarks:
+        print(f"Running synthesized test generators for {bench_name}...\n")
         # count (int): <=0 means None; time (float): <=0 means None
         cmd = cmd_prefix + ["sample-syn", task_name(bench_name), SAMPLE_COUNT, SAMPLE_TIME]
         invoc_cmd(cmd)
@@ -405,9 +407,12 @@ def run_syn():
 def run_random():
     for bench_name in benchmarks:
         if bench_name not in monkeydb:
+            print(f"Running baseline generators for {bench_name}...\n")
             # count (int): <=0 means None; time (float): <=0 means None
             cmd = cmd_prefix + ["sample-random", task_name(bench_name), "0", RANDOM_TIME_MAP[bench_name]]
             invoc_cmd(cmd)
+        else:
+            print(f"We use the reported results of MonkeyDB benchmark {bench_name} from their original paper...\n")
     return
 
 def run_default():

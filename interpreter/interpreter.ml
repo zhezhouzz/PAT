@@ -72,26 +72,9 @@ let is_db_transient_error msg =
 
 let string_contains_1020 = is_db_transient_error
 
-(* Any MySQL/MariaDB error code in parentheses (####) corrupts connection state;
-   we reset and skip the exploration (treat as "no bug found"). Examples:
-   2034, 2006, 2013, 1213, etc. *)
-let contains_four_digit_error_code s =
-  let n = String.length s in
-  let is_digit c = c >= '0' && c <= '9' in
-  let rec go i =
-    if i + 6 <= n then
-      s.[i] = '('
-      && is_digit s.[i + 1]
-      && is_digit s.[i + 2]
-      && is_digit s.[i + 3]
-      && is_digit s.[i + 4]
-      && s.[i + 5] = ')'
-      || go (i + 1)
-    else false
-  in
-  go 0
-
-let is_db_runtime_error msg = contains_four_digit_error_code msg
+(* Errors containing "exec:" corrupt connection state; we reset and skip the
+   exploration (treat as "no bug found"). *)
+let is_db_runtime_error msg = string_contains "exec:" msg
 
 (* Callback set by the backend (e.g. cre.ml) to reset DB connections when
    a runtime error corrupts connection state inside eval_sample. *)
@@ -161,7 +144,10 @@ let eval_sample ~number_bound ~time_bound test =
   let exec_time =
     if successed > 0 then exec_time /. float_of_int successed else -1.0
   in
-  let () = Pp.printf "@{<red>Success rate: %f@}\n" rate in
+  let () =
+    Pp.printf "@{<red>Average tries to detect bugs (# Num. Executions): %f@}\n"
+      rate
+  in
   (successed, rate, exec_time)
 
 let eval_until_detect_bug converge_bound test =

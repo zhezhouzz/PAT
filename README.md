@@ -13,7 +13,8 @@ The artifact supports reproduction of:
 
 # 1. Quick Get Started
 
-We recommend machines have at least 8 GB of memory and 8 GB of hard disk space available when building and running Docker images. All benchmarks were tested on a Linux machine having Intel i7-8700 CPU @ 3.20GHz with 64GB of RAM. The estimated execution time in the rest of the document also fits this setting.
+We recommend machines have at least 10 GB of memory and 8 GB of hard disk space available when building and running Docker images. All benchmarks were tested on a Linux machine having Intel i7-8700 CPU @ 3.20GHz with 64GB of RAM. The estimated execution time in the rest of the document also fits this setting.
+> **Note:** Performance on Mac machines will be significantly lower, resulting in longer synthesis times.
 
 ## 1.1 Requirements
 
@@ -177,12 +178,16 @@ This sub-section gives a brief overview of the files in this artifact.
 
 ## 2.2 Running Benchmarks of Clouseau
 
-In this section, we discuss the scripts that display the tables in the evaluation section of the paper.
+In this section, we discuss the scripts that display the tables in the evaluation section of the paper. 
+
+**Note:** The artifact does not ship with MonkeyDB (used as a baseline for the Shopping, Courseware, and Twitter benchmarks) because their artifact is incompatible with our Dockerized setup. For these cases, reported baseline results are taken directly from the MonkeyDB paper. Additionally, the AnonReadAtomicity benchmark is omitted due to its dependence on internal code from a commercial source (as metioned in our paper).
 
 ### 2.2.1 Comprehensive Scripts to Reproducing Table 1 (QCheck and MonkeyDB Benchmarks)
 
-**Benchmarks:** Stack, HashTable, Filesystem, Graph, NFA, IFCStore, IFCAdd, IFCLoad,
-DeBruijn1, DeBruijn2, Shopping, Courseware, Twitter, Smallbank
+On our Linux machine, running the script typically takes approximately 3 to 4 hours.
+
+**Benchmarks:** Stack, Set, Filesystem, Graph, NFA, IFCStore, IFCAdd, IFCLoad,
+DeBruijn1, DeBruijn2, Shopping, HashTable, Transaction, Courseware, Twitter, Smallbank
 
 ```
 $ docker compose exec clouseau python3 scripts/run_ocaml_bench.py
@@ -200,6 +205,8 @@ Table 1 as LaTeX.
 | `-b B1,B2,...` | all | Run a subset of benchmarks by name |
 
 ### 2.2.2 Comprehensive Scripts to Reproducing Table 2 (P Language Benchmarks)
+
+On our Linux machine, running this script typically takes approximately 2 to 3 hours.
 
 **Benchmarks:** Database, Firewall, RingLeaderElection, BankServer, Simplified2PC,
 HeartBeat, ChainReplication, Paxos, Raft, AnonReadAtomicity
