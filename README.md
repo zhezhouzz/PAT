@@ -279,9 +279,6 @@ For each benchmark, this runs:
 $ docker compose exec clouseau ./main.exe sample-random GOAL_NAME COUNT TIME_SEC
 ```
 
-The default time limit for the random baseline is 1800 seconds per benchmark. Use
-`-t T` to override.
-
 **Step 4 — Print Table 1 as LaTeX**
 
 ```
