@@ -1,3 +1,4 @@
+import common
 from common import *
 import argparse
 import math
@@ -465,6 +466,7 @@ if __name__ == '__main__':
     parser.add_argument('-n', '--number', type=int, help='Override synthesis sample count for fast run mode')
     parser.add_argument('-t', '--time', type=float, help='Override time limit (seconds) for runsyn and runrandom')
     parser.add_argument('-c', '--candidate', type=str, default="1", help='Number of candidates for synthesis')
+    parser.add_argument('-v', '--verbose', action='store_true', default=False, help='Enable verbose output (print commands)')
     parser.add_argument('extra_args', nargs='*', help='Extra arguments for specific commands')
     
     args = parser.parse_args()
@@ -476,6 +478,7 @@ if __name__ == '__main__':
 
     build_and_copy_exe()
     init_config(args.number, args.time)
+    common.verbose = args.verbose
 
     if args.command == "syn":
         do_syn(args.candidate)

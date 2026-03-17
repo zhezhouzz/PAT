@@ -34,12 +34,6 @@ Docker Compose is required for running the MariaDB cluster. If you installed Doc
 $ docker pull clouseau2026/clouseau:pldi-2026
 ```
 
-Or load from the provided archive:
-
-```
-$ docker load < clouseau2026-clouseau-pldi-2026.tar.gz
-```
-
 **Option B — Build locally (optional):**
 
 ```
@@ -202,7 +196,7 @@ Table 1 as LaTeX.
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `-t T` | — | Override time limit in seconds for both `runsyn` and `runrandom`, default is `1800` seconds |
+| `-t T` | — | Override time limit in seconds for both `runsyn` and `runrandom`, default is `1200` seconds |
 | `-b B1,B2,...` | all | Run a subset of benchmarks by name |
 
 ### 2.2.2 Comprehensive Scripts to Reproducing Table 2 (P Language Benchmarks)
@@ -217,7 +211,7 @@ $ docker compose exec clouseau python3 scripts/run_p_bench.py
 This runs synthesis, compiles to P, runs synthesized schedulers,
 runs the random and manually-written baselines, and prints Table 2 as LaTeX.
 
-**Common flags:** same as Table 1 above (`-t`, `-b`).
+**Common flags:** same as Table 1 above.
 
 ---
 

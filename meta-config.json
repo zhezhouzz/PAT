@@ -6,6 +6,7 @@
     "log_tags": [
         // "eval",
         // "eval_io",
+        // "eval_error",
         // "unification",
         // "ntypecheck",
         // "cre",
@@ -16,7 +17,6 @@
         // "simp",
         // "compile",
         // "stat",
-        // "eval_error",
         // "qc",
         // "line_merge_results",
         // "line_merge_related",

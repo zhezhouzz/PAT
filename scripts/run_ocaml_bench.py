@@ -1,3 +1,4 @@
+import common
 from common import *
 import argparse
 import re
@@ -91,10 +92,10 @@ def init_config(override_num=None, override_time=None):
         SAMPLE_COUNT = str(override_num)
 
     for name in task_name_dict:
-        if name in ["Set", "ReaderWriter", "SetSimple", "ReaderWriterSimple"]:
-            RANDOM_TIME_MAP[name] = "1800"
+        if name in ["Set", "Stack", "Transaction", "Graph", "NFA"] or name in monkeydb:
+            RANDOM_TIME_MAP[name] = "120"
         else:
-            RANDOM_TIME_MAP[name] = "1800"
+            RANDOM_TIME_MAP[name] = "600"
 
     if override_time is not None:
         SAMPLE_TIME = str(override_time)
@@ -398,7 +399,6 @@ def run_syn():
     for bench_name in benchmarks:
         # count (int): <=0 means None; time (float): <=0 means None
         cmd = cmd_prefix + ["sample-syn", task_name(bench_name), SAMPLE_COUNT, SAMPLE_TIME]
-        print(" ".join(cmd))
         invoc_cmd(cmd)
     return
 
@@ -431,10 +431,12 @@ if __name__ == '__main__':
     parser.add_argument('-n', '--number', type=int, help='Override synthesis sample count for fast run mode')
     parser.add_argument('-t', '--time', type=float, help='Override time limit (seconds) for runsyn and runrandom')
     parser.add_argument('-c', '--candidate', type=str, default="1", help='Number of candidates for synthesis')
+    parser.add_argument('-v', '--verbose', action='store_true', default=False, help='Enable verbose output (print commands)')
     parser.add_argument('extra_args', nargs='*', help='Extra arguments for specific commands')
     
     args = parser.parse_args()
-    
+    common.verbose = args.verbose
+
     if args.benchmarks:
         parsed = parse_benchmarks(args.benchmarks)
         if parsed:

@@ -50,6 +50,11 @@ let over_number_bound number_bound n =
   | None -> false
 
 let over_time_bound time_bound exec_time =
+  (* let () =
+    Pp.printf "@{<red>Time bound: %f, exec time: %f@}\n"
+      (match time_bound with Some time_bound -> time_bound | None -> 0.0)
+      exec_time
+  in *)
   match time_bound with
   | Some time_bound -> exec_time > time_bound
   | None -> false
@@ -94,9 +99,9 @@ let db_reset_fn : (unit -> unit) ref = ref (fun () -> ())
 let set_db_reset_fn f = db_reset_fn := f
 
 let eval_sample ~number_bound ~time_bound test =
-  let start_time = Sys.time () in
+  let start_time = Unix.gettimeofday () in
   let rec aux (successed : int) (used : int) =
-    let exec_time = Sys.time () -. start_time in
+    let exec_time = Unix.gettimeofday () -. start_time in
     if over_time_bound time_bound exec_time then (exec_time, successed, used)
     else if over_number_bound number_bound used then (exec_time, successed, used)
     else
@@ -105,8 +110,11 @@ let eval_sample ~number_bound ~time_bound test =
         aux (successed + 1) (used + 1)
       with
       | Sample.SampleTooManyTimes ->
-          Pp.printf "@{<red>Error:@} %s\n" "sample too many times";
-          aux successed used
+          let () =
+            _log "eval_error" (fun () ->
+                Pp.printf "@{<red>Error:@} %s\n" "sample too many times")
+          in
+          aux successed (used + 1)
       | RuntimeInconsistent msg ->
           Pp.printf "@{<red>Error:@} %s\n" msg;
           aux successed (used + 1)
@@ -168,7 +176,10 @@ let eval_until_detect_bug converge_bound test =
         (i, his)
       with
       | Sample.SampleTooManyTimes ->
-          Pp.printf "@{<red>Error:@} %s\n" "sample too many times";
+          let () =
+            _log "eval_error" (fun () ->
+                Pp.printf "@{<red>Error:@} %s\n" "sample too many times")
+          in
           aux i
       | RuntimeInconsistent msg ->
           Pp.printf "@{<red>Error:@} %s\n" msg;
@@ -199,10 +210,10 @@ let layout_time_to_detect time_to_detect =
   | None -> "Timeout"
 
 let eval_by_time time_bound test =
-  let start_time = Sys.time () in
+  let start_time = Unix.gettimeofday () in
   let rec aux (num_sampled : int) (num_bug_detected : int) =
     let () = Pp.printf "@{<red>Repeat for %i times@}\n" num_sampled in
-    let exec_time = Sys.time () -. start_time in
+    let exec_time = Unix.gettimeofday () -. start_time in
     if exec_time > time_bound then (exec_time, num_sampled, num_bug_detected)
     else
       let num_sampled = num_sampled + 1 in

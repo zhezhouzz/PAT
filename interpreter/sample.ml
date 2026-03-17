@@ -92,7 +92,8 @@ let direct_sample_phi store (vs, prop) =
   let rec aux (n : int) =
     if n <= 0 then
       let () =
-        Printf.printf "vs: %s; prop: %s\n" (layout_qvs vs) (layout_prop prop)
+        _log "qc" (fun () ->
+            Printf.printf "vs: %s; prop: %s\n" (layout_qvs vs) (layout_prop prop))
       in
       raise SampleTooManyTimes
     else
