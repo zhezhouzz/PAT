@@ -25,10 +25,11 @@ def mk_p_name(name):
 def task_name(name):
     return mk_p_name(name)
 
-def task_spec_file(name):
-    return "benchmarks/PBench/" + mk_p_name(name) + "_spec.ml"
+def task_spec_file(name, use_simplified=False):
+    suffix = "_simp_spec.ml" if use_simplified else "_spec.ml"
+    return "benchmarks/PBench/" + mk_p_name(name) + suffix
 
-SAMPLE_COUNT = 500   # sample count for runsyn and runrandom
+SAMPLE_COUNT = 1000   # sample count for runsyn and runrandom
 SAMPLE_TIME = 0      # 0 = no time limit; run_p.sh is count-based, time TBD
 DEFAULT_NUM = 2000
 
@@ -42,7 +43,7 @@ def init_config(override_num=None, override_time=None):
         RANDOM_NUM_MAP[name] = 10000
     for name in ["Raft", "AnonReadAtomicity"]:
         RANDOM_NUM_MAP[name] = 1000
-    RANDOM_NUM_MAP["Firewall"] = 50
+    RANDOM_NUM_MAP["Firewall"] = 1000
 
     if override_num is not None:
         SAMPLE_COUNT = override_num
@@ -359,16 +360,18 @@ def table2_md(benchnames, stat):
     print()
 
 
-def do_syn(candidate_num="1"):
+def do_syn(candidate_num="1", use_simplified=False):
     for name in benchmarks:
-        print(f"Synthesizing test generators for {name}...\n")
-        cmd = cmd_prefix + ["do-syn", task_name(name), task_spec_file(name), candidate_num]
+        spec = task_spec_file(name, use_simplified)
+        print(f"Synthesizing test generators for {name} ({spec})...\n")
+        cmd = cmd_prefix + ["do-syn", task_name(name), spec, candidate_num]
         invoc_cmd(cmd)
     return
 
-def do_parse():
+def do_parse(use_simplified=False):
     for name in benchmarks:
-        cmd = cmd_prefix + ["do-parse", task_name(name), task_spec_file(name)]
+        spec = task_spec_file(name, use_simplified)
+        cmd = cmd_prefix + ["do-parse", task_name(name), spec]
         invoc_cmd(cmd)
     return
 
@@ -403,7 +406,10 @@ def run_syn_p_one(postfix, num, mode, kw):
         avg_time = elapsed_time / success
     # print("{}/{} ~ {} ==> {}".format(success, num, elapsed_time, avg_time))
     ratio = float(success * 100) / num
-    # print("Output:", success)
+    if success == 0:
+        print(f"Average tries to detect bugs (# Num. Executions): inf (tried {num} times, but no bug detected)")
+    else:
+        print(f"Average tries to detect bugs (# Num. Executions): {num/success:.2f}")
     os.chdir(cur_dir)
     return (ratio, avg_time)
 
@@ -474,6 +480,7 @@ if __name__ == '__main__':
     parser.add_argument('-n', '--number', type=int, help='Override synthesis sample count for fast run mode')
     parser.add_argument('-t', '--time', type=float, help='Override time limit (seconds) for runsyn and runrandom')
     parser.add_argument('-c', '--candidate', type=str, default="1", help='Number of candidates for synthesis')
+    parser.add_argument('-s', '--simplified', action='store_true', help='Use simplified spec files (*_simp_spec.ml)')
     parser.add_argument('-v', '--verbose', action='store_true', default=False, help='Enable verbose output (print commands)')
     parser.add_argument('extra_args', nargs='*', help='Extra arguments for specific commands')
     
@@ -489,7 +496,7 @@ if __name__ == '__main__':
     common.verbose = args.verbose
 
     if args.command == "syn":
-        do_syn(args.candidate)
+        do_syn(args.candidate, use_simplified=args.simplified)
         do_compile()
     elif args.command == "runsyn":
         run_syn_p()
@@ -500,7 +507,7 @@ if __name__ == '__main__':
     elif args.command == "rundefault":
         run_default_p()
     elif args.command == "parse":
-        do_parse()
+        do_parse(use_simplified=args.simplified)
         # j = load_stat()
         # print_cols(benchmarks, j)
     elif args.command == "show":
@@ -512,8 +519,14 @@ if __name__ == '__main__':
     elif args.command == "table2_md":
         j = load_stat()
         table2_md(benchmarks, j)
+    elif args.command == "table2_md_simp":
+        do_syn(args.candidate, use_simplified=args.simplified)
+        do_compile()
+        run_syn_p()
+        j = load_stat()
+        table2_md(benchmarks, j)
     elif args.command == "all":
-        do_syn(args.candidate)
+        do_syn(args.candidate, use_simplified=args.simplified)
         do_compile()
         run_syn_p()
         run_random_p()
