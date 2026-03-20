@@ -1,3 +1,11 @@
+(* Simplified from filesystem_spec.ml
+   Original createReq: 4 cases - failure at root, success with parent not root, success with parent dir, success at root.
+   Simplified: Merged failure cases; merged success cases. Removed isDir content check.
+   Original deleteReq: 3 cases - root (fail), non-root no create (fail), non-root with create (success).
+   Simplified: Merged failure into generic; kept success case.
+   Original existsReq: 3 cases - root (true), not root deleted (false), not root created (true).
+   Simplified: Merged not-root cases with SRE union (||).
+   initReq: epsilonA preserved (must be first). *)
 val ( == ) : 'a. 'a -> 'a -> bool
 val is_root : Path.t -> bool
 val parent : Path.t -> Path.t

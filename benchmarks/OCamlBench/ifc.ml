@@ -229,7 +229,9 @@ module BasicIFC = struct
     let ctx2 = init () in
     match multi_step ruleset_variant (ctx1, ctx2) !tmp_instrs with
     | Some (ctx1, ctx2) ->
-        let () = Myconfig._log "qc" (fun () -> Pp.printf "@{<green>success@}\n") in
+        let () =
+          Myconfig._log "qc" (fun () -> Pp.printf "@{<green>success@}\n")
+        in
         equal_ifcCtx ctx1 ctx2
     | None ->
         let () =
@@ -357,7 +359,7 @@ let pushHandler (msg : msg) =
   let data =
     if not lv then PrivateV (x, y)
     else if x == y then PublicV x
-    else _die_with [%here] "runtime error: public values should be equal"
+    else _die_with [%here] "eval runtime error: public values should be equal"
   in
   let depth = _exec !_ruleset (Push data) in
   send ("stackDepth", [ mk_value_int depth ])
@@ -505,7 +507,8 @@ let exec_instrs e =
 let randomTest config =
   let e = _next config in
   let () =
-    Myconfig._log "qc" (fun () -> Pp.printf "@{<green>instrs@} %s\n" (layout_instrs e))
+    Myconfig._log "qc" (fun () ->
+        Pp.printf "@{<green>instrs@} %s\n" (layout_instrs e))
   in
   exec_instrs e
 

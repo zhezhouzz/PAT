@@ -57,8 +57,8 @@ let _check_sat prop =
             Printf.printf "model:\n%s\n"
             @@ Sugar.short_str 1000 @@ Z3.Model.to_string model );
           true
-      | Timeout ->
-          let prop' =
+      | Timeout -> false
+      (* let prop' =
             load_prop_from_file
               "/Users/zhezhou/workspace/research/ocaml_workspace/PAT/data/queries/timeout_courseware_cc1.scm"
           in
@@ -76,8 +76,7 @@ let _check_sat prop =
               _log_queries @@ fun _ ->
               Pp.printf "@{<bold>SAT(%s): @}\n" (Prover.layout_smt_result res)
             in
-            (* true *)
-            _die [%here]
+            _die [%here] *)
       (* false *)
     in
     res

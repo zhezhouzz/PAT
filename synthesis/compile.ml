@@ -4,7 +4,6 @@ open Zdatatype
 (* open Common *)
 
 let _log_compile f = _log "compile" f
-
 let recursion_vars = [ default_bound_var.x; default_iter_var.x ]
 
 module SimpleRename = struct
@@ -256,9 +255,15 @@ let compile_term_from_line env e =
 
 let add_kstar (pre_len, length) e rec_branch_1 rec_branch_2 =
   let () = _log_compile (fun () -> Pp.printf "@{<bold>add_kstar@}\n") in
-  let () = _log_compile (fun () -> Pp.printf "@{<bold>pre_len:@}\n%i\n" pre_len) in
-  let () = _log_compile (fun () -> Pp.printf "@{<bold>length:@}\n%i\n" length) in
-  let () = _log_compile (fun () -> Pp.printf "@{<bold>e:@}\n%s\n" (layout_term e.x)) in
+  let () =
+    _log_compile (fun () -> Pp.printf "@{<bold>pre_len:@}\n%i\n" pre_len)
+  in
+  let () =
+    _log_compile (fun () -> Pp.printf "@{<bold>length:@}\n%i\n" length)
+  in
+  let () =
+    _log_compile (fun () -> Pp.printf "@{<bold>e:@}\n%s\n" (layout_term e.x))
+  in
   let mkFixApp b1 e = mk_rec b1 rec_branch_2 (mk_rec_app_0 e) in
   let rec add length (k, term) =
     if length == 0 then mkFixApp rec_branch_1 term.x
@@ -293,8 +298,12 @@ let add_kstar (pre_len, length) e rec_branch_1 rec_branch_2 =
 
 let add_kstar_drop pre_len e rec_branch_1 rec_branch_2 v =
   let () = _log_compile (fun () -> Pp.printf "@{<bold>add_kstar@}\n") in
-  let () = _log_compile (fun () -> Pp.printf "@{<bold>pre_len:@}\n%i\n" pre_len) in
-  let () = _log_compile (fun () -> Pp.printf "@{<bold>e:@}\n%s\n" (layout_term e.x)) in
+  let () =
+    _log_compile (fun () -> Pp.printf "@{<bold>pre_len:@}\n%i\n" pre_len)
+  in
+  let () =
+    _log_compile (fun () -> Pp.printf "@{<bold>e:@}\n%s\n" (layout_term e.x))
+  in
   let mkFixApp b1 e = mk_rec b1 rec_branch_2 (mk_rec_app_v v e) in
   let rec aux pre_len term =
     if pre_len == 0 then mkFixApp rec_branch_1 term.x
@@ -555,10 +564,41 @@ let drop_ghost_events e =
 let compile_term env e =
   let () = SimpleRename.init () in
   match e with
-  | SynMidPlan line -> compile_term_from_line env line
+  | SynMidPlan line ->
+      let num_assert, res = compile_term_from_line env line in
+      let res = drop_ghost_events res in
+      let res = remove_unused_assume (term_to_tterm res) in
+      let () =
+        _log_compile (fun () ->
+            Pp.printf
+              "@{<bold>result term after removing unused assume:@}\n%s\n"
+              (layout_term res.x))
+      in
+      let res = postpone_assume ([], fun e -> e) res in
+      let () =
+        _log_compile (fun () ->
+            Pp.printf "@{<bold>result term after postponing assume:@}\n%s\n"
+              (layout_term res.x))
+      in
+      let res = simplfily_assumption res.x in
+      let () =
+        _log_compile (fun () ->
+            Pp.printf
+              "@{<bold>result term after simplifying assumption:@}\n%s\n"
+              (layout_term res))
+      in
+      let res = merge_assume res in
+      let () =
+        _log_compile (fun () ->
+            Pp.printf "@{<bold>result term after merging assume:@}\n%s\n"
+              (layout_term res))
+      in
+      (num_assert, res)
   | SynMidKStar { old_goal; pre_len; line_b1; line_b2; line_b2_pre_len; v } ->
       let () = SimpleRename.add_preserved_var (List.map _get_x (fv_value v)) in
-      let () = _log_compile (fun () -> Pp.printf "@{<bold>compiled term:@}\n") in
+      let () =
+        _log_compile (fun () -> Pp.printf "@{<bold>compiled term:@}\n")
+      in
       let num_assert0, e = compile_term_from_line env old_goal in
       let () = _log_compile (fun () -> Pp.printf "@{<bold>rec_branch_2:@}\n") in
       let num_assert2, rec_branch_2 = compile_term_from_line env line_b2 in
@@ -583,8 +623,7 @@ let compile_term env e =
       let res = drop_ghost_events res in
       let () =
         _log_compile (fun () ->
-            Pp.printf
-              "@{<bold>result term after dropping ghost events:@}\n%s\n"
+            Pp.printf "@{<bold>result term after dropping ghost events:@}\n%s\n"
               (layout_term res))
       in
       let res = remove_unused_assume (term_to_tterm res) in
@@ -597,8 +636,7 @@ let compile_term env e =
       let res = postpone_assume ([], fun e -> e) res in
       let () =
         _log_compile (fun () ->
-            Pp.printf
-              "@{<bold>result term after postponing assume:@}\n%s\n"
+            Pp.printf "@{<bold>result term after postponing assume:@}\n%s\n"
               (layout_term res.x))
       in
       let res = simplfily_assumption res.x in
@@ -611,8 +649,7 @@ let compile_term env e =
       let res = merge_assume res in
       let () =
         _log_compile (fun () ->
-            Pp.printf
-              "@{<bold>result term after merging assume:@}\n%s\n"
+            Pp.printf "@{<bold>result term after merging assume:@}\n%s\n"
               (layout_term res))
       in
       (num_assert0 + num_assert1 + num_assert2, res)

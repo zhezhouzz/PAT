@@ -80,6 +80,7 @@ let is_db_runtime_error msg =
   || string_contains "stmt close:" msg
   || string_contains "connect:" msg
   || string_contains "autocommit:" msg
+  || string_contains "eval runtime error:" msg
 
 (* Callback set by the backend (e.g. cre.ml) to reset DB connections when
    a runtime error corrupts connection state inside eval_sample. *)
@@ -118,6 +119,10 @@ let eval_sample ~number_bound ~time_bound test =
       | Failure msg when string_contains_1020 msg ->
           (* Transient DB connection error (Galera 1020 or client 2000);
              with_reconnect has already reset connections — silently retry. *)
+          let () =
+            _log "eval_error" (fun () ->
+                Pp.printf "@{<red>DB transient error (skipped):@} %s\n" msg)
+          in
           aux successed used
       | Failure msg when is_db_runtime_error msg ->
           (* MariaDB runtime error (e.g. 2034 prepared-statement mismatch,

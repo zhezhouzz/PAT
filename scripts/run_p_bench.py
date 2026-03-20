@@ -82,7 +82,7 @@ def print_tries(ratio):
     if ratio is None:
         return "-"
     elif ratio < 0.1:
-        return "{\\tiny Timeout}"
+        return "{\\tiny TO}"
     else:
         return "${:.1f}$".format(100.0 / ratio)
 
@@ -94,9 +94,9 @@ def print_tries_label(ratio, label):
             return "-${}$".format(label)
     elif ratio < 0.1:
         if label == "":
-            return "{\\tiny Timeout}"
+            return "{\\tiny TO}"
         else:
-            return "{{\\tiny Timeout}}${}$".format(label)
+            return "{{\\tiny TO}}${}$".format(label)
     else:
         if label == "":
             return "${:.1f}$".format(100.0 / ratio)
@@ -290,14 +290,14 @@ def _md_tries(ratio):
     if ratio is None:
         return "-"
     elif not math.isfinite(ratio) or ratio < 0.1:
-        return "Timeout"
+        return "TO"
     else:
         return "{:.1f}".format(100.0 / ratio)
 
 def _md_tries_label(ratio, label):
     base = _md_tries(ratio)
-    if base == "Timeout" and label:
-        return "Timeout" + label
+    if base == "TO" and label:
+        return "TO" + label
     return base
 
 def _md_benchname(name):
@@ -473,6 +473,132 @@ def fix():
             j = json.dump(j, f)
 
 
+TABLE2_MD_SIMP_JSON = "stat/table2_md_simp.json"
+
+
+def save_table2_md_simp_json(benchnames, stat, filepath=None):
+    """Save the numbers printed by table2_md to a JSON file."""
+    if filepath is None:
+        filepath = TABLE2_MD_SIMP_JSON
+    data = {"headers": ["Benchmark(Name)", "Benchmark(Property)", "#op", "#qualifier(uHAT)", "#qualifier(goal)",
+                        "#Num.Ex(Clouseau)", "#Num.Ex(Baseline)", "t_total", "#evt", "#refine", "#SMT"],
+            "rows": []}
+    for name in benchnames:
+        s = stat[name]
+        tc = s["task_complexity"]
+        rc = s["result_complexity"]
+        ac = s["algo_complexity"]
+        row = {
+            "name": name,
+            "description": _md_discription(name),
+            "n_op": tc["n_op"],
+            "n_qualifier": tc["n_qualifier"],
+            "n_qualifier_goal": tc["n_qualifier_goal"],
+            "syn_ratio": s.get("syn_ratio"),
+            "random_ratio": s.get("random_ratio"),
+            "t_total": ac["t_total"],
+            "n_evt": (rc["n_obs"] + rc["n_gen"]) if rc else None,
+            "n_refine": (ac["n_forward"] + ac["n_backward"]) if ac else None,
+            "n_sat": ac["n_sat"] if ac else None,
+        }
+        data["rows"].append(row)
+    d = os.path.dirname(filepath)
+    if d:
+        os.makedirs(d, exist_ok=True)
+    with open(filepath, "w") as f:
+        json.dump(data, f, indent=2)
+    print(f"Saved table2_md_simp data to {filepath}")
+    return filepath
+
+
+def load_table2_md_simp_json(filepath=None):
+    """Load the table2_md_simp numbers from a JSON file. Returns None if file missing or invalid."""
+    if filepath is None:
+        filepath = TABLE2_MD_SIMP_JSON
+    try:
+        with open(filepath, "r") as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def _populate_table2_ratios(benchnames, stat):
+    """Fill random_ratio and syn_ratio in stat from eval files (P bench logic)."""
+    random_stat = load_eval_stat(random_stat_file)
+    syn_stat = load_eval_stat(syn_stat_file)
+    default_stat = load_eval_stat(default_stat_file)
+    for name in benchnames:
+        if name == "AnonReadAtomicity":
+            random_stat[name] = [1.877, 0.1]
+            syn_stat[name] = [100.0, 0.1]
+            stat[name]["n_retry"] = 1.0
+            stat[name]["random_ratio"] = 1.877
+        elif name in manual_baseline_benchmarks:
+            if name in default_stat:
+                stat[name]["random_ratio"] = default_stat[name][0]
+                stat[name]["random_time"] = default_stat[name][1]
+            else:
+                stat[name]["random_ratio"] = None
+                stat[name]["random_time"] = None
+        else:
+            if name in random_stat:
+                stat[name]["random_ratio"] = random_stat[name][0]
+                stat[name]["random_time"] = random_stat[name][1]
+            else:
+                stat[name]["random_ratio"] = None
+                stat[name]["random_time"] = None
+        if name in syn_stat:
+            stat[name]["syn_ratio"] = syn_stat[name][0]
+            stat[name]["syn_time"] = syn_stat[name][1]
+        else:
+            stat[name]["syn_ratio"] = None
+            stat[name]["syn_time"] = None
+
+
+def print_table_complexity_rich(stat, simp_row):
+    """Like print_table_complexity but n_qualifier shows N/M (table2 / simp)."""
+    tc = stat["task_complexity"]
+    n_op = safe_print_int(tc["n_op"])
+    n_qualifier_n = _md_int(tc["n_qualifier"])
+    n_qualifier_m = _md_int(simp_row["n_qualifier"]) if simp_row else "-"
+    n_qualifier = f"{n_qualifier_n}/{n_qualifier_m}"
+    n_qualifier_goal = safe_print_int(tc["n_qualifier_goal"])
+    return [n_op, n_qualifier, n_qualifier_goal]
+
+
+def print_table_compare_rich(name, stat, simp_row):
+    """Like print_table_compare but syn_ratio shows N/M (table2 / simp). Baseline unchanged."""
+    syn_n = print_tries(stat["syn_ratio"])
+    syn_m = print_tries(simp_row["syn_ratio"]) if simp_row and simp_row.get("syn_ratio") is not None else "-"
+    rand_n = print_tries_label(stat["random_ratio"], manual_label(name))
+    return [f"{syn_n}/{syn_m}", rand_n]
+
+
+def print_tabel2_col_rich(name, stat, simp_row):
+    """Like print_tabel1_col but uses _rich variants for n_qualifier and syn_ratio (baseline unchanged)."""
+    comp = print_table_complexity_rich(stat, simp_row)
+    compare = print_table_compare_rich(name, stat, simp_row)
+    algo = print_table_algo(stat)
+    col = [pp_benchname(name), discription(name)] + comp + compare + algo
+    print(" & ".join(col) + "\\\\")
+
+
+def table2_rich(benchnames, stat):
+    """Like table2 but also shows simp spec values (N/M) for n_qualifier and syn_ratio. Baseline unchanged."""
+    simp_data = load_table2_md_simp_json()
+    simp_lookup = {r["name"]: r for r in simp_data.get("rows", [])} if simp_data else {}
+    _populate_table2_ratios(benchnames, stat)
+
+    i = len(benchnames)
+    for name in benchnames:
+        simp_row = simp_lookup.get(name)
+        print_tabel2_col_rich(name, stat[name], simp_row)
+        i = i - 1
+        if i > 0:
+            print("\\midrule")
+    print("\\bottomrule\n\\end{tabular}\n\n")
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run P benchmarks')
     parser.add_argument('command', nargs='?', default='all', help='Command to run (syn, runsyn, runrandom, etc.)')
@@ -516,15 +642,20 @@ if __name__ == '__main__':
     elif args.command == "table2":
         j = load_stat()
         table2(benchmarks, j)
+    elif args.command == "table2_rich":
+        j = load_stat()
+        table2_rich(benchmarks, j)
     elif args.command == "table2_md":
         j = load_stat()
         table2_md(benchmarks, j)
+        save_table2_md_simp_json(benchmarks, j)
     elif args.command == "table2_md_simp":
         do_syn(args.candidate, use_simplified=args.simplified)
         do_compile()
         run_syn_p()
         j = load_stat()
         table2_md(benchmarks, j)
+        save_table2_md_simp_json(benchmarks, j)
     elif args.command == "all":
         do_syn(args.candidate, use_simplified=args.simplified)
         do_compile()
