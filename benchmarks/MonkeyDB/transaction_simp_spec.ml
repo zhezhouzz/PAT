@@ -53,9 +53,7 @@ let get =
     ->
       ( (allA;
          Put (tid == pi && key == k && value == z);
-         starA (anyA - Put (tid == i && key == k));
-         Commit (tid == pi && cid == pj);
-         starA (anyA - Commit true)),
+         allA),
         Get
           (tid == i && key == k && prevTid == pi && prevCid == pj && value == z),
         allA ));
