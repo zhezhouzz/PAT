@@ -648,7 +648,6 @@ if __name__ == '__main__':
     elif args.command == "table2_md":
         j = load_stat()
         table2_md(benchmarks, j)
-        save_table2_md_simp_json(benchmarks, j)
     elif args.command == "table2_md_simp":
         do_syn(args.candidate, use_simplified=args.simplified)
         do_compile()

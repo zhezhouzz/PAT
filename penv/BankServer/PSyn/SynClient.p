@@ -40,7 +40,7 @@ machine SynClient {
       while(true){
         __x2 = choose(domain_rid);
         __x3 = choose(domain_int);
-        if ((!((__x1 > __x3)) && (__x3 > 0))) {
+        if ((__x3 > 0)) {
           break;
         };
       };

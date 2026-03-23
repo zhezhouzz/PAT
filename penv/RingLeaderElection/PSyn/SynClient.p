@@ -9,9 +9,9 @@ machine SynClient {
       var __y2: tNode;
       var __y3: tNode;
       var __y4: tNode;
-      var __x5: tNode;
       var input_eWon: (leader: tNode);
-      var __y6: tNode;
+      var __y5: tNode;
+      var __x6: tNode;
       var __y7: tNode;
       var __y8: tNode;
       var __y9: tNode;
@@ -42,19 +42,19 @@ machine SynClient {
         __y4 = input_eNominate.leader;
       }};
       assert true;
-      while(true){
-        __x5 = choose(domain_tNode);
-        if (!((__x5 == __x0))) {
-          break;
-        };
-      };
-      send_eWakeup(this, setting, (node = __x5,));
       receive { case syn_eWon: (input: tsyn_eWon) {
         announce an_syn_eWon, input;
         input_eWon = cast_syn_eWon(input);
-        __y6 = input_eWon.leader;
+        __y5 = input_eWon.leader;
       }};
       assert true;
+      while(true){
+        __x6 = choose(domain_tNode);
+        if (true) {
+          break;
+        };
+      };
+      send_eWakeup(this, setting, (node = __x6,));
       receive { case syn_eNominate: (input: tsyn_eNominate) {
         announce an_syn_eNominate, input;
         forward_syn_eNominate(input);

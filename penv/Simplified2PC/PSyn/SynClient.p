@@ -20,7 +20,7 @@ machine SynClient {
       domain_int = input.domain_int;
       while(true){
         __x0 = choose(domain_int);
-        if ((__x0 >= 0)) {
+        if (true) {
           break;
         };
       };
