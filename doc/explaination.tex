@@ -1,0 +1,613 @@
+\section{Benchmark Specifications Explanation}\label{sec:bench-explain}
+
+% Match paper SREGen / starA(anyA - ...) idiom: Kleene iteration over complement of a pattern set.
+\newcommand{\SNegStar}[1]{{\bigl(\compA{#1}\bigr)^{\ast}}}
+\newcommand{\SNegStarU}[2]{{\bigl(\anyA \setminus ({#1} \cup {#2})\bigr)^{\ast}}}
+\newcommand{\SNegStarUU}[3]{{\bigl(\anyA \setminus ({#1} \cup {#2} \cup {#3})\bigr)^{\ast}}}
+\newcommand{\SNegStarUUU}[4]{{\bigl(\anyA \setminus ({#1} \cup {#2} \cup {#3} \cup {#4})\bigr)^{\ast}}}
+
+\paragraph{Sources and reading guide}
+Each benchmark has a \texttt{*\_spec.ml} file (full uHATs and \texttt{let[@goal]} property) and a matching \texttt{*\_simp\_spec.ml} with \emph{weakened} uHATs.
+Below, \emph{Global property} is an SRE over observable events, in the same style as \autoref{eqn:ReadAtomicity} in the overview (\(\allA\), \(\seqA\), \(\msgA{\cdot}{\cdot}\)).
+\emph{uHATs} are typed operation specifications in the \(\effLR{\cdots}\,\cdots\,\effLR{\cdots}\) form used for \(\eff{readRsp}\) in the paper; we write \(\Code{unit}\) in the middle when the generator returns \emph{unit} and the interesting constraint appears in the left/right SREs.
+We use \(=\) for record equality in predicates (as in \(\I{elem} = y\)); \texttt{true} in the spec source is the trivial event refinement from the DSL\@.
+Free variables in SREs are universally quantified, following the paper.
+
+\subsection*{Table 1 (OCamlBench + MonkeyDB)}
+
+\subsubsection*{Stack (\texttt{OCamlBench/stack\_spec.ml})}
+\textbf{Explanation.}
+The goal tries to pop ``away'' a pushed value \(y\) without observing \(\msgA{popResp}{\I{elem} = y}\), then observes an empty stack---modeling loss of the last pushed element.
+
+\textbf{Global property}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align}
+  & \allA \seqA \msgA{pushReq}{\I{elem} = y} \seqA
+    \SNegStar{\msgA{popResp}{\I{elem} = y}} \seqA
+    \msgA{isEmptyResp}{\mathit{isEmpty} = \mathsf{true}}
+    \tag{\(A_{\text{stack}}\)}
+\end{align}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{uHATs}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align*}
+  \eff{pushReq} ~:~{}
+  & \effLR{\allA}\,\Code{unit}\,\effLR{\msgA{pushReq}{\I{elem} = y} \seqA \allA \seqA \msgA{popReq}{\true} \seqA \allA}
+  \\
+  \eff{initStackReq} ~:~{}
+  & \effLR{\allA}\,\Code{unit}\,\effLR{\msgA{initStackReq}{\true} \seqA \allA}
+  \\
+  \eff{popReq} ~:~{}
+  & \effLR{\allA}\,\Code{unit}\,\effLR{\msgA{popReq}{\true} \seqA \msgA{popResp}{\true} \seqA \allA}
+  \\
+  \eff{popResp} ~:~{}
+  & \effLR{\allA}\,\urt{\Code{int}}{\true}\,\effLR{\SNegStar{\msgA{pushReq}{\true}}}
+  \\
+  \eff{isEmptyReq} ~:~{}
+  & \effLR{\allA}\,\Code{unit}\,\effLR{\msgA{isEmptyReq}{\true} \seqA \msgA{isEmptyResp}{\true} \seqA \allA}
+  \\
+  \eff{isEmptyResp} ~:~{}
+  & \effLR{\allA}\,\urt{\Code{bool}}{\mathit{isEmpty} = z}\,\effLR{\msgA{isEmptyResp}{\mathit{isEmpty} = z} \seqA \allA}
+\end{align*}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{Weakened uHATs} (\texttt{stack\_simp\_spec.ml}).
+The \(\eff{popResp}\) future relaxes from \(\SNegStar{\msgA{pushReq}{\true}}\) to \(\allA\) (no ban on intervening pushes).
+
+\subsubsection*{Set (\texttt{OCamlBench/set\_spec.ml})}
+\textbf{Explanation.}
+After initialization and insertion of \(y\), a \emph{mismatched} delete request (\(\neg(\I{elem}=y)\)) should not appear in an empty violation scenario tied to size discipline; the goal encodes a bad delete generation path after insert.
+
+\textbf{Global property}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align}
+  & \msgA{initSet}{\true} \seqA \allA \seqA \msgA{insert}{\I{elem} = y} \seqA
+    \allA \seqA \msgA{deleteReq}{\neg(\I{elem} = y)} \seqA \allA
+    \tag{\(A_{\text{set}}\)}
+\end{align}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{uHATs (representative)}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align*}
+  \eff{initSet} ~:~{}
+  & \effLR{\allA}\,\Code{unit}\,\effLR{\msgA{initSet}{\true} \seqA \msgA{size}{\mathit{sz} = 0} \seqA \allA}
+  \\
+  \eff{insert} ~:~{}
+  & \effLR{\SNegStar{\msgA{insert}{\I{elem} \ge x}} \seqA \msgA{size}{\mathit{sz} = i}}\,\Code{unit}\,
+    \effLR{\msgA{insert}{\I{elem} = x} \seqA \allA \seqA \msgA{deleteReq}{\I{elem} = x} \seqA \allA}
+  \\
+  \eff{deleteReq} ~:~{}
+  & \effLR{\SNegStar{\msgA{deleteReq}{\I{elem} = x}} \seqA \msgA{insert}{\I{elem} = x} \seqA \SNegStar{\msgA{deleteReq}{\I{elem} = x}} \seqA \msgA{size}{\mathit{sz} = i+1}}\,\Code{unit}\,
+    \effLR{\msgA{deleteReq}{\I{elem} = x} \seqA \msgA{deleteResp}{\true} \seqA \msgA{size}{\mathit{sz} = i} \seqA \allA}
+  \\
+  \eff{deleteResp} ~:~{}
+  & \effLR{\allA}\,\urt{\Code{bool}}{\true}\,\effLR{\allA}
+  \\
+  \eff{isEmptyReq} ~:~{}
+  & \effLR{\allA}\,\Code{unit}\,\effLR{\msgA{isEmptyReq}{\true} \seqA \msgA{isEmptyResp}{\true} \seqA \allA}
+  \\
+  \eff{size} ~:~{}
+  & \effLR{\allA}\,\urt{\Code{int}}{\mathit{sz} = i}\,\effLR{\allA}
+  \\
+  \eff{isEmptyResp} ~:~{}
+  & \effLR{\allA}\,\urt{\Code{bool}}{\true}\,\effLR{\allA}
+\end{align*}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{Weakened uHATs} (\texttt{set\_simp\_spec.ml}).
+\(\eff{deleteReq}\) histories drop the fine-grained ``no repeated delete / size bookkeeping'' chain; a common pattern is to widen the precondition to \(\allA \seqA \msgA{insert}{\I{elem} = x} \seqA \allA\).
+
+\subsubsection*{Filesystem (\texttt{OCamlBench/filesystem\_spec.ml})}
+\textbf{Explanation.}
+Deleting a non-empty directory succeeds, yet a child path still appears to exist---path metadata is inconsistent.
+
+\textbf{Global property}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align}
+  & \allA \seqA \msgA{deleteReq}{\I{path} = \mathit{parent}(\I{chp})} \seqA
+    \msgA{deleteResp}{\mathit{success} = \mathsf{true}} \seqA \allA \seqA
+    \msgA{existsReq}{\I{path} = \I{chp}} \seqA
+    \msgA{existsResp}{\mathit{exists} = \mathsf{true}} \seqA \allA
+    \tag{\(A_{\text{fs}}\)}
+\end{align}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{uHATs}
+The spec is branchy (\(\eff{createReq}\), \(\eff{deleteReq}\), \(\eff{existsReq}\) each have multiple PAT branches keyed by \(\I{path}\) shape).
+Schematically,
+\(
+\eff{initReq}: \effLR{\empA}\,\Code{unit}\,\effLR{\SNegStar{\msgA{initReq}{\true}}},
+\)
+\(
+\eff{createReq\langle j\rangle}: \effLR{H_j}\,\Code{unit}\,\effLR{\msgA{createReq}{\phi_j} \seqA F_j},
+\)
+and similarly for \(\eff{deleteReq}\), \(\eff{existsReq}\), with \(\eff{createResp}\), \(\eff{deleteResp}\), \(\eff{existsResp}\) observing \(\mathit{success}/\mathit{exists}\)\@.
+\textbf{Weakened uHATs} (\texttt{filesystem\_simp\_spec.ml}).
+Branches collapse and predicates such as \(\I{isDir}\,\I{content}\) on paths are dropped or merged.
+
+\subsubsection*{Graph (\texttt{OCamlBench/graph\_spec.ml})}
+\textbf{Explanation.}
+Two edges \(x\!\to\!y\) and \(y\!\to\!z\) are added (with side conditions on \(\I{isStart}\)), then connectivity is falsely reported.
+
+\textbf{Global property}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align}
+  & \allA \seqA \msgA{addEdge}{\I{st}=x \land \I{ed}=y \land \neg\,\I{isStart}(\I{st})} \seqA \allA \seqA
+    \msgA{addEdge}{\I{st}=y \land \I{ed}=z} \seqA \allA \seqA
+    \msgA{isConnectedReq}{\true} \seqA \msgA{isConnectedResp}{\mathit{isConnected} = \mathsf{true}}
+    \tag{\(A_{\text{graph}}\)}
+\end{align}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{uHATs}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align*}
+  \eff{init} ~:~{}
+  & \effLR{\empA}\,\Code{unit}\,\effLR{\SNegStar{\msgA{init}{\true}}}
+  \\
+  \eff{newNodeReq} ~:~{}
+  & \effLR{\msgA{init}{\true}\seqA\allA}\,\Code{unit}\,
+    \effLR{\msgA{newNodeReq}{\true}\seqA\msgA{newNodeResp}{\true}\seqA\allA}
+  \\
+  \eff{newNodeResp} ~:~{}
+  & \text{(two branches: fresh start node vs.\ non-start node tied to a following \(\eff{addEdge}\))}
+  \\
+  \eff{addEdge} ~:~{}
+  & \effLR{\allA\seqA\msgA{newNodeResp}{\I{nid}=x}\seqA\allA\seqA\msgA{newNodeResp}{\I{nid}=y}\seqA\allA}\,\Code{unit}\,
+    \effLR{\msgA{addEdge}{\I{st}=x\land\I{ed}=y\land\neg\,\I{isStart}(\I{ed})}\seqA \SNegStar{\msgA{addEdge}{\I{st}=x\land\I{ed}=y}}}
+  \\
+  \eff{isConnectedReq} ~:~{}
+  & \effLR{\allA}\,\Code{unit}\,\effLR{\msgA{isConnectedReq}{\true}\seqA\msgA{isConnectedResp}{\true}\seqA\allA}
+  \\
+  \eff{isConnectedResp} ~:~{}
+  & \effLR{\allA}\,\urt{\Code{bool}}{\mathit{isConnected}=v}\,\effLR{\msgA{isConnectedResp}{\mathit{isConnected}=v}\seqA\allA}
+\end{align*}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{Weakened uHATs} (\texttt{graph\_simp\_spec.ml}).
+\(\eff{newNodeResp}\) variants merge and \(\I{nid}/\I{isStart}\) constraints loosen.
+
+\subsubsection*{NFA (\texttt{OCamlBench/nfa\_spec.ml})}
+\textbf{Explanation.}
+Three labeled edges are added, then the implementation incorrectly reports a well-formed NFA\@.
+
+\textbf{Global property}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align}
+  & \allA \seqA \msgA{addEdge}{\true} \seqA \allA \seqA \msgA{addEdge}{\true} \seqA \allA \seqA
+    \msgA{addEdge}{\true} \seqA \allA \seqA
+    \msgA{isNFAResp}{\mathit{isNFA} = \mathsf{true}}
+    \tag{\(A_{\text{nfa}}\)}
+\end{align}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{uHATs}
+Same scaffolding as Graph (\(\text{init},\text{newNodeReq},\ldots\)), with extra \(\eff{setInitNode}\), \(\eff{setFinalNode}\), and richer \(\eff{addEdge}\) histories referencing \(\I{ch}\) and prior \(\msgA{addEdge}{\I{ed}=x}\) chains; \(\eff{isNFAReq}\) pairs with \(\eff{isNFAResp}\)\@.
+\textbf{Weakened uHATs} (\texttt{nfa\_simp\_spec.ml}).
+\(\eff{newNodeResp}\) / \(\eff{addEdge}\) cases merge; ordering constraints on \(\msgA{addEdge}{\cdot}\) weaken.
+
+\subsubsection*{IFC (\texttt{OCamlBench/ifc\_spec.ml})}
+\textbf{Explanation.}
+After a secret-affecting stack operation, end-to-end noninterference should not fail (\(\msgA{enniResp}{\mathit{enni}=\mathsf{true}}\)); goals vary the offending op (\(\eff{store}/\eff{add}/\eff{load}\)).
+
+\textbf{Global properties}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align}
+  & \allA \seqA \msgA{store}{\true} \seqA \allA \seqA \msgA{enniResp}{\mathit{enni}=\mathsf{true}}
+    \tag{\(A_{\text{ifc-store}}\)}
+  \\
+  & \allA \seqA \msgA{add}{\true} \seqA \allA \seqA \msgA{enniResp}{\mathit{enni}=\mathsf{true}}
+    \tag{\(A_{\text{ifc-add}}\)}
+  \\
+  & \allA \seqA \msgA{load}{\true} \seqA \allA \seqA \msgA{enniResp}{\mathit{enni}=\mathsf{true}}
+    \tag{\(A_{\text{ifc-load}}\)}
+\end{align}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{uHATs (paper-style excerpt)}
+This is the IFC fragment from the overview, instantiated on our effects:
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align*}
+  \eff{push} ~:~{}
+  & \effLR{\SNegStar{\msgA{stackDepth}{\true}}}\,\Code{unit}\,
+    \effLR{\msgB{push}{\I{low}\;\I{lelem}\;\I{relem}}{\mathit{addr}(\I{lelem})\land\mathit{addr}(\I{relem})}\seqA\msgA{stackDepth}{\mathit{depth}=1}\seqA\allA}
+  \\
+  & \quad\vdots\ \text{(second branch with prior \(\msgA{stackDepth}{\mathit{depth}=d}\))}
+  \\
+  \eff{store} ~:~{}
+  & \effLR{\allA\seqA\msgA{push}{\true}\seqA\msgA{stackDepth}{\mathit{depth}=d\land d>1}}\,\Code{unit}\,
+    \effLR{\msgA{store}{\true}\seqA\msgA{stackDepth}{\mathit{depth}=d-2}\seqA\allA}
+  \\
+  \text{also} & \eff{pop},\ \eff{add},\ \eff{load},\ \eff{enniReq},\ \eff{enniResp},\ \eff{stackDepth}\ \text{(stack depths + ENNI pairing per \texttt{ifc\_spec.ml})}
+\end{align*}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{Weakened uHATs} (\texttt{ifc\_simp\_spec.ml}).
+The \(\msgB{push}{\cdots}{\I{low}\!\iff\!x=y}\) bias relaxes to an implication; \(\eff{store}\) branches merge with weaker stack-shape premises.
+
+\subsubsection*{DeBruijn STLC (\texttt{debruijn1\_spec.ml}, \texttt{debruijn2\_spec.ml})}
+\textbf{Explanation.}
+Open scope \(i\) with \(\msgA{depth}{d=0}\), traverse to \(\msgA{var}{\cdot}\), then close at \(i\) with an integer type in \(\I{debruijn1}\) (first-order) or retain the same shape in \(\I{debruijn2}\) with richer \(\I{abs}/\I{app}\) uHATs tying \(\I{fstTy}/\I{sndTy}\)).
+
+\textbf{Global property (\(\I{debruijn1}\))}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align}
+  & \msgA{depth}{d = 0} \seqA \msgA{tyOpen}{\I{sid} = i} \seqA \allA \seqA \msgA{var}{\true} \seqA \allA \seqA
+    \msgA{tyClose}{\I{sid} = i \land \I{is\_int\_ty}(\I{ty})}
+    \tag{\(A_{\text{db1}}\)}
+\end{align}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{Global property (\(\I{debruijn2}\))}
+Same SRE with tag \(A_{\text{db2}}\); the difference is in local uHAT branching for higher-order \(\I{app}/\I{abs}\)\@.
+
+\textbf{uHATs}
+\(\eff{tyOpen}\) has multiple generator traces (through \(\I{const}/\I{var}/\I{app}/\I{abs}/\I{depth}\)); \(\eff{tyClose}\), \(\eff{depth}\), \(\eff{var}\), \(\eff{abs}\), \(\eff{app}\), etc., chain \(\msgA{tyOpen}{\cdot}/\msgA{tyClose}{\cdot}\) with \(\SNegStarU{\msgA{tyOpen}{\I{sid}=i}}{\msgA{tyClose}{\I{sid}=i}}\) and similar, as in the spec.
+
+\textbf{Weakened uHATs} (\texttt{debruijn1\_simp\_spec.ml}, \texttt{debruijn2\_simp\_spec.ml}).
+Type-relation literals (\(\I{is\_int\_ty}\), \(\I{fstTy}\), \(\I{sndTy}\)) are stripped; \(\msgA{tyClose}{\cdot}\) keeps mainly \(\I{sid}\) links.
+
+\subsubsection*{Shopping cart (\texttt{MonkeyDB/shopping\_spec.ml})}
+\textbf{Explanation.}
+Committing \(\msgA{put}{\I{key}=x,\I{value}=y}\) should make later \(\msgA{get}{\cdot}\) unable to read a stale list (\(\neg(\I{value}=y)\)).
+
+\textbf{Global property}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align}
+  & \allA \seqA \msgA{put}{\I{key}=x \land \I{value}=y} \seqA
+    \SNegStar{\msgA{put}{\I{key}=x}} \seqA
+    \msgA{get}{\I{key}=x \land \neg(\I{value}=y)} \seqA \allA
+    \tag{\(A_{\text{shop}}\)}
+\end{align}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{uHATs}
+Transactional \(\eff{beginT}\), \(\eff{commit}\), \(\eff{put}\), \(\eff{get}\) match the MonkeyDB read-committed schema in \texttt{transaction\_spec.ml}; cart ops satisfy
+\(
+\eff{newUserReq}/\eff{addItemReq}/\eff{deleteItemReq}:
+\effLR{\cdots}\,\Code{unit}\,\effLR{\msgA{put}{\cdot}\seqA\msgA{commit}{\cdot}\seqA\msgA{newUserResp}{\true}/\cdots\seqA\allA}.
+\)
+
+\textbf{Weakened uHATs} (\texttt{shopping\_simp\_spec.ml}).
+\(\eff{get}\) histories relax from ``read the committed \(\I{prevTid}/\I{prevCid}\) writer'' to looser \(\I{put}/\I{commit}\) windows.
+
+\subsubsection*{Hashtable (\texttt{OCamlBench/hashtable\_spec.ml})}
+\textbf{Explanation.}
+After \(\msgA{replaceReq}{\I{key}=k,\I{value}=v_2}\) with no further \(\msgA{addReq}{}/\msgA{replaceReq}{}\) on \(k\), a \(\msgA{findResp}{}\) still disagrees with \(v_2\).
+
+\textbf{Global property}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align}
+  & \allA \seqA \msgA{replaceReq}{\I{key}=k \land \I{value}=v_2} \seqA
+    \SNegStarU{\msgA{addReq}{\I{key}=k}}{\msgA{replaceReq}{\I{key}=k}} \seqA
+    \msgA{findResp}{\I{key}=k \land \neg(\I{value}=v_2)}
+    \tag{\(A_{\text{ht}}\)}
+\end{align}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{uHATs}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align*}
+  \eff{addReq} ~:~{}
+  & \effLR{\msgA{initTblReq}{\true}\seqA\allA}\,\Code{unit}\,\effLR{\msgA{addReq}{\I{key}=k\land\I{value}=v}\seqA\allA}
+  \\
+  \eff{findReq} ~:~{}
+  & \begin{multlined}[t]
+    \effLR{\allA\seqA\msgA{replaceReq}{\I{key}=k\land\I{value}=v_1}\seqA \SNegStarUUU{\msgA{removeReq}{\I{key}=k}}{\msgA{clearReq}{\true}}{\msgA{replaceReq}{\I{key}=k}}{\msgA{addReq}{\I{key}=k}}}\,\Code{unit}\, \\
+    \effLR{\msgA{findReq}{\I{key}=k}\seqA\msgA{findResp}{\I{key}=k\land\I{value}=v_1}\seqA\allA}
+    \end{multlined}
+  \\
+  \eff{replaceReq} ~:~{}
+  & \effLR{\allA\seqA\msgA{addReq}{\I{key}=k}\seqA\SNegStar{\msgA{removeReq}{\I{key}=k}}}\,\Code{unit}\,\effLR{\msgA{replaceReq}{\I{key}=k\land\I{value}=v}\seqA\allA}
+  \\
+  & \text{(also \(\eff{memReq}\), \(\eff{lengthReq}\), \ldots\ in spec)}
+\end{align*}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{Weakened uHATs} (\texttt{hashtable\_simp\_spec.ml}).
+\(\eff{findReq}\) / \(\eff{replaceReq}\) precondition chains shorten substantially.
+
+\subsubsection*{MonkeyDB transaction / read path (\texttt{MonkeyDB/transaction\_spec.ml})}
+\textbf{Explanation.}
+Asynchronous read/write effects: a \(\msgA{readReq}{}\) after \(\msgA{writeResp}{\I{value}=y}\) still yields \(\msgA{readResp}{\neg(\I{value}=y)}\)---read atomicity failure on key \(0\) cart.
+
+\textbf{Global property}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align}
+  & \allA \seqA \msgA{writeResp}{\I{value}=y} \seqA \msgA{readReq}{\true} \seqA \allA \seqA
+    \msgA{readResp}{\neg(\I{value}=y)} \seqA \allA
+    \tag{\(A_{\text{txn}}\)}
+\end{align}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{uHATs (read/write focus)}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align*}
+  \eff{writeReq} ~:~{}
+  & \effLR{\allA}\,\Code{unit}\,\effLR{\msgA{writeReq}{\true}\seqA\msgA{beginT}{\I{tid}=i}\seqA\msgA{put}{\I{tid}=i\land\I{key}=0\land\I{value}=x}\seqA\SNegStar{\msgA{put}{\I{key}=0}}\seqA\msgA{commit}{\I{tid}=i}\seqA\msgA{writeResp}{\I{value}=x}\seqA\allA}
+  \\
+  \eff{readReq} ~:~{}
+  & \effLR{\allA}\,\Code{unit}\,\effLR{\msgA{readReq}{\true}\seqA\msgA{beginT}{\I{tid}=i}\seqA\allA\seqA\msgA{get}{\I{tid}=i\land\I{key}=0\land\I{value}=x}\seqA\msgA{commit}{\I{tid}=i}\seqA\msgA{readResp}{\I{value}=x}\seqA\allA}
+  \\
+  \eff{readResp} ~:~{}
+  & \effLR{\allA}\,\urt{\Code{int}}{\I{value}=x}\,\effLR{\msgA{readResp}{\I{value}=x}\seqA\allA}
+  \\
+  \eff{writeResp} ~:~{}
+  & \effLR{\allA}\,\urt{\Code{int}}{\I{value}=x}\,\effLR{\allA}
+\end{align*}}
+\vspace{-.4cm}\par\nobreak\noindent
+(\(\eff{beginT}\), \(\eff{commit}\), \(\eff{put}\), \(\eff{get}\) carry the read-committed discipline from the spec.)
+
+\textbf{Weakened uHATs} (\texttt{transaction\_simp\_spec.ml}).
+\(\eff{get}\) relaxes from ``last committed value for \(\I{key}\)'' to existence of a matching \(\msgA{put}{\cdot}\).
+
+\subsubsection*{Courseware (\texttt{MonkeyDB/courseware\_spec.ml})}
+\textbf{Explanation.}
+Same ``lost update'' shape as Shopping on \(\msgA{putStudentEnrollments}{}/\msgA{getStudentEnrollments}{}\).
+
+\textbf{Global property}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align}
+  & \allA \seqA \msgA{putStudentEnrollments}{\I{key}=x \land \I{value}=y} \seqA
+    \SNegStar{\msgA{putStudentEnrollments}{\I{key}=x}} \seqA
+    \msgA{getStudentEnrollments}{\I{key}=x \land \neg(\I{value}=y)} \seqA \allA
+    \tag{\(A_{\text{course}}\)}
+\end{align}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{uHATs}
+Read-committed \(\eff{beginT}/\eff{commit}\) plus table \(\eff{getStudents}/\eff{putStudents}/\eff{getCourses}/\eff{putCourses}/\eff{getStudentEnrollments}/\eff{putStudentEnrollments}\) mirror Shopping's \(\eff{get}/\eff{put}\); enrollment API ops \(\eff{registerStudentReq}\), \(\eff{enrollStudentReq}\), etc., expand into \(\msgA{putStudentEnrollments}{\cdot}\) traces.
+
+\textbf{Weakened uHATs} (\texttt{courseware\_simp\_spec.ml}).
+Select uHATs shed strict ``bind to latest committed writer'' guardrails.
+
+\subsubsection*{Twitter (\texttt{MonkeyDB/twitter\_spec.ml})}
+\textbf{Explanation.}
+Follow-set \(\ell\) for user \(u\) is observed, then updated, then \(\msgA{selectFollows}{}\) reads a different set without an intervening \(\msgA{updateFollows}{\I{user}=u}\)---causal consistency violation.
+
+\textbf{Global property}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align}
+  & \allA \seqA \msgA{selectFollows}{\I{user}=u \land \I{follows}=\ell} \seqA
+    \SNegStar{\msgA{updateFollows}{\I{user}=u}} \seqA
+    \msgA{selectFollows}{\I{user}=u \land \neg(\I{follows}=\ell)} \seqA \allA
+    \tag{\(A_{\text{twitter}}\)}
+\end{align}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{uHATs}
+\(\eff{selectFollows}\), \(\eff{selectTweets}\) use MonkeyDB-style \(\I{prevTid}/\I{prevCid}\) readers; \(\eff{updateFollows}/\eff{updateTweets}\) commit writer traces; social ops \(\eff{newUserReq}/\eff{followReq}/\cdots\) desugar to those table events.
+
+\textbf{Weakened uHATs} (\texttt{twitter\_simp\_spec.ml}).
+\(\eff{select*}\) histories widen toward approximate reachability rather than transaction order.
+
+\subsubsection*{SmallBank (\texttt{MonkeyDB/smallbank\_spec.ml})}
+\textbf{Explanation.}
+Two reads of checking balance \(b\) for customer \(c\) with no \(\msgA{updateChecking}{\I{custid}=c}\) between disagree.
+
+\textbf{Global property}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align}
+  & \allA \seqA \msgA{selectChecking}{\I{custid}=c \land \I{balance}=b} \seqA
+    \SNegStar{\msgA{updateChecking}{\I{custid}=c}} \seqA
+    \msgA{selectChecking}{\I{custid}=c \land \neg(\I{balance}=b)} \seqA \allA
+    \tag{\(A_{\text{sb}}\)}
+\end{align}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{uHATs}
+\(\eff{selectAccounts}/\eff{selectSavings}/\eff{selectChecking}\) are read-committed; \(\eff{updateAccounts}/\eff{updateSavings}/\eff{updateChecking}\) are writers; scenario ops \(\eff{openAccountsReq}\), \(\eff{depositCheckingReq}\), etc., expand to those selects/updates per workflow.
+
+\textbf{Weakened uHATs} (\texttt{smallbank\_simp\_spec.ml}).
+Some goals shift to \(\msgA{updateSavings}{}/\msgA{selectSavings}{}\) pairs; selector histories are coarser.
+
+\subsection*{Table 2 (PBench models)}
+
+\subsubsection*{\texttt{p\_database} (\texttt{PBench/p\_database\_spec.ml})}
+\textbf{Explanation.}
+Read-your-writes: after a \texttt{writeRsp} with value \(x\), and no further \texttt{writeRsp} events, a successful \texttt{readRsp} (flag \(\mathit{st}\)) returns \(y\neq x\).
+
+\textbf{Global property}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align}
+  & \allA \seqA \msgA{writeRsp}{\I{va}=x} \seqA \SNegStar{\msgA{writeRsp}{\true}} \seqA
+    \msgA{readRsp}{\I{va}=y \land x \neq y \land \mathit{st}} \seqA \allA
+    \tag{\(A_{\text{db}}\)}
+\end{align}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{uHATs}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align*}
+  \eff{readReq} ~:~{}
+  & \effLR{\allA\seqA\msgA{writeReq}{\I{va}=x}\seqA\SNegStar{\msgA{writeReq}{\true}}}\,\Code{unit}\,\effLR{\msgA{readRsp}{\I{va}=x\land \mathit{st}}}
+    \ \text{(plus failing-read branch)}
+  \\
+  \eff{writeReq} ~:~{}
+  & \effLR{\allA}\,\Code{unit}\,\effLR{\msgA{writeReq}{\I{va}=x}\seqA\msgA{writeRsp}{\I{va}=x}}
+  \\
+  \eff{writeRsp} ~:~{}
+  & \effLR{\allA}\,\urt{\Code{int}}{\I{va}=x}\,\effLR{\empA}
+  \\
+  \eff{readRsp} ~:~{}
+  & \effLR{\allA}\,\urt{\Code{int}}{\I{va}=x \land \mathit{st}=s}\,\effLR{\empA}
+\end{align*}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{Weakened uHATs} (\texttt{p\_database\_simp\_spec.ml}).
+Payload constraints on \texttt{writeRsp} and \texttt{readRsp} observations simplify toward \texttt{true}.
+
+\subsubsection*{\texttt{p\_firewall} (\texttt{PBench/p\_firewall\_spec.ml})}
+\textbf{Explanation.}
+Internal session on node \(n\) succeeds, but an \texttt{eExternalRsp} on \(n\) reports failure (\(\neg\mathit{stat}\)).
+
+\textbf{Global property}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align}
+  & \SNegStarU{\msgA{eExternalReq}{\I{node}=n}}{\msgA{eForwardReq}{\I{node}=n}} \seqA
+    \msgA{eInternalReq}{\I{node}=n} \seqA \allA \seqA
+    \msgA{eExternalRsp}{\I{node}=n \land \neg\,\mathit{stat}} \seqA \allA
+    \tag{\(A_{\text{fw}}\)}
+\end{align}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{uHATs}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align*}
+  \eff{eStart} ~:~{}
+  & \effLR{\allA}\,\Code{unit}\,\effLR{\msgA{eStart}{\I{node}=n}\seqA\msgA{eInternalReq}{\I{node}=n}}
+  \\
+  \eff{eInternalReq} ~:~{}
+  & \effLR{\SNegStarUU{\msgA{eExternalReq}{\I{node}=n}}{\msgA{eInternalReq}{\I{node}=n}}{\msgA{eForwardReq}{\I{node}=n}}}\,\Code{unit}\,\effLR{\msgA{eForwardReq}{\I{node}=n}}
+  \\
+  \eff{eForwardReq} ~:~{}
+  & \effLR{\SNegStar{\msgA{eForwardReq}{\I{node}=n}}}\,\Code{unit}\,\effLR{\msgA{eExternalReq}{\I{node}=n}}
+  \\
+  \eff{eExternalReq} ~:~{}
+  & \text{(two branches from internal vs.\ foreign forwarding)}
+  \\
+  \eff{eExternalRsp} ~:~{}
+  & \effLR{\allA}\,\urt{\Code{bool}}{\mathit{stat} = s}\,\effLR{\empA}
+\end{align*}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{Weakened uHATs} (\texttt{p\_firewall\_simp\_spec.ml}).
+\(\eff{eExternalReq}\) branches merge; event guards simplify toward \texttt{true}.
+
+\subsubsection*{\texttt{p\_ringleaderelection} (\texttt{PBench/p\_ringleaderelection\_spec.ml})}
+\textbf{Explanation.}
+Two distinct \(\msgA{eWon}{}\) events announce incompatible leaders.
+
+\textbf{Global property}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align}
+  & \allA \seqA \msgA{eWon}{\mathit{leader}=\ell} \seqA \allA \seqA
+    \msgA{eWon}{\neg(\mathit{leader}=\ell)} \seqA \allA
+    \tag{\(A_{\text{ring}}\)}
+\end{align}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{uHATs}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align*}
+  \eff{eWakeup} ~:~{}
+  & \effLR{\SNegStar{\msgA{eWon}{\true}}}\,\Code{unit}\,\effLR{\msgA{eNominate}{\I{node}=n\land\mathit{leader}=n}}
+  \\
+  \eff{eNominate} ~:~{}
+  & \text{(elect self vs.\ forward nominate)}
+  \\
+  \eff{eWon} ~:~{}
+  & \effLR{\allA}\,\Code{unit}\,\effLR{\msgA{eWon}{\mathit{leader}=\ell}}
+\end{align*}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{Weakened uHATs} (\texttt{p\_ringleaderelection\_simp\_spec.ml}).
+Guards on \texttt{eWakeup} and \texttt{eWon} become \texttt{true}.
+
+\subsubsection*{\texttt{p\_bankserver} (\texttt{PBench/p\_bankserver\_spec.ml})}
+\textbf{Explanation.}
+Withdrawal response reports failure (\(\neg\mathit{status}\)) on account \(\I{ac}\).
+
+\textbf{Global property}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align}
+  & \allA \seqA \msgA{eWithDrawResp}{\I{accountId}=\I{ac} \land \neg\,\mathit{status}} \seqA \allA
+    \tag{\(A_{\text{bank}}\)}
+\end{align}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{uHATs}
+\(\eff{eInitAccount}\), \(\eff{eWithDrawReq}\), \(\eff{eWithDrawResp}\), \(\eff{eUpdateQuery}\), \(\eff{eReadQuery}\), \(\eff{eReadQueryResp}\) chain balance reads/updates; the successful-withdraw branch requires \(\I{balance}>\I{amount}\) in \(\msgA{eReadQueryResp}{}\), while insufficient funds omit \(\msgA{eUpdateQuery}{}\).
+
+\textbf{Weakened uHATs} (\texttt{p\_bankserver\_simp\_spec.ml}).
+Response/update qualifiers simplify and read-query branches widen.
+
+\subsubsection*{\texttt{p\_simplified2pc} (\texttt{PBench/p\_simplified2pc\_spec.ml})}
+\textbf{Explanation.}
+After a committed write response (value \(x\), success flag set), with no further write responses, a read returns a different value \(y\neq x\).
+
+\textbf{Global property}
+\vspace{-.35cm}\par\nobreak
+{\small\noindent
+Same SRE as \texttt{let[@goal] p\_simplified2pc} in \texttt{p\_simplified2pc\_spec.ml}: committed \texttt{WriteRsp}, Kleene gap excluding further \texttt{WriteRsp} with status, \texttt{ReadRsp} returning a mismatched value, then a Kleene suffix excluding \texttt{ReadRsp} and \texttt{WriteRsp}.%
+\par}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{uHATs}
+\(\eff{readReq}\) issues \texttt{getReq} then \texttt{readRsp}; \(\eff{writeReq}\) issues \texttt{putReq} then \texttt{putRsp} and then \texttt{writeRsp}, \texttt{commit}, or \texttt{abort} per branch; see spec for the two \(\eff{putRsp}\) outcomes.
+
+\textbf{Weakened uHATs} (\texttt{p\_simplified2pc\_simp\_spec.ml}).
+\(\eff{writeReq}\) drops non-negative value constraints; many \texttt{putRsp}, \texttt{writeRsp}, and \texttt{readRsp} payload tests become \texttt{true}.
+
+\subsubsection*{\texttt{p\_heartbeat} (\texttt{PBench/p\_heartbeat\_spec.ml})}
+\textbf{Explanation.}
+An \texttt{eNotifyNodesDown} appears with no surrounding \texttt{eShutDown}---false failure alarm.
+
+\textbf{Global property}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align}
+  & \SNegStar{\msgA{eShutDown}{\true}} \seqA \msgA{eNotifyNodesDown}{\true} \seqA \SNegStar{\msgA{eShutDown}{\true}}
+    \tag{\(A_{\text{hb}}\)}
+\end{align}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{uHATs}
+Detector \(\eff{eStart}\rightarrow\msgA{ePing}{}\), node \(\eff{ePing}\rightarrow\msgA{ePong}{}\), \(\eff{eNetworkError}\rightarrow\msgA{ePongLost}{}\) with trial-indexed retries; \(\eff{ePongLost}\) may chain \(\msgA{ePing}{}\) or finalize with \(\msgA{eNotifyNodesDown}{}\).
+
+\textbf{Weakened uHATs} (\texttt{p\_heartbeat\_simp\_spec.ml}).
+Trial-level structure remains but conditions soften.
+
+\subsubsection*{\texttt{p\_chainreplication} (\texttt{PBench/p\_chainreplication\_spec.ml})}
+\textbf{Explanation.}
+Write \(\I{key}=k,\I{va}=x\) completes (\(\msgA{writeRsp}{}\)), then a successful read (\(\mathit{st}\)) returns \(y\neq x\).
+
+\textbf{Global property}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align}
+  & \allA \seqA \msgA{writeReq}{\I{key}=k \land \I{va}=x} \seqA
+    \SNegStar{\msgA{writeRsp}{\true}} \seqA
+    \msgA{readRsp}{\I{key}=k \land \I{va}=y \land y \neq x \land \mathit{st}} \seqA
+    \SNegStar{\msgA{writeRsp}{\true}}
+    \tag{\(A_{\text{chain}}\)}
+\end{align}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{uHATs}
+\(\eff{writeReq}\rightarrow\msgA{writeToMid}{}\rightarrow\msgA{writeToTail}{}\rightarrow\msgA{writeRsp}{}\); \(\eff{readReq}\) has five histories (tail crash vs.\ propagation); \(\eff{crashTail}\) interrupts ordering.
+
+\textbf{Weakened uHATs} (\texttt{p\_chainreplication\_simp\_spec.ml}).
+\(\eff{readReq}\) collapses to fewer success/failure skeletons.
+
+\subsubsection*{\texttt{p\_paxos} (\texttt{PBench/p\_paxos\_spec.ml})}
+\textbf{Explanation.}
+Learner observes \(\msgA{eLearn}{\I{va}=x}\) and later \(\msgA{eLearn}{\I{va}=y}\) with \(x\neq y\).
+
+\textbf{Global property}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align}
+  & \allA \seqA \msgA{eLearn}{\I{va}=x} \seqA \allA \seqA
+    \msgA{eLearn}{\I{va}=y \land x \neq y} \seqA \allA
+    \tag{\(A_{\text{paxos}}\)}
+\end{align}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{uHATs}
+Full proposer/acceptor choreography (\(\eff{eStart}\), \(\eff{ePrepareReq}/\eff{ePrepareRsp}\), \(\eff{eAcceptReq}/\eff{eAcceptRsp}\), with message-loss variants) concludes in \(\msgA{eLearn}{}\); see \texttt{p\_paxos\_spec.ml}.
+
+\textbf{Weakened uHATs} (\texttt{p\_paxos\_simp\_spec.ml}).
+Prepare/accept branches merge; many payload tests become \texttt{true}.
+
+\subsubsection*{\texttt{p\_raft} (\texttt{PBench/p\_raft\_spec.ml})}
+\textbf{Explanation.}
+Node \(n_1\) appends \(x\), becomes leader, then a different leader \(n_2\) arises with votes filtered out.
+
+\textbf{Global property}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align}
+  & \allA \seqA \msgA{eAppendEntry}{\I{node}=n_1 \land \I{va}=x} \seqA \allA \seqA
+    \msgA{eBecomeLeader}{\mathit{leader}=n_1 \land n_1 \neq n_2} \seqA \allA \seqA
+    \msgA{eBecomeLeader}{\mathit{leader}=n_2} \seqA
+    \SNegStarUU{\msgA{eBecomeLeader}{\true}}{\msgA{eVoteReq}{\true}}{\msgA{eVoteRsp}{\true}}
+    \tag{\(A_{\text{raft}}\)}
+\end{align}}
+\vspace{-.4cm}\par\nobreak\noindent
+\textbf{uHATs}
+\(\eff{eClientPut}\) fans out \(\msgA{eAppendEntry}{}\) to both nodes; \(\eff{eShutDown}/\eff{eTimeout}/\eff{eVoteReq}/\eff{eVoteRsp}\) drive \(\msgA{eBecomeLeader}{}\).
+
+\textbf{Weakened uHATs} (\texttt{p\_raft\_simp\_spec.ml}).
+Most payloads become \texttt{true} while vote-control branching stays.
+
+\subsubsection*{\texttt{p\_anonreadatomicity} (\texttt{PBench/p\_anonreadatomicity\_spec.ml})}
+\textbf{Explanation.}
+Within txn \(\I{id}\) on key \(k\), \(\msgA{eUpdateRsp}{}\) commits \(v_1\) (\(\I{ok}(\I{status})\), \(v_1\neq v_2\)), no further \(\I{ok}\) update responses on \((\I{id},k)\), then \(\msgA{eReadRsp}{}\) returns the other value \(v_2\).
+
+\textbf{Global property}
+\vspace{-.35cm}\par\nobreak{\small
+\begin{align}
+  & \allA \seqA
+    \msgA{eUpdateRsp}{\I{gid}=\I{id} \land \I{key}=k \land \I{value}=v_1 \land v_1 \neq v_2 \land \textit{ok}(\I{status})} \seqA
+    \SNegStar{\msgA{eUpdateRsp}{\I{gid}=\I{id} \land \I{key}=k \land \textit{ok}(\I{status})}} \seqA
+    \msgA{eReadRsp}{\I{gid}=\I{id} \land \I{key}=k \land \I{value}=v_2 \land v_2 \neq v_1 \land \textit{ok}(\I{status})} \seqA \allA
+    \tag{\(A_{\text{anon}}\)}
+\end{align}}
+\vspace{-.4cm}\par\nobreak\noindent
+(\texttt{starA anyA} prefixes/suffixes in the spec match unrestricted \(\allA\) here.)
+
+\textbf{uHATs}
+Router/shard protocol: \(\eff{eStartTxnReq}\), \(\eff{eReadReq}\), \(\eff{eReadRsp}\), \(\eff{eUpdateReq}\), \(\eff{eUpdateRsp}\), commit/rollback, and \(\msgA{eShard*}{}\) internal steps as in the large spec file.
+
+\textbf{Weakened uHATs} (\texttt{p\_anonreadatomicity\_simp\_spec.ml}).
+Many response/shard guards become \texttt{true}; read/update shard requests merge.

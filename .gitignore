@@ -48,3 +48,7 @@ _opam/
 scripts/__pycache__/
 .claude/
 main.exe
+
+# LaTeX minted cache; local rules note
+doc/_minted/
+doc/rule.md
